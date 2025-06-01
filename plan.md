@@ -1,78 +1,79 @@
-# HireCJ WebSocket Connection Debug Progress
+# HireCJ Project Plan
 
-## Progress Update (2025-05-30)
+## Project Overview
 
-### Issues Fixed
-1. **Workflow Name Mismatch**
-   - Fixed: `daily_brief` → `daily_briefing` across frontend components
-   - Files updated:
-     - `/client/src/components/ConfigurationModal.tsx`
-     - `/client/src/hooks/useWebSocketChat.ts`
-     - `/client/src/pages/SlackChat.tsx`
+HireCJ is an AI-powered customer support agent designed to autonomously handle 60-80% of e-commerce customer inquiries while providing actionable insights to founders.
 
-2. **Backend UniverseDataAgent Bug**
-   - Fixed initialization expecting (merchant_name, scenario_name) but receiving (universe_path)
-   - File updated: `/hirecj-data/app/services/session_manager.py`
+## Design Philosophy
 
-3. **WebSocket Hook Circular Dependency**
-   - Fixed infinite reconnection loop caused by `connect` function in useEffect dependencies
-   - Removed `state.connectionState` from connect callback dependencies
-   - File updated: `/client/src/hooks/useWebSocketChat.ts`
+**"Simplify, Simplify, Simplify" means:**
+- Don't add features we don't need yet
+- Don't create abstractions for hypothetical use cases
+- Build for current requirements, not imagined futures
 
-4. **WebPlatform AttributeError**
-   - Fixed `'WebPlatform' object has no attribute 'conversation_bridge'` error
-   - Replaced all conversation_bridge references with proper session_manager usage
-   - File updated: `/hirecj-data/src/platforms/web_platform.py`
+**It does NOT mean:**
+- Remove existing functionality that serves a purpose
+- Strip out features that are already implemented and working
+- Oversimplify to the point of losing capabilities
 
-### Remaining Issues
-1. **WebSocket Connection Works!**
-   - ✅ Fixed AttributeError by removing non-existent `get_briefing()` method
-   - ✅ Fixed MessageProcessor parameter name (`text` → `message`)
-   - ✅ Fixed response handling (string vs dictionary)
-   - ✅ WebSocket now successfully connects and delivers initial CJ messages
+### Architecture
+- **hirecj-data**: Backend service for synthetic conversation generation and API
+- **hirecj-homepage**: Frontend marketing site with interactive chat demo
+- **hirecj-knowledge**: Knowledge management system (appears to contain LightRAG integration)
 
-2. **Browser Caching**
-   - Despite cache being disabled, browser persists old JavaScript
-   - Required clearing Vite cache manually
-   - May need to investigate Vite HMR configuration
+### Key Technologies
+- Backend: FastAPI, CrewAI, LiteLLM
+- Frontend: React 18, TypeScript, Tailwind CSS
+- Models: GPT-4, Claude 3.5 Sonnet
+- Communication: WebSocket for real-time chat
 
-3. **Server Stability**
-   - Backend server occasionally crashes
-   - Frontend server sometimes doesn't start properly with `make dev`
-   - Need to improve error handling in dev.py script
+## Makefile Cleanup Plan
 
-## Summary of All Fixes
+The current Makefile in hirecj-data needs reorganization. Here's the plan:
 
-### Frontend Fixes
-1. **useWebSocketChat.ts**
-   - Removed circular dependency by removing `connect` from useEffect dependencies
-   - Removed hardcoded `daily_brief` → `daily_briefing` conversion
-   - Fixed state management to prevent infinite reconnection loops
+### Issues Identified
+1. **Server confusion**: Two different servers (`server` and `server-src`) both run on port 8000
+2. **Command organization**: Commands are mixed without clear categorization
+3. **Documentation**: Help text could be clearer about which server to use when
+4. **Redundancy**: Some commands could be consolidated
 
-2. **Component Updates**
-   - ConfigurationModal.tsx: Updated workflow name to `daily_briefing`
-   - SlackChat.tsx: Updated all workflow references to `daily_briefing`
+### Proposed Changes
 
-### Backend Fixes
-1. **web_platform.py**
-   - Removed all `conversation_bridge` references (didn't exist)
-   - Replaced with proper `session_manager` usage
-   - Fixed `get_briefing()` call (method didn't exist)
-   - Fixed MessageProcessor parameters (`text` → `message`)
-   - Fixed response handling (string vs dictionary conversion)
+#### 1. Clarify Server Commands
+```makefile
+# Primary API server (for web chat and frontend integration)
+dev:
+	@echo "Starting HireCJ API Server on http://localhost:8000"
+	@echo "This is the main server for frontend integration"
+	venv/bin/python -m src.api.server
 
-2. **session_manager.py**
-   - Fixed UniverseDataAgent initialization with correct parameters
+# Synthetic conversation generator (for testing/development)
+dev-generator:
+	@echo "Starting Conversation Generator Server on http://localhost:8001"
+	@echo "This is for generating synthetic conversations"
+	venv/bin/python -m app.main
+```
 
-## Current Status
-✅ WebSocket connection now works end-to-end
-✅ Frontend connects successfully to backend
-✅ CJ agent generates proper initial messages for daily_briefing workflow
-✅ Messages flow correctly between frontend and backend
+#### 2. Reorganize Commands by Category
+- **Setup**: install, clean, format, lint
+- **Development**: dev, dev-generator, dev-shell
+- **Testing**: test, test-api, test-cj (with subcategories)
+- **Tools**: conversation, generate-universe, annotate
+- **Interactive**: play, conversation-play
 
-## Test Results
-Successfully tested WebSocket connection:
-- Connection established
-- Conversation started with proper metadata
-- Initial CJ daily briefing message generated and delivered
-- Response format matches frontend expectations
+#### 3. Simplify Test Commands
+Consolidate similar test commands and use clear naming:
+- `test` - Run all tests
+- `test-quick` - Run tests with mock evaluator
+- `test-cj` - Run CJ behavior tests only
+- `test-api` - Run API tests only
+- `test-single TEST=<file>` - Run single test
+
+#### 4. Remove Docker Commands
+The Docker commands (dev-run, dev-shell, etc.) delegate to local/Makefile, which should be handled directly there.
+
+## Next Steps
+1. Create new simplified Makefile
+2. Update documentation to clarify which server to use
+3. Ensure all commands work with the new structure
+4. Update README files to reflect changes

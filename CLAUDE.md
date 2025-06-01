@@ -1,6 +1,22 @@
+## ⚠️ CRITICAL: Definition of Success
+
+**Success is NOT just completing the task.**
+
+Success is completing the task **elegantly and completely** according to our North Star Principles. 
+
+- ❌ Shortcuts = FAILURE
+- ❌ Half-measures = FAILURE  
+- ❌ Compatibility shims = FAILURE
+- ❌ "Good enough" = FAILURE
+
+**Only elegant, complete solutions that fully embody our principles count as success.**
+
 ## 🌟 North Star Principles
 
 1. **Simplify, Simplify, Simplify**: Every decision should make the code simpler, not more complex
+   - This means: Don't add features we don't need yet
+   - This does NOT mean: Remove existing requirements or functionality
+   - Keep what's needed, remove what's not
 2. **No Cruft**: Remove all redundant code, validation, and unnecessary complexity
 3. **Break It & Fix It Right**: No backwards compatibility shims - make breaking changes and migrate properly
 4. **Long-term Elegance**: Choose performant, compiler-enforced solutions that prevent subtle bugs

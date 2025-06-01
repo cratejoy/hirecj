@@ -203,6 +203,11 @@ This project uses a YAML-first architecture for the backend:
 - Use the existing test framework for new features
 - Follow the established patterns in both frontend and backend
 
+### Design Philosophy
+- **Simplify, Simplify, Simplify**: Don't add features we don't need yet, but don't remove existing functionality
+- **Keep What's Needed**: Preserve all requirements and features that serve a purpose
+- **No Over-Engineering**: Build for current needs, not hypothetical futures
+
 ## 📄 License
 
 [License details to be added]
