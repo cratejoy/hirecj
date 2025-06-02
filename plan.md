@@ -72,8 +72,51 @@ Consolidate similar test commands and use clear naming:
 #### 4. Remove Docker Commands
 The Docker commands (dev-run, dev-shell, etc.) delegate to local/Makefile, which should be handled directly there.
 
+## LLM Data Agent Implementation
+
+### Discovery: Tools Use Data Agent
+Initially thought tools accessed files directly, but actually:
+1. CJ Agent creates a UniverseDataAgent during initialization
+2. Tools are created with this data agent reference
+3. Each tool calls methods on the data agent
+
+```python
+# The actual flow:
+data_agent = UniverseDataAgent(merchant_name, scenario_name)
+cj = CJAgent(..., data_agent=data_agent)
+tools = create_universe_tools(self.data_agent)
+
+# Tools are closures that capture the data_agent
+@tool
+def get_support_dashboard():
+    data = data_agent.get_support_dashboard()
+    return formatted_output
+```
+
+### Elegant Solution: Inherit from UniverseDataAgent
+**Before**: Separate server, HTTP calls, new caching, ~500+ lines of code  
+**After**: Simple inheritance, reuse everything, ~100 lines of code
+
+The revised approach:
+1. **Inherits from UniverseDataAgent** - same interface, zero changes needed
+2. **Uses existing Redis** - no new caching system
+3. **Uses existing model config** - no hardcoded models
+4. **Uses existing prompt loader** - no new infrastructure
+5. **One line integration** - just a config check in create_cj_agent
+
+```python
+# Simple integration
+if use_llm_data:
+    data_agent = LLMDataAgent(merchant_name, scenario_name)
+else:
+    data_agent = UniverseDataAgent(merchant_name, scenario_name)
+```
+
+This is true elegance - adding a feature with minimal new code by maximizing leverage of existing conventions and infrastructure.
+
 ## Next Steps
 1. Create new simplified Makefile
 2. Update documentation to clarify which server to use
 3. Ensure all commands work with the new structure
 4. Update README files to reflect changes
+5. Implement LLMDataAgent as UniverseDataAgent subclass
