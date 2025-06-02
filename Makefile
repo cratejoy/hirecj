@@ -1,68 +1,129 @@
-.PHONY: dev dev-backend dev-frontend install kill-ports stop help
+.PHONY: help install-all dev test-all clean status
 
 # Default target
 help:
-	@echo "HireCJ Development Commands:"
-	@echo "  make dev          - Run both backend and frontend with auto-reload"
-	@echo "  make dev-backend  - Run only backend with auto-reload"
-	@echo "  make dev-frontend - Run only frontend"
-	@echo "  make install      - Install all dependencies"
-	@echo "  make stop         - Stop all HireCJ servers and free ports"
-	@echo "  make kill-ports   - Kill processes on ports 5001 and 3456"
-	@echo "  make logs         - Tail backend logs"
-	@echo "  make test-backend - Run backend tests"
+	@echo "HireCJ Monorepo Commands:"
+	@echo "  make install-all    - Install dependencies for all components"
+	@echo "  make dev           - Start all services in development mode"
+	@echo "  make test-all      - Run tests across all components"
+	@echo "  make clean         - Clean build artifacts and caches"
+	@echo "  make status        - Show status of all components"
+	@echo "  make health-check  - Check health of all services"
 
-# Run both servers
-dev:
-	@echo "Starting HireCJ development servers..."
-	@./dev.py
-
-# Run backend only with auto-reload
-dev-backend:
-	@echo "Starting backend API server with auto-reload..."
-	@cd hirecj-data && \
-	source venv/bin/activate && \
-	export PORT=5001 && \
-	python -m uvicorn src.api.server:app --host 0.0.0.0 --port 5001 --reload
-
-# Run frontend only
-dev-frontend:
-	@echo "Starting frontend server..."
-	@cd hirecj-homepage && npm run dev
-
-# Install all dependencies
-install:
-	@echo "Installing backend dependencies..."
-	@cd hirecj-data && \
-	python -m venv venv && \
-	source venv/bin/activate && \
-	pip install -r requirements.txt && \
-	pip install -r requirements-dev.txt
-	@echo "Installing frontend dependencies..."
-	@cd hirecj-homepage && npm install
+# Install dependencies for all components
+install-all:
+	@echo "📦 Installing dependencies for all HireCJ components..."
+	@if [ -d "hirecj-agents" ]; then \
+		echo "Installing hirecj-agents dependencies..."; \
+		cd hirecj-agents && make install; \
+	fi
+	@if [ -d "hirecj-homepage" ]; then \
+		echo "Installing hirecj-homepage dependencies..."; \
+		cd hirecj-homepage && npm install; \
+	fi
+	@if [ -d "hirecj-knowledge" ]; then \
+		echo "Installing hirecj-knowledge dependencies..."; \
+		cd hirecj-knowledge && make install; \
+	fi
 	@echo "✅ All dependencies installed!"
 
-# Stop all HireCJ servers
-stop:
-	@echo "Stopping all HireCJ servers..."
-	@echo "Killing processes on ports 5001 and 3456..."
-	@lsof -ti:5001 | xargs kill -9 2>/dev/null || true
-	@lsof -ti:3456 | xargs kill -9 2>/dev/null || true
-	@echo "Killing any remaining Python/Node processes for HireCJ..."
-	@ps aux | grep -E "(hirecj|uvicorn.*5001|tsx.*3456)" | grep -v grep | awk '{print $$2}' | xargs kill -9 2>/dev/null || true
-	@echo "✅ All HireCJ servers stopped!"
+# Start all services in development mode
+dev:
+	@echo "🚀 Starting HireCJ development environment..."
+	@if [ -f "dev.py" ]; then \
+		python dev.py; \
+	else \
+		echo "Development runner not found. Starting services individually..."; \
+		$(MAKE) dev-agents & \
+		$(MAKE) dev-homepage & \
+		wait; \
+	fi
 
-# Kill processes on dev ports
-kill-ports:
-	@echo "Killing processes on ports 5001 and 3456..."
-	@lsof -ti:5001 | xargs kill -9 2>/dev/null || true
-	@lsof -ti:3456 | xargs kill -9 2>/dev/null || true
-	@echo "✅ Ports cleared!"
+# Start individual services
+dev-agents:
+	@if [ -d "hirecj-agents" ]; then \
+		cd hirecj-agents && make dev; \
+	fi
 
-# Tail backend logs
-logs:
-	@tail -f hirecj-data/logs/hirecj-backend.log
+dev-homepage:
+	@if [ -d "hirecj-homepage" ]; then \
+		cd hirecj-homepage && npm run dev; \
+	fi
 
-# Run backend tests
-test-backend:
-	@cd hirecj-data && make test
+dev-knowledge:
+	@if [ -d "hirecj-knowledge" ]; then \
+		cd hirecj-knowledge && make dev; \
+	fi
+
+# Run tests across all components
+test-all:
+	@echo "🧪 Running tests for all HireCJ components..."
+	@if [ -d "hirecj-agents" ]; then \
+		echo "Testing hirecj-agents..."; \
+		cd hirecj-agents && make test; \
+	fi
+	@if [ -d "hirecj-homepage" ]; then \
+		echo "Testing hirecj-homepage..."; \
+		cd hirecj-homepage && npm test; \
+	fi
+	@if [ -d "hirecj-knowledge" ]; then \
+		echo "Testing hirecj-knowledge..."; \
+		cd hirecj-knowledge && make test; \
+	fi
+	@echo "✅ All tests completed!"
+
+# Clean build artifacts and caches
+clean:
+	@echo "🧹 Cleaning build artifacts and caches..."
+	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+	@find . -name "*.pyc" -delete 2>/dev/null || true
+	@find . -name "node_modules" -type d -exec rm -rf {} + 2>/dev/null || true
+	@find . -name "dist" -type d -exec rm -rf {} + 2>/dev/null || true
+	@find . -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
+	@find . -name ".cache" -type d -exec rm -rf {} + 2>/dev/null || true
+	@echo "✅ Cleanup completed!"
+
+# Show status of all components
+status:
+	@echo "📊 HireCJ Component Status:"
+	@echo "========================="
+	@if [ -d "hirecj-agents" ]; then \
+		echo "✅ hirecj-agents: Available"; \
+	else \
+		echo "❌ hirecj-agents: Not found"; \
+	fi
+	@if [ -d "hirecj-homepage" ]; then \
+		echo "✅ hirecj-homepage: Available"; \
+	else \
+		echo "❌ hirecj-homepage: Not found"; \
+	fi
+	@if [ -d "hirecj-knowledge" ]; then \
+		echo "✅ hirecj-knowledge: Available"; \
+	else \
+		echo "❌ hirecj-knowledge: Not found"; \
+	fi
+	@if [ -d "third-party" ]; then \
+		echo "✅ third-party: Available"; \
+	else \
+		echo "❌ third-party: Not found"; \
+	fi
+
+# Health check for all services
+health-check:
+	@echo "🏥 Running health checks..."
+	@echo "Checking if ports are available..."
+	@if lsof -i:5001 > /dev/null 2>&1; then \
+		echo "⚠️  Port 5001 (agents backend) is in use"; \
+	else \
+		echo "✅ Port 5001 is available"; \
+	fi
+	@if lsof -i:3456 > /dev/null 2>&1; then \
+		echo "⚠️  Port 3456 (homepage frontend) is in use"; \
+	else \
+		echo "✅ Port 3456 is available"; \
+	fi
+	@if lsof -i:8000 > /dev/null 2>&1; then \
+		echo "⚠️  Port 8000 (knowledge service) is in use"; \
+	else \
+		echo "✅ Port 8000 is available"; \
+	fi
