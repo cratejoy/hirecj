@@ -71,7 +71,7 @@ cd {BACKEND_DIR}
 export PORT={BACKEND_PORT}
 
 # Run uvicorn with auto-reload
-python -m uvicorn src.api.server:app --host 0.0.0.0 --port {BACKEND_PORT} --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port {BACKEND_PORT} --reload
 """
     
     wrapper_path = BACKEND_DIR / ".dev_backend_wrapper.sh"
@@ -92,7 +92,7 @@ python -m uvicorn src.api.server:app --host 0.0.0.0 --port {BACKEND_PORT} --relo
     return process
 
 def run_frontend():
-    """Run the frontend server"""
+    """Run the frontend server with Vite"""
     print_colored(Colors.FRONTEND, "[FRONTEND]", f"Starting on port {FRONTEND_PORT}...")
     
     process = subprocess.Popen(
@@ -101,8 +101,7 @@ def run_frontend():
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         universal_newlines=True,
-        bufsize=1,
-        env={**os.environ, "NODE_ENV": "development"}
+        bufsize=1
     )
     
     return process
