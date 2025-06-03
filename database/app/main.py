@@ -38,10 +38,35 @@ app = FastAPI(
     debug=settings.debug
 )
 
+# Build allowed origins from configuration
+allowed_origins = [
+    settings.frontend_url,
+    settings.auth_url,
+    # Always allow localhost for development
+    "http://localhost:3456",
+    "http://localhost:8000", 
+    "http://localhost:8103",
+    "http://localhost:8002",
+]
+
+# Add public URLs if configured
+if settings.public_url:
+    allowed_origins.append(settings.public_url)
+
+# Add reserved domains if detected
+if "hirecj.ai" in settings.frontend_url:
+    allowed_origins.extend([
+        "https://amir.hirecj.ai",
+        "https://amir-auth.hirecj.ai",
+    ])
+
+# Remove duplicates and empty strings
+allowed_origins = list(set(filter(None, allowed_origins)))
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

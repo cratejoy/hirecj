@@ -1,7 +1,10 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from 'node:url';
 import { type Server } from "http";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -17,7 +20,6 @@ export function log(message: string, source = "express") {
 export async function setupVite(app: Express, server: Server) {
   // Dynamic import to avoid loading vite in production
   const { createServer: createViteServer, createLogger } = await import("vite");
-  const viteConfig = await import("../vite.config");
   const { nanoid } = await import("nanoid");
   
   const viteLogger = createLogger();
@@ -29,8 +31,7 @@ export async function setupVite(app: Express, server: Server) {
   };
 
   const vite = await createViteServer({
-    ...viteConfig.default,
-    configFile: false,
+    configFile: path.resolve(__dirname, '..', 'vite.config.ts'),
     customLogger: {
       ...viteLogger,
       error: (msg, options) => {
@@ -48,7 +49,7 @@ export async function setupVite(app: Express, server: Server) {
 
     try {
       const clientTemplate = path.resolve(
-        import.meta.dirname,
+        __dirname,
         "..",
         "index.html",
       );
@@ -73,7 +74,7 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+  const distPath = path.resolve(__dirname, "..", "dist", "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(

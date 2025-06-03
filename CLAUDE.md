@@ -31,3 +31,11 @@ Success is completing the task **elegantly and completely** according to our Nor
 ## 🤖 Operational Guidelines
 
 - When the server needs to be restarted simply stop and ask me to do it.
+- **No Magic Values**: Never hardcode values inline. Use named constants, configuration, or explicit parameters
+  - ❌ `if count > 10:` 
+  - ✅ `if count > MAX_RETRIES:`
+- **No Unsolicited Optimizations**: Only implement what was explicitly requested
+  - Don't add caching unless asked
+  - Don't optimize algorithms unless asked
+  - Don't refactor unrelated code unless asked
+  - If you see an opportunity for improvement, mention it but don't implement it

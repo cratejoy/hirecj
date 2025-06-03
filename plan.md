@@ -86,6 +86,50 @@
 
 **Completed**: 2025-06-03 10:02 AM (Duration: 25 minutes)
 
+### ✅ Phase 5.5: Ngrok Integration (35 min) - COMPLETE
+### ✅ Phase 5.6: Homepage Import Resolution Fix (10 min) - COMPLETE
+**Fixed Vite module resolution issues**
+- ✅ Updated vite.config.ts to use fileURLToPath instead of import.meta.dirname
+- ✅ Fixed server/vite.ts to properly load vite config file
+- ✅ Updated tsconfig.json paths to match actual directory structure
+- ✅ Resolved "@/components", "@/pages" import errors
+
+**Completed**: 2025-06-03 11:30 AM (Duration: 10 minutes)
+
+### ✅ Phase 5.5: Ngrok Integration (35 min) - COMPLETE
+**Implemented tunnel support for HTTPS development**
+- ✅ Created ngrok configuration files (ngrok.yml.amir with reserved domains)
+- ✅ Updated .gitignore to exclude tunnel files
+- ✅ Added tunnel management commands to Makefile
+- ✅ Created shared/detect_tunnels.py for automatic URL detection
+- ✅ Updated all Python service configs with tunnel support
+- ✅ Fixed CORS to use detected URLs instead of wildcards
+- ✅ Updated homepage vite.config.ts for proper HMR with ngrok
+- ✅ Added ngrok-skip-browser-warning headers to frontend API calls
+
+**Completed**: 2025-06-03 10:45 AM (Duration: 35 minutes)
+
+**Usage**:
+```bash
+# One-time setup
+cp .env.ngrok.example .env.ngrok
+# Edit .env.ngrok and add your authtoken
+
+# For Amir (with reserved domains)
+cp ngrok.yml.amir ngrok.yml
+make dev-tunnels-tmux
+
+# URLs:
+# - https://amir.hirecj.ai (homepage)
+# - https://amir-auth.hirecj.ai (auth)
+# - https://[random].ngrok-free.app (other services)
+```
+
+**Configuration**:
+- Authtoken stored in `.env.ngrok` (gitignored)
+- Developers copy `.env.ngrok.example` and add their token
+- Makefile checks for `.env.ngrok` and provides clear error if missing
+
 ### ☐ Phase 6: Heroku Setup & Deploy (45 min)
 **Deploy only after local works perfectly**
 - ☐ Add Heroku git remotes:

@@ -61,6 +61,9 @@ class Settings(BaseSettings):
         env="OAUTH_REDIRECT_BASE_URL"
     )
     
+    # Public URL Configuration
+    public_url: str = Field("", env="PUBLIC_URL")
+    
     # Frontend URLs (for redirects after auth)
     frontend_url: str = Field(
         "http://localhost:3456",
@@ -84,7 +87,7 @@ class Settings(BaseSettings):
     
     # CORS Configuration
     allowed_origins: list[str] = Field(
-        ["http://localhost:3456", "http://localhost:8000"],
+        default_factory=list,
         env="ALLOWED_ORIGINS"
     )
     
@@ -111,7 +114,13 @@ class Settings(BaseSettings):
             try:
                 with open(tunnel_env_path) as f:
                     for line in f:
-                        if line.startswith("TUNNEL_URL="):
+                        # Also check OAUTH_REDIRECT_BASE_URL for auth service
+                        if line.startswith("OAUTH_REDIRECT_BASE_URL="):
+                            tunnel_url = line.split("=", 1)[1].strip()
+                            if tunnel_url:
+                                logger.info(f"📡 Using detected tunnel URL: {tunnel_url}")
+                                return tunnel_url
+                        elif line.startswith("PUBLIC_URL="):
                             tunnel_url = line.split("=", 1)[1].strip()
                             if tunnel_url:
                                 logger.info(f"📡 Using detected tunnel URL: {tunnel_url}")
@@ -123,6 +132,48 @@ class Settings(BaseSettings):
         default_url = f"http://localhost:{values.get('app_port', 8003)}"
         logger.info(f"Using default redirect URL: {default_url}")
         return default_url
+    
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def build_allowed_origins(cls, v, info) -> list[str]:
+        """Build allowed origins list including tunnel URLs."""
+        origins = set(v) if v else set()
+        
+        # Always include localhost origins
+        origins.update([
+            "http://localhost:3456",
+            "http://localhost:8000",
+            "http://localhost:8103",
+            "http://localhost:8002",
+        ])
+        
+        # Get values from ValidationInfo
+        values = info.data if hasattr(info, 'data') else {}
+        
+        # Add frontend URL if set
+        frontend_url = values.get("frontend_url")
+        if frontend_url:
+            origins.add(frontend_url)
+        
+        # Add public URL if set
+        public_url = values.get("public_url")
+        if public_url:
+            origins.add(public_url)
+        
+        # Add OAuth redirect URL if set
+        oauth_url = values.get("oauth_redirect_base_url")
+        if oauth_url and not oauth_url.startswith("http://localhost"):
+            origins.add(oauth_url)
+        
+        # Add reserved domains if detected
+        if frontend_url and "hirecj.ai" in frontend_url:
+            origins.update([
+                "https://amir.hirecj.ai",
+                "https://amir-auth.hirecj.ai",
+            ])
+        
+        # Filter out empty strings and return as list
+        return list(filter(None, origins))
     
     def get_oauth_callback_url(self, provider: str) -> str:
         """Get the full OAuth callback URL for a provider."""

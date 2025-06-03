@@ -85,7 +85,22 @@ export function useWebSocketChat({
   const sendTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Use environment variable with fallback to backend default port
-  const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000';
+  const WS_BASE_URL = useMemo(() => {
+    // First check for explicit WebSocket URL
+    if (import.meta.env.VITE_WS_BASE_URL) {
+      return import.meta.env.VITE_WS_BASE_URL;
+    }
+    
+    // If we have a public URL (from ngrok), convert it to WebSocket URL
+    if (import.meta.env.VITE_PUBLIC_URL) {
+      const publicUrl = import.meta.env.VITE_PUBLIC_URL;
+      // Convert https:// to wss:// or http:// to ws://
+      return publicUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+    }
+    
+    // Default to localhost
+    return 'ws://localhost:8000';
+  }, []);
   
   // Update onError ref when it changes
   useEffect(() => {
