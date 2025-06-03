@@ -1,0 +1,1 @@
+"""HireCJ Auth Service - Authentication and OAuth management."""

@@ -1,0 +1,4 @@
+# Development dependencies
+honcho==1.1.0
+httpx==0.26.0  # For tunnel detection
+python-dotenv==1.1.0

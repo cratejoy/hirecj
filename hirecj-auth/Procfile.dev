@@ -1,0 +1,5 @@
+# Development processes managed by honcho
+# The startup script waits for tunnel then starts the server
+# Using port 8103 for auth service (avoid conflicts with other services)
+web: scripts/startup.sh python -m uvicorn app.main:app --host 0.0.0.0 --port 8103 --reload
+tunnel: ngrok http 8103 --domain=${NGROK_DOMAIN} --log=stdout --log-level=info
