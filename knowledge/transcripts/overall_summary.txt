@@ -1,0 +1,7 @@
+Analyzed files:
+
+- /Users/aelaguiz/workspace/amirbot/CMakeLists.txt
+
+Overall summary:
+
+This project is a C++ application that utilizes three custom libraries: OMPEval, pokerkit, and amirbot. The CMake configuration sets up the project structure, defines the necessary dependencies, and creates an executable named 'main' that incorporates these libraries. The project appears to be related to poker or game development, given the names of the libraries used. It demonstrates a modular approach to software development by separating functionality into distinct libraries and then combining them in the main application.

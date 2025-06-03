@@ -1,0 +1,1 @@
+"""HireCJ Knowledge service - LightRAG-based knowledge graph for querying transcripts and documents."""
