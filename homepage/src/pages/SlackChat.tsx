@@ -3,6 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import { useChat } from '@/hooks/useChat';
 import { useWebSocketChat } from '@/hooks/useWebSocketChat';
+import { useOAuthCallback } from '@/hooks/useOAuthCallback';
 import DemoScriptFlow from '@/components/DemoScriptFlow';
 import { ConfigurationModal } from '@/components/ConfigurationModal';
 import { ChatInterface } from '@/components/ChatInterface';
@@ -117,6 +118,55 @@ const SlackChat = () => {
 	const messages = isRealChat ? wsChat.messages : demoChat.messages;
 	const isTyping = isRealChat ? wsChat.isTyping : demoChat.isTyping;
 	const handleSendMessage = isRealChat ? wsChat.sendMessage : demoChat.handleSendMessage;
+	
+	// Add OAuth callback handling
+	const handleOAuthSuccess = useCallback((params: any) => {
+		console.log('[SlackChat] OAuth success:', params);
+		
+		// Store shop domain for future visits (optional UX enhancement)
+		if (params.shop) {
+			localStorage.setItem('last_shop_domain', params.shop);
+		}
+		
+		// Update chat config with merchant ID
+		if (params.merchant_id) {
+			setChatConfig(prev => ({
+				...prev,
+				merchantId: params.merchant_id
+			}));
+		}
+		
+		// Send OAuth complete to WebSocket
+		if (wsChat.isConnected) {
+			wsChat.sendSpecialMessage({
+				type: 'oauth_complete',
+				data: {
+					provider: 'shopify',
+					is_new: params.is_new === 'true',
+					merchant_id: params.merchant_id,
+					shop_domain: params.shop
+				}
+			});
+		}
+		
+		toast({
+			title: "Connected to Shopify!",
+			description: params.is_new === 'true' ? "Welcome! Let me take a look at your store..." : "Welcome back! Good to see you again.",
+			duration: 5000,
+		});
+	}, [wsChat, setChatConfig, toast]);
+	
+	const handleOAuthError = useCallback((error: string) => {
+		console.error('[SlackChat] OAuth error:', error);
+		toast({
+			title: "Authentication Failed",
+			description: error || "Unable to connect to Shopify. Please try again.",
+			variant: "destructive"
+		});
+	}, [toast]);
+	
+	// Use the OAuth callback hook
+	useOAuthCallback(handleOAuthSuccess, handleOAuthError);
 
 	// Debug
 	console.log('[SlackChat] Messages length:', messages.length, 'isTyping:', isTyping);

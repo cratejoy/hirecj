@@ -270,6 +270,7 @@ class WebPlatform(Platform):
                 "fact_check",
                 "ping",
                 "session_update",
+                "oauth_complete",
             ]
             if message_type not in valid_types:
                 logger.warning(
@@ -655,6 +656,89 @@ class WebPlatform(Platform):
                 session.update(data.get("data", {}))
                 self.sessions[conversation_id] = session
                 logger.debug(f"Updated session for {conversation_id}")
+
+            elif message_type == "oauth_complete":
+                # Handle OAuth completion from Shopify
+                oauth_data = data.get("data", {})
+                if not isinstance(oauth_data, dict):
+                    await self._send_error(websocket, "Invalid oauth_complete data format")
+                    return
+                
+                provider = oauth_data.get("provider")
+                is_new = oauth_data.get("is_new", True)
+                merchant_id = oauth_data.get("merchant_id")
+                shop_domain = oauth_data.get("shop_domain")
+                
+                logger.info(f"[OAUTH_COMPLETE] Processing OAuth completion for {conversation_id}: "
+                           f"provider={provider}, is_new={is_new}, merchant_id={merchant_id}, "
+                           f"shop_domain={shop_domain}")
+                
+                # Get the current session
+                session = self.session_manager.get_session(conversation_id)
+                if not session:
+                    logger.error(f"[OAUTH_ERROR] No session found for conversation {conversation_id}")
+                    await self._send_error(websocket, "No active session for OAuth completion")
+                    return
+                
+                # Update session with real merchant information
+                if merchant_id and merchant_id != "onboarding_user":
+                    logger.info(f"[OAUTH_UPDATE] Updating session merchant from {session.merchant_name} to {merchant_id}")
+                    session.merchant_name = merchant_id
+                    
+                    # Update the conversation's merchant context
+                    if hasattr(session.conversation, 'merchant_name'):
+                        session.conversation.merchant_name = merchant_id
+                
+                # Store OAuth metadata in session for context
+                if not hasattr(session, 'oauth_metadata'):
+                    session.oauth_metadata = {}
+                
+                session.oauth_metadata.update({
+                    "provider": provider,
+                    "is_new_merchant": is_new,
+                    "shop_domain": shop_domain,
+                    "authenticated": True,
+                    "authenticated_at": datetime.now().isoformat()
+                })
+                
+                # Process the OAuth completion with CJ
+                # Generate a response based on whether it's a new or returning merchant
+                if is_new:
+                    oauth_context = f"New Shopify merchant authenticated from {shop_domain}"
+                else:
+                    oauth_context = f"Returning Shopify merchant authenticated from {shop_domain}"
+                
+                logger.info(f"[OAUTH_CONTEXT] Processing with context: {oauth_context}")
+                
+                # Let CJ respond to the OAuth completion naturally
+                response = await self.message_processor.process_message(
+                    session=session,
+                    message=oauth_context,
+                    sender="system",  # System message so CJ knows it's context, not user input
+                )
+                
+                # Send CJ's response
+                if response:
+                    response_data = {
+                        "content": response,
+                        "factCheckStatus": "available",
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    await websocket.send_json({
+                        "type": "cj_message",
+                        "data": response_data
+                    })
+                    logger.info(f"[OAUTH_RESPONSE] Sent CJ response after OAuth: {response[:100]}...")
+                
+                # Also send confirmation that OAuth was processed
+                await websocket.send_json({
+                    "type": "oauth_processed",
+                    "data": {
+                        "success": True,
+                        "merchant_id": merchant_id,
+                        "is_new": is_new
+                    }
+                })
 
             else:
                 logger.warning(f"Unknown message type from web client: {message_type}")

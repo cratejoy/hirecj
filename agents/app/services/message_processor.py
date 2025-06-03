@@ -41,13 +41,15 @@ class MessageProcessor:
         session.last_activity = datetime.utcnow()
         session.metrics["messages"] += 1
 
-        # Add merchant message to conversation FIRST
-        msg = Message(
-            timestamp=datetime.utcnow(),
-            sender=sender,
-            content=message,
-        )
-        session.conversation.add_message(msg)
+        # For system messages (like OAuth context), don't add to conversation history
+        if sender != "system":
+            # Add merchant message to conversation
+            msg = Message(
+                timestamp=datetime.utcnow(),
+                sender=sender,
+                content=message,
+            )
+            session.conversation.add_message(msg)
         
         # Extract facts immediately after merchant message (non-blocking)
         if sender == "merchant" and session.merchant_memory:
@@ -57,11 +59,11 @@ class MessageProcessor:
         start_time = datetime.utcnow()
 
         try:
-            if sender == "merchant":
-                response = await self._get_cj_response(session, message)
+            if sender in ["merchant", "system"]:
+                response = await self._get_cj_response(session, message, is_system=sender=="system")
             else:
                 # For now, only support merchant -> CJ flow
-                raise ValueError("Only merchant -> CJ flow supported")
+                raise ValueError("Only merchant/system -> CJ flow supported")
 
             # Track metrics
             elapsed = (datetime.utcnow() - start_time).total_seconds()
@@ -82,7 +84,7 @@ class MessageProcessor:
             logger.error(f"Error processing message: {e}")
             raise
 
-    async def _get_cj_response(self, session: Session, message: str) -> str:
+    async def _get_cj_response(self, session: Session, message: str, is_system: bool = False) -> str:
         """Get CJ's response to merchant message."""
         await self._report_progress(session.id, "thinking", {"status": "initializing"})
 
@@ -107,6 +109,9 @@ class MessageProcessor:
             logger.info(f"[CJ_AGENT] Merchant: {session.conversation.merchant_name}")
             logger.info(f"[CJ_AGENT] No merchant memory available")
             
+        # Pass OAuth metadata if available
+        oauth_metadata = getattr(session, 'oauth_metadata', None)
+        
         cj_agent = create_cj_agent(
             merchant_name=session.conversation.merchant_name,
             scenario_name=session.conversation.scenario_name,
@@ -114,12 +119,19 @@ class MessageProcessor:
             conversation_state=session.conversation.state,
             data_agent=session.data_agent,
             merchant_memory=session.merchant_memory,
+            oauth_metadata=oauth_metadata,
             verbose=False,
         )
 
         # Create task
+        if is_system:
+            # For system messages (OAuth context), provide clear instruction
+            task_description = f"Context update: {message}\n\nRespond appropriately to this authentication update."
+        else:
+            task_description = f"Respond to: {message}"
+            
         task = Task(
-            description=f"Respond to: {message}",
+            description=task_description,
             agent=cj_agent,
             expected_output="A helpful response",
         )

@@ -24,14 +24,14 @@
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-1-foundation.md)**
 
-### Phase 2: Auth Flow Integration
+### Phase 2: Auth Flow Integration ✅ COMPLETE
 **Deliverables:**
-- [ ] OAuth callback enhancement to detect new/returning merchants
-- [ ] Shop domain as primary identifier (no visitor tracking)
-- [ ] Conversation context updates post-OAuth
-- [ ] Frontend OAuth flow with redirect handling
+- [x] OAuth callback enhancement to detect new/returning merchants
+- [x] Shop domain as primary identifier (no visitor tracking)
+- [x] Conversation context updates post-OAuth
+- [x] Frontend OAuth flow with redirect handling
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-2-auth-flow.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-2-auth-flow.md)**
 
 ### Phase 3: Quick Value Demo
 **Deliverables:**

@@ -54,6 +54,7 @@ class CJAgent:
         self.conversation_state = kwargs.pop("conversation_state", None)
         self.scenario_context = kwargs.pop("scenario_context", "")
         self.verbose = kwargs.pop("verbose", True)
+        self.oauth_metadata = kwargs.pop("oauth_metadata", None)
         
         # Log memory status
         if self.merchant_memory:
@@ -170,18 +171,35 @@ class CJAgent:
 
     def _extract_onboarding_context(self) -> str:
         """Extract onboarding-specific context from conversation state."""
+        context_parts = []
+        
         if not self.conversation_state or not self.conversation_state.context_window:
-            return "Phase: New conversation - start with warm greeting"
-        
-        # Simple phase tracking based on conversation length
-        message_count = len(self.conversation_state.context_window)
-        
-        if message_count <= 2:
-            return "Phase: Initial greeting - focus on making merchant comfortable"
-        elif message_count <= 4:
-            return "Phase: Early conversation - naturally explore their needs"
+            context_parts.append("Phase: New conversation - start with warm greeting")
         else:
-            return "Phase: Established conversation - guide based on merchant responses"
+            # Simple phase tracking based on conversation length
+            message_count = len(self.conversation_state.context_window)
+            
+            if message_count <= 2:
+                context_parts.append("Phase: Initial greeting - focus on making merchant comfortable")
+            elif message_count <= 4:
+                context_parts.append("Phase: Early conversation - naturally explore their needs")
+            else:
+                context_parts.append("Phase: Established conversation - guide based on merchant responses")
+        
+        # Check for OAuth status in session (passed through kwargs or state)
+        oauth_metadata = getattr(self, 'oauth_metadata', None)
+        if oauth_metadata and oauth_metadata.get('authenticated'):
+            is_new = oauth_metadata.get('is_new_merchant', True)
+            shop_domain = oauth_metadata.get('shop_domain', 'their store')
+            
+            if is_new:
+                context_parts.append(f"OAuth Status: NEW merchant authenticated from {shop_domain} - they just connected their Shopify store for the first time!")
+            else:
+                context_parts.append(f"OAuth Status: RETURNING merchant authenticated from {shop_domain} - they've used HireCJ before")
+        else:
+            context_parts.append("OAuth Status: Not yet authenticated - guide them to connect their Shopify store when appropriate")
+        
+        return "\n".join(context_parts)
 
     def _create_agent(self, **kwargs) -> Agent:
         """Create the CrewAI agent instance."""
@@ -278,6 +296,7 @@ def create_cj_agent(
     conversation_state: Optional[ConversationState] = None,
     data_agent: Optional[UniverseDataAgent] = None,
     merchant_memory: Optional[MerchantMemory] = None,
+    oauth_metadata: Optional[Dict[str, Any]] = None,
     scenario_context: str = "",
     verbose: bool = True,
     **kwargs,
@@ -294,6 +313,7 @@ def create_cj_agent(
         conversation_state: Optional conversation state with history
         data_agent: Optional data agent for tools (UniverseDataAgent or other)
         merchant_memory: Optional merchant memory with accumulated facts
+        oauth_metadata: Optional OAuth metadata dict with authentication info
         scenario_context: Optional additional scenario context
         verbose: Enable verbose output (default: True)
         **kwargs: Additional arguments passed to Agent constructor
@@ -311,6 +331,7 @@ def create_cj_agent(
         conversation_state=conversation_state,
         data_agent=data_agent,
         merchant_memory=merchant_memory,
+        oauth_metadata=oauth_metadata,
         scenario_context=scenario_context,
         verbose=verbose,
         **kwargs,

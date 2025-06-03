@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.api import health
+from app.api import health, oauth
 
 # Configure logging
 logging.basicConfig(
@@ -63,10 +63,10 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router)
+app.include_router(oauth.router, prefix=f"{settings.api_prefix}/oauth")
 
-# TODO: Add these routers as we implement them
+# TODO: Add auth router when implemented
 # app.include_router(auth.router, prefix=f"{settings.api_prefix}/auth")
-# app.include_router(oauth.router, prefix=f"{settings.api_prefix}/oauth")
 
 
 @app.get("/")

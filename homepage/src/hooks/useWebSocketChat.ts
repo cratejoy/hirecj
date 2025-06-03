@@ -29,7 +29,7 @@ interface Progress {
 }
 
 interface WebSocketMessage {
-  type: 'system' | 'cj_thinking' | 'cj_message' | 'error' | 'fact_check_status';
+  type: 'system' | 'cj_thinking' | 'cj_message' | 'error' | 'fact_check_status' | 'oauth_complete';
   message?: string;
   text?: string;
   progress?: Progress;
@@ -530,6 +530,19 @@ export function useWebSocketChat({
     }
   }, []);
 
+  // Send special message function (for oauth_complete, etc)
+  const sendSpecialMessage = useCallback((message: any) => {
+    const wsMessage = typeof message === 'string' ? message : JSON.stringify(message);
+    
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsLogger.info('📤 Sending special message', { message });
+      wsRef.current.send(wsMessage);
+    } else {
+      wsLogger.warn('WebSocket not connected, queueing special message');
+      messageQueueRef.current.push(wsMessage);
+    }
+  }, []);
+
   // Clear messages function
   const clearMessages = useCallback(() => {
     setState(prev => ({ ...prev, messages: [] }));
@@ -554,6 +567,7 @@ export function useWebSocketChat({
     messages: state.messages,
     sendMessage,
     sendFactCheck,
+    sendSpecialMessage,
     isConnected: state.connectionState === 'connected',
     isTyping: state.isTyping,
     progress: state.progress,
