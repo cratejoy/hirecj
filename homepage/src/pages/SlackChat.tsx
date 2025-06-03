@@ -20,7 +20,7 @@ interface ChatConfig {
 	scenarioId: string | null;
 	merchantId: string | null;
 	conversationId: string;
-	workflow: 'ad_hoc_support' | 'daily_briefing' | null;
+	workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | null;
 }
 
 const SlackChat = () => {
@@ -32,26 +32,29 @@ const SlackChat = () => {
 	const [emailModalOpen, setEmailModalOpen] = useState(false);
 	const [showDailyReport, setShowDailyReport] = useState(true);
 	
-	// TODO: TEMPORARY BYPASS - Re-enable configuration modal later
-	// const [showConfigModal, setShowConfigModal] = useState(true);
-	const [showConfigModal, setShowConfigModal] = useState(false);
+	// Always skip config modal
+	const [showConfigModal] = useState(false);
 	
-	// TODO: TEMPORARY BYPASS - Auto-start with Marcus Thompson, Steady Operations, Ad Hoc
-	// const [chatConfig, setChatConfig] = useState<ChatConfig>({
-	// 	scenarioId: null,
-	// 	merchantId: null,
-	// 	conversationId: '',
-	// 	workflow: null
-	// });
+	// Update initial chatConfig
 	const [chatConfig, setChatConfig] = useState<ChatConfig>({
-		scenarioId: 'steady_operations',
-		merchantId: 'marcus_thompson', 
+		scenarioId: null, // No demo scenario
+		merchantId: null, // Will be set after OAuth
 		conversationId: uuidv4(),
-		workflow: 'ad_hoc_support'
+		workflow: 'shopify_onboarding' // Always start with onboarding
 	});
+	
+	// Add state for OAuth status
+	const [oauthStatus, setOauthStatus] = useState<{
+		isComplete: boolean;
+		isNew?: boolean;
+		merchantId?: string;
+		shopDomain?: string;
+	}>({ isComplete: false });
 
 	const isRealChat = useMemo(() =>
-		!showConfigModal && !!chatConfig.scenarioId && !!chatConfig.merchantId && !!chatConfig.conversationId && !!chatConfig.workflow,
+		!showConfigModal && !!chatConfig.conversationId && !!chatConfig.workflow && 
+		// For onboarding workflow, we don't need merchantId/scenarioId initially
+		(chatConfig.workflow === 'shopify_onboarding' || (!!chatConfig.scenarioId && !!chatConfig.merchantId)),
 		[showConfigModal, chatConfig]
 	);
 
@@ -112,6 +115,44 @@ const SlackChat = () => {
 	const messages = isRealChat ? wsChat.messages : demoChat.messages;
 	const isTyping = isRealChat ? wsChat.isTyping : demoChat.isTyping;
 	const handleSendMessage = isRealChat ? wsChat.sendMessage : demoChat.handleSendMessage;
+	
+	// Add handler for OAuth completion
+	const handleOAuthComplete = useCallback((params: URLSearchParams) => {
+		const isNew = params.get('is_new') === 'true';
+		const merchantId = params.get('merchant_id');
+		const shopDomain = params.get('shop');
+		const conversationId = params.get('conversation_id');
+		
+		if (conversationId === chatConfig.conversationId) {
+			setOauthStatus({
+				isComplete: true,
+				isNew,
+				merchantId: merchantId || undefined,
+				shopDomain: shopDomain || undefined
+			});
+			
+			// Update chat config with merchant ID
+			if (merchantId) {
+				setChatConfig(prev => ({
+					...prev,
+					merchantId
+				}));
+			}
+			
+			// Send OAuth complete message to CJ
+			if (wsChat.ws?.readyState === WebSocket.OPEN) {
+				wsChat.ws.send(JSON.stringify({
+					type: 'oauth_complete',
+					data: {
+						provider: 'shopify',
+						is_new: isNew,
+						merchant_id: merchantId,
+						shop_domain: shopDomain
+					}
+				}));
+			}
+		}
+	}, [chatConfig.conversationId, wsChat]);
 
 	// Debug
 	console.log('[SlackChat] Messages length:', messages.length, 'isTyping:', isTyping);
@@ -141,6 +182,16 @@ const SlackChat = () => {
 			window.removeEventListener('beforeunload', handleBeforeUnload);
 		};
 	}, [isRealChat, wsChat]);
+	
+	// Add useEffect to check URL params on mount
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		if (params.get('oauth') === 'complete') {
+			handleOAuthComplete(params);
+			// Clean URL
+			window.history.replaceState({}, '', window.location.pathname);
+		}
+	}, [handleOAuthComplete]);
 
 	const handleMessageSend = () => {
 		if (inputValue.trim()) {

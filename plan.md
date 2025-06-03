@@ -13,12 +13,14 @@
 
 ## 🚀 Implementation Phases
 
-### Phase 1: Foundation
+### Phase 1: Foundation (IN PROGRESS)
 **Deliverables:**
-- [ ] Onboarding workflow definition (`shopify_onboarding.yaml`)
-- [ ] Default workflow routing (always start with onboarding)
-- [ ] CJ agent context updates for onboarding awareness
-- [ ] OAuth button React component
+- [x] Onboarding workflow definition (`shopify_onboarding.yaml`)
+- [x] Default workflow routing (always start with onboarding)
+- [x] CJ agent context updates for onboarding awareness
+- [x] OAuth button React component
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-1-foundation.md)**
 
 ### Phase 2: Auth Flow Integration
 **Deliverables:**
@@ -27,12 +29,16 @@
 - [ ] Conversation context updates post-OAuth
 - [ ] Frontend OAuth flow with redirect handling
 
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-2-auth-flow.md)** *(TODO)*
+
 ### Phase 3: Quick Value Demo
 **Deliverables:**
 - [ ] Quick insights service for Shopify data
 - [ ] Store snapshot queries (products, orders, customers)
 - [ ] Progressive data loading mechanism
 - [ ] Conversation UI showing real-time insights
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-3-quick-value.md)** *(TODO)*
 
 ### Phase 4: Support System Connection
 **Deliverables:**
@@ -41,6 +47,8 @@
 - [ ] OAuth flows for supported systems
 - [ ] Graceful handling of unsupported providers
 
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-support-systems.md)** *(TODO)*
+
 ### Phase 5: Notification & Polish
 **Deliverables:**
 - [ ] Email notification capture and sending
@@ -48,12 +56,16 @@
 - [ ] Beta messaging throughout experience
 - [ ] Error handling and edge cases
 
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-notifications.md)** *(TODO)*
+
 ### Phase 6: Testing & Refinement
 **Deliverables:**
 - [ ] End-to-end flow testing suite
 - [ ] Performance optimization
 - [ ] Security review
 - [ ] Documentation and deployment guide
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-6-testing.md)** *(TODO)*
 
 ## 🏛️ System Architecture Overview
 
@@ -423,3 +435,20 @@ Focus: Natural conversation that intelligently adapts based on Shopify OAuth ide
 5. **Analytics**: Post-OAuth tracking for improvements
 
 But first: **nail the natural, privacy-first onboarding experience**.
+
+## 📚 Detailed Implementation Documentation
+
+Each phase has a comprehensive implementation guide with exact code, file paths, and step-by-step instructions:
+
+**[📁 View all implementation guides →](docs/shopify-onboarding/)**
+
+The guides include:
+- Complete code implementations
+- Exact file paths and changes
+- API specifications
+- Database schemas
+- Testing procedures
+- Security considerations
+- Common issues & solutions
+
+Use the [phase template](docs/shopify-onboarding/PHASE_TEMPLATE.md) when creating new guides.

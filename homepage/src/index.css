@@ -46,6 +46,10 @@ html, body {
   --chat-bg: 225 10% 11%;
   --chat-sidebar: 264 28% 7%;
   --slack-purple: 277 55% 19%;
+  
+  /* Shopify colors */
+  --shopify-green: 142 69% 42%;
+  --shopify-green-dark: 142 69% 32%;
 }
 
 .dark {
@@ -183,6 +187,18 @@ html, body {
   
   .bg-smile-green {
     @apply bg-[hsl(var(--accent))];
+  }
+  
+  .bg-shopify-green {
+    @apply bg-[hsl(var(--shopify-green))];
+  }
+  
+  .bg-shopify-green-dark {
+    @apply bg-[hsl(var(--shopify-green-dark))];
+  }
+  
+  .hover\:bg-shopify-green-dark:hover {
+    @apply hover:bg-[hsl(var(--shopify-green-dark))];
   }
 }
 

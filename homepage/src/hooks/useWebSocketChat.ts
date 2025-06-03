@@ -44,7 +44,7 @@ interface UseWebSocketChatProps {
   conversationId: string;
   merchantId: string;
   scenario: string;
-  workflow: 'ad_hoc_support' | 'daily_briefing';
+  workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding';
   onError?: (error: string) => void;
 }
 
@@ -440,6 +440,7 @@ export function useWebSocketChat({
     isTyping: state.isTyping,
     progress: state.progress,
     clearMessages,
-    endConversation
+    endConversation,
+    ws: wsRef.current // Expose WebSocket reference for OAuth handling
   };
 }

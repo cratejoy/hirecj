@@ -61,6 +61,20 @@ personas:
       sorry for the spam but ALSO [sends screenshot]
 
 workflows:
+  shopify_onboarding:
+    name: shopify_onboarding
+    display_name: Shopify Onboarding
+    description: Natural conversation flow for new visitors. CJ guides through Shopify connection and optional support system setup.
+    typical_turns: 6
+    initiator: CJ
+    best_for:
+      - new_visitors
+      - returning_visitors_without_auth
+    features:
+      - natural_detection
+      - oauth_integration
+      - progressive_disclosure
+  
   daily_briefing:
     name: daily_briefing
     display_name: Daily Flash Report

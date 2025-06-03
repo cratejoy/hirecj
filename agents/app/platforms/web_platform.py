@@ -289,9 +289,14 @@ class WebPlatform(Platform):
                     )
                     return
 
-                merchant = start_data.get("merchant_id", "demo_merchant")
-                scenario = start_data.get("scenario", "normal_day")
+                # For onboarding workflow, we don't require merchant/scenario upfront
                 workflow = start_data.get("workflow")
+                if workflow == "shopify_onboarding":
+                    merchant = start_data.get("merchant_id", "onboarding_user")
+                    scenario = start_data.get("scenario", "onboarding")
+                else:
+                    merchant = start_data.get("merchant_id", "demo_merchant")
+                    scenario = start_data.get("scenario", "normal_day")
                 # cj_version = start_data.get("cj_version", settings.default_cj_version)  # TODO: Pass to session when supported
 
                 # Check for existing session first

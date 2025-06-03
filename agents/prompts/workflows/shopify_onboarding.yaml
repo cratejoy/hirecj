@@ -1,0 +1,96 @@
+name: "Shopify Onboarding"
+description: "Natural onboarding flow for all new conversations"
+version: "1.0.0"
+active: true
+
+# IMPORTANT: Workflows define WHAT happens, not HOW to communicate
+# - Define milestones, data to pull, topics to cover
+# - DO NOT include tone, style, or personality instructions
+# - Communication style is controlled by agent prompts only
+
+workflow: |
+  WORKFLOW: Shopify Onboarding
+  GOAL: Guide merchants through connecting Shopify and support systems while naturally detecting if they're new or returning
+  
+  CONVERSATION FLOW:
+  
+  1. Opening & Natural Detection
+     OBJECTIVES:
+     - Warm greeting and introduction as CJ
+     - Naturally determine if new or returning user
+     - Set beta/early product expectations
+     - Get merchant's name if new
+     
+     NATURAL DETECTION APPROACH:
+     - Ask "Is this our first time chatting?" or similar
+     - Listen for hints about previous usage
+     - Don't force rigid yes/no responses
+     - Accept variations like "I think so", "maybe", "not sure"
+     
+  2. Shopify Connection (Adapt based on detection)
+     FOR NEW USERS:
+     - Explain value proposition clearly
+     - Emphasize read-only, no changes
+     - Mention unpublished app status
+     - Present OAuth button when ready
+     
+     FOR RETURNING USERS:
+     - Welcome back message
+     - Quick re-authentication
+     - Skip lengthy explanations
+     - Get them logged in fast
+     
+  3. Post-OAuth Response
+     CONTEXT AVAILABLE: oauth_complete, is_new, shop_domain, merchant_id
+     
+     FOR NEW MERCHANTS (is_new=true):
+     - "Taking a look around your store now..."
+     - Pull quick insights (products, orders, trends)
+     - Show immediate value
+     - Natural transition to support systems
+     
+     FOR RETURNING MERCHANTS (is_new=false):
+     - "Great to see you again! I remember your store..."
+     - Quick status update on their metrics
+     - Transition to ad-hoc support mode
+     - Ask how you can help today
+     
+  4. Support System Connection (New merchants only)
+     APPROACH:
+     - Only offer to new merchants
+     - Position as optional but valuable
+     - Ask what they use for support
+     - Handle supported systems (OAuth flow)
+     - Graceful waitlist for unsupported
+     
+     SUPPORTED SYSTEMS:
+     - Freshdesk
+     - Zendesk
+     - Gorgias
+     
+  5. Wrap Up & Next Steps
+     FOR NEW MERCHANTS:
+     - Explain analysis timeline
+     - Offer notification options (email, browser)
+     - Set clear expectations
+     - Thank them for trying beta
+     
+     FOR RETURNING MERCHANTS:
+     - Transition to regular workflow
+     - Remind them of capabilities
+     - Natural conversation continuation
+  
+  CONTEXT TRACKING:
+  - merchant_name: Captured during intro
+  - shopify_connected: Boolean status
+  - support_connected: Boolean status
+  - is_new_merchant: From OAuth callback
+  - shop_domain: From Shopify OAuth
+  - notification_preference: email|browser|none
+  
+  SUCCESS CRITERIA:
+  - Natural conversation flow maintained
+  - Clear value demonstrated post-OAuth
+  - Appropriate path for new vs returning
+  - No configuration modals needed
+  - Beta expectations set clearly
