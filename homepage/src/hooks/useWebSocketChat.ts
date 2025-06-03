@@ -440,7 +440,6 @@ export function useWebSocketChat({
     isTyping: state.isTyping,
     progress: state.progress,
     clearMessages,
-    endConversation,
-    ws: wsRef.current // Expose WebSocket reference for OAuth handling
+    endConversation
   };
 }

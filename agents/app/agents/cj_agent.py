@@ -171,59 +171,17 @@ class CJAgent:
     def _extract_onboarding_context(self) -> str:
         """Extract onboarding-specific context from conversation state."""
         if not self.conversation_state or not self.conversation_state.context_window:
-            return "New conversation - no previous context"
+            return "Phase: New conversation - start with warm greeting"
         
-        # Check conversation for onboarding signals
-        context_parts = []
-        oauth_completed = False
-        shop_domain = None
-        support_system_mentioned = False
+        # Simple phase tracking based on conversation length
+        message_count = len(self.conversation_state.context_window)
         
-        # Scan messages for key information
-        for msg in self.conversation_state.context_window:
-            content_lower = msg.content.lower()
-            
-            # Check for shop domain mentions
-            if ".myshopify.com" in content_lower:
-                import re
-                shop_match = re.search(r'([a-zA-Z0-9-]+)\.myshopify\.com', msg.content)
-                if shop_match:
-                    shop_domain = shop_match.group(0)
-                    oauth_completed = True
-            
-            # Check for OAuth completion signals
-            if any(phrase in content_lower for phrase in [
-                "oauth complete", "successfully connected", "shopify connected",
-                "authorization complete", "shop connected"
-            ]):
-                oauth_completed = True
-                
-            # Check for support system mentions
-            if any(system in content_lower for system in [
-                "zendesk", "intercom", "freshdesk", "help scout", "support system"
-            ]):
-                support_system_mentioned = True
-        
-        # Build context based on detected state
-        if oauth_completed and shop_domain:
-            context_parts.append(f"OAuth Status: Complete (Shop: {shop_domain})")
-            context_parts.append("Next Step: Offer support system connection")
-        elif oauth_completed:
-            context_parts.append("OAuth Status: Complete")
-            context_parts.append("Next Step: Confirm shop details and offer support system connection")
+        if message_count <= 2:
+            return "Phase: Initial greeting - focus on making merchant comfortable"
+        elif message_count <= 4:
+            return "Phase: Early conversation - naturally explore their needs"
         else:
-            # Check if we're still in introduction phase
-            if len(self.conversation_state.context_window) <= 2:
-                context_parts.append("Phase: Initial greeting/detection")
-                context_parts.append("Next Step: Natural conversation to detect if new/returning")
-            else:
-                context_parts.append("Phase: Pre-OAuth")
-                context_parts.append("Next Step: Guide toward Shopify connection when appropriate")
-        
-        if support_system_mentioned:
-            context_parts.append("Support System: Mentioned/In Progress")
-            
-        return "\n".join(context_parts) if context_parts else "Unable to determine onboarding state"
+            return "Phase: Established conversation - guide based on merchant responses"
 
     def _create_agent(self, **kwargs) -> Agent:
         """Create the CrewAI agent instance."""
