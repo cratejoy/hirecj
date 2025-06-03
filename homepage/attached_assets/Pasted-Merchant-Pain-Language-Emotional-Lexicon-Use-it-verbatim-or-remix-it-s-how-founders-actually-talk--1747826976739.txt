@@ -1,0 +1,166 @@
+Merchant Pain-Language & Emotional Lexicon
+Use it verbatim or remix—it's how founders actually talk
+1. TIME & BURNOUT ("I'M DOING 12 JOBS BEFORE LUNCH")
+Raw phrases / micro-quotes
+"Burn-out came from switching hats too many times."
+"CEO means Chief Everything Officer—including taping boxes."
+"I answer DMs from bed before coffee."
+"Sunday-night QuickBooks marathon then wire the factory."
+"16-hour days and decision fatigue are real."
+"First two hours are clearing Front."
+"I refresh Meta stats 20× a day."
+Core pains
+Context-switch overload → mental fatigue.
+No protected think time; reactive every waking hour.
+Evenings & weekends consumed by admin.
+Emotions evoked
+Exhaustion, guilt (inbox guilt), low-grade panic about dropping balls.
+2. CUSTOMER SUPPORT & INBOX FLOOD
+Merchant words
+"Where-is-my-order?" avalanche.
+"24/7 pings; channel overload."
+"I put my personal email on every box and reply myself."
+"VIP pings my phone at midnight."
+"Some customers cost you more than they're worth."
+Specific issues
+Night-and-weekend ticket spikes.
+IG / TikTok DMs outside help-desk.
+Tone-sensitive edge cases: fraud, VIPs, public-review risk.
+Feelings
+Always 'on', fear of public shaming, resentment at entitled buyers.
+3. FULFILLMENT CHAOS & PHYSICAL FRICTION
+Phrases
+"Tape tangled round my wrist, boxes everywhere."
+"Waiting in line at USPS every day with tubs of packages."
+"Label jams; promo-surge wrist pain."
+"My spare bedroom is now aisle 7."
+"CEO still tapes boxes the night a drop sells out."
+Pain points
+Manual pick/pack eats founder hours.
+Printer / label failure at peak volume.
+Physical space taken over by inventory.
+Emotions
+Claustrophobia, frustration, pride mixed with embarrassment.
+4. INVENTORY & SUPPLY-CHAIN HEADACHES
+Founder talk
+"Inventory Planner pings me before I'm even out of coffee."
+"Customs hold can wipe out our launch calendar."
+"MOQ cash risk—begged factory to drop from 1k to 500."
+"My stock spreadsheet is always wrong."
+"Space crunch; mis-slots; manual counts."
+"Midnight WhatsApp to see if my POs left the line."
+Key pains
+Cash tied up in too much or too little stock.
+Language/time-zone gaps with overseas factories.
+Zero visibility on freight delays.
+Emotions
+Anxiety (will inventory land in time?), cash-flow fear.
+5. SHIPPING & CARRIER PAIN
+Merchant words
+"Spent half a day filing USPS claims for lost coolers."
+"Rate hikes & dimensional fees keep creeping."
+"FedEx lost 40 units; I filed claims all morning."
+"Label misprints trigger a warehouse meltdown."
+"Customs fines and demurrage fees killed margin."
+Pains
+Lost or damaged packages → ticket spikes & refunds.
+Ever-changing carrier rules & surcharges.
+Manual claim paperwork.
+Feelings
+Helplessness, nickel-and-dimed frustration.
+6. RETURNS, FRAUD & REVERSE LOGISTICS
+Language
+"Fraudulent returns; disposal waste."
+"Some customers abuse the system—we shipped it three times."
+"Serial fraud claims kill CSAT and profit."
+"RMA approvals pile up while we shoot content."
+Underlying issues
+Store-credit vs cash-refund decisions.
+Photo proof requests add friction.
+Cost of double shipping & repackaging.
+Emotions
+Irritation, sense of unfairness, dread of confrontation.
+7. MARKETING & AD FATIGUE
+Real lines
+"CPM spikes; zero-sale tests."
+"Creative fatigue—10 new ads a week or we die."
+"iOS-14 blind spots wreck attribution."
+"Pause any ad whose CPA drifts 15% by noon."
+"Plain-text beats HTML and saves hours."
+Problems
+Rising acquisition costs/CAC inflation.
+Data blindness → guesswork budgeting.
+Content treadmill → burnout for small creative teams.
+Feelings
+Whiplash (metrics change hourly), fear of wasting budget.
+8. SOCIAL / INFLUENCER STRESS
+Phrases
+"Ghosting influencers; missing posts; attribution mess."
+"Grin lets one person juggle 200 creators."
+"24/7 comment trolls."
+"One bad TikTok spiral drops our sentiment overnight."
+Pains
+Tracking codes & ROI on gifted product.
+Algorithm shifts kill reach unexpectedly.
+Community moderation time-suck.
+Emotions
+Vigilance, micro-panic when posts underperform, FOMO.
+9. FINANCE & CASH-FLOW DRUDGERY
+Words
+"Sunday-night QuickBooks marathon."
+"Cash crunch before POs; ad budget waits if a supplier bill hits."
+"Stripe fees off by $85—caught during recon."
+"Gateway mismatches; manual fees."
+"Inventory cash tied, can't scale ads."
+Pain themes
+Manual reconciliation; fear of hidden fees.
+13-week cash forecast stress.
+Timing ads vs supplier wires.
+Feelings
+Tight-rope walking, dread of overdraft, relief when books balance.
+10. TOOL & TECH FRUSTRATION
+Merchant language
+"One rogue Shopify app tripled load time—deleted same hour."
+"Hidden app fees creep; we audit monthly."
+"Theme update broke cart site-wide at BFCM."
+"Zapier loops failing at 2 a.m."
+"API limits hit right during launch."
+Pain drivers
+App bloat slows site + kills CR.
+Late-night fires with no dev on call.
+Integration spaghetti—data drift, broken syncs.
+Emotions
+Tech paranoia, distrust, urgency to hot-fix.
+11. HR / PEOPLE MANAGEMENT
+Expressions
+"Hiring wrong fit; no HR support."
+"Slow hiring kills momentum."
+"Benefit-admin overload."
+"Zoom fatigue; silos forming."
+"Friday wins Slack thread keeps remote team tight."
+Issues
+Founder acting accidental HR → compliance risk.
+Onboarding/knowledge transfer lag.
+Culture maintenance across time zones.
+Feelings
+Overwhelm, responsibility for others' livelihoods, pride when team clicks.
+12. SUMMARY OF EMOTIONAL STATES (GOOD COPY HOOKS)
+"Quiet dread that CAC inflation will outpace LTV."
+"Claustrophobia when inventory eats my living space."
+"Inbox guilt" every morning.
+"Data-blind panic" after attribution breaks.
+"Printer-jam rage" at 2 p.m. ship cutoff.
+"Relief" when a process finally runs itself.
+"Feels like cheating" when automation saves hours.
+13. MINI-LEXICON OF ICONIC WORD CLUSTERS
+Inbox: "DM flood, IG before coffee, 150 emails/day, Where-is-my-order avalanche."
+Fulfillment: "Tape gun, label jams, aisle 7 bedroom, USPS line, wrist pain."
+Ads: "CPM spike, creative fatigue, CPA drift, ROAS panic, zero-sale test."
+Supply chain: "MOQ gamble, customs hold, midnight WhatsApp, demurrage fee."
+Returns: "Fraud return, photo proof, disposal bin, RMA backlog."
+Finance: "QuickBooks marathon, Stripe fee hunt, 13-week cash sheet."
+Tech: "App bloat, rogue Liquid, API limit, hot-fix at midnight."
+Burnout: "Chief Everything Officer, hat-switching, 16-hr day, decision fatigue."
+
+Use these exact snippets or blend them; they're proven to trigger "they're inside my head" recognition with subscription-commerce and DTC founders.
+

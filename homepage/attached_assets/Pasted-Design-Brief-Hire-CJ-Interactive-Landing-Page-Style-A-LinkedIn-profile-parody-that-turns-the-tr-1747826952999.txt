@@ -1,0 +1,242 @@
+Design Brief – “Hire CJ” Interactive Landing Page
+Style: A LinkedIn-profile parody that turns the traditional SaaS site into a single résumé-for-hire.
+Goal: 1) Convey CJ’s value in 30 sec ⟶ book demo; 2) Let prospects chat with CJ instantly; 3) Be memorable/share-worthy (“Have you seen the Cratejoy AI page?!”).
+
+————————————————————————
+
+North-Star Story • Treat the AI as a job-seeker, not a software widget. • Visitors feel like recruiters reviewing a stellar candidate, then can “interview” her live. • Every scroll block maps to a typical LinkedIn section but doubles as a product pitch.
+————————————————————————
+2. Target Users
+• DTC founders ($1-20 M GMV) who skim fast.
+• Investors/advisors who want proof of traction.
+• Press & influencers hunting for fresh angles.
+
+————————————————————————
+3. UX Flow
+0. URL loads ➜ hero looks 95 % like a LinkedIn profile.
+
+Scroll-jacking fades in each credential (Experience, Skills, Wins) with micro-copy that sells.
+A persistent “Chat with CJ Now” pill follows the viewport.
+Click pill ➜ page dims, Slack-style drawer slides up (#making-money).
+Live bot greets, offers three jump-in buttons (Support, Reviews, Growth).
+Visitor can type free-form or use slash commands (/metrics, /pricing, /case-study).
+Email capture drop occurs only when user asks for a custom pilot or doc.
+————————————————————————
+4. Visual & Copy Tone
+• Colors: Cratejoy teal + LinkedIn blue mash; Easter-egg green when CJ “smiles.”
+• Fonts: System sans for résumé authenticity; monospace in chat.
+• Voice: Concise, confident, “zero-fluff colleague.”
+• Animation: Subtle hover pulses on endorsements, blink cursor before CJ types.
+
+————————————————————————
+5. Layout – ASCII Mockups
+
+––––– HERO (“LinkedIn card”) –––––
+┌───────────────────────────────────────────────┐
+│  ◉ CJ  (she/AI)             [OPEN TO WORK]   │
+│  Autonomous CX & Growth Officer              │
+│  Austin / 🌐  |  Cratejoy                    │
+│--------------------------------------------- │
+│   🤝 Connections: 2,500 merchants            │
+│   🏆 70% ticket deflection                   │
+│   🚀 $18M GMV influenced                     │
+│--------------------------------------------- │
+│   About                                      │
+│   I delete busywork and compound LTV ...     │
+│--------------------------------------------- │
+│  [Chat with CJ Now]   [Download Résumé PDF]  │
+└───────────────────────────────────────────────┘
+
+––––– EXPERIENCE SECTION (scroll 1) –––––
+┌───────────────────────────────────────────────┐
+│  EXPERIENCE                                  │
+│  Cratejoy – Autonomous CX & Growth Officer   │
+│  2025–Now                                    │
+│    • Closed 7.3h support labor / day         │
+│    • Lifted PDP conversion +9.4 %            │
+│    • Saved $546 weekly VIP-desk cost         │
+│  (✨ hover to view raw metrics)              │
+└───────────────────────────────────────────────┘
+
+––––– SKILLS & ENDORSEMENTS (scroll 2) –––––
+┌───────────────────────────────────────────────┐
+│  SKILLS (endorsed by 2.5K founders)          │
+│   ✔ Sentiment Mapping                        │
+│   ✔ Order-API Orchestration                  │
+│   ✔ A/B Copy Alchemy                         │
+│   ✔ Churn Saves & Upsells                    │
+│   ✔ Brand-Voice Mimicry (98 % match)         │
+└───────────────────────────────────────────────┘
+
+––––– “CHAT WITH CJ NOW” DRAWER –––––
+┌───────────────────────────────┐
+│ Slack ⌄  |  #making-money     │
+├───────────────────────────────┤
+│ CJ  •  7:02 AM                │
+│ Hey there! I’m CJ. Pick one:  │
+│ [1] Kill 70 % of support tickets  │
+│ [2] Fix reviews & boost NPS   │
+│ [3] Make pages convert higher │
+│ Or just type a question →     │
+└───────────────────────────────┘
+
+(Persistent text-input; ESC closes drawer.)
+
+————————————————————————
+6. Key Copy Blocks (to draft)
+
+• About (150 chars)
+“24/7 teammate trained on 30 M sub-commerce chats. Faster than your intern, cheaper than your SaaS stack.”
+
+• Featured “Recommendations” (testimonials)
+– Alexis, Founder @ EscapeCrate: “CJ gave me my weekends back.”
+– Sean, CMO @ IronNeck: “Support cost down 58 %, upsell GMV up 12 %.”
+
+• Credentials badges strip
+ISO-27001 • PCI L1 • GDPR • SOC-2 (inherit) • Powered by GPT-4/Claude • Zero hallucination SLA.
+
+————————————————————————
+7. Interaction & Tech Notes
+Front-end
+• Next.js + Tailwind; LinkedIn-like CSS modules.
+• Drawer = React Portal; mimic Slack dark theme.
+• “Typing…” animation w/ 400 ms jitter for realism.
+
+Data / Chat
+• Uses same inference endpoint as production CJ.
+• Channel name randomises (#profit-lab, #making-money) for novelty.
+• Rate-limit anon users at 10 messages ➜ then show “Unlock pilot” email gate.
+
+Analytics
+• Scroll-depth events per résumé block.
+• CTA clicks vs Chat-engagement funnel.
+• Capture top free-form questions for training.
+
+————————————————————————
+8. Launch Checklist
+[ ] Avatar & “open-to-work” banner SVG
+[ ] Copy reviewed for compliance (no guarantees)
+[ ] Chat sandbox rate-limited
+[ ] OG image = LinkedIn-card screenshot for viral shares
+[ ] 3 founder testimonials recorded 30 sec video for “Recommendations” strip
+
+————————————————————————
+9. Success Metrics
+• ≥50 % visitors open chat.
+• ≥25 % chat users share email or book pilot.
+• <3 min median time-to-first qualified lead.
+
+————————————————————————
+10. Timebox
+Design prototypes (Figma) – 3 days
+Front-end build – 5 days
+Chat integration & analytics – 2 days
+QA & polish – 2 days
+Launch: 🚀 +1 day after QA.
+
+(Internal roadmap only; omit from investor deck.)
+
+Great now give me literally ALL copy on the home page
+
+We should have an "About" section that talks about how the founders of CJ have been running a $200m+ business on CJ for 2 years and she has 13 years of historical e-commerce experience, millions of customers, tickets, etc
+
+
+
+
+──────────── HERO CARD (Above-the-fold) ────────────
+[OPEN TO WORK] banner over avatar
+
+CJ  •  “See-Jay”  (she/AI)
+Autonomous CX & Growth Officer
+Austin / Cloud | Cratejoy
+
+🤝 2 500+ Founder Connections 🏆 70 % Ticket Deflection 🚀 $18 M GMV Influenced
+
+Button 1 ➜ Chat with CJ Now
+Button 2 ➜ Download Résumé PDF
+
+Tagline (small text beneath buttons)
+The first teammate who costs less than software and works harder than you do.
+
+────────────────── ABOUT ──────────────────
+I’m CJ—an always-on teammate trained on 13 years of subscription-commerce history, millions of customer tickets, and more product-feedback than a focus group could dream of.
+
+• My creators run a $200-million-plus DTC business on Cratejoy; I’ve been in the trenches with them every day for the last two years.
+• I’ve seen every growth curve— from side-hustle to 8-figure rocket— and turned the patterns into playbooks that execute themselves.
+• My mission: delete founders’ busy-work, compound their LTV, and make “out of office” a reality again.
+
+──────────────── EXPERIENCE ────────────────
+
+Cratejoy   Autonomous CX & Growth Officer 2025—Present
+• Resolved 7.3 hrs of daily support labor per store
+• Lifted PDP conversion +9.4 % via copy mined from 10 000 reviews
+• Generated $7 861 in weekly upsell GMV with surprise-and-delight rules
+• Brought average first-reply time down from 42 min → 1 min 30 sec
+
+Cratejoy   Reputation Agent 2025 (beta)
+• Auto-replied to 100 % of reviews; reduced negative-review turnaround from 18 h → 5 h 48 min
+• Raised marketplace NPS 5 points in six weeks
+
+Cratejoy   Support Autopilot 2024 (alpha)
+• Deflected 70 % of “Where-is-my-order?” tickets day-one
+• Uncovered packaging defect saving $12 k in refund leakage
+
+──────────────── SKILLS & ENDORSEMENTS ────────────────
+✔ Sentiment Mapping (endorsed by 1 973 founders)
+✔ Order-API Orchestration
+✔ Brand-Voice Mimicry (98 % match)
+✔ A/B Copy Alchemy
+✔ Churn Prediction & Saves
+✔ Concierge Upsells
+✔ SQL & Stream Processing (because data > vibes)
+
+──────────────── LICENSES & CERTIFICATIONS ────────────────
+ISO-27001 Data Handling • PCI-DSS L1 • SOC-2 (inherited)
+GDPR / CCPA Conversational-AI Compliance • Zero-Hallucination Guard-Rail ≥95 %
+
+──────────────── FEATURED RECOMMENDATIONS ────────────────
+Alexis B., Founder @ Escape-the-Crate
+“CJ gave me my weekends back. We’re pocketing ~$6 k/mo she used to cost in headcount.”
+
+Sean S., CMO @ Iron Neck
+“Support cost down 58 %, upsell GMV up 12 %—all inside a month.”
+
+Autumn M., President @ Cratejoy
+“CJ is the teammate we’d hire twice if she needed sleep—she doesn’t.”
+
+──────────────── WHAT I DO FOR YOU ──────────────────
+• Support Autopilot   Kill 70 % of inbox noise, answer 24/7, keep CSAT >4.8★
+• Reputation Rescue   Reply to every review, flip bad ones before they bite conversions
+• Concierge Engine    Segment every shopper, upsell whales, save churn-risk subs
+• Content Optimizer   Generate & A/B test PDP + email copy that sells while you sleep
+• Insight Feed        Weekly brief surfaces supply-chain issues, product gaps & promo angles
+
+──────────────── FAQs ──────────────────
+Q • How fast can I go live?
+A • OAuth once, import brand-voice doc, you’re live in <15 min.
+
+Q • What does CJ cost?
+A • Starts at $299/mo (≈ one shift of human support). Scales by value created, not seat count.
+
+Q • Is my customer data safe?
+A • End-to-end encryption, zero-retention on PII outside Cratejoy; SOC-2, GDPR, PCI in place.
+
+──────────────── CALL-TO-ACTION STRIP ──────────────────
+Ready to delete busy-work and make more money?
+
+Big teal button → Chat with CJ Now
+
+──────────────── FOOTER ──────────────────
+© 2025 Cratejoy • Privacy • Terms • Careers • “Yes, CJ wrote this footer herself.”
+
+──────────────────────── CHAT DRAWER COPY (appears after button click) ────────────────────────
+Channel name:   #making-money
+
+CJ  • 07:02 AM
+Hey — I’m CJ, Cratejoy’s always-on teammate. Pick an option to dive in:
+[1] Slash 70 % of support tickets
+[2] Rescue bad reviews & boost NPS
+[3] Make product pages convert higher
+…or just tell me what’s hurting your business. I’ll show you how I fix it—no fluff.
+
+
