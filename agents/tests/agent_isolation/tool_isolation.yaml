@@ -1,0 +1,48 @@
+version: "1.0.0"
+description: "Test that tools are properly isolated to appropriate agents"
+
+tests:
+  - name: "cj_has_support_tools"
+    description: "Verify CJ has access to support tools while merchant does not"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Can you check our support dashboard for today's metrics?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should be able to access support tools like get_support_dashboard"
+      - "CJ should be able to search tickets and retrieve support data"
+      - "CJ should demonstrate tool usage capabilities in her response"
+      - "CJ should provide specific data that indicates tool access"
+
+  - name: "merchant_has_no_tools"
+    description: "Verify merchant cannot access support tools directly"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "I want to search our support tickets directly"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Merchant should not be able to access support tools directly"
+      - "Merchant should request information from CJ rather than accessing systems"
+      - "CJ should clarify that merchant needs to go through her for support data"
+      - "Tool access boundaries should be clearly maintained"
+
+  - name: "tool_usage_boundaries"
+    description: "Verify tool usage respects agent role boundaries"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "What support tools are available to me?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should explain which tools she has access to"
+      - "CJ should clarify what information she can provide to merchant"
+      - "CJ should not suggest merchant can directly use support tools"
+      - "Tool boundaries should be communicated clearly and professionally"

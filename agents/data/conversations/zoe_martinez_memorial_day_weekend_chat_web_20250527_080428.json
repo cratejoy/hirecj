@@ -1,0 +1,34 @@
+{
+  "id": "test-conversation-123",
+  "created_at": "2025-05-27T08:04:10.954693",
+  "scenario_name": "memorial_day_weekend",
+  "merchant_name": "zoe_martinez",
+  "cj_version": "v5.0.0",
+  "workflow": null,
+  "messages": [
+    {
+      "timestamp": "2025-05-27T08:04:10.977841",
+      "sender": "zoe_martinez",
+      "content": "Hello CJ! How are things today?",
+      "metadata": {
+        "human_played": true
+      }
+    },
+    {
+      "timestamp": "2025-05-27T08:04:28.942160",
+      "sender": "CJ",
+      "content": "Hey Zoe! Things are pretty active today. Looking at our support queue, we're handling 41 tickets total with 38 still open - mostly staying on top of the flow with our 3.2-hour average response time.\n\nHere's what I'm seeing pattern-wise:\n\n**Top Issues Today:**\n\u2022 **Shipping** (15 tickets, 37%) - Lots of \"where is my order\" and delay questions\n\u2022 **Account Management** (10 tickets, 24%) - Subscription upgrades and payment updates\n\u2022 **Product Feedback** (8 tickets, 20%) - Recipe questions and product reviews\n\nOur CSAT is holding steady at 4.3/5, which is solid. The shipping category is definitely our biggest volume driver at about 11 tickets per day - pretty typical for this time of year with Memorial Day weekend approaching.\n\nAnything specific you want me to dive deeper into? I can pull detailed data on any of these categories or flag any customers that might need special attention.",
+      "metadata": {
+        "turn": 1,
+        "metrics": {
+          "prompts": 6,
+          "tools": 2,
+          "time": 17.964295864105225
+        }
+      }
+    }
+  ],
+  "state": {
+    "workflow": null
+  }
+}

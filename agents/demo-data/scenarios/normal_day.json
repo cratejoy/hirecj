@@ -1,0 +1,70 @@
+{
+  "date": "2025-01-22",
+  "scenario_name": "normal_day",
+  "metrics": {
+    "support": {
+      "tickets_received": 47,
+      "tickets_resolved": 42,
+      "tickets_pending": 12,
+      "avg_response_time": "18 min",
+      "avg_resolution_time": "2.4 hours",
+      "csat": 4.7,
+      "top_issues": [
+        {"category": "shipping", "count": 18, "trend": "stable"},
+        {"category": "product_inquiry", "count": 12, "trend": "up"},
+        {"category": "subscription_change", "count": 9, "trend": "stable"},
+        {"category": "billing", "count": 8, "trend": "down"}
+      ]
+    },
+    "revenue": {
+      "gmv": 8453,
+      "new_subscriptions": 23,
+      "churned": 5,
+      "net_new": 18,
+      "avg_order_value": 47.20,
+      "subscription_revenue": 6890,
+      "one_time_revenue": 1563,
+      "refunds": 127,
+      "top_products": [
+        {"name": "Premium Coffee Box", "sales": 12, "revenue": 480},
+        {"name": "Artisan Snack Collection", "sales": 8, "revenue": 320},
+        {"name": "Monthly Tea Selection", "sales": 6, "revenue": 240}
+      ]
+    },
+    "operations": {
+      "shipments_sent": 156,
+      "delivery_rate": 98.1,
+      "late_shipments": 3,
+      "inventory_alerts": 2,
+      "fulfillment_time": "1.2 days"
+    },
+    "marketing": {
+      "email_open_rate": 24.3,
+      "email_click_rate": 3.8,
+      "social_mentions": 15,
+      "social_sentiment": "positive",
+      "review_score": 4.6,
+      "new_reviews": 8
+    }
+  },
+  "insights": [
+    {
+      "type": "positive",
+      "category": "csat",
+      "message": "Customer satisfaction is above target at 4.7/5.0",
+      "action": "celebrate"
+    },
+    {
+      "type": "warning",
+      "category": "tickets",
+      "message": "Product inquiry tickets trending up 15% this week",
+      "action": "review FAQ content"
+    },
+    {
+      "type": "opportunity",
+      "category": "revenue",
+      "message": "Coffee box performance strong - consider upsell campaign",
+      "action": "plan promotion"
+    }
+  ]
+}

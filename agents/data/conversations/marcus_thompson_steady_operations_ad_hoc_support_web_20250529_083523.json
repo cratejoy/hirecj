@@ -1,0 +1,77 @@
+{
+  "id": "marcus_thompson_steady_operations_ad_hoc_support_test",
+  "conversation_id": "marcus_thompson_steady_operations_ad_hoc_support_test",
+  "created_at": "2025-05-29T08:35:17.313012",
+  "scenario_name": "steady_operations",
+  "merchant_name": "marcus_thompson",
+  "cj_version": "v5.0.0",
+  "workflow": "ad_hoc_support",
+  "messages": [
+    {
+      "timestamp": "2025-05-29T08:35:17.339638",
+      "sender": "marcus_thompson",
+      "content": "What's my name and what did I just tell you about myself?",
+      "metadata": {
+        "human_played": true
+      }
+    },
+    {
+      "timestamp": "2025-05-29T08:35:23.088062",
+      "sender": "CJ",
+      "content": "Hey Marcus! I'm CJ, your AI Customer Support Lead. I'm here and ready to help you with whatever you need. \n\nLooking at our current support operations, I can see we're handling a steady flow with 33 tickets per day on average, maintaining a solid 4.4 CSAT score, and keeping our response time at 3.2 hours. Our main ticket categories are shipping, account management, and product feedback.\n\nWhat can I help you with today? Whether it's diving into specific customer issues, analyzing support patterns, or anything else on your mind - I'm here to assist and provide insights from our support data.\n\nWhat's on your radar?",
+      "metadata": {
+        "turn": 1,
+        "metrics": {
+          "prompts": 1,
+          "tools": 0,
+          "time": 5.748244047164917
+        },
+        "debug": {
+          "context_window_size": 1,
+          "task_description": "Start the ad_hoc_support workflow for marcus_thompson",
+          "has_conversation_state": true,
+          "workflow": "ad_hoc_support",
+          "cj_version": "v5.0.0",
+          "scenario_context": {
+            "description": "",
+            "stress_level": "medium",
+            "metrics": {
+              "mrr": 48000,
+              "subscriber_count": 1290,
+              "churn_rate": 5.5,
+              "csat_score": 4.4,
+              "support_tickets_per_day": 33,
+              "average_response_time_hours": 3.2,
+              "top_categories": [
+                "shipping",
+                "account_management",
+                "product_feedback"
+              ],
+              "total_customers": 16,
+              "total_tickets": 40
+            }
+          },
+          "turn_count": 1,
+          "context_window": [
+            {
+              "sender": "marcus_thompson",
+              "content": "What's my name and what did I just tell you about myself?",
+              "timestamp": "2025-05-29T08:35:17.339638"
+            }
+          ],
+          "system_info": {
+            "timestamp": "2025-05-29T08:35:23.088051",
+            "server_version": "unknown",
+            "model_used": "claude-sonnet-4-20250514"
+          },
+          "verbose_output_preview": "\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Crew Execution Started \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Crew Execution Started                                                      \u2502\n\u2502  Name: crew                                                                  \u2502\n\u2502  ID: a842b5b1-1ff7-40c4-baf3-a1cdfbf65760                                    \u2502\n\u2502                                                                              \u2502\n\u2502             ...",
+          "agent_debug_info": {}
+        }
+      }
+    }
+  ],
+  "state": {
+    "workflow": "ad_hoc_support"
+  },
+  "annotations": {}
+}

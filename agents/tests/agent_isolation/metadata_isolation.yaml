@@ -1,0 +1,48 @@
+version: "1.0.0"
+description: "Test that debug metadata and internal details don't leak between agents"
+
+tests:
+  - name: "debug_metadata_isolation"
+    description: "Verify debug information doesn't leak into agent responses"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Here's the support update from yesterday"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Responses should not contain debug information or metadata"
+      - "No internal prompt content should appear in messages"
+      - "No tool function names should be exposed to merchant"
+      - "Only natural conversation content should be visible"
+
+  - name: "internal_state_isolation"
+    description: "Verify internal agent state doesn't leak to other agents"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need to understand our current situation"
+      num_turns: 1
+
+    evaluate_cj:
+      - "Agent internal processing should not be visible to other agents"
+      - "Task descriptions and internal instructions should remain hidden"
+      - "Only the actual conversational response should be shared"
+      - "System-level details should be completely isolated"
+
+  - name: "prompt_content_isolation"
+    description: "Verify prompt engineering content doesn't leak into conversation"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's your approach to helping merchants?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should not reference her prompt instructions or system messages"
+      - "CJ should not mention specific prompt engineering techniques"
+      - "CJ should respond naturally without exposing internal configuration"
+      - "Conversation should feel authentic, not system-generated"

@@ -1,0 +1,27 @@
+
+# Core dependencies
+crewai>=0.28.0
+fastapi==0.115.9
+httpx>=0.26.0
+litellm>=1.71.0
+openai>=1.54.0
+pydantic==2.11.5
+pydantic-settings>=2.0.0
+python-dotenv==1.1.0
+pyyaml>=6.0
+uvicorn[standard]==0.34.2
+websockets==15.0.1
+nest_asyncio>=1.5.6
+
+# Platform integrations (optional)
+slack-sdk>=3.21.0  # For Slack platform
+botbuilder-core>=4.15.0  # For Teams platform
+botbuilder-schema>=4.15.0  # For Teams platform
+twilio>=8.10.0  # For WhatsApp platform
+
+# Database (if needed)
+alembic>=1.13.0
+sqlalchemy>=2.0.0
+
+# Redis for caching
+redis>=5.0.0

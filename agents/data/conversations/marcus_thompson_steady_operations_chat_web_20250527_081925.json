@@ -1,0 +1,34 @@
+{
+  "id": "test_flow_123",
+  "created_at": "2025-05-27T08:19:10.221273",
+  "scenario_name": "steady_operations",
+  "merchant_name": "marcus_thompson",
+  "cj_version": "v5.0.0",
+  "workflow": null,
+  "messages": [
+    {
+      "timestamp": "2025-05-27T08:19:10.243104",
+      "sender": "marcus_thompson",
+      "content": "Hello CJ!",
+      "metadata": {
+        "human_played": true
+      }
+    },
+    {
+      "timestamp": "2025-05-27T08:19:25.116848",
+      "sender": "CJ",
+      "content": "Hey Marcus! Good to see you! \ud83d\udc4b\n\nJust wrapped up the morning queue review - here's where we stand:\n\n**Current Support Status:**\n\u2022 40 tickets in queue, all being processed\n\u2022 Maintaining our 3.2-hour average response time\n\u2022 CSAT holding steady at 4.4/5 - customers are happy with our service\n\n**What I'm Seeing Today:**\n\u2022 **Shipping inquiries** leading the pack (14 tickets) - mostly WISMO questions and delivery timing\n\u2022 **Account management** requests up (10 tickets) - lots of subscription upgrades, which is actually great news\n\u2022 **Product feedback** flowing in (8 tickets) - customers sharing recipe ideas and reviews\n\nThe team's hitting our targets, and nothing's escalated to urgent status. Quality issues are minimal (just 4 tickets), so our product standards are holding strong.\n\nAnything specific you want me to dig into, or shall I keep you posted on any patterns that emerge throughout the day?",
+      "metadata": {
+        "turn": 1,
+        "metrics": {
+          "prompts": 6,
+          "tools": 2,
+          "time": 14.873723983764648
+        }
+      }
+    }
+  ],
+  "state": {
+    "workflow": null
+  }
+}

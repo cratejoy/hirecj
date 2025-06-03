@@ -1,0 +1,36 @@
+{
+  "session_id": "7cb18254-d642-4c86-94d6-e74941f63e15",
+  "created_at": "2025-06-03T02:13:52.550666",
+  "conversation": {
+    "id": "76acae28-ffbc-45f3-97a3-3f49dc2d7980",
+    "created_at": "2025-06-03T02:13:52.529102",
+    "scenario_name": "steady_operations",
+    "merchant_name": "marcus_thompson",
+    "workflow": "ad_hoc_support",
+    "messages": [
+      {
+        "timestamp": "2025-06-03T02:13:52.550840",
+        "sender": "CJ",
+        "content": "Hey boss, what's up? \ud83d\udc4b Need help with anything today?",
+        "metadata": {}
+      },
+      {
+        "timestamp": "2025-06-03T02:13:56.514661",
+        "sender": "merchant",
+        "content": "yo yo",
+        "metadata": {}
+      },
+      {
+        "timestamp": "2025-06-03T02:14:05.400113",
+        "sender": "CJ",
+        "content": "Yo! \ud83d\udc4b What's good?\n\nQuick heads up - got 40 tickets in the queue waiting for some love. Shipping issues are leading the pack (14 tickets), but nothing's on fire yet. \n\nWhat can I knock out for you today? Need me to dive into anything specific or just want me to work the queue? \ud83c\udfaf",
+        "metadata": {}
+      }
+    ]
+  },
+  "metrics": {
+    "messages": 1,
+    "errors": 0,
+    "response_time_total": 8.885317
+  }
+}

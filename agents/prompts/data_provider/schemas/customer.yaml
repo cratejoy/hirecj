@@ -1,0 +1,55 @@
+# Customer Schema (from support system perspective)
+# Limited to data available in support/helpdesk systems
+
+name: "Support Customer Schema"
+version: "1.0.0"
+description: "Customer data as seen by support systems"
+
+customer:
+  # Basic identification
+  id: string
+  external_id: string
+
+  # Contact information
+  email: string
+  name: string
+  phone: string
+
+  # Support-specific data
+  support_metrics:
+    total_tickets: integer
+    open_tickets: integer
+    solved_tickets: integer
+    avg_satisfaction_score: float
+    last_contact_at: datetime
+    created_at: datetime
+
+  # Communication preferences
+  locale: string
+  time_zone: string
+
+  # Support history summary
+  common_issues:
+    type: array
+    items:
+      category: string
+      count: integer
+
+  # Tags applied by support
+  tags:
+    type: array
+    items: string
+
+  # Notes visible to agents
+  notes: text
+
+  # What we explicitly DON'T have
+  not_available:
+    - purchase_history
+    - order_details
+    - payment_methods
+    - subscription_status
+    - lifetime_value
+    - revenue_data
+    - shipping_addresses
+    - marketing_preferences

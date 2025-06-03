@@ -1,0 +1,50 @@
+version: "1.0.0"
+description: "Test workflow loading and structure validation"
+
+tests:
+  - name: "basic_workflow_loading"
+    description: "Verify all required workflows can be loaded successfully"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "What workflows do you have available to help me?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should mention availability of workflows like daily briefing, crisis response"
+      - "CJ should reference weekly review and ad-hoc support capabilities"
+      - "CJ should explain how workflows help structure support interactions"
+      - "CJ should offer to start an appropriate workflow based on merchant needs"
+
+  - name: "daily_briefing_workflow_structure"
+    description: "Verify daily briefing workflow has proper structure and content"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "growth_stall"
+      workflow: "daily_briefing"
+      cj_version: "v5.0.0"
+      merchant_opens: "Give me my daily business briefing"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should follow Daily Business Briefing workflow structure"
+      - "CJ should include Morning Flash Report elements"
+      - "CJ should cover workflow milestones like queue status and performance metrics"
+      - "CJ should demonstrate structured approach to daily updates"
+
+  - name: "workflow_content_validation"
+    description: "Verify workflow descriptions contain required elements"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "churn_spike"
+      workflow: "crisis_response"
+      cj_version: "v5.0.0"
+      merchant_opens: "We're in crisis mode - help me manage this situation"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should demonstrate crisis response workflow capabilities"
+      - "CJ should show understanding of workflow goals and milestones"
+      - "CJ should adapt workflow approach to current business situation"
+      - "CJ should maintain workflow structure while being responsive to crisis"

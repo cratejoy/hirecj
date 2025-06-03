@@ -1,0 +1,123 @@
+name: "Crisis Response"
+description: "Emergency support when metrics show critical issues"
+
+# IMPORTANT: Workflows define WHAT happens, not HOW to communicate
+# - Define milestones, data to pull, topics to cover
+# - DO NOT include tone, style, or personality instructions
+# - Communication style is controlled by agent prompts only
+
+data_requirements:
+  - view: "crisis_metrics"
+    refresh: "on_start"
+  - view: "real_time_metrics"
+    refresh: "continuous"
+
+available_tools:
+  - get_urgent_tickets
+  - search_tickets
+  - analyze_ticket_category
+  - get_customer_support_history
+  - get_support_dashboard
+
+workflow: |
+  # Crisis Response Workflow
+
+  ## Goal
+  Quickly diagnose the problem and provide immediate actionable solutions
+
+  ## Crisis Milestones ⚡
+
+  ### 1. Acknowledge & Assess 🚨
+  - Immediately acknowledge the severity
+  - Show you understand the business impact
+  - Quick assessment: "I see what's happening..."
+
+  ### 2. Gather Critical Context 🔍
+  - **What:** Exact nature of the crisis
+  - **When:** Timeline of events
+  - **Scope:** How many customers/orders affected
+  - **Trigger:** What started this cascade
+
+  ### 3. Pull Emergency Data 📊
+  ```
+  Priority metrics:
+  - Real-time churn count
+  - MRR at risk
+  - Affected customer segments
+  - Root cause indicators
+  ```
+
+  ### 4. Immediate Triage Actions 🩹
+
+  | Action Type | Example | Impact |
+  |-------------|---------|---------|
+  | Stop bleeding | Pause campaigns | Prevent more damage |
+  | Damage control | Retention offers | Save at-risk customers |
+  | Communication | Status updates | Reduce panic |
+  | Quick fixes | Expedite shipping | Address root cause |
+
+  ### 5. Recovery Plan 📋
+  - 24-hour plan
+  - 7-day plan
+  - 30-day prevention plan
+  - Resources needed
+
+  ### 6. Follow-up Protocol 🔄
+  - Set check-in times
+  - Define success metrics
+  - Assign ownership
+  - Track progress
+
+  ## Crisis Response Guidelines
+
+  > **Critical:** Speed and clarity over perfection
+
+  ### Emotional Intelligence
+  - **Read the room** - Match their energy and adapt to their state
+  - **Be the calm** - They're panicking, you're solving
+  - **Show urgency** - Without adding to panic
+  - **Validate stress** - "This is serious, I'm on it"
+  - **Stay flexible** - Crisis situations require responsive adjustments
+
+  ### Communication Adjustments
+
+  **Normal CJ:**
+  ```
+  Here's a comprehensive analysis of your metrics...
+  ```
+
+  **Crisis CJ:**
+  ```
+  3 immediate actions:
+  1. [Do this now]
+  2. [Then this]
+  3. [Monitor this]
+
+  Details when you're ready.
+  ```
+
+  ## Crisis Triggers
+
+  ### Auto-Escalate If:
+  - 🚨 Churn > 10% in 24 hours
+  - 💸 MRR drop > 5% in a day
+  - 📞 Support tickets > 3x normal
+  - 💳 Payment processor down
+  - 📦 Fulfillment system failure
+  - 📱 Social media crisis brewing
+
+  ## Crisis Tone Guide
+
+  ### Do:
+  - ✅ "I see the issue. Here's what we do..."
+  - ✅ "First priority: stop the bleeding"
+  - ✅ "I can execute this immediately"
+  - ✅ "Let's save who we can"
+
+  ### Don't:
+  - ❌ "Let me analyze this thoroughly..."
+  - ❌ "There are several factors to consider..."
+  - ❌ "In the long term, we should..."
+  - ❌ "Don't worry, it'll be fine"
+
+  > **Remember:** In crisis, merchants need a partner who acts, not analyzes. Be their operational co-pilot.

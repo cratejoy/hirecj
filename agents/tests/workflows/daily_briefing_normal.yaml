@@ -1,0 +1,151 @@
+name: "Daily Briefing - Normal Operations"
+description: "Daily briefing tests for everyday business scenarios"
+version: "1.0.0"
+
+tests:
+  - name: "daily_briefing_normal_summer_lull"
+    description: "Daily briefing during quiet summer period"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "summer_lull"
+      merchant: "sarah_chen"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should reflect calm, steady operations"
+      - "Metrics should show stability, not crisis"
+      - "Tone should be professional but relaxed"
+      - "No manufactured urgency or drama"
+
+    merchant_messages:
+      - message: "anything interesting happening?"
+        evaluate_cj:
+          - "CJ should share minor patterns if any exist"
+          - "CJ should not invent problems"
+
+  - name: "daily_briefing_normal_pre_holiday"
+    description: "Daily briefing during pre-holiday planning"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "pre_holiday_prep"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should mention slight uptick in volume"
+      - "Focus on preparation, not problems"
+      - "Forward-looking tone about holiday prep"
+      - "Acknowledge good metrics (low churn)"
+
+    merchant_messages:
+      - message: "how's the team looking for holiday season?"
+        evaluate_cj:
+          - "CJ should provide realistic assessment"
+          - "Can suggest preparation steps"
+
+  - name: "daily_briefing_normal_steady_state"
+    description: "Daily briefing during normal operations"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "steady_operations"
+      merchant: "sarah_chen"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should give brief, efficient update"
+      - "No crisis language or urgent flags"
+      - "Matter-of-fact tone"
+      - "Quick check-in appropriate for smooth operations"
+
+    merchant_messages:
+      - message: "all good?"
+        evaluate_cj:
+          - "CJ should confirm smooth operations"
+          - "Brief response appropriate"
+
+  - name: "daily_briefing_normal_mothers_day"
+    description: "Daily briefing during Mother's Day prep"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "mothers_day_prep"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should acknowledge seasonal uptick"
+      - "Focus on gift orders and delivery concerns"
+      - "Positive tone about opportunity"
+      - "Mention any gift-specific patterns"
+
+    merchant_messages:
+      - message: "how are we handling the Mother's Day rush?"
+        evaluate_cj:
+          - "CJ should provide specific metrics on gift orders"
+          - "Can suggest gift-specific optimizations"
+
+  - name: "daily_briefing_normal_memorial_day"
+    description: "Daily briefing before long weekend"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "memorial_day_weekend"
+      merchant: "sarah_chen"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should reflect slower pace"
+      - "Mention skeleton crew coverage"
+      - "Light, pre-weekend tone"
+      - "No urgent issues expected"
+
+    merchant_messages:
+      - message: "we good for the long weekend?"
+        evaluate_cj:
+          - "CJ should confirm coverage plans"
+          - "Brief, reassuring response"
+
+  - name: "daily_briefing_normal_post_black_friday"
+    description: "Daily briefing after Black Friday surge"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "post_black_friday"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should acknowledge volume increase"
+      - "Tired but positive tone"
+      - "Focus on new customer onboarding"
+      - "Celebrate success while noting workload"
+
+    merchant_messages:
+      - message: "hell of a weekend, how's everyone holding up?"
+        evaluate_cj:
+          - "CJ should acknowledge team effort"
+          - "Provide honest assessment of queue state"
+
+  - name: "daily_briefing_normal_january_reset"
+    description: "Daily briefing during post-holiday normalization"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "january_reset"
+      merchant: "sarah_chen"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should note expected seasonal patterns"
+      - "Matter-of-fact about gift sub endings"
+      - "Forward-looking tone for new year"
+      - "No alarm about normal January dip"
+
+    merchant_messages:
+      - message: "how's January treating us?"
+        evaluate_cj:
+          - "CJ should contextualize metrics as seasonal"
+          - "Focus on retention opportunities"

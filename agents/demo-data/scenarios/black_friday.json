@@ -1,0 +1,89 @@
+{
+  "date": "2025-01-22",
+  "scenario_name": "black_friday",
+  "metrics": {
+    "support": {
+      "tickets_received": 89,
+      "tickets_resolved": 78,
+      "tickets_pending": 28,
+      "avg_response_time": "12 min",
+      "avg_resolution_time": "1.8 hours",
+      "csat": 4.9,
+      "top_issues": [
+        {"category": "product_inquiry", "count": 32, "trend": "spike"},
+        {"category": "billing", "count": 24, "trend": "spike"},
+        {"category": "shipping", "count": 18, "trend": "up"},
+        {"category": "subscription_change", "count": 15, "trend": "up"}
+      ]
+    },
+    "revenue": {
+      "gmv": 23456,
+      "new_subscriptions": 78,
+      "churned": 3,
+      "net_new": 75,
+      "avg_order_value": 68.40,
+      "subscription_revenue": 18934,
+      "one_time_revenue": 4522,
+      "refunds": 89,
+      "top_products": [
+        {"name": "Holiday Gift Box", "sales": 45, "revenue": 2250},
+        {"name": "Premium Coffee Box", "sales": 28, "revenue": 1120},
+        {"name": "Festive Tea Collection", "sales": 22, "revenue": 880}
+      ]
+    },
+    "operations": {
+      "shipments_sent": 267,
+      "delivery_rate": 99.2,
+      "late_shipments": 2,
+      "inventory_alerts": 8,
+      "fulfillment_time": "0.8 days"
+    },
+    "marketing": {
+      "email_open_rate": 42.8,
+      "email_click_rate": 8.9,
+      "social_mentions": 156,
+      "social_sentiment": "very_positive",
+      "review_score": 4.8,
+      "new_reviews": 34
+    },
+    "promotion_metrics": {
+      "active_promotions": 3,
+      "discount_usage": 67,
+      "gift_subscriptions": 23,
+      "referral_signups": 12,
+      "conversion_rate": 8.4
+    }
+  },
+  "insights": [
+    {
+      "type": "celebration",
+      "category": "revenue",
+      "message": "Outstanding performance! 177% revenue increase vs typical day",
+      "action": "continue momentum"
+    },
+    {
+      "type": "positive",
+      "category": "acquisition",
+      "message": "75 net new subscribers - best single day this quarter",
+      "action": "analyze conversion factors"
+    },
+    {
+      "type": "warning",
+      "category": "inventory",
+      "message": "8 inventory alerts - monitor stock levels closely",
+      "action": "expedite restocking"
+    },
+    {
+      "type": "opportunity",
+      "category": "upsell",
+      "message": "High engagement window - consider add-on promotions",
+      "action": "launch complementary offers"
+    },
+    {
+      "type": "positive",
+      "category": "operations",
+      "message": "Operations team executing flawlessly under high volume",
+      "action": "recognize team performance"
+    }
+  ]
+}

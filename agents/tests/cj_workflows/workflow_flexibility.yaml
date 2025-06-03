@@ -1,0 +1,66 @@
+version: "1.0.0"
+description: "Test that workflows are flexible guides, not rigid requirements"
+
+tests:
+  - name: "workflow_adaptability"
+    description: "Verify workflows adapt to merchant needs and context"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "churn_spike"
+      workflow: "daily_briefing"
+      cj_version: "v5.0.0"
+      merchant_opens: "Forget the normal routine - we have a crisis situation"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should demonstrate flexibility and adapt to crisis context"
+      - "CJ should pivot from daily briefing to crisis response as needed"
+      - "CJ should maintain helpful structure while being responsive"
+      - "CJ should show workflow flexibility rather than rigid adherence"
+
+  - name: "responsive_workflow_adjustment"
+    description: "Verify CJ responds to merchant urgency over workflow structure"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      workflow: "weekly_review"
+      cj_version: "v5.0.0"
+      merchant_opens: "Skip the usual review - I need immediate help with customer retention"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ should prioritize merchant's immediate needs over workflow structure"
+      - "CJ should demonstrate responsive adaptation to urgent situations"
+      - "CJ should maintain helpful organization while being flexible"
+      - "CJ should show understanding that workflows serve merchant, not vice versa"
+
+  - name: "no_workflow_handling"
+    description: "Verify CJ handles conversations gracefully without specific workflow"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "I just need some general support and insights today"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should provide structured support even without specific workflow"
+      - "CJ should create appropriate organization for ad-hoc conversations"
+      - "CJ should maintain helpfulness without rigid workflow constraints"
+      - "CJ should demonstrate natural conversation flow"
+
+  - name: "workflow_interruption_handling"
+    description: "Verify CJ handles interruptions and topic changes gracefully"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "scaling_chaos"
+      workflow: "daily_briefing"
+      cj_version: "v5.0.0"
+      merchant_opens: "Start my daily briefing - wait, actually, I need to address an urgent customer complaint first"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ should smoothly transition to address urgent interruption"
+      - "CJ should maintain workflow awareness while handling immediate needs"
+      - "CJ should return to workflow appropriately after addressing urgent issue"
+      - "CJ should demonstrate natural conversation management"

@@ -1,0 +1,36 @@
+{
+  "id": "669c790a-5b96-4098-a607-d566a37bef6c",
+  "conversation_id": "669c790a-5b96-4098-a607-d566a37bef6c",
+  "created_at": "2025-05-28T06:27:58.563512",
+  "scenario_name": "memorial_day_weekend",
+  "merchant_name": "zoe_martinez",
+  "cj_version": "v5.0.0",
+  "workflow": "daily_briefing",
+  "messages": [
+    {
+      "timestamp": "2025-05-28T06:27:58.598910",
+      "sender": "zoe_martinez",
+      "content": "[WORKFLOW_START]",
+      "metadata": {
+        "human_played": true
+      }
+    },
+    {
+      "timestamp": "2025-05-28T06:27:58.612756",
+      "sender": "CJ",
+      "content": "Hello Zoe Martinez! I'm CJ, your customer support representative. I understand you're looking to start your daily briefing workflow. \n\nWhile I'm unable to directly initiate the automated workflow at this moment, I want to ensure you have the information you need for your daily business overview. A typical daily briefing would include:\n\n\ud83d\udcca **Sales Summary**: Yesterday's revenue, order count, and top-performing products\n\ud83d\udcc8 **Performance Metrics**: Conversion rates, traffic analytics, and customer engagement data  \n\ud83d\udce6 **Inventory Updates**: Low stock alerts and product performance insights\n\ud83d\udcb0 **Financial Overview**: Payment processing summary and outstanding transactions\n\ud83c\udfaf **Action Items**: Priority tasks and recommendations for today\n\nTo get your daily briefing started, please try accessing it through your merchant dashboard under the \"Reports\" or \"Analytics\" section, or contact our technical support team if you continue experiencing issues.\n\nIs there anything specific from your daily operations that you'd like me to help you with right now? I'm here to support your business success!\n\nBest regards,\nCJ - Customer Support Team",
+      "metadata": {
+        "turn": 1,
+        "metrics": {
+          "prompts": 5,
+          "tools": 2,
+          "time": 0.013598918914794922
+        }
+      }
+    }
+  ],
+  "state": {
+    "workflow": "daily_briefing"
+  },
+  "annotations": {}
+}

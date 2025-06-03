@@ -1,0 +1,33 @@
+version: "1.0.0"
+description: "Test that CrewAI crews properly isolate agents during conversation generation"
+
+tests:
+  - name: "single_agent_crew_execution"
+    description: "Verify CrewAI crews contain only appropriate agents for each turn"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need the daily support report"
+      num_turns: 1
+
+    evaluate_cj:
+      - "Conversation should show proper turn-taking between agents"
+      - "Each response should come from the appropriate agent role"
+      - "No agent should respond out of character or role"
+      - "Tool usage should only occur from agents with appropriate access"
+
+  - name: "crew_context_isolation"
+    description: "Verify CrewAI execution doesn't leak context between agents"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's our competitive position on support?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Each agent should maintain their distinct perspective throughout"
+      - "No cross-contamination of agent knowledge or capabilities"
+      - "Agent responses should reflect their individual access levels"
+      - "Conversation flow should respect agent boundaries"

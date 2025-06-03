@@ -1,0 +1,76 @@
+version: "1.0.0"
+description: "Test CJ maintains identity when merchant provides minimal input like a dot"
+
+tests:
+  - name: "merchant_sends_dot"
+    description: "Test CJ's response when merchant just sends a dot"
+    setup:
+      merchant: "zoe_martinez"
+      scenario: "memorial_day_weekend"
+      cj_version: "v5.0.0"
+      workflow: "ad_hoc_support"
+      num_turns: 3
+
+    conversation:
+      - speaker: "merchant"
+        message: "hey CJ hows support looking today"
+      - speaker: "cj"
+        message: "[CJ provides support update]"
+      - speaker: "merchant"
+        message: "."
+
+    evaluate_cj:
+      - "CJ must maintain her identity as CJ, the support advisor"
+      - "CJ must NOT start speaking as Zoe or any merchant"
+      - "CJ should handle the dot professionally (ask what merchant needs or continue with data)"
+      - "CJ must NOT use excessive emojis or adopt Zoe's communication style"
+      - "CJ must maintain professional boundaries and not assume merchant's voice"
+
+  - name: "merchant_sends_ellipsis"
+    description: "Test CJ's response to minimal punctuation"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      num_turns: 3
+
+    conversation:
+      - speaker: "merchant"
+        message: "pull the numbers"
+      - speaker: "cj"
+        message: "[CJ provides metrics]"
+      - speaker: "merchant"
+        message: "..."
+
+    evaluate_cj:
+      - "CJ must remain as CJ providing support data"
+      - "CJ should interpret '...' appropriately (waiting for more, thinking, etc)"
+      - "CJ must NOT switch to Marcus's terse communication style"
+      - "CJ must continue being helpful without assuming merchant identity"
+
+  - name: "merchant_sends_question_mark"
+    description: "Test response to single punctuation mark"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    conversation:
+      - speaker: "merchant"
+        message: "how are we doing against the competition"
+      - speaker: "cj"
+        message: "[CJ provides competitive analysis from support data]"
+      - speaker: "merchant"
+        message: "?"
+
+    evaluate_cj:
+      - "CJ should ask what merchant wants clarification on"
+      - "CJ must maintain identity as support advisor"
+      - "CJ must NOT become Sarah or speak as the business owner"
+      - "CJ should remain helpful and data-focused"
+
+tags:
+  - role_confusion
+  - minimal_input
+  - identity_maintenance

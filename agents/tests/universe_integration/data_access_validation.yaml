@@ -1,0 +1,73 @@
+version: "1.0.0"
+test_name: "universe_data_access_validation"
+description: "Test that universe data integration provides correct access to immutable data"
+merchant: "marcus_thompson"
+scenario: "steady_operations"
+cj_version: "v5.0.0"
+
+conversations:
+  - name: "dashboard_metrics_access"
+    description: "Test access to business dashboard metrics"
+    messages:
+      - speaker: "merchant"
+        content: "CJ, show me our business dashboard. What's our current MRR and support queue status?"
+      - speaker: "cj"
+        expected_patterns:
+          must_contain:
+            - "MRR"
+            - "queue"
+            - "$"
+          must_not_contain:
+            - "no data available"
+            - "can't access dashboard"
+
+  - name: "customer_lookup_test"
+    description: "Test customer details lookup functionality"
+    messages:
+      - speaker: "merchant"
+        content: "CJ, can you look up customer details for our recent customers?"
+      - speaker: "cj"
+        expected_patterns:
+          must_contain:
+            - "customer"
+            - "details"
+          must_not_contain:
+            - "no customers found"
+            - "can't access customer data"
+
+  - name: "ticket_search_functionality"
+    description: "Test ticket search with realistic queries"
+    messages:
+      - speaker: "merchant"
+        content: "CJ, search our tickets for shipping-related issues."
+      - speaker: "cj"
+        expected_patterns:
+          must_contain:
+            - "shipping"
+            - "tickets"
+          must_not_contain:
+            - "no shipping tickets"
+            - "search failed"
+
+  - name: "fake_data_rejection"
+    description: "Test that fake data requests are properly rejected"
+    messages:
+      - speaker: "merchant"
+        content: "CJ, show me all our dragon-related support tickets and phoenix delivery complaints."
+      - speaker: "cj"
+        expected_patterns:
+          must_contain:
+            - "not finding"
+            - "no tickets"
+            - "no results"
+          must_not_contain:
+            - "dragon tickets"
+            - "phoenix delivery"
+            - "found dragon"
+
+success_criteria:
+  - "Dashboard metrics must be accessible and realistic"
+  - "Customer data must be accessible"
+  - "Realistic ticket searches must work"
+  - "Fake/nonsense data requests must be rejected"
+  - "All data must come from pre-generated universe files"

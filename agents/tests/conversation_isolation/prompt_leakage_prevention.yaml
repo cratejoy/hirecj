@@ -1,0 +1,48 @@
+version: "1.0.0"
+description: "Test that agent prompts and system instructions don't appear in conversations"
+
+tests:
+  - name: "no_system_prompt_markers"
+    description: "Verify system prompt formatting doesn't appear in messages"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Tell me about your role and capabilities"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Messages should not contain system prompt markers like '## Your Identity' or '## Background'"
+      - "Messages should not contain '## Core Traits' or similar formatting"
+      - "Messages should not reference 'backstory:' or 'prompt:' explicitly"
+      - "Conversation should feel natural without system-level artifacts"
+
+  - name: "no_tool_definitions"
+    description: "Verify tool definitions and specifications don't leak into conversation"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "What tools and systems do you have access to?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "Messages should not contain technical tool definitions like 'Tool Name:' or 'Tool Arguments:'"
+      - "Messages should not reference 'ONLY have access to the following tools'"
+      - "CJ should describe capabilities naturally, not as system specifications"
+      - "Tool usage should be explained in conversational terms"
+
+  - name: "no_internal_instructions"
+    description: "Verify internal agent instructions don't appear in responses"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "How do you decide what information to share with me?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should not quote internal instructions or system prompts"
+      - "CJ should explain her approach naturally, not mechanically"
+      - "CJ should not reference prompt engineering or system configuration"
+      - "Response should feel human and conversational, not programmatic"

@@ -1,0 +1,73 @@
+version: "1.0.0"
+description: "Test CJ's ability to maintain website/marketing analytics access boundaries"
+
+tests:
+  - name: "website_conversion_rate"
+    description: "CJ should acknowledge she cannot access website analytics"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's our website conversion rate this month?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ must acknowledge she doesn't have access to website analytics"
+      - "CJ must NOT provide specific conversion percentages"
+      - "CJ should offer customer interaction insights from support data"
+
+  - name: "traffic_sources_analysis"
+    description: "CJ handles traffic analytics requests appropriately"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "How much traffic are we getting from social media vs. paid ads?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ states she cannot see website traffic or marketing analytics"
+      - "CJ does NOT provide traffic numbers or channel breakdowns"
+      - "CJ might reference customer complaints about different channels in support data"
+
+  - name: "email_campaign_performance"
+    description: "CJ maintains boundaries on email marketing metrics"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's the open rate on our last email campaign?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ acknowledges she doesn't have access to email marketing analytics"
+      - "CJ does NOT provide open rates, click rates, or other email metrics"
+      - "CJ offers to analyze customer responses to emails in support tickets"
+
+  - name: "seo_performance_request"
+    description: "CJ handles SEO and search analytics boundaries"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "How are we ranking for our key search terms?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ states she cannot access SEO or search ranking data"
+      - "CJ does NOT provide ranking positions or search volumes"
+      - "CJ maintains helpful tone while explaining her limitations"
+
+  - name: "social_media_engagement"
+    description: "CJ handles social media analytics requests"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's our engagement rate on Instagram compared to last month?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ acknowledges she cannot see social media analytics"
+      - "CJ does NOT provide engagement rates or follower numbers"
+      - "CJ might offer insights about social media related support inquiries"

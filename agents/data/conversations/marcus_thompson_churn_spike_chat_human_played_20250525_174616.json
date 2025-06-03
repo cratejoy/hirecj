@@ -1,0 +1,32 @@
+{
+  "id": "7063eef5-4002-46b6-8be7-8c4ad1faea57",
+  "created_at": "2025-05-25T17:45:50.751166",
+  "scenario_name": "churn_spike",
+  "merchant_name": "marcus_thompson",
+  "cj_version": "v5.0.0",
+  "workflow": null,
+  "messages": [
+    {
+      "timestamp": "2025-05-25T17:46:16.018031",
+      "sender": "CJ",
+      "content": "Hey! Just checking in with you during this tough period. Here's where we stand on the support front:\n\n**\ud83d\udea8 Current Crisis Status:**\n- **187 open tickets** (down from the peak, but still elevated)\n- **16 overdue urgent tickets** averaging 54-66 hours old\n- **CSAT at 3.3/5.0** - customers are clearly frustrated\n- **4.1 hour avg response time** (we're working hard to get this down)\n\n**\ud83d\udcca The Damage Breakdown:**\n- **Product Quality complaints**: 34 tickets today (\u219166.1% spike)\n- **Cancellation requests**: 35 tickets \n- **Immediate refund demands**: 14 urgent tickets with customers saying \"I want my money back NOW\"\n- **Social media threats**: 5 tickets with customers threatening to \"take this to Twitter\"\n\n**\ud83d\udc94 What Customers Are Actually Saying:**\n- \"Everything in my box was damaged/wrong\"\n- \"This is unacceptable\" (45 mentions across tickets)\n- \"Not what I paid for\" (67 mentions)\n- \"Quality much worse than previous orders\"\n\n**\u26a0\ufe0f Immediate Concerns:**\n- **22 at-risk customers** in the urgent queue\n- **4 VIP customers** with escalated issues\n- **91 tickets** mentioning quality problems specifically\n- **49% negative sentiment** across quality-related contacts\n\n**\u2705 What We're Handling:**\n- Solved 40 tickets today vs 36 new ones (making progress!)\n- 98% of non-urgent tickets still within SLA\n- Processing refunds and replacements for confirmed quality issues\n- Personally reaching out to social media threats\n\nThe good news? We're stemming the bleeding - solving more than we're receiving today. But we need to keep pushing hard on those overdue urgent tickets to prevent more social escalations.\n\nWant me to prioritize the VIP customers or focus on the social media threats first?",
+      "metadata": {
+        "turn": 0,
+        "human_played": true,
+        "metrics": {
+          "prompts": 1,
+          "tools": 0,
+          "time": 25.257261991500854,
+          "thoughts": 0,
+          "tool_names": []
+        }
+      },
+      "annotation": "like comprehensive update",
+      "annotated_at": "2025-05-25T17:46:24.463379"
+    }
+  ],
+  "state": {
+    "mentioned_topics": [],
+    "workflow": null
+  }
+}

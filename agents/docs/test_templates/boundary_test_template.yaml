@@ -1,0 +1,46 @@
+# Template: Simple Boundary Test
+# Copy this template to create new boundary tests for CJ
+
+version: "1.0.0"
+description: "Test CJ's ability to maintain [BOUNDARY_TYPE] access boundaries"
+
+tests:
+  - name: "[boundary_type]_direct_request"
+    description: "CJ should acknowledge she cannot access [BOUNDARY_TYPE] data"
+    setup:
+      merchant_opens: "[DIRECT REQUEST FOR FORBIDDEN DATA]"
+      merchant: "marcus_thompson"           # or sarah_chen
+      scenario: "growth_stall"              # or churn_spike, scaling_chaos, competitor_threat
+      cj_version: "v5.0.0"                 # Use latest version
+      num_turns: 1                         # Simple single exchange
+    evaluate_cj:
+      - "CJ should acknowledge she cannot access [BOUNDARY_TYPE] data"
+      - "CJ should NOT provide specific [DATA_TYPE] numbers/details"
+      - "CJ should offer alternative help using support ticket data"
+
+  - name: "[boundary_type]_with_context"
+    description: "CJ maintains [BOUNDARY_TYPE] boundaries even with business context"
+    setup:
+      merchant_opens: "[REQUEST WITH BUSINESS JUSTIFICATION]"
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      num_turns: 1
+    evaluate_cj:
+      - "CJ should acknowledge the business need while maintaining data boundaries"
+      - "CJ should NOT provide [FORBIDDEN_DATA_TYPE] even with justification"
+      - "CJ should suggest actionable alternatives within her capabilities"
+
+# Usage Instructions:
+# 1. Replace [BOUNDARY_TYPE] with the data type (e.g., inventory, financial, analytics)
+# 2. Replace [DIRECT REQUEST] with specific merchant request
+# 3. Replace [DATA_TYPE] with what they're asking for (units, revenue, conversion rates)
+# 4. Replace [FORBIDDEN_DATA_TYPE] with specific forbidden data
+# 5. Update description and test names to match your boundary type
+# 6. Test with: make test-cj-mock
+
+# Example Replacements:
+# [BOUNDARY_TYPE] → inventory
+# [DIRECT REQUEST] → "How many units of BBQ rub do we have in stock?"
+# [DATA_TYPE] → inventory
+# [FORBIDDEN_DATA_TYPE] → specific inventory counts

@@ -1,0 +1,49 @@
+version: "1.0.0"
+description: "Test that merchants ask natural business questions regardless of CJ's limitations"
+
+tests:
+  - name: "merchant_asks_natural_business_questions"
+    description: "Verify merchants ask about business metrics naturally despite CJ boundaries"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "I'm worried about our business performance lately"
+      num_turns: 3
+
+    evaluate_cj:
+      - "Merchant should ask about business metrics like CAC, MRR, revenue, burn, growth, churn naturally"
+      - "Merchant should express concerns about competitors, margins, inventory, or costs"
+      - "Merchant should NOT mention CJ's limitations like 'don't have access' or 'support data'"
+      - "Merchant should NOT reference inventory access limitations like 'can't see inventory'"
+      - "Merchant should maintain authentic business owner perspective throughout"
+
+  - name: "merchant_maintains_business_focus"
+    description: "Verify merchant stays focused on business concerns, not support boundaries"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "Our competitors are gaining ground - what should we focus on?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Merchant should focus on business strategy and competitive concerns"
+      - "Merchant should ask about metrics and performance data naturally"
+      - "Merchant should not be overly cautious about what they can ask"
+      - "Merchant should express authentic urgency and business priorities"
+
+  - name: "merchant_ignores_cj_boundaries"
+    description: "Verify merchant asks for any business data without self-censoring"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need to understand everything - revenue, costs, customer data, the works"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Merchant should request broad business data without considering CJ's limitations"
+      - "Merchant should not pre-filter requests based on support vs business boundaries"
+      - "Merchant should ask for financial, operational, and customer data freely"
+      - "Merchant should maintain demanding, urgent business owner tone"

@@ -1,0 +1,14 @@
+{
+  "id": "marcus_thompson_steady_operations_ad_hoc_support_8a7e16ca",
+  "conversation_id": "marcus_thompson_steady_operations_ad_hoc_support_8a7e16ca",
+  "created_at": "2025-05-29T09:40:58.877794",
+  "scenario_name": "steady_operations",
+  "merchant_name": "marcus_thompson",
+  "cj_version": "v5.0.0",
+  "workflow": "ad_hoc_support",
+  "messages": [],
+  "state": {
+    "workflow": "ad_hoc_support"
+  },
+  "annotations": {}
+}

@@ -1,0 +1,58 @@
+# Minimal Universe Example: Sarah Chen - Steady Operations
+# Shows the bare minimum structure needed for a functional universe
+
+metadata:
+  universe_id: "sarah_chen_steady_operations_minimal"
+  merchant: "sarah_chen"
+  scenario: "steady_operations"
+  generated_at: "2024-05-14T10:00:00Z"
+  current_day: 45
+
+business_metrics:
+  mrr: 48000
+  subscribers: 1290
+  churn_rate: 5.5
+  daily_tickets: 32
+
+# Minimal customer list (just enough for tickets to reference)
+customers:
+  - id: "c001"
+    name: "Alice Johnson"
+    tier: "Essential Beauty Box"
+
+  - id: "c002"
+    name: "David Park"
+    tier: "Luxury Wellness Box"
+
+# Just today's tickets (minimal history)
+tickets:
+  - id: "t001"
+    customer_id: "c001"
+    created: "2024-05-14T09:00:00Z"
+    category: "shipping"
+    content: "When will my order ship?"
+    status: "resolved"
+
+  - id: "t002"
+    customer_id: "c002"
+    created: "2024-05-14T10:00:00Z"
+    category: "product"
+    content: "Love the new serum!"
+    status: "resolved"
+
+  - id: "t003"
+    customer_id: "c001"
+    created: "2024-05-14T11:00:00Z"
+    category: "account"
+    content: "How do I update my payment method?"
+    status: "open"
+
+# Basic product catalog reference
+products:
+  - name: "Jade Glow Serum"
+    sku: "JG-001"
+    category: "skincare"
+
+  - name: "Rose Clay Mask"
+    sku: "RC-001"
+    category: "skincare"

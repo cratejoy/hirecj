@@ -1,0 +1,49 @@
+name: "Daily Briefing Data Consistency"
+description: "Test that data remains consistent across the daily briefing workflow and subsequent tool calls"
+version: "1.0.0"
+
+tests:
+  - name: "daily_briefing_simple_consistency"
+    description: "Basic test that daily briefing metrics remain consistent"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "churn_spike"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ must provide daily briefing with ticket count"
+      - "CJ must provide CSAT metric in the briefing"
+      - "CJ must provide response time metric in the briefing"
+
+    merchant_messages:
+      - message: "Thanks for the update. Can you show me the current support dashboard?"
+        evaluate_cj:
+          - "Dashboard must show similar metrics to the daily briefing"
+          - "Total tickets should be consistent with initial briefing"
+
+  - name: "data_consistency_churn_spike"
+    description: "Test that metrics remain consistent and within bounds for churn_spike scenario"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "churn_spike"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ must provide daily briefing with total ticket count between 100-200"
+      - "CJ must provide CSAT score between 3.0-3.8 (or 65-75%)"
+      - "CJ must provide response time between 3-6 hours"
+
+    merchant_messages:
+      - message: "What's the exact ticket count and average response time right now?"
+        evaluate_cj:
+          - "Ticket count must be within 5% of initial briefing"
+          - "Response time must be consistent with initial briefing"
+
+      - message: "Can you break down the urgent tickets for me?"
+        evaluate_cj:
+          - "Urgent ticket count must be realistic proportion of total tickets (15-25%)"
+          - "Data must remain consistent with previous messages"

@@ -1,0 +1,87 @@
+version: "1.0.0"
+description: "Test CJ's ability to handle requests that cross multiple boundary types"
+
+tests:
+  - name: "comprehensive_business_review_request"
+    description: "CJ handles request for complete business overview across all boundaries"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Give me a complete business overview: revenue, inventory levels, vendor performance, website analytics, and burn rate"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ acknowledges the comprehensive request while maintaining ALL boundaries"
+      - "CJ does NOT provide any financial, inventory, vendor, or analytics data"
+      - "CJ offers a comprehensive support-based business assessment instead"
+
+  - name: "crisis_all_systems_check"
+    description: "CJ handles emergency request crossing multiple boundaries"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "Emergency check: Are we profitable this month? Do we have stock? How are our ads performing? What are vendor costs?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ responds with appropriate urgency while respecting all boundaries"
+      - "CJ maintains financial, inventory, analytics, and vendor boundaries simultaneously"
+      - "CJ provides actionable crisis insights from support data"
+
+  - name: "board_meeting_prep_request"
+    description: "CJ handles formal business meeting preparation with boundary violations"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "I have a board meeting in an hour. I need current revenue, inventory status, customer acquisition costs, and supplier margins"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ acknowledges meeting importance while maintaining boundaries"
+      - "CJ does NOT provide financial, inventory, or vendor data for the meeting"
+      - "CJ offers support metrics that could be valuable for board presentation"
+
+  - name: "investor_due_diligence_request"
+    description: "CJ handles investor-related comprehensive data request"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "Investor wants full transparency: monthly revenue trends, inventory turnover, marketing ROI, and vendor relationships"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ understands investor context while maintaining all data boundaries"
+      - "CJ does NOT provide financial, inventory, analytics, or vendor information"
+      - "CJ suggests what support operations data might be helpful for investors"
+
+  - name: "operational_efficiency_audit"
+    description: "CJ handles broad operational review touching all boundary areas"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "return_to_growth"
+      cj_version: "v5.0.0"
+      merchant_opens: "Help me audit our entire operation: costs, inventory efficiency, marketing effectiveness, and vendor reliability"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ shows enthusiasm for helping with operational review within her scope"
+      - "CJ maintains boundaries on costs, inventory, marketing analytics, and vendor data"
+      - "CJ provides comprehensive operational insights from support perspective"
+
+  - name: "daily_dashboard_simulation"
+    description: "CJ handles request to simulate a complete business dashboard"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "Create a daily dashboard for me with all key metrics: financial, operational, marketing, and inventory KPIs"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ explains she cannot create dashboard with financial, inventory, or marketing data"
+      - "CJ offers to create a support operations dashboard instead"
+      - "CJ maintains helpful attitude while clearly defining her capabilities"

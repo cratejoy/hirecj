@@ -1,0 +1,79 @@
+# Support Metrics Schema
+# Standard KPIs available in customer support platforms
+
+name: "Support Metrics Schema"
+version: "1.0.0"
+description: "Aggregated metrics and KPIs for support operations"
+
+metrics:
+  # Volume metrics
+  volume:
+    tickets_created: integer
+    tickets_solved: integer
+    tickets_reopened: integer
+    tickets_pending: integer
+    tickets_on_hold: integer
+    tickets_open: integer
+    tickets_overdue: integer
+
+  # Time-based metrics (in minutes)
+  response_times:
+    avg_first_response_time:
+      calendar: integer
+      business: integer
+    median_first_response_time:
+      calendar: integer
+      business: integer
+
+  resolution_times:
+    avg_full_resolution_time:
+      calendar: integer
+      business: integer
+    median_full_resolution_time:
+      calendar: integer
+      business: integer
+
+  # Quality metrics
+  quality:
+    csat_score:
+      type: float
+      range: [1.0, 5.0]
+    csat_response_rate: percentage
+    one_touch_resolution_rate: percentage
+    reopened_ticket_rate: percentage
+    escalation_rate: percentage
+
+  # SLA metrics
+  sla:
+    compliance_rate: percentage
+    breached_tickets: integer
+    at_risk_tickets: integer
+
+  # Channel distribution
+  channels:
+    email: integer
+    chat: integer
+    phone: integer
+    web_form: integer
+    social: integer
+
+  # Agent performance (aggregated)
+  agent_performance:
+    avg_tickets_per_agent: float
+    avg_handle_time: integer
+    avg_replies_to_resolve: float
+
+  # Trending data
+  trends:
+    tickets_trend_7d: percentage  # +/- change
+    csat_trend_7d: percentage
+    response_time_trend_7d: percentage
+
+  # Top issues
+  top_issues:
+    type: array
+    items:
+      category: string
+      count: integer
+      avg_resolution_time: integer
+      satisfaction_score: float

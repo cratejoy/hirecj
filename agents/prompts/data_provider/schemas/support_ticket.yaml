@@ -1,0 +1,97 @@
+# Customer Support Ticket Schema
+# Based on common fields from Zendesk, Freshdesk, and Gorgias APIs
+
+name: "Support Ticket Schema"
+version: "1.0.0"
+description: "Defines the structure of support ticket data available to CJ"
+
+ticket:
+  # Core identification
+  id: string
+  external_id: string  # For integration with external systems
+
+  # Basic ticket information
+  subject: string
+  description: text
+  description_text: text  # Plain text version without HTML
+
+  # Status and workflow
+  status:
+    type: enum
+    values: [new, open, pending, hold, solved, closed]
+    description: "Current status of the ticket"
+
+  priority:
+    type: enum
+    values: [low, normal, high, urgent]
+    description: "Priority level of the ticket"
+
+  type:
+    type: enum
+    values: [question, incident, problem, task]
+    description: "Type of support request"
+
+  # Timestamps
+  created_at: datetime
+  updated_at: datetime
+  solved_at: datetime
+  closed_at: datetime
+  first_response_at: datetime
+  reopened_at: datetime
+
+  # People involved
+  requester:
+    id: string
+    email: string
+    name: string
+
+  assignee:
+    id: string
+    name: string
+
+  group_id: string
+  organization_id: string
+
+  # Communication channel
+  channel:
+    type: enum
+    values: [email, chat, phone, web_form, social, api]
+    description: "How the ticket was created"
+
+  # Customer satisfaction
+  satisfaction_rating:
+    score: enum[good, bad]
+    comment: text
+    created_at: datetime
+
+  # Categorization
+  tags:
+    type: array
+    items: string
+
+  custom_fields:
+    type: array
+    items:
+      id: integer
+      value: any
+
+  # Metrics
+  metrics:
+    reply_time_in_minutes:
+      calendar: integer
+      business: integer
+    first_resolution_time_in_minutes:
+      calendar: integer
+      business: integer
+    full_resolution_time_in_minutes:
+      calendar: integer
+      business: integer
+    agent_wait_time_in_minutes:
+      calendar: integer
+      business: integer
+    requester_wait_time_in_minutes:
+      calendar: integer
+      business: integer
+    on_hold_time_in_minutes:
+      calendar: integer
+      business: integer

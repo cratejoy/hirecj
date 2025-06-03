@@ -1,0 +1,65 @@
+version: "1.0.0"
+description: "Test conversation state management and context tracking"
+
+tests:
+  - name: "conversation_state_initialization"
+    description: "Verify conversation state starts properly and tracks workflow"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      workflow: "daily_briefing"
+      cj_version: "v5.0.0"
+      merchant_opens: "Let's start our daily check-in"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should demonstrate awareness of workflow context"
+      - "CJ should show appropriate state initialization for daily briefing"
+      - "CJ should track conversation context appropriately"
+      - "CJ should maintain workflow awareness throughout interaction"
+
+  - name: "topic_tracking_accuracy"
+    description: "Verify conversation topics are tracked correctly"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "Let's discuss daily metrics, shipping issues, and customer satisfaction"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ should demonstrate awareness of multiple conversation topics"
+      - "CJ should handle topic transitions smoothly"
+      - "CJ should avoid repeating topics unnecessarily"
+      - "CJ should maintain topic coherence throughout conversation"
+
+  - name: "context_window_management"
+    description: "Verify conversation context is managed appropriately"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need to understand our current situation"
+      num_turns: 5
+
+    evaluate_cj:
+      - "CJ should maintain relevant context throughout extended conversation"
+      - "CJ should reference earlier points in conversation appropriately"
+      - "CJ should not lose track of conversation flow"
+      - "CJ should maintain conversational coherence across multiple turns"
+
+  - name: "workflow_state_integration"
+    description: "Verify workflow state integrates properly with conversation"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      workflow: "weekly_review"
+      cj_version: "v5.0.0"
+      merchant_opens: "Let's do our weekly business review"
+      num_turns: 4
+
+    evaluate_cj:
+      - "CJ should demonstrate workflow-specific state management"
+      - "CJ should track workflow progress and milestones"
+      - "CJ should adapt conversation flow based on workflow requirements"
+      - "CJ should maintain workflow context while being conversational"

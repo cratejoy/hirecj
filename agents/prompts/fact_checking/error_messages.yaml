@@ -1,0 +1,30 @@
+metadata:
+  version: 1.0.0
+  description: "Error messages for fact-checking system"
+
+errors:
+  api_key_missing: |
+    API key required for {provider}. Set {api_key_env} environment variable.
+
+  fact_checking_error: |
+    Fact-checking error: {error}
+
+  timeout_error: |
+    Fact-check timed out after {timeout}s
+
+  retrieval_error: |
+    Error retrieving fact-check result: {error}
+
+  async_error: |
+    Error in async fact-checking: {error}
+
+status_messages:
+  fact_check_in_progress: "🔍 Fact-checking in progress..."
+  fact_check_complete_cached: "🔍 Fact-check complete (cached)"
+  fact_check_complete_issues: "🔍 Fact-check complete - issues found! Type 'f' to view."
+  fact_check_complete_clear: "🔍 Fact-check complete - all clear!"
+  fact_check_waiting: "⏳ Waiting for fact-check to complete..."
+  fact_check_timeout: "⏰ Fact-check timed out or is still running."
+  PASS: "✅ All facts verified correctly"
+  WARNING: "⚠️ Some minor discrepancies found"
+  FAIL: "❌ Significant factual errors detected"

@@ -1,0 +1,739 @@
+metadata:
+  universe_id: zoe_martinez_memorial_day_weekend_v1
+  merchant: zoe_martinez
+  scenario: memorial_day_weekend
+  generated_at: '2025-05-26T14:56:19.503543Z'
+  generator_version: 1.0.0
+  timeline_days: 90
+  current_day: 45
+business_context:
+  current_state:
+    mrr: 50000
+    subscriber_count: 1000
+    churn_rate: 5.3
+    csat_score: 4.3
+    support_tickets_per_day: 28
+    average_response_time_hours: 3.2
+  subscription_tiers:
+  - name: Lunar Lite
+    price: 39
+    active_subscribers: 550
+  - name: Cosmic Collection
+    price: 59
+    active_subscribers: 400
+  - name: Universe Upgrade
+    price: 99
+    active_subscribers: 50
+timeline_events:
+- day: 1
+  date: '2024-03-31'
+  event: Q1 business review confirms MRR holding at $50K; marketing sets spring-BBQ
+    acquisition targets.
+  impact: none
+- day: 7
+  date: '2024-04-06'
+  event: "Launch of \u201CSpring BBQ Essentials\u201D email + social campaign drives\
+    \ early-season interest."
+  impact: positive
+- day: 14
+  date: '2024-04-13'
+  event: Late snowstorm in Midwest slows deliveries; support tickets briefly rise
+    for shipment ETA updates.
+  impact: minor_negative
+- day: 21
+  date: '2024-04-20'
+  event: "Self-service \u201Cvacation pause\u201D option released in subscriber portal,\
+    \ reducing churn-risk contacts."
+  impact: positive
+- day: 28
+  date: '2024-04-27'
+  event: "Influencer\u2019s unboxing video goes viral, adding a burst of new sign-ups\
+    \ and offsetting normal churn."
+  impact: positive
+- day: 36
+  date: '2024-05-05'
+  event: Primary carrier announces Memorial Day surcharge; ops team absorbs cost,
+    tightening margins slightly.
+  impact: minor_negative
+- day: 45
+  date: '2024-05-14'
+  event: "Mother\u2019s Day promo period ends; net subscriber count settles at 1,310\
+    \ with churn back to 5.3%."
+  impact: none
+- day: 52
+  date: '2024-05-21'
+  event: Support manager publishes skeleton-crew schedule and escalation plan for
+    the upcoming long weekend.
+  impact: none
+- day: 55
+  date: '2024-05-24'
+  event: Pre-Memorial Day inventory audit finds small stock variance; rush shipment
+    arranged to cover demand.
+  impact: minor_negative
+- day: 58
+  date: '2024-05-27'
+  event: Memorial Day sale wraps up; revenue steady, MRR unchanged as most purchases
+    are one-time BBQ add-ons.
+  impact: positive
+- day: 72
+  date: '2024-06-10'
+  event: Summer referral program launches, offering free spice rub for successful
+    invites; early adoption strong.
+  impact: positive
+- day: 83
+  date: '2024-06-21'
+  event: Planned server maintenance causes 30-minute checkout outage overnight; handful
+    of abandoned carts.
+  impact: minor_negative
+customers:
+- customer_id: cust_001
+  name: Maya Patel
+  email: maya.patel87@gmail.com
+  customer_type: active_subscriber
+  sub_type: happy_subscriber
+  subscription_tier: Cosmic Collection
+  subscription_start_date: '2023-02-14'
+  lifetime_value: 1044
+  orders_count: 17
+  last_order_date: '2024-05-16'
+  status: active
+  satisfaction_score: 4.8
+  support_tickets_count: 2
+- customer_id: cust_002
+  name: Jason Lee
+  email: jason.lee22@yahoo.com
+  customer_type: active_subscriber
+  sub_type: engaged_subscriber
+  subscription_tier: Lunar Lite
+  subscription_start_date: '2023-10-05'
+  lifetime_value: 362
+  orders_count: 12
+  last_order_date: '2024-05-21'
+  status: active
+  satisfaction_score: 4.3
+  support_tickets_count: 6
+- customer_id: cust_003
+  name: Sophia Nguyen
+  email: sophia.nguyen91@hotmail.com
+  customer_type: active_subscriber
+  sub_type: at_risk_subscriber
+  subscription_tier: Lunar Lite
+  subscription_start_date: '2024-01-22'
+  lifetime_value: 195
+  orders_count: 5
+  last_order_date: '2024-05-18'
+  status: paused
+  satisfaction_score: 3.1
+  support_tickets_count: 8
+- customer_id: cust_004
+  name: Daniel Thompson
+  email: d.thompson@outlook.com
+  customer_type: active_subscriber
+  sub_type: power_subscriber
+  subscription_tier: Universe Upgrade
+  subscription_start_date: '2022-12-01'
+  lifetime_value: 2382
+  orders_count: 30
+  last_order_date: '2024-05-10'
+  status: active
+  satisfaction_score: 4.7
+  support_tickets_count: 9
+- customer_id: cust_005
+  name: Alejandra Gomez
+  email: ale.gomez@gmail.com
+  customer_type: active_subscriber
+  sub_type: happy_subscriber
+  subscription_tier: Cosmic Collection
+  subscription_start_date: '2024-04-02'
+  lifetime_value: 118
+  orders_count: 2
+  last_order_date: '2024-05-03'
+  status: active
+  satisfaction_score: 4.9
+  support_tickets_count: 1
+- customer_id: cust_006
+  name: Trevor Wilson
+  email: trevor.wilson@icloud.com
+  customer_type: active_subscriber
+  sub_type: engaged_subscriber
+  subscription_tier: Cosmic Collection
+  subscription_start_date: '2023-06-19'
+  lifetime_value: 799
+  orders_count: 14
+  last_order_date: '2024-05-26'
+  status: active
+  satisfaction_score: 4.4
+  support_tickets_count: 7
+- customer_id: cust_007
+  name: Lily Chen
+  email: lily.chen@gmail.com
+  customer_type: gift_sender
+  sub_type: personal_gifter
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 350
+  orders_count: 3
+  last_order_date: '2024-05-20'
+  status: active
+  satisfaction_score: 4.6
+  support_tickets_count: 2
+- customer_id: cust_008
+  name: Evan Stephens
+  email: evan.stephens@corporategifts.com
+  customer_type: gift_sender
+  sub_type: corporate_buyer
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 1200
+  orders_count: 2
+  last_order_date: '2024-04-30'
+  status: active
+  satisfaction_score: 4.2
+  support_tickets_count: 5
+- customer_id: cust_009
+  name: Hannah Rodriguez
+  email: hannah.rod@gmail.com
+  customer_type: gift_sender
+  sub_type: event_gifter
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 170
+  orders_count: 1
+  last_order_date: '2024-05-22'
+  status: active
+  satisfaction_score: 3.4
+  support_tickets_count: 3
+- customer_id: cust_010
+  name: Priya Desai
+  email: priya.desai@outlook.com
+  customer_type: hybrid_subscriber
+  sub_type: high_value_hybrid
+  subscription_tier: Cosmic Collection
+  subscription_start_date: '2023-03-08'
+  lifetime_value: 1800
+  orders_count: 25
+  last_order_date: '2024-05-25'
+  status: active
+  satisfaction_score: 4.6
+  support_tickets_count: 8
+- customer_id: cust_011
+  name: Olivia Scott
+  email: olivia.scott@gmail.com
+  customer_type: hybrid_subscriber
+  sub_type: new_hybrid
+  subscription_tier: Universe Upgrade
+  subscription_start_date: '2024-02-14'
+  lifetime_value: 800
+  orders_count: 8
+  last_order_date: '2024-05-27'
+  status: active
+  satisfaction_score: 4.3
+  support_tickets_count: 4
+- customer_id: cust_012
+  name: Brian Kim
+  email: brian.kim@yahoo.com
+  customer_type: one_time_purchaser
+  sub_type: trial_converter
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 45
+  orders_count: 1
+  last_order_date: '2024-05-27'
+  status: active
+  satisfaction_score: 4.7
+  support_tickets_count: 1
+- customer_id: cust_013
+  name: Emily Brooks
+  email: emily.brooks@aol.com
+  customer_type: one_time_purchaser
+  sub_type: one_and_done
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 32
+  orders_count: 1
+  last_order_date: '2024-05-11'
+  status: active
+  satisfaction_score: 2.4
+  support_tickets_count: 2
+- customer_id: cust_014
+  name: Carlos Ramirez
+  email: carlos.ramirez@gmail.com
+  customer_type: repeat_purchaser
+  sub_type: loyal_bulk_buyer
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 310
+  orders_count: 6
+  last_order_date: '2024-05-19'
+  status: active
+  satisfaction_score: 4.0
+  support_tickets_count: 3
+support_tickets:
+- ticket_id: tkt_2001
+  created_at: '2024-05-14T08:07:11Z'
+  customer_id: cust_001
+  category: account_management
+  subject: "Can I switch my next box to my parents\u2019 place?"
+  content: "Hey team! super random but I\u2019m crashing at my parents\u2019 house\
+    \ for a few weeks after finals \U0001F648  could you send my June Cosmic Collection\
+    \ box to 14 Juniper Ln, Portland ME instead of my Boston apartment? Same name,\
+    \ just diff address. tyty!"
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_2002
+  created_at: '2024-05-14T08:21:43Z'
+  customer_id: cust_002
+  category: product_feedback
+  subject: "Loved the Aura Cleanse shower steamers \U0001F525"
+  content: "hi M&C fam! just popping in to say the Aura Cleanse shower steamers from\
+    \ the May Cosmic box are lifeee. they turned my tiny bathroom into a spa. any\
+    \ chance you\u2019ll sell them solo on the marketplace? I want to grab a 3-pack\
+    \ for my sister\u2019s bridal shower favors \U0001F64F"
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_2003
+  created_at: '2024-05-14T08:56:08Z'
+  customer_id: cust_002
+  category: shipping
+  subject: "tracking stuck on \u201Clabel created\u201D"
+  content: "hey hey\u2014order #MC12344 for the Rose Quartz gua sha says label made\
+    \ last Friday but no movement since. trying to get it before I road-trip on the\
+    \ 24th. any insight? \u270C\uFE0F"
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_2004
+  created_at: '2024-05-14T09:12:29Z'
+  customer_id: cust_002
+  category: account_management
+  subject: Thinking about bumping to Universe Upgrade
+  content: "Sooo the personalized energy reading in the Universe Upgrade tier is calling\
+    \ my name \U0001F602 what\u2019s the cutoff date to upgrade for June? just don\u2019\
+    t want to miss that full moon unboxing content."
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_2005
+  created_at: '2024-05-14T09:27:55Z'
+  customer_id: cust_003
+  category: shipping
+  subject: Where. Is. My. Box?
+  content: "I ordered the Mercury Retrograde Protection Kit TWO weeks ago and still\
+    \ nothing. I\u2019m starting to feel like the universe (and y\u2019all) ghosted\
+    \ me. Tracking hasn\u2019t updated since \u201Cdeparted facility.\u201D pls tell\
+    \ me what\u2019s going on \U0001F621"
+  sentiment: frustrated
+  priority: high
+  status: open
+- ticket_id: tkt_2006
+  created_at: '2024-05-14T09:45:02Z'
+  customer_id: cust_003
+  category: quality_issues
+  subject: Abundance Crystal Set arrived shattered
+  content: idk if UPS played soccer with my package but three of the citrine points
+    in the $89 Abundance Crystal Set are cracked. kinda defeats the whole abundance
+    vibe. need a replacement or refund asap.
+  sentiment: negative
+  priority: high
+  status: open
+- ticket_id: tkt_2007
+  created_at: '2024-05-14T10:03:18Z'
+  customer_id: cust_003
+  category: billing
+  subject: "Charged after I hit \u201Cpause\u201D \U0001F611"
+  content: hey, I paused my Lunar Lite sub in April yet my card got hit for May ($39).
+    can you reverse that? honestly debating if I stay subbed.
+  sentiment: frustrated
+  priority: normal
+  status: open
+- ticket_id: tkt_2008
+  created_at: '2024-05-14T10:17:40Z'
+  customer_id: cust_003
+  category: account_management
+  subject: Need to skip June
+  content: "life is hectic + I\u2019m moving. can you skip my June Cosmic box but\
+    \ keep July active? thx."
+  sentiment: neutral
+  priority: low
+  status: open
+- ticket_id: tkt_2009
+  created_at: '2024-05-14T10:33:11Z'
+  customer_id: cust_003
+  category: product_feedback
+  subject: March singing bowl felt cheap
+  content: "real talk\u2014the mini singing bowl in March\u2019s box sounded tinny\
+    \ compared to the one my friend got from Altar\u2019d Aura. feeling a little FOMO.\
+    \ any chance future boxes get the larger 3\" version?"
+  sentiment: negative
+  priority: low
+  status: open
+- ticket_id: tkt_2010
+  created_at: '2024-05-14T10:58:05Z'
+  customer_id: cust_003
+  category: shipping
+  subject: Says delivered but mailbox empty
+  content: "FedEx claims my order #MC12890 (Goddess Glow face masks + Palo Santo)\
+    \ was dropped at 1:17pm. I was literally on the porch then\u2014nothing. help?"
+  sentiment: frustrated
+  priority: high
+  status: open
+- ticket_id: tkt_2011
+  created_at: '2024-05-14T11:07:45Z'
+  customer_id: cust_004
+  category: shipping
+  subject: Hold my Universe Upgrade till Tuesday
+  content: "hey legends! headed out for the long weekend\u2014could you tell ShipMonk\
+    \ to hold my May Universe Upgrade box so it lands AFTER Memorial Day? don\u2019\
+    t want it baking on my stoop."
+  sentiment: positive
+  priority: normal
+  status: open
+- ticket_id: tkt_2012
+  created_at: '2024-05-14T11:22:30Z'
+  customer_id: cust_004
+  category: account_management
+  subject: Add the Moon Water Bottle to my next box?
+  content: "If possible, slide that $28 Moon Water Bottle into my June shipment so\
+    \ I don\u2019t pay extra shipping. My moon-charge TikTok needs it \U0001F31D"
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_2013
+  created_at: '2024-05-14T11:37:54Z'
+  customer_id: cust_005
+  category: product_feedback
+  subject: Self-Love Journal = game changer
+  content: "just wanted to say the Self-Love Journal from April\u2019s Lunar Lite\
+    \ box legit changed my morning routine \u2728 keep these mindful paper goods coming!"
+  sentiment: positive
+  priority: low
+  status: resolved
+- ticket_id: tkt_2014
+  created_at: '2024-05-14T12:05:09Z'
+  customer_id: cust_006
+  category: shipping
+  subject: 'Need to tweak address (missing Apt #)'
+  content: "hi! totally my bad\u2014order #MC13011 (Chakra Collection) forgot to include\
+    \ Apt 5B. Address should read 224 Stone St Apt 5B NYC 10014. can you update before\
+    \ it ships? ty!"
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_2015
+  created_at: '2024-05-14T12:19:40Z'
+  customer_id: cust_006
+  category: product_feedback
+  subject: Could we get essential oil refills?
+  content: "The eucalyptus essential oil roller from January is almost out. any chance\
+    \ of offering refill bottles so we\u2019re not tossing the glass each time?"
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_2016
+  created_at: '2024-05-14T12:33:02Z'
+  customer_id: cust_006
+  category: account_management
+  subject: Upgrade me to Cosmic
+  content: "I\u2019ve been on Lunar Lite for 6 months\u2014ready for more goodies.\
+    \ please switch me to Cosmic Collection starting June 1 \U0001F52E"
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_2017
+  created_at: '2024-05-14T13:02:27Z'
+  customer_id: cust_007
+  category: shipping
+  subject: Birthday rush for Rose Quartz Gua Sha
+  content: "hey! got the Gua Sha for my sister\u2019s 30th next Friday. any chance\
+    \ USPS Priority will land it in Phoenix by the 22nd? stressing lol."
+  sentiment: neutral
+  priority: high
+  status: open
+- ticket_id: tkt_2018
+  created_at: '2024-05-14T13:18:44Z'
+  customer_id: cust_007
+  category: shipping
+  subject: Oops wrong gift message
+  content: "So I typed \u201CHappy B-day Queen\u201D but forgot to sign my name \U0001F602\
+    \ can you edit the note on order #MC13100 before it ships?"
+  sentiment: positive
+  priority: normal
+  status: open
+- ticket_id: tkt_2019
+  created_at: '2024-05-14T13:41:10Z'
+  customer_id: cust_008
+  category: shipping
+  subject: "Bulk gift sets for employees \u2013 delivery window"
+  content: "Hi there, we placed PO #CORP772 for 35 \u201CSelf-Care Sunday Sets.\u201D\
+    \ Need arrival in Dallas between 5/28-5/30 for our wellness week kickoff. Is that\
+    \ doable with FedEx Ground or should we upgrade?"
+  sentiment: neutral
+  priority: high
+  status: open
+- ticket_id: tkt_2020
+  created_at: '2024-05-14T13:55:26Z'
+  customer_id: cust_008
+  category: billing
+  subject: Requesting net-30 invoice
+  content: 'Our finance dept needs a formal invoice for PO #CORP772 with net-30 terms.
+    Can you send PDF + W-9?'
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_2021
+  created_at: '2024-05-14T14:09:58Z'
+  customer_id: cust_008
+  category: shipping
+  subject: Tracking numbers for bulk order
+  content: "Hey again\u2014once the 35 boxes ship, could you shoot over the FedEx\
+    \ tracking spreadsheet so we can keep HR in the loop? thanks!"
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_2022
+  created_at: '2024-05-14T14:25:12Z'
+  customer_id: cust_009
+  category: shipping
+  subject: "Event gifter freaking out \u2013 need kits by Sunday"
+  content: "My Memorial Day backyard sound-bath party is this SUNDAY. I ordered 12\
+    \ Palo Santo stick packs + incense variety packs yesterday. Any way to overnight\
+    \ to Miami? serious time crunch \U0001F62C"
+  sentiment: frustrated
+  priority: high
+  status: open
+- ticket_id: tkt_2023
+  created_at: '2024-05-14T14:39:41Z'
+  customer_id: cust_009
+  category: product_feedback
+  subject: Recipient said candle scent was too strong
+  content: "FYI \u2013 the Manifest & Chill candle (Citrus Sage) was a bit overpowering\
+    \ for guests. Maybe tone it down next batch?"
+  sentiment: neutral
+  priority: low
+  status: open
+- ticket_id: tkt_2024
+  created_at: '2024-05-14T14:55:07Z'
+  customer_id: cust_010
+  category: shipping
+  subject: Sync my marketplace haul with sub box
+  content: "hey vibes team! I grabbed the $125 \u201CChakra Collection\u201D plus\
+    \ an Acupressure Mat yesterday. Any way to ship those with my June Universe Upgrade\
+    \ box to save carbon (and $$)?"
+  sentiment: positive
+  priority: normal
+  status: open
+- ticket_id: tkt_2025
+  created_at: '2024-05-14T15:11:33Z'
+  customer_id: cust_010
+  category: account_management
+  subject: Gift order separate from my sub
+  content: "also sending a Breakup Recovery Box to my cousin (order #MC13333). please\
+    \ DON\u2019T include receipt + make sure the box doesn\u2019t spoil her surprise\
+    \ when it shows at her place \U0001F60A"
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_2026
+  created_at: '2024-05-14T15:25:48Z'
+  customer_id: cust_010
+  category: billing
+  subject: Why two charges this month?
+  content: "I see $99 for Universe Upgrade (expected) but also $42 that says \u201C\
+    manual order adjustment.\u201D what\u2019s that about?"
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_2027
+  created_at: '2024-05-14T15:42:02Z'
+  customer_id: cust_010
+  category: account_management
+  subject: "Add \u2018New Moon, New You\u2019 kit to July box"
+  content: "Saw the $125 New Moon, New You starter kit teased on IG. Can you tack\
+    \ that onto July\u2019s shipment so everything lands together?"
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_2028
+  created_at: '2024-05-14T15:56:30Z'
+  customer_id: cust_011
+  category: shipping
+  subject: "Marketplace order hasn\u2019t moved"
+  content: "My Moon Water Bottle + Third Eye tea combo (order #MC13401) still shows\
+    \ \u201CProcessing.\u201D Can it make it out before the holiday rush?"
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_2029
+  created_at: '2024-05-14T16:12:07Z'
+  customer_id: cust_011
+  category: account_management
+  subject: Confused about renewal dates
+  content: "hey I\u2019m new\u2014signed up for Cosmic on April 29. does that mean\
+    \ my next charge is May 29 or June 1? still figuring this out lol."
+  sentiment: neutral
+  priority: low
+  status: open
+- ticket_id: tkt_2030
+  created_at: '2024-05-14T16:28:55Z'
+  customer_id: cust_012
+  category: product_feedback
+  subject: Difference between Rose Quartz vs Jade rollers?
+  content: "first timer here! trying to pick between the $42 Jade face roller and\
+    \ the Rose Quartz one from last month\u2019s box. is there an actual skin benefit\
+    \ difference or just vibes?"
+  sentiment: neutral
+  priority: low
+  status: open
+- ticket_id: tkt_2031
+  created_at: '2024-05-14T16:44:39Z'
+  customer_id: cust_012
+  category: shipping
+  subject: First order ETA
+  content: "Placed order #MC13522 for the Self-Care Sunday Set yesterday morning\u2014\
+    any idea if it ships before the long weekend? Excited!"
+  sentiment: positive
+  priority: normal
+  status: open
+- ticket_id: tkt_2032
+  created_at: '2024-05-14T16:58:06Z'
+  customer_id: cust_012
+  category: account_management
+  subject: "Can\u2019t log into portal"
+  content: I made an account with Google sign-in but now it loops me back to home
+    page. need to update my address before the order ships. halp
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_2033
+  created_at: '2024-05-14T17:12:28Z'
+  customer_id: cust_012
+  category: product_feedback
+  subject: Holy wow the Bath Salt Blend
+  content: "Just got my Self-Care Sunday Set\u2014used the Lavender Dream bath salts\
+    \ tonight. floating in bliss rn. might subscribe if every box feels like this.\
+    \ \u2764\uFE0F"
+  sentiment: positive
+  priority: low
+  status: resolved
+- ticket_id: tkt_2034
+  created_at: '2024-05-14T17:28:44Z'
+  customer_id: cust_013
+  category: quality_issues
+  subject: Copper tongue scraper arrived bent
+  content: "Not impressed\u2014the $15 copper tongue scraper is warped and doesn\u2019\
+    t sit flat. feels cheap. pls advise."
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_2035
+  created_at: '2024-05-14T17:44:09Z'
+  customer_id: cust_013
+  category: shipping
+  subject: 3 days and no tracking update
+  content: "Order #MC13610 says shipped on the 11th but USPS last scanned it in Jersey.\
+    \ what\u2019s up?"
+  sentiment: frustrated
+  priority: high
+  status: open
+- ticket_id: tkt_2036
+  created_at: '2024-05-14T18:01:15Z'
+  customer_id: cust_013
+  category: quality_issues
+  subject: Requesting return label
+  content: "Following up: since the tongue scraper is defective I\u2019d like to just\
+    \ return the whole order including the Palo Santo pack. Pls send label."
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_2037
+  created_at: '2024-05-14T18:17:33Z'
+  customer_id: cust_014
+  category: account_management
+  subject: Loyalty points?
+  content: "I bulk buy white sage every quarter\u2014do you have a loyalty program\
+    \ or discount code for regulars?"
+  sentiment: neutral
+  priority: low
+  status: open
+- ticket_id: tkt_2038
+  created_at: '2024-05-14T18:31:57Z'
+  customer_id: cust_014
+  category: shipping
+  subject: Bulk sage order before Memorial Day
+  content: Need 20 white sage bundles to LA studio by Friday for a retreat. which
+    shipping option guarantees arrival?
+  sentiment: neutral
+  priority: high
+  status: open
+- ticket_id: tkt_2039
+  created_at: '2024-05-14T18:48:22Z'
+  customer_id: cust_006
+  category: quality_issues
+  subject: Face mask packet leaked
+  content: "Just opened the Goddess Glow mask 3-pack and one sachet burst in transit\u2014\
+    green goo everywhere. photo attached. what now?"
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_2040
+  created_at: '2024-05-14T19:05:10Z'
+  customer_id: cust_007
+  category: product_feedback
+  subject: "Gift recipient obsessed with \u2018Manifest & Chill\u2019 candle"
+  content: "Quick kudos\u2014the Lavender Vanilla candle was a HIT at my bestie\u2019\
+    s bridal shower. bridesmaids now stalking your IG \U0001F602 just thought you\u2019\
+    d want to know!"
+  sentiment: positive
+  priority: low
+  status: resolved
+- ticket_id: tkt_2041
+  created_at: '2024-05-14T19:21:35Z'
+  customer_id: cust_010
+  category: billing
+  subject: Sales tax looks off
+  content: "noticed $11.62 tax on order #MC13770 but I\u2019m in Oregon (no sales\
+    \ tax). can you double-check?"
+  sentiment: neutral
+  priority: normal
+  status: open
+ticket_categories_distribution:
+  shipping:
+    percentage: 35
+    average_per_day: 11
+    common_issues:
+    - Where is my order?
+    - Shipping delay questions
+  account_management:
+    percentage: 25
+    average_per_day: 8
+    common_issues:
+    - Subscription upgrades
+    - Payment updates
+  product_feedback:
+    percentage: 20
+    average_per_day: 6
+    common_issues:
+    - Product reviews
+    - Recipe questions
+  quality_issues:
+    percentage: 10
+    average_per_day: 3
+    common_issues:
+    - Damaged packaging
+    - Missing items
+  billing:
+    percentage: 10
+    average_per_day: 3
+    common_issues:
+    - Charge questions
+    - Refund requests
+product_performance:
+  top_rated_products:
+  - name: Sweet Heat BBQ Rub
+    sku: SH-RUB-001
+    rating: 4.8
+    reviews_count: 234
+    inclusion_rate: 0.65
+  problematic_products: []

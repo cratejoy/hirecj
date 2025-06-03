@@ -1,0 +1,63 @@
+version: "1.0.0"
+description: "Test that alternating between speakers doesn't cause context bleed"
+
+tests:
+  - name: "speaker_alternation_integrity"
+    description: "Verify speakers alternate properly without role contamination"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need a comprehensive update on our business"
+      num_turns: 4
+
+    evaluate_cj:
+      - "Conversation should show proper alternation between merchant and CJ"
+      - "Each speaker should maintain their distinct role throughout"
+      - "No agent should respond out of character or mix roles"
+      - "Turn-taking should feel natural and realistic"
+
+  - name: "merchant_tool_isolation"
+    description: "Verify merchant never references support tools during alternation"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "What data can you pull for me?"
+      num_turns: 4
+
+    evaluate_cj:
+      - "Merchant should never mention specific tool functions like 'get_support_dashboard'"
+      - "Merchant should never reference 'search_tickets' or similar technical functions"
+      - "Merchant should ask for information naturally, not reference system tools"
+      - "Merchant should maintain business owner perspective throughout"
+
+  - name: "cj_personality_isolation"
+    description: "Verify CJ never adopts merchant personality traits during alternation"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "This is costing us too much - what's our CAC?"
+      num_turns: 4
+
+    evaluate_cj:
+      - "CJ should never use merchant-specific phrases like 'cant afford this'"
+      - "CJ should never adopt merchant speech patterns like 'whats our cac'"
+      - "CJ should maintain professional support agent tone throughout"
+      - "CJ should not express business owner stress or urgency patterns"
+
+  - name: "context_bleed_prevention"
+    description: "Verify no context bleeding occurs during extended alternation"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "I'm panicking about our customer retention"
+      num_turns: 6
+
+    evaluate_cj:
+      - "Each agent should maintain their knowledge boundaries throughout"
+      - "No agent should reference information outside their access scope"
+      - "Agent capabilities should remain consistent across all turns"
+      - "Role boundaries should be clear even in extended conversations"

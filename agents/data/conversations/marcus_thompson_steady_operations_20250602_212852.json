@@ -1,0 +1,36 @@
+{
+  "session_id": "14039478-ac83-46b8-adde-30e2da458821",
+  "created_at": "2025-06-03T02:27:49.194777",
+  "conversation": {
+    "id": "1b7a1ed0-fa5e-43c5-a5cb-f3f028edfe1c",
+    "created_at": "2025-06-03T02:27:48.273725",
+    "scenario_name": "steady_operations",
+    "merchant_name": "marcus_thompson",
+    "workflow": "ad_hoc_support",
+    "messages": [
+      {
+        "timestamp": "2025-06-03T02:27:49.195192",
+        "sender": "CJ",
+        "content": "Hey boss, what's up? \ud83d\udc4b Need help with anything today?",
+        "metadata": {}
+      },
+      {
+        "timestamp": "2025-06-03T02:27:55.161810",
+        "sender": "merchant",
+        "content": "hi",
+        "metadata": {}
+      },
+      {
+        "timestamp": "2025-06-03T02:28:04.800433",
+        "sender": "CJ",
+        "content": "Hey there! \ud83d\udc4b \n\nGood to see you! I'm here and ready to help with whatever you need. \n\nQuick heads up - we've got 40 tickets in the queue right now, mostly shipping questions (14) and account stuff (10). Nothing on fire, but I'm working through them steadily. CSAT holding strong at 4.4/5 though! \ud83d\udcaa\n\nWhat's on your mind today? Need me to dig into anything specific or just checking in?",
+        "metadata": {}
+      }
+    ]
+  },
+  "metrics": {
+    "messages": 1,
+    "errors": 0,
+    "response_time_total": 9.638516
+  }
+}

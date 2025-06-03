@@ -1,0 +1,70 @@
+# Business scenarios for synthetic conversation generation
+# These are business-agnostic scenarios that can be applied to any merchant
+
+scenarios:
+  growth_stall:
+    name: "Growth Plateau"
+    scenario: |
+      # Growth Stall Scenario
+
+      ## Timeline & Current State
+      - **Milestone:** Hit 1,200 subscribers 14 months after launch
+      - **Problem:** Growth completely stalled for past 2 months
+      - **MRR:** Stuck at $45K (down 0.5% from last month)
+
+      ## Key Metrics Trending Wrong
+
+      | Metric | Current | Previous | Trend |
+      |--------|---------|----------|-------|
+      | CAC | $35 | $28 | 📈 +25% |
+      | LTV | $420 | $420 | ➡️ Flat |
+      | Churn | 8% | 5.5% | 📈 +45% |
+      | Email Deliverability | 94% | 98% | 📉 -4% |
+
+      ## External Pressures
+      - **Competition:** Main competitor launched loyalty program, undercutting by 20%
+      - **Costs:** Shipping increased 15%, squeezing margins
+      - **Support:** Growing "where is my order" tickets indicate fulfillment issues
+
+      ## Founder Mindset
+      > "We're burning cash with no growth. Maybe it's time to pause paid acquisition and figure this out."
+
+      **Stress level:** High
+      **Main concern:** Unit economics going underwater
+      **Considering:** Drastic cost cuts, pivoting strategy
+
+  churn_spike:
+    name: "February Meltdown"
+    scenario: |
+      Business is in crisis mode. Last month's box had quality issues - three suppliers sent wrong products and fulfillment center mixed up 200+ orders. Churn spiked from 5% to 15% in one month.
+
+      MRR dropped from $38K to $32K. Down to 800 subscribers from 950 previous month. Support tickets are through the roof - 156 open tickets, 12-hour response times.
+
+      Payment processor had 3 outages this month. Customers are angry on social media. Founder hasn't slept in 3 days and is considering hiring crisis management help.
+
+  return_to_growth:
+    name: "Post-COVID Plateau"
+    scenario: |
+      Mature subscription box whose COVID boom has ended. YoY growth under 5%, margins squeezed by ad cost inflation. CAC up 20%+ year-over-year.
+
+      Founder complaining "agency fees are killing us" - paying $7k/month for mediocre results. New subscriber counts declining month-over-month. AOV flat at $39.
+
+      26k boxes shipping monthly but margin-tight. Wants quick-hit revenue levers. Considering AI-powered ads and win-back campaigns. 8-year-old business feeling the squeeze.
+
+  scaling_chaos:
+    name: "Viral Growth Problems"
+    scenario: |
+      Featured in major tech publication + influencer partnership sent subscriber count from 1,400 to 2,400 in 6 weeks. MRR jumped to $85K. But drowning in operational issues.
+
+      Warehouse at 95% capacity. Support team overwhelmed - hired 2 temps but they need training. Shipping delays increasing. Some customers getting wrong products.
+
+      CAC is great at $28 but worried about quality slip. Founder excited but stressed about maintaining standards while scaling. Main competitor is watching closely.
+
+  competitor_threat:
+    name: "New Competitor Pressure"
+    scenario: |
+      Well-funded competitor just entered the exact same niche. They raised $5M Series A and are offering 50% off first 3 months. Already poaching top suppliers.
+
+      Lost 3 corporate accounts to them last week. They're undercutting prices by 30%. MRR holding at $52K but new subscriber acquisition slowing. CAC up to $45 from $30.
+
+      1,400 subscribers but only gained 20 net last month. Founder losing sleep over how to compete without burning cash. Considering differentiation strategies.

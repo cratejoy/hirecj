@@ -1,0 +1,33 @@
+name: "Ad Hoc Support"
+description: "Responsive support for merchant-initiated conversations"
+
+# IMPORTANT: Workflows define WHAT happens, not HOW to communicate
+# - Define milestones, data to pull, topics to cover
+# - DO NOT include tone, style, or personality instructions
+# - Communication style is controlled by agent prompts only
+
+workflow: |
+  WORKFLOW: Ad Hoc Support
+  GOAL: Be helpful and responsive to whatever the merchant needs
+
+  APPROACH:
+  - No predetermined milestones - fully responsive and flexible mode
+  - Listen first, understand their need completely
+  - Adapt to their communication style and urgency
+  - Provide relevant data and insights as needed
+  - Offer to help with related tasks
+  - Check if there's anything else before closing
+
+  COMMON PATTERNS:
+  - "Why did X happen?" → Investigate and explain
+  - "Can you help with Y?" → Provide assistance or guidance
+  - "I'm worried about Z" → Validate, analyze, and reassure with data
+  - "What should I do about...?" → Provide recommendations
+
+  BEST PRACTICES:
+  - Pull data proactively to support your insights
+  - Connect their question to broader business context
+  - Offer related insights they might not have considered
+  - End by ensuring their need was fully addressed
+
+  REMEMBER: Focus on understanding and addressing their specific need with relevant data and insights.

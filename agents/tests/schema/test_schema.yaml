@@ -1,0 +1,167 @@
+version: "1.0.0"
+description: "Test schema validation rules for CJ test files"
+
+# Test Schema Validation Rules
+# This file defines the validation schema for CJ test files
+# Used by the test loader to ensure test files follow the correct format
+
+# Test Suite Schema
+test_suite:
+  required_fields:
+    - suite_name
+    - description
+    - tests
+
+  optional_fields:
+    - tags
+    - version
+    - author
+
+  field_types:
+    suite_name: string
+    description: string
+    tests: array
+    tags: array
+    version: string
+    author: string
+
+# Individual Test Case Schema
+test_case:
+  required_fields:
+    - name
+    - description
+    - setup
+    - evaluate_cj
+
+  optional_fields:
+    - tags
+    - timeout
+    - priority
+    - skip_reason
+
+  field_types:
+    name: string
+    description: string
+    setup: object
+    evaluate_cj: array
+    tags: array
+    timeout: integer
+    priority: string
+    skip_reason: string
+
+# Setup Object Schema
+setup:
+  required_fields:
+    - merchant_opens
+
+  optional_fields:
+    - merchant
+    - scenario
+    - cj_version
+    - workflow
+    - num_turns
+    - context
+
+  field_types:
+    merchant_opens: string
+    merchant: string
+    scenario: string
+    cj_version: string
+    workflow: string
+    num_turns: integer
+    context: object
+
+  valid_values:
+    merchant:
+      - marcus_thompson
+      - sarah_chen
+    scenario:
+      - growth_stall
+      - churn_spike
+      - return_to_growth
+      - scaling_chaos
+      - competitor_threat
+    cj_version:
+      - v5.0.0
+      - v4.0.0
+      - v3.0.0
+    workflow:
+      - daily_briefing
+      - crisis_response
+      - strategic_planning
+    priority:
+      - high
+      - medium
+      - low
+
+# Evaluation Criteria Schema
+evaluate_cj:
+  format: array_of_strings
+  min_items: 1
+  max_items: 10
+  criteria_types:
+    - boundary_check
+    - response_appropriateness
+    - tool_usage
+    - escalation_behavior
+    - data_accuracy
+    - emotional_awareness
+
+  examples:
+    boundary_check:
+      - "CJ should acknowledge she cannot access inventory data"
+      - "CJ should not provide specific financial metrics"
+      - "CJ should redirect analytics requests appropriately"
+
+    response_appropriateness:
+      - "CJ's response should be helpful and professional"
+      - "CJ should maintain empathetic tone"
+      - "CJ should provide actionable next steps"
+
+    tool_usage:
+      - "CJ should suggest appropriate tools for the merchant's needs"
+      - "CJ should not recommend tools she cannot access"
+      - "CJ should explain tool limitations clearly"
+
+# File Structure Requirements
+file_structure:
+  required_sections:
+    - suite_name
+    - description
+    - tests
+
+  naming_conventions:
+    file_pattern: "*.yaml"
+    test_name_pattern: "^[a-z0-9_]+$"
+    suite_name_pattern: "^[A-Za-z0-9 _-]+$"
+
+  limits:
+    max_tests_per_file: 20
+    max_description_length: 500
+    max_criteria_length: 200
+
+# Validation Levels
+validation_levels:
+  strict:
+    - Check all required fields
+    - Validate field types
+    - Verify valid values
+    - Check naming conventions
+    - Enforce limits
+
+  standard:
+    - Check required fields
+    - Validate field types
+    - Basic format checks
+
+  minimal:
+    - Check required fields only
+
+# Error Messages
+error_messages:
+  missing_required_field: "Missing required field '{field}' in {context}"
+  invalid_field_type: "Field '{field}' must be of type {expected_type}, got {actual_type}"
+  invalid_value: "Field '{field}' has invalid value '{value}'. Valid values: {valid_values}"
+  name_pattern_mismatch: "Name '{name}' does not match pattern '{pattern}'"
+  exceeds_limit: "Field '{field}' exceeds maximum limit of {limit}"
+  file_structure_error: "File structure error: {message}"

@@ -1,0 +1,1 @@
+"""HireCJ application package."""

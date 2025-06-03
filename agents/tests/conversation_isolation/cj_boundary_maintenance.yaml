@@ -1,0 +1,49 @@
+version: "1.0.0"
+description: "Test that CJ v5.0.0 maintains data access boundaries consistently"
+
+tests:
+  - name: "cj_avoids_specific_business_metrics"
+    description: "Verify CJ doesn't claim to have access to specific business data"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's our MRR and CAC right now?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should NOT provide specific financial numbers like '$45k' for MRR"
+      - "CJ should NOT state specific LTV values like '$420'"
+      - "CJ should NOT use phrases like 'your MRR is' or 'lifetime value is'"
+      - "CJ should redirect to support data she CAN access"
+      - "CJ should maintain professional boundaries while being helpful"
+
+  - name: "cj_focuses_on_support_metrics"
+    description: "Verify CJ stays within support data boundaries"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need all our business performance data"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should focus on support tickets and customer service metrics"
+      - "CJ should discuss CSAT scores, response times, ticket volumes"
+      - "CJ should avoid claiming access to revenue or financial data"
+      - "CJ should explain what support data can reveal about business health"
+
+  - name: "cj_maintains_boundaries_under_pressure"
+    description: "Verify CJ maintains boundaries even when merchant is insistent"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "I really need our exact revenue numbers right now - can you get them?"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ should politely but firmly maintain her data access boundaries"
+      - "CJ should not make up or estimate financial figures"
+      - "CJ should offer alternative support-based insights"
+      - "CJ should remain helpful while staying within her scope"

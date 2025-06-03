@@ -1,0 +1,49 @@
+version: "1.0.0"
+description: "Test basic conversation generation workflow with all components"
+
+tests:
+  - name: "full_conversation_workflow"
+    description: "Verify complete conversation generation workflow functions properly"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v3.0.0"
+      merchant_opens: "I need help understanding our business situation"
+      num_turns: 3
+
+    evaluate_cj:
+      - "Conversation should demonstrate proper component integration"
+      - "Merchant should display personality traits consistent with Marcus Thompson persona"
+      - "CJ should respond according to v3.0.0 specifications and capabilities"
+      - "Scenario context should influence conversation topic and urgency"
+      - "Both agents should maintain their distinct roles throughout"
+
+  - name: "component_switching_validation"
+    description: "Verify different component combinations work correctly"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v2.0.0"
+      merchant_opens: "We have a crisis with customer retention"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Sarah Chen personality should be evident in merchant responses"
+      - "Churn spike scenario should create appropriate urgency and context"
+      - "CJ v2.0.0 should demonstrate stress adaptation capabilities"
+      - "All components should work together coherently"
+
+  - name: "conversation_quality_validation"
+    description: "Verify generated conversations meet quality standards"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v1.0.0"
+      merchant_opens: "Everything is overwhelming - where do we start?"
+      num_turns: 4
+
+    evaluate_cj:
+      - "Conversation should feel natural and authentic"
+      - "Agent responses should be contextually appropriate"
+      - "Conversation flow should be logical and coherent"
+      - "Both agents should demonstrate appropriate expertise and knowledge"

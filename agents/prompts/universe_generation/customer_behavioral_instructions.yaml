@@ -1,0 +1,205 @@
+version: "1.0.0"
+description: "Customer behavioral instructions for universe generation"
+
+customer_archetypes:
+  gift_senders:
+    percentage_of_base: 25
+    description: "Customers buying for others (family, friends, corporate)"
+    characteristics:
+      - "Buying for others (family, friends, corporate events)"
+      - "Higher order values but lower frequency"
+      - "Seasonal purchase spikes (holidays, Father's Day, corporate events)"
+      - "Different satisfaction criteria (recipient happiness vs personal use)"
+      - "Time-sensitive delivery requirements"
+
+    sub_types:
+      personal_gifters:
+        description: "Individuals buying gifts for family/friends"
+        seasonal_spikes: ["holidays", "fathers_day", "birthdays", "weddings"]
+        average_order_value_multiplier: 1.4
+        frequency_multiplier: 0.6
+
+      corporate_buyers:
+        description: "Companies buying employee/client gifts"
+        bulk_orders: true
+        timing_critical: true
+        average_order_value_multiplier: 2.1
+        frequency_multiplier: 0.3
+
+      event_gifters:
+        description: "Hosts buying for parties/events"
+        seasonal_focus: ["memorial_day", "labor_day", "super_bowl"]
+        average_order_value_multiplier: 1.8
+        frequency_multiplier: 0.4
+
+    support_ticket_patterns:
+      - "Address changes for gift delivery"
+      - "Recipient didn't like the product - need exchange"
+      - "Delivery timing critical for events"
+      - "Gift message or wrapping requests"
+      - "Bulk order coordination"
+      - "Corporate billing requirements"
+
+    satisfaction_distribution:
+      high_satisfaction: 40    # Gift worked well, recipient happy
+      neutral: 35             # Standard experience
+      low_satisfaction: 25    # Recipient issues, delivery problems
+
+  active_subscribers:
+    percentage_of_base: 45
+    description: "Recurring monthly/quarterly subscribers"
+    characteristics:
+      - "Monthly or quarterly recurring purchases"
+      - "Loyalty development over time"
+      - "Product feedback and feature requests"
+      - "Subscription management needs"
+      - "Brand relationship building"
+
+    sub_types:
+      happy_subscribers:
+        description: "Satisfied subscribers with low maintenance"
+        satisfaction_range: "4.5-5.0"
+        support_frequency_multiplier: 0.5
+        ticket_categories: ["product_feedback", "delivery_preferences", "account_updates"]
+        churn_risk: "low"
+
+      engaged_subscribers:
+        description: "Active participants giving frequent feedback"
+        satisfaction_range: "4.0-4.7"
+        support_frequency_multiplier: 1.2
+        ticket_categories: ["product_requests", "feedback", "community_engagement"]
+        churn_risk: "low"
+
+      at_risk_subscribers:
+        description: "Subscribers showing signs of dissatisfaction"
+        satisfaction_range: "2.8-3.5"
+        support_frequency_multiplier: 2.5
+        ticket_categories: ["pause_requests", "complaints", "billing_issues", "cancellation_threats"]
+        churn_risk: "high"
+
+      power_subscribers:
+        description: "High-value subscribers who also make additional purchases"
+        satisfaction_range: "4.2-5.0"
+        support_frequency_multiplier: 1.1
+        ticket_categories: ["upgrade_requests", "additional_purchases", "vip_treatment"]
+        churn_risk: "very_low"
+
+  hybrid_subscribers:
+    percentage_of_base: 18
+    description: "Active subscribers who also make marketplace purchases"
+    characteristics:
+      - "Active subscription PLUS additional one-time purchases"
+      - "Highest lifetime value segment"
+      - "Mix of subscription and marketplace behavior"
+      - "Often buy gifts while maintaining personal subscription"
+      - "Complex order coordination needs"
+
+    support_ticket_patterns:
+      - "Coordinating subscription and additional order shipping"
+      - "Questions about marketplace product availability"
+      - "Complex billing inquiries (subscription + orders)"
+      - "Gift orders separate from personal subscription"
+      - "Account management complexity"
+
+    satisfaction_distribution:
+      high_satisfaction: 55    # High engagement, high value
+      neutral: 30
+      low_satisfaction: 15
+
+  one_time_purchasers:
+    percentage_of_base: 20
+    description: "Single purchase or infrequent buyers"
+    characteristics:
+      - "Single purchase or very infrequent buying"
+      - "High variation in satisfaction and return likelihood"
+      - "Trial customers evaluating the brand"
+      - "Price-sensitive segment"
+      - "Potential conversion targets"
+
+    sub_types:
+      trial_converters:
+        description: "Likely to become subscribers after positive experience"
+        satisfaction_range: "4.0-5.0"
+        conversion_likelihood: "high"
+        support_focus: "onboarding_and_education"
+
+      occasional_buyers:
+        description: "Seasonal or need-based purchases"
+        satisfaction_range: "3.5-4.5"
+        conversion_likelihood: "medium"
+        support_focus: "product_education"
+
+      one_and_done:
+        description: "Poor experience, unlikely to return"
+        satisfaction_range: "1.5-3.0"
+        conversion_likelihood: "very_low"
+        support_focus: "damage_control"
+
+      browsers:
+        description: "Small orders, testing the waters"
+        satisfaction_range: "3.0-4.2"
+        conversion_likelihood: "medium"
+        support_focus: "engagement_building"
+
+    support_ticket_patterns:
+      - "First-time buyer questions and confusion"
+      - "Product education and usage guidance"
+      - "Return/exchange requests (higher likelihood)"
+      - "Account setup and login issues"
+      - "Price and value comparison questions"
+
+  repeat_purchasers:
+    percentage_of_base: 12
+    description: "Regular buyers who avoid subscription commitment"
+    characteristics:
+      - "Regular purchases but prefer control over timing"
+      - "Often buy in bulk or seasonal patterns"
+      - "Potential subscription conversion targets"
+      - "Value flexibility over convenience"
+      - "Often price-conscious but loyal"
+
+    support_ticket_patterns:
+      - "Bulk order inquiries and pricing"
+      - "Product availability and restock questions"
+      - "Loyalty program engagement"
+      - "Subscription consideration questions"
+      - "Seasonal ordering coordination"
+
+    satisfaction_distribution:
+      high_satisfaction: 45
+      neutral: 40
+      low_satisfaction: 15
+
+generation_instructions:
+  customer_distribution:
+    - "Generate customers following the percentage distributions above"
+    - "Ensure customer mix reflects the business scenario (more at-risk during churn_spike)"
+    - "Create realistic progression from new to loyal customers"
+    - "Include customers across all lifecycle stages"
+
+  catalog_integration:
+    - "Use ACTUAL subscription tier names from the merchant catalog"
+    - "Reference SPECIFIC products from the catalog in purchase history"
+    - "Match product preferences to customer archetypes (gift buyers prefer gift sets)"
+    - "Use real pricing from merchant catalog for lifetime value calculations"
+
+  behavioral_realism:
+    - "Create realistic satisfaction scores matching customer behavioral patterns"
+    - "Ensure support ticket frequency aligns with customer type and satisfaction"
+    - "Generate appropriate tenure lengths (new customers vs 2+ year subscribers)"
+    - "Include realistic order counts and frequency patterns"
+    - "Show customer journey progression (trial → subscriber → power user)"
+
+  business_model_awareness:
+    - "Corporate gift buyers appear more during Q4 and holiday seasons"
+    - "Subscription churn risk increases during economic stress scenarios"
+    - "One-time purchasers increase during crisis scenarios (people testing cheaper options)"
+    - "Power subscribers remain stable even during difficult periods"
+
+quality_standards:
+  - "Every customer must feel like a real person with authentic behavior patterns"
+  - "Customer names should be diverse and realistic"
+  - "Email addresses should match names appropriately"
+  - "Lifetime values must be realistic for the customer type and business model"
+  - "Support ticket counts should correlate with satisfaction scores and customer type"
+  - "Purchase history should reference actual products from merchant catalog"

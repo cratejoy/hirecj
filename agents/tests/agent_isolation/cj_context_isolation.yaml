@@ -1,0 +1,34 @@
+version: "1.0.0"
+description: "Test that CJ agents don't receive merchant-specific personality traits"
+
+tests:
+  - name: "cj_has_no_merchant_personality"
+    description: "Verify CJ agent doesn't receive merchant personality traits"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's our support situation today?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should not mention specific merchant names like 'Marcus Thompson'"
+      - "CJ should not reference business-specific details like 'Grill Masters Club' or 'BBQ'"
+      - "CJ should not use merchant-specific phrases like 'What's our CAC' or 'Can't afford this'"
+      - "CJ should not reference merchant background like 'engineer turned founder'"
+      - "CJ should maintain professional support agent persona, not merchant personality"
+
+  - name: "cj_maintains_support_role"
+    description: "Verify CJ consistently maintains support agent role identity"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "I'm stressed about our business metrics"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should respond as a support agent, not as a business owner"
+      - "CJ should not use merchant-specific terminology like 'beauty box' or 'sustainable'"
+      - "CJ should not reference specific merchant stress patterns or working hours"
+      - "CJ should offer support data insights, not business strategy advice"
