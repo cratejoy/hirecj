@@ -1,395 +1,575 @@
-# HireCJ LLMDataAgent: Accumulating Universe Facts Implementation Plan
+# HireCJ Monorepo Restructuring Plan
 
-## 🌟 North Star Principles
+## Implementation Checklist - Natural Order
 
-1. **Simplify, Simplify, Simplify**: Every decision should make the code simpler, not more complex
-2. **No Cruft**: Remove all redundant code, validation, and unnecessary complexity
-3. **Break It & Fix It Right**: No backwards compatibility shims - make breaking changes and migrate properly
-4. **Long-term Elegance**: Choose performant, compiler-enforced solutions that prevent subtle bugs
-5. **Backend-Driven**: Let the backend handle complexity, frontend should be a thin client
-6. **Single Source of Truth**: One pattern, one way to do things, no alternatives
-7. **No Over-Engineering**: Design for current needs only - no hypothetical features
+### ☐ Phase 1: Backup & Audit (20 min)
+**Safety first - preserve everything before changes**
+- ☐ Run audit script to check current state: `./scripts/migration-checklist.sh`
+- ☐ Push all changes to individual repos
+- ☐ Create backup branches in each repo: `git checkout -b pre-monorepo-backup && git push origin pre-monorepo-backup`
+- ☐ Document current working state (which services are running, any known issues)
 
-## 🏗️ Architecture: Accumulating Universe Facts
+### ☐ Phase 2: Foundation Setup (30 min)
+**Prepare everything in root BEFORE touching sub-repos**
+- ☐ Create comprehensive root `.gitignore`
+- ☐ Add `Makefile.proposed`, `docker-compose.proposed.yml`
+- ☐ Create all helper scripts:
+  - ☐ `scripts/dev.sh`
+  - ☐ `scripts/migration-checklist.sh`
+  - ☐ `scripts/unification-checklist.sh`
+- ☐ Create `shared/` directory structure
+- ☐ Commit foundation: `git commit -m "Prepare monorepo migration infrastructure"`
 
-The LLMDataAgent maintains conversation consistency by accumulating facts across tool calls:
+### ☐ Phase 3: Pattern Unification IN PLACE (45 min)
+**Fix inconsistencies BEFORE migration - repos improve even if migration fails**
+- ☐ In each sub-repo, standardize patterns:
+  - ☐ Add `app/__main__.py` files for consistent startup
+  - ☐ Standardize config to use Pydantic settings
+  - ☐ Fix port conflicts (Knowledge: 8001, not 8000)
+  - ☐ Create proper `.env.example` files
+  - ☐ Simplify Makefiles to minimal versions
+- ☐ Push improvements to each repo: `git commit -am "Standardize patterns for monorepo migration"`
+- ☐ Verify each service still works independently
+
+### ☐ Phase 4: The Big Move (45 min)
+**Now do the actual migration**
+- ☐ Final safety check: all repos pushed and backed up
+- ☐ Remove `.git` directories: `rm -rf hirecj-*/.git`
+- ☐ Rename directories: `mv hirecj-agents agents` (etc.)
+- ☐ Stage and commit each service:
+  ```bash
+  git add agents/ && git commit -m "Add agents service to monorepo"
+  git add auth/ && git commit -m "Add auth service to monorepo"
+  # ... repeat for each
+  ```
+- ☐ Run `./scripts/migration-checklist.sh` after each service
+
+### ☐ Phase 5: Activate & Test Locally (30 min)
+**Make it work locally before deploying**
+- ☐ Activate new configs: `mv Makefile.proposed Makefile && mv docker-compose.proposed.yml docker-compose.yml`
+- ☐ Create any missing directories: `mkdir -p shared .github/workflows`
+- ☐ Run `make install` to set up all dependencies
+- ☐ Start infrastructure: `make dev-infra`
+- ☐ Test each service: `make dev-agents`, `make dev-auth`, etc.
+- ☐ Fix any import or path issues that arise
+- ☐ Verify hot reload works for each service
+
+### ☐ Phase 6: Heroku Setup & Deploy (45 min)
+**Deploy only after local works perfectly**
+- ☐ Add Heroku git remotes:
+  ```bash
+  git remote add heroku-agents https://git.heroku.com/hirecj-agents.git
+  git remote add heroku-auth https://git.heroku.com/hirecj-auth.git
+  git remote add heroku-homepage https://git.heroku.com/hirecj-homepage.git
+  git remote add heroku-database https://git.heroku.com/hirecj-database.git
+  ```
+- ☐ Configure buildpacks if needed
+- ☐ Test deploy ONE service first (recommend homepage): `make deploy-homepage`
+- ☐ Verify it works in production
+- ☐ Deploy remaining services one by one
+- ☐ Monitor logs during deployment: `make logs-{service}`
+
+### ☐ Phase 7: Cleanup & Polish (30 min)
+**Final touches for a clean end state**
+- ☐ Remove old dev scripts: `rm dev.py dev-simple.py dev.sh`
+- ☐ Update main README.md with new workflow
+- ☐ Archive old GitHub repos (Settings → Archive repository)
+- ☐ Create announcement for team with:
+  - ☐ New workflow instructions
+  - ☐ Benefits achieved
+  - ☐ Any breaking changes
+- ☐ Run final verification: `./scripts/unification-checklist.sh`
+- ☐ Celebrate! 🎉
+
+## Why This Order Works Better
+
+1. **Safety First**: Complete backup before any destructive changes
+2. **Prepare Infrastructure**: All tools ready before migration starts
+3. **Improve in Place**: Services get better even if migration fails
+4. **Test Locally First**: Ensure everything works before touching production
+5. **Progressive Deployment**: Deploy one service first as canary
+6. **Clean End State**: Everything tidy and documented when done
+
+## Checkpoint Strategy
+
+After each phase, you can:
+- ✅ **Continue** if everything looks good
+- ⏸️ **Pause** if you need to handle other priorities
+- ↩️ **Rollback** if issues arise (original repos remain intact)
+
+## Goal
+Transform the current multi-repo structure into a clean monorepo while maintaining separate Heroku deployments for each service.
+
+## Benefits
+- ✅ Single GitHub repository = Simple PRs and reviews
+- ✅ Unified patterns = No more "which command for which service?"
+- ✅ Consistent configuration = Same patterns everywhere
+- ✅ Easy local development = One set of commands to learn
+- ✅ Each service still deploys independently to Heroku
+- ✅ Cleaner project management = Less cognitive load
+
+## New Structure
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        API Request                           │
-│                     (with session_id)                        │
-└─────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      LLMDataAgent                            │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Universe Facts (Redis)                   │   │
-│  │  • entities: {id → properties}                       │   │
-│  │  • metrics: {name → value}                          │   │
-│  │  • relationships: {entity → [related]}              │   │
-│  │  • invariants: [rules]                              │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                               │                              │
-│                               ▼                              │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │           Enhanced LLM Generation                     │   │
-│  │  1. Include facts in prompt                         │   │
-│  │  2. Generate consistent response                    │   │
-│  │  3. Extract new facts                              │   │
-│  │  4. Update universe facts                          │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+hirecj/
+├── .github/              # GitHub Actions for CI/CD
+├── auth/                 # Auth service (was hirecj-auth)
+│   ├── app/
+│   ├── Procfile         # For Heroku deployment
+│   └── requirements.txt
+├── agents/              # Agents service (was hirecj-agents)
+│   ├── app/
+│   ├── Procfile
+│   └── requirements.txt
+├── homepage/            # Homepage service (was hirecj-homepage)
+│   ├── src/
+│   ├── Procfile
+│   └── package.json
+├── database/            # Database service (was hirecj-database)
+│   ├── app/
+│   ├── Procfile
+│   └── requirements.txt
+├── knowledge/           # Knowledge service (was hirecj-knowledge)
+│   ├── src/
+│   └── requirements.txt
+├── shared/              # Shared code/utilities
+├── scripts/             # Development and deployment scripts
+├── docker-compose.yml   # Local development orchestration
+├── Makefile            # Root-level commands
+├── .env.example        # Example environment variables
+└── README.md           # Project overview
 ```
 
-## 📅 Phased Implementation Checklist
+## Heroku Deployment Strategy
 
-### Phase 1: Foundation
-- [ ] Create feature branch `feature/llm-data-agent-universe-facts`
-- [ ] Add `universe_facts` dict structure to LLMDataAgent
-- [ ] Implement `_load_or_initialize_facts()` with Redis integration
-- [ ] Add `session_id` parameter through the call stack
-- [ ] Create basic fact categories (entities, metrics, relationships, invariants)
-- [ ] Write unit tests for fact initialization and storage
+Each service will have:
+1. Its own Heroku app
+2. Buildpacks configured per service type
+3. Procfile in each service directory
+4. Deploy from subdirectories using Heroku's subtree push
 
-### Phase 2: Core Generation
-- [ ] Implement `_build_facts_context()` method
-- [ ] Modify `_generate_response()` to include facts in prompts
-- [ ] Add consistency instructions to system prompt
-- [ ] Implement `_save_facts()` to persist to Redis
-- [ ] Add session TTL configuration
-- [ ] Write integration tests for fact persistence
+Example deployment commands:
+```bash
+# Deploy auth service
+git subtree push --prefix auth heroku-auth main
 
-### Phase 3: Fact Extraction
-- [ ] Implement `_extract_entities_from_dict()` for ID extraction
-- [ ] Implement `_extract_metrics()` for numeric values
-- [ ] Implement `_extract_relationships()` for entity connections
-- [ ] Create `_infer_entity_type()` helper
-- [ ] Add fact extraction to all response types
-- [ ] Write tests for extraction accuracy
-
-### Phase 4: Method Updates
-- [ ] Update `get_support_dashboard()` to store metrics
-- [ ] Update `search_tickets()` to respect metrics and store entities
-- [ ] Update `get_ticket()` to use existing entities
-- [ ] Update `get_customer()` to maintain relationships
-- [ ] Update historical methods to align with current state
-- [ ] Write consistency tests for each method
-
-### Phase 5: Validation & Refinement
-- [ ] Implement invariant generation from patterns
-- [ ] Add response validation against invariants
-- [ ] Implement retry logic for inconsistent responses
-- [ ] Add metrics/logging for fact accumulation
-- [ ] Performance optimization (batch Redis operations)
-- [ ] Load testing with multiple concurrent sessions
-
-### Phase 6: Integration & Deployment
-- [ ] Update API layer to pass session_id
-- [ ] Add feature flag for gradual rollout
-- [ ] Document the new consistency model
-- [ ] Create monitoring dashboard for Redis usage
-- [ ] Deploy to staging environment
-- [ ] Run comprehensive integration tests
-
-### Phase 7: Production Rollout
-- [ ] Monitor staging performance and consistency
-- [ ] Fix any edge cases discovered
-- [ ] Gradual production rollout (10% → 50% → 100%)
-- [ ] Monitor production metrics
-- [ ] Gather feedback and iterate
-
-## 🎯 The Core Problem
-
-The LLMDataAgent currently has **zero memory** between tool calls within a conversation:
-- Says "40 open tickets" in dashboard
-- User asks about shipping delays
-- Generates completely different universe with 10 tickets
-- No consistency, no coherent story
-
-## 💡 The Elegant Solution: Accumulating Universe Facts
-
-Instead of pre-generating everything (doesn't scale to months/years) or having no memory (current broken state), we maintain a **growing set of established facts** that each new generation must respect.
-
-```python
-# Core concept:
-universe_facts = {
-    "entities": {"ticket_1234": {"status": "open", "category": "shipping"}},
-    "metrics": {"total_tickets": 40, "shipping_percentage": 0.15},
-    "relationships": {"cust_5678": ["ticket_1234", "ticket_5555"]},
-    "invariants": ["ticket counts must sum to total_tickets"]
-}
-
-# Every LLM call includes these facts and must respect them
+# Or use our Makefile
+make deploy-auth
+make deploy-agents
+make deploy-homepage
 ```
 
-## ✅ Implementation Checklist
+## Root-Level Orchestration
 
-### Phase 1: Core Infrastructure
-- [ ] Add `universe_facts` dict to LLMDataAgent.__init__
-- [ ] Create fact extraction methods (`_extract_facts_from_response`)
-- [ ] Modify `_generate_response` to include facts in prompt
-- [ ] Add session_id parameter to track facts per conversation
-- [ ] Create fact categories: entities, metrics, relationships, invariants
+### Makefile Commands
+```makefile
+# Development
+make dev              # Start all services locally
+make dev-auth         # Start only auth service
+make dev-agents       # Start only agents service
+make install          # Install all dependencies
+make test             # Run all tests
 
-### Phase 2: Fact Extraction 
-- [ ] Extract entities (IDs, key properties) from responses
-- [ ] Extract metrics (counts, percentages, totals) from responses
-- [ ] Extract relationships (customer->tickets, etc.) from responses
-- [ ] Build invariant rules from established patterns
+# Deployment
+make deploy-all       # Deploy all services
+make deploy-auth      # Deploy auth to Heroku
+make deploy-agents    # Deploy agents to Heroku
 
-### Phase 3: Consistency Enforcement
-- [ ] Include facts in every LLM prompt
-- [ ] Add consistency instructions to system prompt
-- [ ] Validate responses against invariants
-- [ ] Add retry logic for inconsistent responses
+# Utilities
+make logs-auth        # View auth service logs
+make logs-agents      # View agents service logs
+make db-migrate       # Run database migrations
+```
 
-### Phase 4: Session Management
-- [ ] Pass session_id through from API layer
-- [ ] Store facts in Redis with session key
-- [ ] Set TTL on session facts (e.g., 24 hours)
-- [ ] Clean up expired sessions
+### Docker Compose for Infrastructure Only
+Docker is used ONLY for stateful services (PostgreSQL, Redis). Apps run locally for better DX:
 
-### Phase 5: Testing & Validation
-- [ ] Test fact accumulation across multiple calls
-- [ ] Test consistency maintenance
-- [ ] Test historical data generation respects current state
-- [ ] Test edge cases (conflicting facts, retries)
+```yaml
+version: '3.8'
+services:
+  # Infrastructure only - apps run locally
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: hirecj
+      POSTGRES_PASSWORD: hirecj_dev_password
+      POSTGRES_DB: hirecj_dev
+    ports:
+      - "5432:5432"
 
-## 📋 Detailed Implementation
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+```
 
-### 1. Core Data Structure
+### Local Development Philosophy
+- **Apps run locally**: Hot reload, easy debugging, fast iteration
+- **Infrastructure in Docker**: Consistent PostgreSQL/Redis for everyone
+- **Simple commands**: `make dev` starts infra, then tells you what to run
+- **tmux option**: `make dev-all` opens all services in tmux windows
 
-```python
-class LLMDataAgent:
-    def __init__(self, merchant_name: str, scenario_name: str, model_config: ModelConfig, 
-                 session_id: Optional[str] = None):
-        self.session_id = session_id or str(uuid.uuid4())
-        self.universe_facts = self._load_or_initialize_facts()
+## Phased Migration Implementation
+
+### Phase 1: Backup & Preserve Current State (30 min)
+**Goal**: Ensure all work is safely pushed to individual repos before restructuring.
+
+1. **Audit each sub-project**:
+   ```bash
+   for dir in hirecj-agents hirecj-auth hirecj-database hirecj-homepage hirecj-knowledge; do
+     echo "=== Checking $dir ==="
+     cd $dir && git status && git log --oneline -5 && cd ..
+   done
+   ```
+
+2. **Push all changes** to individual repos
+3. **Create backup branches**:
+   ```bash
+   git checkout -b pre-monorepo-backup && git push origin pre-monorepo-backup
+   ```
+
+### Phase 2: Prepare Root Repository (15 min)
+**Goal**: Set up the main hirecj repo structure.
+
+1. **Create root .gitignore** (see below for complete file)
+2. **Commit foundation files**:
+   ```bash
+   git add .gitignore plan.md Makefile.proposed docker-compose.proposed.yml scripts/
+   git commit -m "Prepare monorepo structure"
+   ```
+
+### Phase 3: Convert Sub-Repos to Directories (1 hour)
+**Goal**: Safely integrate each service into the monorepo.
+
+1. **Remove .git directories** (after verifying everything is pushed):
+   ```bash
+   rm -rf hirecj-agents/.git
+   rm -rf hirecj-auth/.git
+   # ... repeat for each
+   ```
+
+2. **Rename directories**:
+   ```bash
+   mv hirecj-agents agents
+   mv hirecj-auth auth
+   mv hirecj-database database
+   mv hirecj-homepage homepage
+   mv hirecj-knowledge knowledge
+   ```
+
+3. **Commit each service**:
+   ```bash
+   git add agents/ && git commit -m "Add agents service to monorepo"
+   git add auth/ && git commit -m "Add auth service to monorepo"
+   # ... repeat for each
+   ```
+
+### Phase 4: Activate New Structure (15 min)
+**Goal**: Switch to the new development workflow.
+
+1. **Activate configuration**:
+   ```bash
+   mv Makefile.proposed Makefile
+   mv docker-compose.proposed.yml docker-compose.yml
+   git add Makefile docker-compose.yml
+   git commit -m "Activate monorepo configuration"
+   ```
+
+2. **Create shared directories**:
+   ```bash
+   mkdir -p shared .github/workflows
+   ```
+
+### Phase 4.5: Unify Service Patterns (45 min)
+**Goal**: Clean up per-service inconsistencies for elegant, unified patterns.
+
+1. **Standardize startup commands**:
+   ```python
+   # Each service gets a simple __main__.py pattern:
+   # agents/app/__main__.py
+   if __name__ == "__main__":
+       import uvicorn
+       uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+   ```
+
+2. **Remove/simplify per-service Makefiles**:
+   ```makefile
+   # Keep only minimal service-specific Makefile if needed
+   # agents/Makefile (example)
+   .PHONY: run
+   run:
+   	cd .. && make dev-agents
+   ```
+
+3. **Unify environment handling**:
+   ```bash
+   # Standard .env.example in each service
+   SERVICE_NAME=agents
+   PORT=8000
+   LOG_LEVEL=DEBUG
+   DATABASE_URL=postgresql://localhost:5432/hirecj
+   ```
+
+4. **Fix port assignments**:
+   - Agents: 8000
+   - Auth: 8103  
+   - Database: 8002
+   - Homepage: 3000
+   - Knowledge: 8001 (fix conflict!)
+
+5. **Clean up redundant dev scripts**:
+   ```bash
+   # Remove old scripts
+   rm dev.py dev-simple.py  # Keep only scripts/dev.sh
+   git add -u
+   git commit -m "Remove redundant dev scripts"
+   ```
+
+6. **Standardize Python app structure**:
+   ```python
+   # Each service follows same pattern:
+   # app/main.py
+   from fastapi import FastAPI
+   from app.config import settings  # Pydantic settings
+   
+   app = FastAPI(title=f"HireCJ {settings.SERVICE_NAME}")
+   ```
+
+7. **Unify logging configuration**:
+   ```python
+   # shared/logging_config.py (symlink to each service)
+   import logging
+   
+   def setup_logging(service_name: str, level: str = "INFO"):
+       # Consistent format across all services
+       logging.basicConfig(
+           format=f"[{service_name}] %(asctime)s - %(name)s - %(levelname)s - %(message)s",
+           level=level
+       )
+   ```
+
+8. **Create unified test pattern**:
+   ```bash
+   # Root Makefile handles all, services just have:
+   # agents/pytest.ini
+   [pytest]
+   testpaths = tests
+   python_files = test_*.py
+   ```
+
+9. **Specific service updates**:
+   ```bash
+   # agents: Remove complex Makefile, use root commands
+   # auth: Remove tunnel complexity from Makefile (keep as separate command)
+   # database: Add missing lint/format commands to root
+   # homepage: Create minimal package.json scripts that defer to root
+   # all: Remove venv activation differences, use consistent pattern
+   ```
+
+10. **Create service config template**:
+    ```python
+    # shared/config_base.py
+    from pydantic_settings import BaseSettings
+    
+    class ServiceConfig(BaseSettings):
+        service_name: str
+        port: int
+        host: str = "0.0.0.0"
+        log_level: str = "INFO"
+        database_url: str
         
-    def _load_or_initialize_facts(self) -> Dict[str, Any]:
-        """Load existing facts from Redis or initialize new"""
-        if cached := redis_client.get(f"facts:{self.session_id}"):
-            return json.loads(cached)
-        
-        return {
-            "entities": {},      # id -> {properties}
-            "metrics": {},       # metric_name -> value
-            "relationships": {}, # entity_id -> [related_ids]
-            "invariants": [],    # rules that must hold
-            "generated_at": []   # timestamp -> what was generated
-        }
+        class Config:
+            env_file = ".env"
+            env_file_encoding = "utf-8"
+    ```
+
+**Verification**: Run `./scripts/unification-checklist.sh` to ensure patterns are unified.
+
+### Phase 5: Configure Heroku Deployments (30 min)
+**Goal**: Set up subdirectory deployments.
+
+1. **Add Heroku remotes**:
+   ```bash
+   git remote add heroku-agents https://git.heroku.com/hirecj-agents.git
+   git remote add heroku-auth https://git.heroku.com/hirecj-auth.git
+   git remote add heroku-homepage https://git.heroku.com/hirecj-homepage.git
+   git remote add heroku-database https://git.heroku.com/hirecj-database.git
+   ```
+
+2. **Deploy each service**:
+   ```bash
+   git subtree push --prefix agents heroku-agents main
+   git subtree push --prefix auth heroku-auth main
+   # ... repeat for each
+   ```
+
+### Phase 6: Cleanup & Documentation (30 min)
+1. Update main README.md
+2. Archive old repos in GitHub (Settings → Archive)
+3. Test everything works
+
+### Rollback Plan
+If issues arise:
+- Original repos still exist with full history
+- Each has a `pre-monorepo-backup` branch
+- Can clone and continue as before
+
+### Migration Timeline
+- **Total time**: ~3.25 hours
+  - Phase 1: 30 min (backup)
+  - Phase 2: 15 min (prep)
+  - Phase 3: 60 min (convert)
+  - Phase 4: 15 min (activate)
+  - Phase 4.5: 45 min (unify patterns)
+  - Phase 5: 30 min (Heroku)
+  - Phase 6: 30 min (cleanup)
+- **Best time**: Low-activity period
+- **Verification**: Run `./scripts/migration-checklist.sh` after each phase
+
+### Root .gitignore
+```gitignore
+# Environment
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.pytest_cache/
+.coverage
+
+# Node.js
+node_modules/
+dist/
+build/
+.next/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Local data
+data/conversations/*.json
+data/merchant_memory/*.yaml
+!data/**/.gitkeep
+
+# Old structure
+hirecj-*/
 ```
 
-### 2. Enhanced Generation Method
+## Development Workflow
 
-```python
-def _generate_response(self, prompt: str, response_format: Dict[str, Any]) -> Any:
-    """Generate response with universe facts context"""
-    
-    # Build consistency context
-    facts_context = self._build_facts_context()
-    
-    enhanced_prompt = f"""
-{prompt}
+### Starting Fresh
+```bash
+git clone https://github.com/cratejoy/hirecj.git
+cd hirecj
+make install      # Install all dependencies
+make dev          # Start PostgreSQL & Redis
 
-IMPORTANT: You must maintain consistency with the established universe facts:
+# Then in separate terminals:
+make dev-agents   # Terminal 1: Start agents (port 8000)
+make dev-homepage # Terminal 2: Start homepage (port 3000)
 
-{facts_context}
-
-Your response MUST:
-1. Use existing entity IDs when referring to known entities
-2. Respect all stated metrics and counts
-3. Maintain relationships between entities
-4. Follow all invariant rules
-5. Generate new data that fits logically with established facts
-"""
-    
-    response = self._call_llm(enhanced_prompt, response_format)
-    
-    # Extract and store new facts
-    self._extract_and_store_facts(response)
-    
-    return response
+# Or use tmux for everything at once:
+make dev-all     # Opens all services in tmux windows
 ```
 
-### 3. Fact Extraction
+### Working on a Service
+```bash
+# Start infrastructure
+make dev-infra    # Just PostgreSQL & Redis
 
-```python
-def _extract_and_store_facts(self, response: Any) -> None:
-    """Extract facts from LLM response and update universe facts"""
-    
-    # Extract entities (anything with an ID)
-    if isinstance(response, dict):
-        self._extract_entities_from_dict(response)
-    elif isinstance(response, list):
-        for item in response:
-            self._extract_entities_from_dict(item)
-    
-    # Extract metrics
-    self._extract_metrics(response)
-    
-    # Extract relationships
-    self._extract_relationships(response)
-    
-    # Generate invariants
-    self._update_invariants()
-    
-    # Save to Redis
-    self._save_facts()
-
-def _extract_entities_from_dict(self, data: Dict[str, Any]) -> None:
-    """Extract entities with IDs and key properties"""
-    if "id" in data or "ticket_id" in data or "customer_id" in data:
-        entity_id = data.get("id") or data.get("ticket_id") or data.get("customer_id")
-        
-        # Store key properties that should remain consistent
-        self.universe_facts["entities"][entity_id] = {
-            "type": self._infer_entity_type(entity_id),
-            "properties": {
-                k: v for k, v in data.items() 
-                if k in ["status", "category", "priority", "name", "email"]
-            }
-        }
+# Work on specific service
+cd agents
+make dev-agents   # Hot reload enabled!
+# Make changes - they auto-reload
+make test-agents  # Run tests
+make deploy-agents # Deploy when ready
 ```
 
-### 4. Fact Context Building
+### Why This Approach?
+- ✅ **Hot reload works**: Changes reflect instantly
+- ✅ **Easy debugging**: Attach debuggers, see logs clearly
+- ✅ **Fast startup**: No Docker build times for apps
+- ✅ **IDE friendly**: Your IDE sees the actual running process
+- ✅ **Realistic**: Matches how you'll run in production (Heroku)
 
-```python
-def _build_facts_context(self) -> str:
-    """Build human-readable context from universe facts"""
-    
-    context_parts = []
-    
-    # Entities
-    if self.universe_facts["entities"]:
-        context_parts.append("Known Entities:")
-        for entity_id, props in self.universe_facts["entities"].items():
-            context_parts.append(f"  - {entity_id}: {props}")
-    
-    # Metrics
-    if self.universe_facts["metrics"]:
-        context_parts.append("\nEstablished Metrics:")
-        for metric, value in self.universe_facts["metrics"].items():
-            context_parts.append(f"  - {metric}: {value}")
-    
-    # Relationships
-    if self.universe_facts["relationships"]:
-        context_parts.append("\nRelationships:")
-        for entity, related in self.universe_facts["relationships"].items():
-            context_parts.append(f"  - {entity} -> {related}")
-    
-    # Invariants
-    if self.universe_facts["invariants"]:
-        context_parts.append("\nRules to Follow:")
-        for rule in self.universe_facts["invariants"]:
-            context_parts.append(f"  - {rule}")
-    
-    return "\n".join(context_parts)
+### Creating PRs
+```bash
+# All changes in one repo!
+git checkout -b feature/my-feature
+# Make changes to any service
+git add .
+git commit -m "Update auth and agents services"
+git push origin feature/my-feature
+# One PR for all changes!
 ```
 
-### 5. Specific Method Updates
+## Environment Management
 
-```python
-def get_support_dashboard(self, current_day: Optional[int] = None) -> SupportDashboard:
-    """Generate dashboard that respects established metrics"""
-    
-    # If we already have total_tickets metric, include it
-    existing_metrics = self.universe_facts.get("metrics", {})
-    
-    prompt = f"""Generate a support dashboard for {self.merchant_name}..."""
-    
-    response = self._generate_response(prompt, response_format)
-    
-    # Extract metrics for future consistency
-    self.universe_facts["metrics"].update({
-        "total_tickets": response.get("total_tickets"),
-        "open_tickets": response.get("open_tickets"),
-        "response_time_hours": response.get("avg_response_time_hours"),
-    })
-    
-    return SupportDashboard(**response)
+### .env.example (root level)
+```
+# Shared
+DATABASE_URL=postgresql://localhost:5432/hirecj
 
-def search_tickets(self, query: str, category: Optional[str] = None) -> List[Ticket]:
-    """Search tickets ensuring consistency with dashboard metrics"""
-    
-    # Include known ticket counts to ensure consistency
-    total_tickets = self.universe_facts["metrics"].get("total_tickets", "unknown")
-    category_percentages = self._get_category_percentages()
-    
-    prompt = f"""Search for tickets matching '{query}'...
-    
-    Note: The system currently has {total_tickets} total tickets.
-    {category_percentages}
-    """
-    
-    response = self._generate_response(prompt, response_format)
-    
-    # Store ticket entities for future reference
-    for ticket in response:
-        self.universe_facts["entities"][ticket["id"]] = {
-            "type": "ticket",
-            "properties": {
-                "status": ticket.get("status"),
-                "category": ticket.get("category"),
-                "customer_id": ticket.get("customer_id")
-            }
-        }
-    
-    return [Ticket(**t) for t in response]
+# Auth Service
+AUTH_PORT=8103
+JWT_SECRET=dev_secret
+
+# Agents Service  
+AGENTS_PORT=8000
+OPENAI_API_KEY=your_key
+
+# Homepage
+HOMEPAGE_PORT=3000
+API_URL=http://localhost:8000
 ```
 
-### 6. Testing Strategy
+### Service-specific .env files
+Each service can have its own .env for specific needs
 
-```python
-def test_consistency_across_calls():
-    """Test that facts accumulate and maintain consistency"""
-    
-    agent = LLMDataAgent("test_merchant", "test_scenario", session_id="test_123")
-    
-    # First call: dashboard
-    dashboard = agent.get_support_dashboard()
-    assert dashboard.total_tickets == 40  # example
-    
-    # Second call: search should respect total
-    tickets = agent.search_tickets("shipping")
-    
-    # Verify consistency
-    facts = agent.universe_facts
-    assert facts["metrics"]["total_tickets"] == 40
-    assert len([t for t in tickets if t.category == "shipping"]) > 0
-    
-    # Third call: specific ticket should exist
-    ticket_id = tickets[0].id
-    ticket_detail = agent.get_ticket(ticket_id)
-    assert ticket_detail.id == ticket_id
-    
-    # Historical data should lead to current state
-    historical = agent.get_historical_metrics(days=30)
-    assert historical[-1]["total_tickets"] == 40  # current day matches
-```
+## Benefits Over Current Structure
 
-## 🚀 Migration Path
+1. **Simpler PRs**: No more cross-repo PRs
+2. **Unified Testing**: Run all tests with one command
+3. **Shared Dependencies**: Common utilities in /shared
+4. **Easy Onboarding**: Clone one repo, run one command
+5. **Better Visibility**: See all changes in one place
+6. **Simpler CI/CD**: One set of GitHub Actions
 
-1. **Update LLMDataAgent class** with universe_facts
-2. **Add session_id parameter** through the stack (API -> CJAgent -> LLMDataAgent)
-3. **Deploy with feature flag** to test consistency
-4. **Monitor Redis memory usage** for fact storage
-5. **Add metrics** for fact accumulation and consistency violations
+## Key Unifications
 
-## 📊 Success Metrics
+After migration, all services will share:
+- **Same startup pattern**: `make dev-{service}` or `python -m app.main`
+- **Same config pattern**: Pydantic settings with `.env` files
+- **Same test pattern**: `pytest` with consistent configuration
+- **Same logging format**: `[service] timestamp - module - level - message`
+- **Same port strategy**: No conflicts, clearly assigned
+- **Same deployment**: `git subtree push --prefix {service} heroku-{service} main`
 
-- Zero consistency violations in conversations
-- Facts accumulate properly across tool calls
-- Historical data aligns with current state
-- Memory usage remains reasonable (< 1MB per session)
-- No performance degradation (< 100ms overhead)
+## North Star Alignment
 
-## 🔮 Future Extensions (NOT NOW)
+✅ **Simplify**: One repo, one truth, one way to do things
+✅ **No Cruft**: Remove git submodule complexity and redundant scripts
+✅ **Elegant**: Clean structure, unified patterns
+✅ **Long-term**: Scales with the team, easy to onboard
+✅ **Backend-Driven**: Services clearly separated but consistently managed
 
-- Fact compression for long conversations
-- Cross-session fact sharing for merchant continuity
-- Fact conflicts resolution strategies
-- ML-based invariant discovery
+## Next Steps
 
-Remember: Build for today's needs, not tomorrow's possibilities!
+1. Get approval on this plan
+2. Create feature branch for restructuring
+3. Migrate services one by one
+4. Test local development flow
+5. Update Heroku deployments
+6. Merge and celebrate! 🎉
