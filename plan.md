@@ -33,41 +33,51 @@
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-2-auth-flow.md)**
 
-### Phase 3: Quick Value Demo
+### Phase 3: OAuth Production Ready
+**Deliverables:**
+- [ ] Configure real Shopify OAuth credentials
+- [ ] Fix ngrok tunnel integration for OAuth callbacks
+- [ ] Verify OAuth flow works end-to-end with real Shopify
+- [ ] Ensure new vs returning merchant detection works
+- [ ] Test CJ's response to OAuth completion
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-3-oauth-production.md)**
+
+### Phase 4: Quick Value Demo
 **Deliverables:**
 - [ ] Quick insights service for Shopify data
 - [ ] Store snapshot queries (products, orders, customers)
 - [ ] Progressive data loading mechanism
 - [ ] Conversation UI showing real-time insights
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-3-quick-value.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-quick-value.md)** *(TODO)*
 
-### Phase 4: Support System Connection
+### Phase 5: Support System Connection
 **Deliverables:**
 - [ ] Support system provider detection logic
 - [ ] Interest list for unsupported systems
 - [ ] OAuth flows for supported systems
 - [ ] Graceful handling of unsupported providers
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-support-systems.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-support-systems.md)** *(TODO)*
 
-### Phase 5: Notification & Polish
+### Phase 6: Notification & Polish
 **Deliverables:**
 - [ ] Email notification capture and sending
 - [ ] Browser notification implementation
 - [ ] Beta messaging throughout experience
 - [ ] Error handling and edge cases
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-notifications.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-6-notifications.md)** *(TODO)*
 
-### Phase 6: Testing & Refinement
+### Phase 7: Testing & Refinement
 **Deliverables:**
 - [ ] End-to-end flow testing suite
 - [ ] Performance optimization
 - [ ] Security review
 - [ ] Documentation and deployment guide
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-6-testing.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-7-testing.md)** *(TODO)*
 
 ## 🏛️ System Architecture Overview
 
