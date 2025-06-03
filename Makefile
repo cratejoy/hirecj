@@ -1,174 +1,173 @@
-.PHONY: help install-all dev stop test-all clean status
+# HireCJ Monorepo Makefile
+# Orchestrates all services from the root
+
+.PHONY: help install dev test deploy-all clean
 
 # Default target
 help:
-	@echo "HireCJ Monorepo Commands:"
-	@echo "  make install-all    - Install dependencies for all components"
-	@echo "  make dev           - Start all services in development mode"
-	@echo "  make stop          - Stop all services"
-	@echo "  make test-all      - Run tests across all components"
-	@echo "  make clean         - Clean build artifacts and caches"
-	@echo "  make status        - Show status of all components"
-	@echo "  make health-check  - Check health of all services"
+	@echo "HireCJ Development Commands:"
+	@echo "  make install      - Install all dependencies"
+	@echo "  make dev          - Start all services locally"
+	@echo "  make test         - Run all tests"
+	@echo "  make deploy-all   - Deploy all services to Heroku"
+	@echo ""
+	@echo "Service-specific commands:"
+	@echo "  make dev-auth     - Start auth service only"
+	@echo "  make dev-agents   - Start agents service only"
+	@echo "  make dev-homepage - Start homepage service only"
+	@echo "  make test-auth    - Test auth service"
+	@echo "  make test-agents  - Test agents service"
+	@echo "  make deploy-auth  - Deploy auth to Heroku"
+	@echo "  make deploy-agents - Deploy agents to Heroku"
 
-# Install dependencies for all components
-install-all:
-	@echo "📦 Installing dependencies for all HireCJ components..."
-	@if [ -d "hirecj-agents" ]; then \
-		echo "Installing hirecj-agents dependencies..."; \
-		cd hirecj-agents && make install; \
-	fi
-	@if [ -d "hirecj-database" ]; then \
-		echo "Installing hirecj-database dependencies..."; \
-		cd hirecj-database && make install; \
-	fi
-	@if [ -d "hirecj-homepage" ]; then \
-		echo "Installing hirecj-homepage dependencies..."; \
-		cd hirecj-homepage && npm install; \
-	fi
-	@if [ -d "hirecj-knowledge" ]; then \
-		echo "Installing hirecj-knowledge dependencies..."; \
-		cd hirecj-knowledge && make install; \
-	fi
-	@if [ -d "hirecj-auth" ]; then \
-		echo "Installing hirecj-auth dependencies..."; \
-		cd hirecj-auth && make install; \
-	fi
+# Install all dependencies
+install:
+	@echo "📦 Installing all dependencies..."
+	cd auth && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
+	cd agents && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
+	cd database && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
+	cd knowledge && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
+	cd homepage && npm install
 	@echo "✅ All dependencies installed!"
 
-# Start all services in development mode
+# Development commands
 dev:
-	@echo "🚀 Starting HireCJ development environment..."
-	@if [ -f "dev.py" ]; then \
-		python dev.py; \
-	else \
-		echo "Development runner not found. Starting services individually..."; \
-		$(MAKE) dev-agents & \
-		$(MAKE) dev-homepage & \
-		wait; \
-	fi
+	@echo "🚀 Starting development environment..."
+	@echo "Prerequisites: PostgreSQL and Redis must be running locally"
+	@echo ""
+	@echo "Start services in separate terminals:"
+	@echo "  Terminal 1: make dev-agents"
+	@echo "  Terminal 2: make dev-homepage"
+	@echo "  Terminal 3: make dev-auth (if needed)"
+	@echo ""
+	@echo "Or use: make dev-all (requires tmux)"
 
-# Start individual services
+dev-all:
+	@echo "🚀 Starting all services with tmux..."
+	@command -v tmux >/dev/null 2>&1 || { echo "tmux is required but not installed. Install with: brew install tmux"; exit 1; }
+	tmux new-session -d -s hirecj-dev
+	tmux send-keys -t hirecj-dev:0 'make dev-agents' C-m
+	tmux new-window -t hirecj-dev:1 -n homepage
+	tmux send-keys -t hirecj-dev:1 'make dev-homepage' C-m
+	tmux new-window -t hirecj-dev:2 -n auth
+	tmux send-keys -t hirecj-dev:2 'make dev-auth' C-m
+	tmux attach -t hirecj-dev
+
+dev-auth:
+	@echo "🔐 Starting auth service..."
+	cd auth && . venv/bin/activate && python -m app.main
+
 dev-agents:
-	@if [ -d "hirecj-agents" ]; then \
-		cd hirecj-agents && make dev; \
-	fi
-
-dev-database:
-	@if [ -d "hirecj-database" ]; then \
-		cd hirecj-database && make dev; \
-	fi
+	@echo "🤖 Starting agents service..."
+	cd agents && . venv/bin/activate && python -m app.main
 
 dev-homepage:
-	@if [ -d "hirecj-homepage" ]; then \
-		cd hirecj-homepage && npm run dev; \
-	fi
+	@echo "🌐 Starting homepage..."
+	cd homepage && npm run dev
 
-dev-knowledge:
-	@if [ -d "hirecj-knowledge" ]; then \
-		cd hirecj-knowledge && make dev; \
-	fi
+dev-database:
+	@echo "💾 Starting database service..."
+	cd database && . venv/bin/activate && python -m app.main
 
 # Stop all services
 stop:
-	@echo "🛑 Stopping all HireCJ services..."
-	@if [ -d "hirecj-agents" ]; then \
-		cd hirecj-agents && make stop 2>/dev/null || true; \
+	@echo "🛑 Stopping all services..."
+	@if tmux has-session -t hirecj-dev 2>/dev/null; then \
+		tmux kill-session -t hirecj-dev; \
+		echo "✅ Stopped tmux session"; \
 	fi
-	@if [ -d "hirecj-database" ]; then \
-		cd hirecj-database && make stop 2>/dev/null || true; \
-	fi
-	@if [ -d "hirecj-homepage" ]; then \
-		pkill -f "npm run dev" 2>/dev/null || true; \
-	fi
-	@if [ -d "hirecj-knowledge" ]; then \
-		cd hirecj-knowledge && make stop 2>/dev/null || true; \
-	fi
-	@echo "✅ All services stopped!"
 
-# Run tests across all components
-test-all:
-	@echo "🧪 Running tests for all HireCJ components..."
-	@if [ -d "hirecj-agents" ]; then \
-		echo "Testing hirecj-agents..."; \
-		cd hirecj-agents && make test; \
-	fi
-	@if [ -d "hirecj-database" ]; then \
-		echo "Testing hirecj-database..."; \
-		cd hirecj-database && make test; \
-	fi
-	@if [ -d "hirecj-homepage" ]; then \
-		echo "Testing hirecj-homepage..."; \
-		cd hirecj-homepage && npm test; \
-	fi
-	@if [ -d "hirecj-knowledge" ]; then \
-		echo "Testing hirecj-knowledge..."; \
-		cd hirecj-knowledge && make test; \
-	fi
-	@echo "✅ All tests completed!"
+# Testing commands
+test:
+	@echo "🧪 Running all tests..."
+	make test-auth
+	make test-agents
+	make test-database
+	make test-homepage
 
-# Clean build artifacts and caches
+test-auth:
+	@echo "🧪 Testing auth service..."
+	cd auth && . venv/bin/activate && pytest
+
+test-agents:
+	@echo "🧪 Testing agents service..."
+	cd agents && . venv/bin/activate && pytest
+
+test-database:
+	@echo "🧪 Testing database service..."
+	cd database && . venv/bin/activate && pytest
+
+test-homepage:
+	@echo "🧪 Testing homepage..."
+	cd homepage && npm test
+
+# Deployment commands
+deploy-all:
+	@echo "🚀 Deploying all services..."
+	make deploy-auth
+	make deploy-agents
+	make deploy-homepage
+	make deploy-database
+
+deploy-auth:
+	@echo "🚀 Deploying auth service to Heroku..."
+	git subtree push --prefix auth heroku-auth main
+
+deploy-agents:
+	@echo "🚀 Deploying agents service to Heroku..."
+	git subtree push --prefix agents heroku-agents main
+
+deploy-homepage:
+	@echo "🚀 Deploying homepage to Heroku..."
+	git subtree push --prefix homepage heroku-homepage main
+
+deploy-database:
+	@echo "🚀 Deploying database service to Heroku..."
+	git subtree push --prefix database heroku-database main
+
+# Heroku setup (one-time)
+heroku-setup:
+	@echo "🔧 Setting up Heroku remotes..."
+	git remote add heroku-auth https://git.heroku.com/hirecj-auth.git
+	git remote add heroku-agents https://git.heroku.com/hirecj-agents.git
+	git remote add heroku-homepage https://git.heroku.com/hirecj-homepage.git
+	git remote add heroku-database https://git.heroku.com/hirecj-database.git
+
+# Logs
+logs-auth:
+	heroku logs --tail --app hirecj-auth
+
+logs-agents:
+	heroku logs --tail --app hirecj-agents
+
+logs-homepage:
+	heroku logs --tail --app hirecj-homepage
+
+# Database management
+db-migrate:
+	@echo "🔄 Running database migrations..."
+	cd database && . venv/bin/activate && alembic upgrade head
+
+db-reset:
+	@echo "⚠️  Resetting database..."
+	@echo "Please manually reset your local PostgreSQL database"
+	make db-migrate
+
+# Utilities
 clean:
-	@echo "🧹 Cleaning build artifacts and caches..."
-	@find . -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name "*.pyc" -delete 2>/dev/null || true
-	@find . -name "node_modules" -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name "dist" -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name "build" -type d -exec rm -rf {} + 2>/dev/null || true
-	@find . -name ".cache" -type d -exec rm -rf {} + 2>/dev/null || true
-	@echo "✅ Cleanup completed!"
+	@echo "🧹 Cleaning up..."
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type d -name "venv" -exec rm -rf {} +
+	find . -type d -name "node_modules" -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+	find . -type f -name ".DS_Store" -delete
 
-# Show status of all components
-status:
-	@echo "📊 HireCJ Component Status:"
-	@echo "========================="
-	@if [ -d "hirecj-agents" ]; then \
-		echo "✅ hirecj-agents: Available"; \
-	else \
-		echo "❌ hirecj-agents: Not found"; \
-	fi
-	@if [ -d "hirecj-database" ]; then \
-		echo "✅ hirecj-database: Available"; \
-	else \
-		echo "❌ hirecj-database: Not found"; \
-	fi
-	@if [ -d "hirecj-homepage" ]; then \
-		echo "✅ hirecj-homepage: Available"; \
-	else \
-		echo "❌ hirecj-homepage: Not found"; \
-	fi
-	@if [ -d "hirecj-knowledge" ]; then \
-		echo "✅ hirecj-knowledge: Available"; \
-	else \
-		echo "❌ hirecj-knowledge: Not found"; \
-	fi
-	@if [ -d "third-party" ]; then \
-		echo "✅ third-party: Available"; \
-	else \
-		echo "❌ third-party: Not found"; \
-	fi
-
-# Health check for all services
-health-check:
-	@echo "🏥 Running health checks..."
-	@echo "Checking if ports are available..."
-	@if lsof -i:5001 > /dev/null 2>&1; then \
-		echo "⚠️  Port 5001 (agents backend) is in use"; \
-	else \
-		echo "✅ Port 5001 is available"; \
-	fi
-	@if lsof -i:8002 > /dev/null 2>&1; then \
-		echo "⚠️  Port 8002 (database service) is in use"; \
-	else \
-		echo "✅ Port 8002 is available"; \
-	fi
-	@if lsof -i:3456 > /dev/null 2>&1; then \
-		echo "⚠️  Port 3456 (homepage frontend) is in use"; \
-	else \
-		echo "✅ Port 3456 is available"; \
-	fi
-	@if lsof -i:8000 > /dev/null 2>&1; then \
-		echo "⚠️  Port 8000 (knowledge service) is in use"; \
-	else \
-		echo "✅ Port 8000 is available"; \
-	fi
+# Environment setup
+env-setup:
+	@echo "📝 Setting up environment files..."
+	cp .env.example .env
+	cp auth/.env.example auth/.env
+	cp agents/.env.example agents/.env
+	cp homepage/.env.example homepage/.env
+	cp database/.env.example database/.env
+	@echo "✅ Environment files created. Please update them with your values."

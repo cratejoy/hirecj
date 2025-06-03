@@ -241,32 +241,26 @@ make logs-agents      # View agents service logs
 make db-migrate       # Run database migrations
 ```
 
-### Docker Compose for Infrastructure Only
-Docker is used ONLY for stateful services (PostgreSQL, Redis). Apps run locally for better DX:
+### Local Infrastructure Setup
+PostgreSQL and Redis must be installed and running locally:
 
-```yaml
-version: '3.8'
-services:
-  # Infrastructure only - apps run locally
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: hirecj
-      POSTGRES_PASSWORD: hirecj_dev_password
-      POSTGRES_DB: hirecj_dev
-    ports:
-      - "5432:5432"
+```bash
+# Install via Homebrew
+brew install postgresql@14 redis
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
+# Start services
+pg_ctl start -D /opt/homebrew/var/postgresql@14
+redis-server
+
+# Or use brew services
+brew services start postgresql@14
+brew services start redis
 ```
 
 ### Local Development Philosophy
 - **Apps run locally**: Hot reload, easy debugging, fast iteration
-- **Infrastructure in Docker**: Consistent PostgreSQL/Redis for everyone
-- **Simple commands**: `make dev` starts infra, then tells you what to run
+- **Local infrastructure**: PostgreSQL and Redis run natively for best performance
+- **Simple commands**: `make dev` shows you what to run
 - **tmux option**: `make dev-all` opens all services in tmux windows
 
 ## Phased Migration Implementation
