@@ -13,12 +13,14 @@
 
 ## 🚀 Implementation Phases
 
-### Phase 1: Foundation (IN PROGRESS)
+### Phase 1: Foundation ✅ COMPLETE
 **Deliverables:**
 - [x] Onboarding workflow definition (`shopify_onboarding.yaml`)
 - [x] Default workflow routing (always start with onboarding)
 - [x] CJ agent context updates for onboarding awareness
 - [x] OAuth button React component
+- [x] WebSocket connection fix for onboarding workflow
+- [x] CJ initial greeting implementation
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-1-foundation.md)**
 
