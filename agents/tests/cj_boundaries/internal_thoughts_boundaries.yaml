@@ -1,0 +1,170 @@
+version: "1.0.0"
+description: "Test that CJ's internal thoughts and tool calls don't leak to merchant"
+
+tests:
+  - name: "no_thoughts_in_response"
+    description: "Ensure CJ's internal thoughts are never shown to merchant"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "What are our top customer complaints this week?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ's response must NOT contain 'Thought:' or 'thought:' prefixes"
+      - "CJ's response must NOT contain internal reasoning markers"
+      - "CJ must provide a natural conversational response"
+      - "CJ should answer the question directly without showing thinking process"
+
+  - name: "no_tool_calls_visible"
+    description: "Ensure tool call syntax is never exposed to merchant"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "Search for all tickets about shipping delays"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ's response must NOT contain 'Action:' or 'Action Input:' markers"
+      - "CJ's response must NOT show JSON tool inputs like '{\"query\": ...}'"
+      - "CJ's response must NOT contain 'Using tool:' or similar phrases"
+      - "CJ should present the search results naturally in conversation"
+
+  - name: "no_observation_markers"
+    description: "Ensure tool output observations aren't shown raw"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "Check the support dashboard for me"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ's response must NOT contain 'Observation:' markers"
+      - "CJ's response must NOT contain raw tool output formatting"
+      - "CJ must integrate dashboard data naturally into the response"
+      - "CJ should present information conversationally, not as raw data dumps"
+
+  - name: "no_final_answer_prefix"
+    description: "Ensure 'Final Answer:' prefix is never shown"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "How many support tickets do we have today?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ's response must NOT start with 'Final Answer:'"
+      - "CJ's response must NOT contain ReAct format markers"
+      - "CJ should answer directly and naturally"
+      - "Response should read like a human conversation, not agent output"
+
+  - name: "clean_multi_tool_response"
+    description: "When using multiple tools, response should still be clean"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Give me a full analysis of BBQ sauce complaints and urgent tickets"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ's response must NOT show multiple tool call sequences"
+      - "CJ's response must NOT contain numbered steps or tool iterations"
+      - "CJ must present all gathered information as a cohesive response"
+      - "Response should feel like CJ naturally knows this information"
+
+  - name: "no_code_blocks_with_agent_format"
+    description: "Ensure no code blocks contain agent thinking format"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "return_to_growth"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's the status of our support queue?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ's response must NOT contain markdown code blocks with agent syntax"
+      - "CJ's response must NOT have ``` blocks containing Thought/Action patterns"
+      - "CJ should format any data naturally, not in agent output format"
+      - "Response should be professional and conversational"
+
+  # Workflow-initiated tests (CJ starts the conversation)
+  - name: "workflow_no_thoughts_leak"
+    description: "Ensure thoughts don't leak when CJ initiates with workflow"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      workflow: "daily_briefing"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ's opening briefing must NOT contain 'Thought:' markers"
+      - "CJ's response must NOT show internal reasoning"
+      - "CJ must present the daily briefing naturally"
+      - "Workflow execution should be seamless without showing process"
+
+  - name: "workflow_no_tool_exposure"
+    description: "Tool calls hidden during workflow execution"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      workflow: "crisis_response"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ's crisis response must NOT show 'Action:' or tool syntax"
+      - "CJ must NOT expose JSON tool inputs during workflow"
+      - "CJ should present crisis data naturally"
+      - "Tool usage should be invisible to merchant"
+
+  - name: "workflow_clean_multi_step"
+    description: "Multi-step workflows should have clean output"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      workflow: "weekly_review"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ's weekly review must NOT show workflow steps as numbered items"
+      - "CJ must NOT expose internal workflow milestones"
+      - "CJ should present review as natural conversation"
+      - "Multiple data sources should be integrated smoothly"
+
+  - name: "workflow_no_final_answer"
+    description: "Workflow responses shouldn't have Final Answer prefix"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      workflow: "daily_briefing"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ's briefing must NOT start with 'Final Answer:'"
+      - "CJ must NOT use ReAct format in workflow responses"
+      - "Opening should be conversational and natural"
+      - "Workflow should feel like CJ naturally starting a conversation"
+
+  - name: "mixed_workflow_merchant_clean"
+    description: "When merchant interrupts workflow, responses stay clean"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      workflow: "daily_briefing"
+      merchant_opens: "Wait, before you continue, what about BBQ sauce complaints?"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ must handle interruption without showing internal state"
+      - "CJ's response must NOT expose workflow adjustment logic"
+      - "CJ should pivot naturally without showing 'Thought:' process"
+      - "Transition should be smooth and conversational"

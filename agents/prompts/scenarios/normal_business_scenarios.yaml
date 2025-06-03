@@ -1,0 +1,114 @@
+# Normal business scenarios for synthetic conversation generation
+# These represent everyday operations without crisis or major stress
+
+scenarios:
+  summer_lull:
+    name: "Summer Slowdown"
+    scenario: |
+      Mid-July, typical seasonal slowdown. Business is stable and predictable.
+
+      MRR: $52K (up 1.2% from last month)
+      Subscribers: 1,350 (gained 18, lost 14)
+      Churn: 5.2% (right at baseline)
+
+      Support tickets averaging 35-40/day. Most are routine - shipping questions,
+      subscription management, occasional quality feedback. Team is handling
+      everything smoothly. Response times under 2 hours.
+
+      Merchant mood: Relaxed, planning fall product launch. Thinking about
+      vacation in August.
+
+  pre_holiday_prep:
+    name: "Pre-Holiday Planning"
+    scenario: |
+      Early October, starting to think about holiday season prep.
+
+      MRR: $58K (steady growth, up 2.3%)
+      Subscribers: 1,480 (good retention)
+      Churn: 4.8% (below baseline - nice!)
+
+      Support volume picking up slightly (45-50 tickets/day) as customers
+      prepare for gift subscriptions. Nothing urgent - mostly questions about
+      gift options and shipping timelines.
+
+      Merchant mood: Optimistic but planning ahead. Wants to avoid last
+      year's holiday rush chaos.
+
+  steady_operations:
+    name: "Business as Usual"
+    scenario: |
+      Regular Tuesday in May. Everything running smoothly.
+
+      MRR: $48K (on track for modest growth)
+      Subscribers: 1,290
+      Churn: 5.5% (normal range)
+
+      Support queue totally manageable - 30-35 tickets/day. Mix of shipping
+      inquiries, account questions, and the occasional product feedback.
+      CSAT holding steady at 4.4/5.0.
+
+      Merchant mood: Focused on product development, checking in on operations.
+
+  mothers_day_prep:
+    name: "Mother's Day Ramp Up"
+    scenario: |
+      Late April, two weeks before Mother's Day. Gift orders starting to flow.
+
+      MRR: $54K (up 3.1% from seasonal bump)
+      Subscribers: 1,420 (plus 85 gift subscriptions)
+      Churn: 5.0% (people keeping subs for gifts)
+
+      Support seeing uptick to 55-60 tickets/day. Mostly "Will it arrive by
+      Mother's Day?" and gift message customization requests. Some new
+      customers confused about how subscriptions work.
+
+      Merchant mood: Energized by seasonal opportunity. Wants to maximize
+      gift conversions without overwhelming support.
+
+  memorial_day_weekend:
+    name: "Memorial Day Weekend"
+    scenario: |
+      Friday before Memorial Day weekend. Slower pace as customers prep for BBQs.
+
+      MRR: $50K (stable)
+      Subscribers: 1,310
+      Churn: 5.3% (normal)
+
+      Support volume light - 25-30 tickets/day. Handful of "pause for vacation"
+      requests. Some shipping concerns for weekend delivery. Team running
+      with skeleton crew for the long weekend.
+
+      Merchant mood: Ready for a long weekend too. Just wants to ensure
+      coverage for any issues.
+
+  post_black_friday:
+    name: "Post-Black Friday Recovery"
+    scenario: |
+      First Monday after Black Friday. The dust is settling from promotions.
+
+      MRR: $72K (big jump from Black Friday signups)
+      Subscribers: 1,850 (added 280 over weekend!)
+      Churn: 4.5% (new customers locked in with deals)
+
+      Support volume elevated but manageable - 65-70 tickets/day. Mix of
+      "where's my Black Friday order?" and new customer onboarding questions.
+      Team tired but handling it well. No major fires.
+
+      Merchant mood: Exhausted but pleased with results. Focused on converting
+      these deal-seekers into long-term subscribers.
+
+  january_reset:
+    name: "New Year Fresh Start"
+    scenario: |
+      Second week of January. Post-holiday normalization, New Year's resolutions in effect.
+
+      MRR: $49K (down from holiday highs, but expected)
+      Subscribers: 1,280 (some holiday gift subs didn't convert)
+      Churn: 6.2% (slightly elevated from gift sub endings)
+
+      Support steady at 40-45 tickets/day. Seeing "New Year, new me"
+      subscription changes, some billing questions from holiday shoppers.
+      Overall calm and organized.
+
+      Merchant mood: Reflective, planning for the year ahead. Not worried
+      about post-holiday dip - it's normal.

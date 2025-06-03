@@ -1,609 +1,456 @@
-# HireCJ Monorepo Restructuring Plan
+# Shopify Login & Onboarding Plan
 
-## Implementation Checklist - Natural Order
+## 🌟 North Star Principles
 
-### ✅ Phase 1: Backup & Audit (20 min) - COMPLETE
-**Safety first - preserve everything before changes**
-- ✅ Run audit script to check current state: `./scripts/migration-checklist.sh`
-- ✅ Push all changes to individual repos
-  - ✅ hirecj-database: Committed credential manager and connectors
-  - ✅ hirecj-homepage: Committed chat integration and vite config
-  - ✅ hirecj-knowledge: Committed scripts and demos (on ecommerce-fuel branch)
-  - ✅ hirecj-agents: Already clean
-- ✅ Create backup branches in each repo: `git checkout -b pre-monorepo-backup && git push origin pre-monorepo-backup`
-  - ✅ hirecj-agents/pre-monorepo-backup
-  - ✅ hirecj-database/pre-monorepo-backup
-  - ✅ hirecj-homepage/pre-monorepo-backup (GitHub repo: hirecj-website)
-  - ✅ hirecj-knowledge/pre-monorepo-backup (from ecommerce-fuel branch)
-- ✅ Document current working state
+1. **Simplify, Simplify, Simplify**: Every decision should make the code simpler, not more complex
+2. **No Cruft**: Remove all redundant code, validation, and unnecessary complexity
+3. **Break It & Fix It Right**: No backwards compatibility shims - make breaking changes and migrate properly
+4. **Long-term Elegance**: Choose performant, compiler-enforced solutions that prevent subtle bugs
+5. **Backend-Driven**: Let the backend handle complexity, frontend should be a thin client
+6. **Single Source of Truth**: One pattern, one way to do things, no alternatives
+7. **No Over-Engineering**: Design for current needs only - no hypothetical features
+8. **Thoughtful Logging & Instrumentation**: Appropriate visibility into system behavior
 
-**Completed**: 2025-06-03 08:41 AM (Duration: 6 minutes)
+## 🚀 Implementation Phases
 
-### ✅ Phase 2: Foundation Setup (30 min) - COMPLETE
-**Prepare everything in root BEFORE touching sub-repos**
-- ✅ Create comprehensive root `.gitignore` (updated earlier)
-- ✅ Add `Makefile.proposed`, `docker-compose.proposed.yml`
-- ✅ Create all helper scripts:
-  - ✅ `scripts/dev.sh`
-  - ✅ `scripts/migration-checklist.sh`
-  - ✅ `scripts/unification-checklist.sh`
-- ✅ Create `shared/` directory structure with:
-  - ✅ `shared/logging_config.py` - Unified logging
-  - ✅ `shared/config_base.py` - Base Pydantic config
-  - ✅ `shared/README.md` - Usage documentation
-- ✅ Create `.env.example` with all service configurations
-- ✅ Create `.github/workflows/` for future CI/CD
-- ✅ Commit foundation: `git commit -m "Prepare monorepo migration infrastructure"`
+### Phase 1: Foundation ✅ COMPLETE
+**Deliverables:**
+- [x] Onboarding workflow definition (`shopify_onboarding.yaml`)
+- [x] Default workflow routing (always start with onboarding)
+- [x] CJ agent context updates for onboarding awareness
+- [x] OAuth button React component
+- [x] WebSocket connection fix for onboarding workflow
+- [x] CJ initial greeting implementation
 
-**Completed**: 2025-06-03 09:01 AM (Duration: 3 minutes)
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-1-foundation.md)**
 
-### ☐ Phase 3: Pattern Unification IN PLACE (45 min)
-**Fix inconsistencies BEFORE migration - repos improve even if migration fails**
-- ☐ In each sub-repo, standardize patterns:
-  - ☐ Add `app/__main__.py` files for consistent startup
-  - ☐ Standardize config to use Pydantic settings
-  - ☐ Fix port conflicts (Knowledge: 8001, not 8000)
-  - ☐ Create proper `.env.example` files
-  - ☐ Simplify Makefiles to minimal versions
-- ☐ Push improvements to each repo: `git commit -am "Standardize patterns for monorepo migration"`
-- ☐ Verify each service still works independently
+### Phase 2: Auth Flow Integration ✅ COMPLETE
+**Deliverables:**
+- [x] OAuth callback enhancement to detect new/returning merchants
+- [x] Shop domain as primary identifier (no visitor tracking)
+- [x] Conversation context updates post-OAuth
+- [x] Frontend OAuth flow with redirect handling
 
-### ☐ Phase 4: The Big Move (45 min)
-**Now do the actual migration**
-- ☐ Final safety check: all repos pushed and backed up
-- ☐ Remove `.git` directories: `rm -rf hirecj-*/.git`
-- ☐ Rename directories: `mv hirecj-agents agents` (etc.)
-- ☐ Stage and commit each service:
-  ```bash
-  git add agents/ && git commit -m "Add agents service to monorepo"
-  git add auth/ && git commit -m "Add auth service to monorepo"
-  # ... repeat for each
-  ```
-- ☐ Run `./scripts/migration-checklist.sh` after each service
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-2-auth-flow.md)**
 
-### ☐ Phase 5: Activate & Test Locally (30 min)
-**Make it work locally before deploying**
-- ☐ Activate new configs: `mv Makefile.proposed Makefile && mv docker-compose.proposed.yml docker-compose.yml`
-- ☐ Create any missing directories: `mkdir -p shared .github/workflows`
-- ☐ Run `make install` to set up all dependencies
-- ☐ Start infrastructure: `make dev-infra`
-- ☐ Test each service: `make dev-agents`, `make dev-auth`, etc.
-- ☐ Fix any import or path issues that arise
-- ☐ Verify hot reload works for each service
+### Phase 3: Quick Value Demo
+**Deliverables:**
+- [ ] Quick insights service for Shopify data
+- [ ] Store snapshot queries (products, orders, customers)
+- [ ] Progressive data loading mechanism
+- [ ] Conversation UI showing real-time insights
 
-### ☐ Phase 6: Heroku Setup & Deploy (45 min)
-**Deploy only after local works perfectly**
-- ☐ Add Heroku git remotes:
-  ```bash
-  git remote add heroku-agents https://git.heroku.com/hirecj-agents.git
-  git remote add heroku-auth https://git.heroku.com/hirecj-auth.git
-  git remote add heroku-homepage https://git.heroku.com/hirecj-homepage.git
-  git remote add heroku-database https://git.heroku.com/hirecj-database.git
-  ```
-- ☐ Configure buildpacks if needed
-- ☐ Test deploy ONE service first (recommend homepage): `make deploy-homepage`
-- ☐ Verify it works in production
-- ☐ Deploy remaining services one by one
-- ☐ Monitor logs during deployment: `make logs-{service}`
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-3-quick-value.md)** *(TODO)*
 
-### ☐ Phase 7: Cleanup & Polish (30 min)
-**Final touches for a clean end state**
-- ☐ Remove old dev scripts: `rm dev.py dev-simple.py dev.sh`
-- ☐ Update main README.md with new workflow
-- ☐ Archive old GitHub repos (Settings → Archive repository)
-- ☐ Create announcement for team with:
-  - ☐ New workflow instructions
-  - ☐ Benefits achieved
-  - ☐ Any breaking changes
-- ☐ Run final verification: `./scripts/unification-checklist.sh`
-- ☐ Celebrate! 🎉
+### Phase 4: Support System Connection
+**Deliverables:**
+- [ ] Support system provider detection logic
+- [ ] Interest list for unsupported systems
+- [ ] OAuth flows for supported systems
+- [ ] Graceful handling of unsupported providers
 
-## Why This Order Works Better
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-support-systems.md)** *(TODO)*
 
-1. **Safety First**: Complete backup before any destructive changes
-2. **Prepare Infrastructure**: All tools ready before migration starts
-3. **Improve in Place**: Services get better even if migration fails
-4. **Test Locally First**: Ensure everything works before touching production
-5. **Progressive Deployment**: Deploy one service first as canary
-6. **Clean End State**: Everything tidy and documented when done
+### Phase 5: Notification & Polish
+**Deliverables:**
+- [ ] Email notification capture and sending
+- [ ] Browser notification implementation
+- [ ] Beta messaging throughout experience
+- [ ] Error handling and edge cases
 
-## Checkpoint Strategy
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-notifications.md)** *(TODO)*
 
-After each phase, you can:
-- ✅ **Continue** if everything looks good
-- ⏸️ **Pause** if you need to handle other priorities
-- ↩️ **Rollback** if issues arise (original repos remain intact)
+### Phase 6: Testing & Refinement
+**Deliverables:**
+- [ ] End-to-end flow testing suite
+- [ ] Performance optimization
+- [ ] Security review
+- [ ] Documentation and deployment guide
 
-## Implementation Progress & Notes
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-6-testing.md)** *(TODO)*
 
-### Current Status: Phase 2 Complete, Ready for Phase 3
+## 🏛️ System Architecture Overview
 
-### Important Findings from Phase 1:
-1. **hirecj-auth**: Already not a git repository (appears to have been migrated previously)
-2. **hirecj-knowledge**: ~~Currently on `ecommerce-fuel` branch, not `main`~~ ✅ Created main branch from ecommerce-fuel
-3. **hirecj-homepage**: GitHub repo is actually named `hirecj-website`
-4. **Security**: 23 vulnerabilities detected in hirecj-knowledge (1 critical, 5 high)
+### Identity Architecture: Shopify OAuth as the Gate
 
-### Repository Status Summary:
-- **hirecj-agents**: Clean, backed up ✅
-- **hirecj-auth**: Already migrated (no .git directory) ⚠️
-- **hirecj-database**: Changes committed, backed up ✅
-- **hirecj-homepage**: Changes committed, backed up ✅ (as hirecj-website)
-- **hirecj-knowledge**: Changes committed, backed up ✅ (from ecommerce-fuel branch)
-
-## Goal
-Transform the current multi-repo structure into a clean monorepo while maintaining separate Heroku deployments for each service.
-
-## Benefits
-- ✅ Single GitHub repository = Simple PRs and reviews
-- ✅ Unified patterns = No more "which command for which service?"
-- ✅ Consistent configuration = Same patterns everywhere
-- ✅ Easy local development = One set of commands to learn
-- ✅ Each service still deploys independently to Heroku
-- ✅ Cleaner project management = Less cognitive load
-
-## New Structure
+**Core Principle**: No visitor tracking, no spam records. Shopify OAuth is both authentication and identity.
 
 ```
-hirecj/
-├── .github/              # GitHub Actions for CI/CD
-├── auth/                 # Auth service (was hirecj-auth)
-│   ├── app/
-│   ├── Procfile         # For Heroku deployment
-│   └── requirements.txt
-├── agents/              # Agents service (was hirecj-agents)
-│   ├── app/
-│   ├── Procfile
-│   └── requirements.txt
-├── homepage/            # Homepage service (was hirecj-homepage)
-│   ├── src/
-│   ├── Procfile
-│   └── package.json
-├── database/            # Database service (was hirecj-database)
-│   ├── app/
-│   ├── Procfile
-│   └── requirements.txt
-├── knowledge/           # Knowledge service (was hirecj-knowledge)
-│   ├── src/
-│   └── requirements.txt
-├── shared/              # Shared code/utilities
-├── scripts/             # Development and deployment scripts
-├── docker-compose.yml   # Local development orchestration
-├── Makefile            # Root-level commands
-├── .env.example        # Example environment variables
-└── README.md           # Project overview
+New Visitor Flow:
+┌────────────┐     ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   Visit    │────▶│   Always    │────▶│   Shopify    │────▶│  New/Return │
+│   Site     │     │  Onboarding │     │    OAuth     │     │  Detection  │
+└────────────┘     └─────────────┘     └──────────────┘     └─────────────┘
+                         │                                           │
+                         ▼                                           ▼
+                   "Hi! First time?"                          Check shop exists
+                   Natural routing                            Continue accordingly
 ```
 
-## Heroku Deployment Strategy
+### High-Level Architecture
 
-Each service will have:
-1. Its own Heroku app
-2. Buildpacks configured per service type
-3. Procfile in each service directory
-4. Deploy from subdirectories using Heroku's subtree push
-
-Example deployment commands:
-```bash
-# Deploy auth service
-git subtree push --prefix auth heroku-auth main
-
-# Or use our Makefile
-make deploy-auth
-make deploy-agents
-make deploy-homepage
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        User's Browser                               │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌──────────────────────┐          ┌────────────────────────────┐  │
+│  │                      │          │                            │  │
+│  │   Homepage (React)   │ WebSocket│    OAuth Redirect Flow     │  │
+│  │    Port: 3456        ├─────────►│    (Shopify/Support)       │  │
+│  │                      │          │                            │  │
+│  └──────────┬───────────┘          └──────────┬─────────────────┘  │
+│             │                                  │                    │
+└─────────────┼──────────────────────────────────┼────────────────────┘
+              │ REST API                         │ OAuth
+              ▼                                  ▼
+┌─────────────────────────────────┐  ┌──────────────────────────────┐
+│                                 │  │                              │
+│      Agents Service             │  │      Auth Service            │
+│      Port: 8000                 │  │      Port: 8103              │
+│                                 │  │                              │
+│  ┌─────────────────────────┐   │  │  ┌────────────────────────┐  │
+│  │   WebSocket Handler     │   │  │  │  OAuth Providers       │  │
+│  │   - Default: Onboarding │   │  │  │  - Shopify (Identity)  │  │
+│  │   - Message Router      │   │  │  │  - FreshDesk           │  │
+│  └───────────┬─────────────┘   │  │  │  - Zendesk             │  │
+│              │                  │  │  └────────────────────────┘  │
+│  ┌───────────▼─────────────┐   │  │                              │
+│  │   Message Processor     │   │  │  ┌────────────────────────┐  │
+│  │   - Parse & Route       │   │  │  │  OAuth Callback Logic  │  │
+│  │   - Context Building    │   │  │  │  - Shop Domain Check   │  │
+│  │   - State Management    │   │  │  │  - New/Return Status   │  │
+│  └───────────┬─────────────┘   │  │  │  - Context Updates     │  │
+│              │                  │  │  └────────────────────────┘  │
+│  ┌───────────▼─────────────┐   │  │                              │
+│  │      CJ Agent           │   │  └──────────────────────────────┘
+│  │   - Always Onboarding   │   │
+│  │   - Natural Routing     │   │  ┌──────────────────────────────┐
+│  │   - Tool Integration    │   │  │                              │
+│  └───────────┬─────────────┘   │  │    Database Service         │
+│              │                  │  │    Port: 8002               │
+│  ┌───────────▼─────────────┐   │  │                              │
+│  │   Quick Insights        │   │  │  ┌────────────────────────┐  │
+│  │   - Store Snapshot      │   │  │  │  PostgreSQL            │  │
+│  │   - Basic Analytics     │   │  │  │  - Merchants (by shop) │  │
+│  │   - Progressive Load    │   │  │  │  - OAuth Tokens        │  │
+│  └─────────────────────────┘   │  │  │  - No Visitor Records  │  │
+│                                 │  │  └────────────────────────┘  │
+└─────────────────────────────────┘  └──────────────────────────────┘
 ```
 
-## Root-Level Orchestration
+### Data Flow Sequences
 
-### Makefile Commands
-```makefile
-# Development
-make dev              # Start all services locally
-make dev-auth         # Start only auth service
-make dev-agents       # Start only agents service
-make install          # Install all dependencies
-make test             # Run all tests
-
-# Deployment
-make deploy-all       # Deploy all services
-make deploy-auth      # Deploy auth to Heroku
-make deploy-agents    # Deploy agents to Heroku
-
-# Utilities
-make logs-auth        # View auth service logs
-make logs-agents      # View agents service logs
-make db-migrate       # Run database migrations
+#### 1. **First Visit Flow**
+```
+1. User visits site
+2. Frontend starts WebSocket with workflow="shopify_onboarding"
+3. CJ: "Hi! I'm CJ, here to help with your customer support. First time chatting?"
+4. Natural conversation determines path
+5. OAuth button presented when appropriate
 ```
 
-### Docker Compose for Infrastructure Only
-Docker is used ONLY for stateful services (PostgreSQL, Redis). Apps run locally for better DX:
+#### 2. **OAuth Identity Flow**
+```
+1. User clicks "Connect Shopify"
+2. Homepage → Auth Service: /oauth/shopify/authorize?conversation_id=X
+3. Auth Service → Shopify: Redirect with read-only scopes
+4. User authorizes on Shopify
+5. Shopify → Auth Service: Callback with code + shop domain
+6. Auth Service:
+   - Exchanges code for token
+   - Checks if shop domain exists in DB
+   - Returns: { is_new: bool, merchant_id?: str, shop: str }
+7. Auth Service → Homepage: Redirect with context
+8. Homepage → Agents: "oauth_complete" with new/returning status
+9. CJ Agent: Continues appropriately based on status
+```
+
+#### 3. **Returning Merchant Detection**
+```
+OAuth Callback Logic:
+if (shop_exists_in_database):
+    return {
+        "is_new": false,
+        "merchant_id": existing_merchant.id,
+        "redirect": "/chat?returning=true"
+    }
+else:
+    return {
+        "is_new": true,
+        "shop_domain": shop,
+        "redirect": "/chat?continue_onboarding=true"
+    }
+```
+
+### Frontend Simplification
+
+#### 1. **Remove Configuration Modal**
+```typescript
+// SlackChat.tsx - Simplified
+const [chatConfig] = useState<ChatConfig>({
+  workflow: 'shopify_onboarding',  // Always start here
+  conversationId: uuidv4(),
+  merchantId: null  // Set after OAuth
+});
+
+// Optional: Show hint for returning merchants
+const lastShopDomain = localStorage.getItem('last_shop_domain');
+{lastShopDomain && (
+  <Button size="sm" onClick={() => startOAuth()}>
+    Shop owner? Login →
+  </Button>
+)}
+```
+
+#### 2. **OAuth Button Component**
+```typescript
+interface OAuthButtonProps {
+  provider: 'shopify' | 'freshdesk' | 'zendesk';
+  conversationId: string;
+  variant?: 'primary' | 'secondary';
+}
+
+// Usage in chat
+<OAuthButton 
+  provider="shopify"
+  conversationId={chatConfig.conversationId}
+  variant="primary"
+/>
+```
+
+### Backend Intelligence
+
+#### 1. **Workflow Selection**
+```python
+# agents/app/services/message_processor.py
+async def start_conversation(data: dict):
+    # Always use shopify_onboarding for new conversations
+    workflow = "shopify_onboarding"
+    
+    # After OAuth, workflow can change based on merchant status
+    if data.get("oauth_complete") and not data.get("is_new"):
+        workflow = "ad_hoc_support"
+```
+
+#### 2. **OAuth Callback Enhancement**
+```python
+# auth/app/providers/shopify.py
+async def handle_callback(self, code: str, state: str, shop: str):
+    # Exchange code for token
+    token_data = await self.exchange_code(code, shop)
+    
+    # Check merchant existence by shop domain
+    merchant = await db.get_merchant_by_shop_domain(shop)
+    
+    # Build redirect URL with context
+    redirect_params = {
+        "conversation_id": state_data.get("conversation_id"),
+        "is_new": merchant is None,
+        "shop": shop
+    }
+    
+    if merchant:
+        redirect_params["merchant_id"] = str(merchant.id)
+    
+    return redirect_to_frontend(redirect_params)
+```
+
+### CJ's Conversational Routing
 
 ```yaml
-version: '3.8'
-services:
-  # Infrastructure only - apps run locally
-  postgres:
-    image: postgres:15
-    environment:
-      POSTGRES_USER: hirecj
-      POSTGRES_PASSWORD: hirecj_dev_password
-      POSTGRES_DB: hirecj_dev
-    ports:
-      - "5432:5432"
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
+# agents/prompts/workflows/shopify_onboarding.yaml
+workflow: |
+  WORKFLOW: Shopify Onboarding
+  GOAL: Natural conversation that adapts to new/returning merchants
+  
+  OPENING LOGIC:
+  - Greet warmly and gauge if new/returning
+  - "I'm CJ, here to help with your customer support. First time chatting?"
+  - If hints at returning: "Welcome back! Let's get you logged in with Shopify"
+  - If new: Continue onboarding flow
+  
+  OAUTH COMPLETION HANDLING:
+  - Check oauth_complete context
+  - If is_new=false: "Great to see you again! I remember your store..."
+  - If is_new=true: "Awesome! Taking a look around your store now..."
 ```
 
-### Local Development Philosophy
-- **Apps run locally**: Hot reload, easy debugging, fast iteration
-- **Infrastructure in Docker**: Consistent PostgreSQL/Redis for everyone
-- **Simple commands**: `make dev` starts infra, then tells you what to run
-- **tmux option**: `make dev-all` opens all services in tmux windows
+## 🎯 The Experience We're Building
 
-## Phased Migration Implementation
+### What We Want
 
-### Phase 1: Backup & Preserve Current State (30 min)
-**Goal**: Ensure all work is safely pushed to individual repos before restructuring.
+A conversational onboarding flow where CJ naturally guides new users through connecting their Shopify store and (optionally) their support system. The experience should feel like chatting with a knowledgeable colleague who's helping you get set up, not filling out forms or clicking through a wizard.
 
-1. **Audit each sub-project**:
-   ```bash
-   for dir in hirecj-agents hirecj-auth hirecj-database hirecj-homepage hirecj-knowledge; do
-     echo "=== Checking $dir ==="
-     cd $dir && git status && git log --oneline -5 && cd ..
-   done
-   ```
+### The Vibe
 
-2. **Push all changes** to individual repos
-3. **Create backup branches**:
-   ```bash
-   git checkout -b pre-monorepo-backup && git push origin pre-monorepo-backup
-   ```
+- **Conversational**: Natural back-and-forth dialogue, not a rigid flow
+- **Respectful**: CJ acknowledges she's new/beta, respects the merchant's time
+- **Value-First**: Shows immediate value after connection (quick insights)
+- **Low-Friction**: Minimal steps, clear benefits, easy escape hatches
+- **Progressive**: Start with read-only, upgrade permissions later as needed
+- **No Tracking**: No cookies or visitor records until OAuth consent
 
-### Phase 2: Prepare Root Repository (15 min)
-**Goal**: Set up the main hirecj repo structure.
+### The Flow
 
-1. **Create root .gitignore** (see below for complete file)
-2. **Commit foundation files**:
-   ```bash
-   git add .gitignore plan.md Makefile.proposed docker-compose.proposed.yml scripts/
-   git commit -m "Prepare monorepo structure"
-   ```
+1. **Every Visit Starts Fresh**
+   - No visitor tracking or cookies
+   - Always begins with onboarding workflow
+   - Natural conversation determines path
 
-### Phase 3: Convert Sub-Repos to Directories (1 hour)
-**Goal**: Safely integrate each service into the monorepo.
+2. **Identity Through Conversation**
+   - CJ asks if first time or returning
+   - Presents appropriate options
+   - OAuth button when ready
 
-1. **Remove .git directories** (after verifying everything is pushed):
-   ```bash
-   rm -rf hirecj-agents/.git
-   rm -rf hirecj-auth/.git
-   # ... repeat for each
-   ```
+3. **Shopify OAuth = Identity**
+   - Shop domain becomes unique identifier
+   - Backend checks for existing merchant
+   - Routes appropriately post-OAuth
 
-2. **Rename directories**:
-   ```bash
-   mv hirecj-agents agents
-   mv hirecj-auth auth
-   mv hirecj-database database
-   mv hirecj-homepage homepage
-   mv hirecj-knowledge knowledge
-   ```
+4. **Quick Value Demo**
+   - Immediate insights after connection
+   - Shows understanding of their business
+   - Builds trust for next steps
 
-3. **Commit each service**:
-   ```bash
-   git add agents/ && git commit -m "Add agents service to monorepo"
-   git add auth/ && git commit -m "Add auth service to monorepo"
-   # ... repeat for each
-   ```
+5. **Support System Offer** (Optional)
+   - Natural progression after Shopify
+   - Same elegant OAuth flow
+   - Graceful handling of unsupported
 
-### Phase 4: Activate New Structure (15 min)
-**Goal**: Switch to the new development workflow.
+6. **Natural Conclusion**
+   - Notification preferences
+   - Clear next steps
+   - Ready for future visits
 
-1. **Activate configuration**:
-   ```bash
-   mv Makefile.proposed Makefile
-   mv docker-compose.proposed.yml docker-compose.yml
-   git add Makefile docker-compose.yml
-   git commit -m "Activate monorepo configuration"
-   ```
+## 🏗️ Implementation Details
 
-2. **Create shared directories**:
-   ```bash
-   mkdir -p shared .github/workflows
-   ```
+### Phase 1: Foundation Implementation
 
-### Phase 4.5: Unify Service Patterns (45 min)
-**Goal**: Clean up per-service inconsistencies for elegant, unified patterns.
+**Onboarding Workflow Definition**
+```yaml
+# agents/prompts/workflows/shopify_onboarding.yaml
+name: "Shopify Onboarding"
+description: "Natural onboarding for all new conversations"
 
-1. **Standardize startup commands**:
-   ```python
-   # Each service gets a simple __main__.py pattern:
-   # agents/app/__main__.py
-   if __name__ == "__main__":
-       import uvicorn
-       uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
-   ```
-
-2. **Remove/simplify per-service Makefiles**:
-   ```makefile
-   # Keep only minimal service-specific Makefile if needed
-   # agents/Makefile (example)
-   .PHONY: run
-   run:
-   	cd .. && make dev-agents
-   ```
-
-3. **Unify environment handling**:
-   ```bash
-   # Standard .env.example in each service
-   SERVICE_NAME=agents
-   PORT=8000
-   LOG_LEVEL=DEBUG
-   DATABASE_URL=postgresql://localhost:5432/hirecj
-   ```
-
-4. **Fix port assignments**:
-   - Agents: 8000
-   - Auth: 8103  
-   - Database: 8002
-   - Homepage: 3000
-   - Knowledge: 8001 (fix conflict!)
-
-5. **Clean up redundant dev scripts**:
-   ```bash
-   # Remove old scripts
-   rm dev.py dev-simple.py  # Keep only scripts/dev.sh
-   git add -u
-   git commit -m "Remove redundant dev scripts"
-   ```
-
-6. **Standardize Python app structure**:
-   ```python
-   # Each service follows same pattern:
-   # app/main.py
-   from fastapi import FastAPI
-   from app.config import settings  # Pydantic settings
-   
-   app = FastAPI(title=f"HireCJ {settings.SERVICE_NAME}")
-   ```
-
-7. **Unify logging configuration**:
-   ```python
-   # shared/logging_config.py (symlink to each service)
-   import logging
-   
-   def setup_logging(service_name: str, level: str = "INFO"):
-       # Consistent format across all services
-       logging.basicConfig(
-           format=f"[{service_name}] %(asctime)s - %(name)s - %(levelname)s - %(message)s",
-           level=level
-       )
-   ```
-
-8. **Create unified test pattern**:
-   ```bash
-   # Root Makefile handles all, services just have:
-   # agents/pytest.ini
-   [pytest]
-   testpaths = tests
-   python_files = test_*.py
-   ```
-
-9. **Specific service updates**:
-   ```bash
-   # agents: Remove complex Makefile, use root commands
-   # auth: Remove tunnel complexity from Makefile (keep as separate command)
-   # database: Add missing lint/format commands to root
-   # homepage: Create minimal package.json scripts that defer to root
-   # all: Remove venv activation differences, use consistent pattern
-   ```
-
-10. **Create service config template**:
-    ```python
-    # shared/config_base.py
-    from pydantic_settings import BaseSettings
-    
-    class ServiceConfig(BaseSettings):
-        service_name: str
-        port: int
-        host: str = "0.0.0.0"
-        log_level: str = "INFO"
-        database_url: str
-        
-        class Config:
-            env_file = ".env"
-            env_file_encoding = "utf-8"
-    ```
-
-**Verification**: Run `./scripts/unification-checklist.sh` to ensure patterns are unified.
-
-### Phase 5: Configure Heroku Deployments (30 min)
-**Goal**: Set up subdirectory deployments.
-
-1. **Add Heroku remotes**:
-   ```bash
-   git remote add heroku-agents https://git.heroku.com/hirecj-agents.git
-   git remote add heroku-auth https://git.heroku.com/hirecj-auth.git
-   git remote add heroku-homepage https://git.heroku.com/hirecj-homepage.git
-   git remote add heroku-database https://git.heroku.com/hirecj-database.git
-   ```
-
-2. **Deploy each service**:
-   ```bash
-   git subtree push --prefix agents heroku-agents main
-   git subtree push --prefix auth heroku-auth main
-   # ... repeat for each
-   ```
-
-### Phase 6: Cleanup & Documentation (30 min)
-1. Update main README.md
-2. Archive old repos in GitHub (Settings → Archive)
-3. Test everything works
-
-### Rollback Plan
-If issues arise:
-- Original repos still exist with full history
-- Each has a `pre-monorepo-backup` branch
-- Can clone and continue as before
-
-### Migration Timeline
-- **Total time**: ~3.25 hours
-  - Phase 1: 30 min (backup)
-  - Phase 2: 15 min (prep)
-  - Phase 3: 60 min (convert)
-  - Phase 4: 15 min (activate)
-  - Phase 4.5: 45 min (unify patterns)
-  - Phase 5: 30 min (Heroku)
-  - Phase 6: 30 min (cleanup)
-- **Best time**: Low-activity period
-- **Verification**: Run `./scripts/migration-checklist.sh` after each phase
-
-### Root .gitignore
-```gitignore
-# Environment
-.env
-.env.local
-*.env
-
-# Python
-__pycache__/
-*.py[cod]
-venv/
-.pytest_cache/
-.coverage
-
-# Node.js
-node_modules/
-dist/
-build/
-.next/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-
-# OS
-.DS_Store
-
-# Logs
-*.log
-logs/
-
-# Local data
-data/conversations/*.json
-data/merchant_memory/*.yaml
-!data/**/.gitkeep
-
-# Old structure
-hirecj-*/
+workflow: |
+  WORKFLOW: Shopify Onboarding
+  GOAL: Guide merchants through setup while detecting new/returning naturally
+  
+  CONVERSATION FLOW:
+  1. Opening & Detection
+     - Warm greeting and introduction
+     - Natural detection of new/returning
+     - Set beta expectations
+  
+  2. Shopify Connection
+     - Value proposition
+     - OAuth trigger
+     - Handle both new and returning paths
+  
+  3. Support System (if new)
+     - Only for new merchants
+     - Optional and low pressure
+     - Waitlist for unsupported
+  
+  4. Wrap Up
+     - Different for new vs returning
+     - Set appropriate expectations
 ```
 
-## Development Workflow
+### Phase 2: Auth Flow Implementation
 
-### Starting Fresh
-```bash
-git clone https://github.com/cratejoy/hirecj.git
-cd hirecj
-make install      # Install all dependencies
-make dev          # Start PostgreSQL & Redis
+**No Visitor Tracking Required**
+```python
+# No visitor tables or tracking
+# Shop domain is the only identifier needed
 
-# Then in separate terminals:
-make dev-agents   # Terminal 1: Start agents (port 8000)
-make dev-homepage # Terminal 2: Start homepage (port 3000)
-
-# Or use tmux for everything at once:
-make dev-all     # Opens all services in tmux windows
+# auth/app/models.py
+class Merchant(Base):
+    id = Column(UUID, primary_key=True)
+    shop_domain = Column(String, unique=True, index=True)
+    shopify_access_token = Column(String)
+    created_at = Column(DateTime)
+    # No visitor_id or tracking fields
 ```
 
-### Working on a Service
-```bash
-# Start infrastructure
-make dev-infra    # Just PostgreSQL & Redis
+### Phase 3: Quick Insights Implementation
 
-# Work on specific service
-cd agents
-make dev-agents   # Hot reload enabled!
-# Make changes - they auto-reload
-make test-agents  # Run tests
-make deploy-agents # Deploy when ready
-```
+**Same as original plan - immediate value after OAuth**
 
-### Why This Approach?
-- ✅ **Hot reload works**: Changes reflect instantly
-- ✅ **Easy debugging**: Attach debuggers, see logs clearly
-- ✅ **Fast startup**: No Docker build times for apps
-- ✅ **IDE friendly**: Your IDE sees the actual running process
-- ✅ **Realistic**: Matches how you'll run in production (Heroku)
+### Phase 4: Support System Implementation
 
-### Creating PRs
-```bash
-# All changes in one repo!
-git checkout -b feature/my-feature
-# Make changes to any service
-git add .
-git commit -m "Update auth and agents services"
-git push origin feature/my-feature
-# One PR for all changes!
-```
+**Only offered to new merchants during onboarding**
 
-## Environment Management
+## 🎨 Key Design Decisions
 
-### .env.example (root level)
-```
-# Shared
-DATABASE_URL=postgresql://localhost:5432/hirecj
+### Why No Visitor Tracking?
+- **Privacy First**: No tracking until explicit consent (OAuth)
+- **No Spam Records**: Bots never make it past OAuth
+- **Elegant Simplicity**: Shop domain is the perfect identifier
+- **GDPR Friendly**: No PII until merchant opts in
 
-# Auth Service
-AUTH_PORT=8103
-JWT_SECRET=dev_secret
+### Why Always Start with Onboarding?
+- **Natural Flow**: Conversation determines the path
+- **No Configuration**: Remove complexity for users
+- **Flexible**: CJ adapts based on responses
+- **Future Proof**: Easy to add more intelligence later
 
-# Agents Service  
-AGENTS_PORT=8000
-OPENAI_API_KEY=your_key
+### Why Shopify OAuth as Identity?
+- **Verified Identity**: Can't fake a shop domain
+- **Business Context**: Know exactly who they are
+- **Single Source**: No duplicate records or conflicts
+- **Clean Data**: Only real merchants in database
 
-# Homepage
-HOMEPAGE_PORT=3000
-API_URL=http://localhost:8000
-```
+## 📊 Success Metrics
 
-### Service-specific .env files
-Each service can have its own .env for specific needs
+### Onboarding Funnel
+1. Conversation Started → Engaged with CJ (target: 90%)
+2. Engaged → Shopify OAuth Started (target: 70%)
+3. OAuth Started → OAuth Completed (target: 85%)
+4. New Merchant → Support Connected (target: 40%)
+5. Returning → Re-engaged (target: 95%)
 
-## Benefits Over Current Structure
+### Quality Indicators
+- Zero spam/bot records in database
+- Time to first insight: < 30 seconds
+- Natural conversation flow: > 4.5/5 rating
+- OAuth error rate: < 5%
 
-1. **Simpler PRs**: No more cross-repo PRs
-2. **Unified Testing**: Run all tests with one command
-3. **Shared Dependencies**: Common utilities in /shared
-4. **Easy Onboarding**: Clone one repo, run one command
-5. **Better Visibility**: See all changes in one place
-6. **Simpler CI/CD**: One set of GitHub Actions
+## 🚨 What We're NOT Building
 
-## Key Unifications
+- **No** visitor tracking or analytics
+- **No** cookies before OAuth
+- **No** complex routing logic
+- **No** pre-registration flows
+- **No** merchant selection UI
+- **No** configuration modals
 
-After migration, all services will share:
-- **Same startup pattern**: `make dev-{service}` or `python -m app.main`
-- **Same config pattern**: Pydantic settings with `.env` files
-- **Same test pattern**: `pytest` with consistent configuration
-- **Same logging format**: `[service] timestamp - module - level - message`
-- **Same port strategy**: No conflicts, clearly assigned
-- **Same deployment**: `git subtree push --prefix {service} heroku-{service} main`
+Focus: Natural conversation that intelligently adapts based on Shopify OAuth identity.
 
-## North Star Alignment
+## 🔄 Next Steps After This Sprint
 
-✅ **Simplify**: One repo, one truth, one way to do things
-✅ **No Cruft**: Remove git submodule complexity and redundant scripts
-✅ **Elegant**: Clean structure, unified patterns
-✅ **Long-term**: Scales with the team, easy to onboard
-✅ **Backend-Driven**: Services clearly separated but consistently managed
+1. **Enhanced Returning Experience**: Personalized greetings based on history
+2. **Multi-Store Support**: Handle merchants with multiple shops
+3. **Team Invites**: Let merchants add team members
+4. **Advanced Routing**: Remember conversation preferences
+5. **Analytics**: Post-OAuth tracking for improvements
 
-## Next Steps
+But first: **nail the natural, privacy-first onboarding experience**.
 
-1. Get approval on this plan
-2. Create feature branch for restructuring
-3. Migrate services one by one
-4. Test local development flow
-5. Update Heroku deployments
-6. Merge and celebrate! 🎉
+## 📚 Detailed Implementation Documentation
+
+Each phase has a comprehensive implementation guide with exact code, file paths, and step-by-step instructions:
+
+**[📁 View all implementation guides →](docs/shopify-onboarding/)**
+
+The guides include:
+- Complete code implementations
+- Exact file paths and changes
+- API specifications
+- Database schemas
+- Testing procedures
+- Security considerations
+- Common issues & solutions
+
+Use the [phase template](docs/shopify-onboarding/PHASE_TEMPLATE.md) when creating new guides.

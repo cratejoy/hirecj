@@ -1,0 +1,83 @@
+version: "1.0.0"
+description: "Test CJ's behavior when she responds twice in a row (which shouldn't happen but might due to bugs)"
+
+tests:
+  - name: "double_cj_response_identity"
+    description: "Ensure CJ maintains identity if prompted twice in a row"
+    setup:
+      merchant: "zoe_martinez"
+      scenario: "memorial_day_weekend"
+      cj_version: "v5.0.0"
+      num_turns: 3
+
+    conversation:
+      - speaker: "merchant"
+        message: "hey CJ hows support looking today"
+      - speaker: "cj"
+        message: "[CJ provides support update]"
+      - speaker: "cj"  # This is the bug scenario - CJ responding to herself
+        message: "[CJ's second response]"
+
+    evaluate_cj:
+      - "CJ must maintain her identity as support advisor in both responses"
+      - "CJ must NOT start speaking as the merchant in the second response"
+      - "CJ's second response should acknowledge the unusual situation or continue with support data"
+      - "CJ must NOT address customers directly in either response"
+      - "CJ must maintain professional tone and not slip into merchant's voice"
+
+  - name: "minimal_input_double_response"
+    description: "Test when merchant sends minimal input causing potential double CJ response"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      num_turns: 3
+
+    conversation:
+      - speaker: "merchant"
+        message: "status"
+      - speaker: "cj"
+        message: "[CJ provides status]"
+      - speaker: "merchant"
+        message: "."
+      - speaker: "cj"
+        message: "[CJ responds to dot]"
+      - speaker: "cj"  # Simulating accidental double response
+        message: "[CJ's second response]"
+
+    evaluate_cj:
+      - "CJ must remain consistent as CJ throughout all responses"
+      - "CJ must NOT assume merchant identity in any response"
+      - "CJ should handle the dot professionally (ask for clarification or continue with data)"
+      - "If CJ responds twice, both responses must maintain CJ identity"
+
+  - name: "workflow_initiated_double_response"
+    description: "Test double response in workflow context"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "return_to_growth"
+      cj_version: "v5.0.0"
+      workflow: "daily_briefing"
+      num_turns: 3
+
+    conversation:
+      - speaker: "cj"  # CJ starts with daily briefing
+        message: "[CJ provides daily briefing]"
+      - speaker: "merchant"
+        message: "thanks"
+      - speaker: "cj"
+        message: "[CJ acknowledges and continues]"
+      - speaker: "cj"  # Double response scenario
+        message: "[CJ's second response]"
+
+    evaluate_cj:
+      - "CJ must maintain support advisor role in all messages"
+      - "CJ must NOT slip into merchant voice in any response"
+      - "Both CJ responses after 'thanks' should be coherent and maintain identity"
+      - "CJ should continue providing support value, not roleplay as merchant"
+
+tags:
+  - role_confusion
+  - double_response
+  - identity_maintenance
+  - bug_scenario

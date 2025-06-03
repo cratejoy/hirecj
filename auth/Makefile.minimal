@@ -1,0 +1,26 @@
+# Minimal Makefile for hirecj-auth
+# Most commands should be run from the root monorepo
+
+.PHONY: run test help
+
+help:
+	@echo "This is a minimal Makefile. Use the root Makefile for most operations:"
+	@echo "  cd .. && make dev-auth      # Run the service"
+	@echo "  cd .. && make test-auth     # Run tests"
+	@echo "  cd .. && make install       # Install dependencies"
+
+run:
+	@echo "Starting auth service..."
+	@cd .. && make dev-auth
+
+test:
+	@echo "Running auth tests..."
+	@cd .. && make test-auth
+
+# Keep these for backwards compatibility during migration
+dev:
+	@$(MAKE) run
+
+install:
+	@echo "Installing dependencies..."
+	@cd .. && make install

@@ -1,0 +1,202 @@
+(Option-chip flow; users can jump out—or deeper—any time.
+All copy leans on HireCJ’s core value props and merchants’ real pain points.)
+
+────────────────────────────
+GLOBAL BEHAVIOR
+────────────────────────────
+• Every CJ block ends with 2-4 Quick-Reply Chips plus a persistent chip: [→ Join Waitlist].
+• If the user free-types anything unmapped, CJ answers briefly if relevant; otherwise nudges:
+ “I’m keeping the demo laser-focused on CX, revenue, and ops. Pick a quick option or hit ‘Join Waitlist’ to see HireCJ live on your store.”
+• At any time the user may click [Leave Demo] which thanks them + keeps the Waitlist CTA.
+
+────────────────────────────
+ENTRY
+────────────────────────────
+Widget Panel
+“👋 Meet CJ—your AI Customer-Experience Officer. Ready to see what ‘inbox-zero’ feels like?”
+
+Chips: [Start Demo]  [Skip to Waitlist]
+
+────────────────────────────
+
+MORNING FLASH BRIEF ──────────────────────────── CJ Hey boss, CJ here. Here’s what I handled while you slept:
+• Tickets yesterday: 220 → Auto-resolved 160 (73 %)
+• Founder hours saved: 8 h 6 m ≈ $203 labor
+• Carts recovered in DM: 17 → $812 GMV
+• Avg CSAT: 4.79★ (bot) vs 4.63★ (human)
+
+🔥 Top Signal
+SKU-218 “glass jar” breakages +37 % WoW.
+💎 VIP Watch
+LTV $842 customer delayed 5 days; suggest $20 credit.
+
+Where do you want to dive first?
+
+Chips:
+ ① Fix Jar Breakage
+ ② Save the VIP
+ ③ Show Me the ROI Math
+ ④ Main Menu
+
+────────────────────────────
+2. BRANCH: FIX JAR BREAKAGE
+────────────────────────────
+CJ
+Diagnostics done: 12 tickets + 3 reviews flag lot B0425 from Supplier #2, FedEx Zone 5 heavy.
+
+Proposed Moves
+• Slack #ops with photo collage + QC request
+• Auto-tag new B0425 claims for tracking
+• Temporarily switch West-coast orders to UPS
+
+Shall I fire those off?
+
+Chips: [Approve & Notify Ops] [Skip for Now] [Main Menu]
+
+– If Approve
+CJ: “📣 Done. I’ll surface QC findings in tomorrow’s brief.” → Main Menu
+
+– If Skip → Main Menu
+
+────────────────────────────
+3. BRANCH: SAVE THE VIP
+────────────────────────────
+CJ
+Delay 5 days via Memphis hub. Sent apology already; sentiment neutral. Data: $20 credit flips 84 % of VIPs and pays back in 1.3 orders.
+
+Queued actions:
+✓ Issue $20 gift card (<$25 guard-rail)
+✓ Upgrade next box to priority ship
+✓ Invite honest review post-delivery
+
+Green-light?
+
+Chips: [Send $20 Credit] [Offer Something Else] [Skip] [Main Menu]
+
+– If “Offer Something Else” CJ asks amount, confirms, acts.
+All roads → Main Menu.
+
+────────────────────────────
+4. BRANCH: SHOW ROI MATH
+────────────────────────────
+CJ
+Yesterday’s hard dollars:
+
+• Old agent cost/ticket (Gorgias data) … $1.68
+• Tickets I closed … 160 ⟹ $268 labor avoided
+• My usage fee … $56
+Net daily savings … $212
+
+Year-to-date: $14 480 net + $42 310 recovered carts.
+
+What else should I crunch?
+
+Chips:
+ • Cost-per-Ticket Trend
+ • Labor Hours Saved YTD
+ • Back to Main Menu
+
+────────────────────────────
+5. MAIN MENU (hub you can reach from any step)
+────────────────────────────
+CJ
+What can I show next?
+
+Chips:
+ A Weekly CX Report Preview
+ B Hidden Product Insights
+ C Brand-Voice Test
+ D Integration Checklist
+ E Pricing Snapshot
+ F I’m Done — Join Waitlist
+
+────────────────────────────
+A. WEEKLY CX REPORT PREVIEW
+────────────────────────────
+CJ
+Sneak peek (full deck hits your inbox Monday):
+
+• Auto-resolve rate trend … 73 % → 78 %
+• Hours saved this week … 46.9
+• Labor $ replaced … $1 177
+• Net incremental GMV … $4 917
+• Emerging theme … “Sizing runs small” tickets +18 % → PDP update flagged.
+
+Next?
+
+Chips: [Show Upsell Wins] [Main Menu]
+
+Upsell Wins sub-branch → lists 3 recovered carts, upsell AOV lift, then Main Menu.
+
+────────────────────────────
+B. HIDDEN PRODUCT INSIGHTS
+────────────────────────────
+CJ
+Top insights I surfaced from last 7 days of conversations:
+
+17 % of cancel requests cite “too many repeats” → rotate 3 SKUs next month.
+42 customers asked “vegan option?”—no SKU yet.
+FedEx Memphis hub delays triggered 4× CSAT drops—pre-emptive emails suggested.
+Want these piped into Slack automatically?
+
+Chips: [Yes, Ship to Slack] [Maybe Later] [Main Menu]
+
+────────────────────────────
+C. BRAND-VOICE TEST
+────────────────────────────
+CJ
+Type a quick reply you’d send a frustrated customer. I’ll mirror the tone back.
+
+(If user types) CJ returns a mirrored, empathetic response and shows a confidence score (“Tone-match 96 %”).
+
+Chips: [Sounds Like Me]  [Try Again]  [Main Menu]
+
+────────────────────────────
+D. INTEGRATION CHECKLIST
+────────────────────────────
+CJ
+Current demo stack: Shopify, ReCharge, Gorgias, Slack. I plug into:
+
+• Shopify & Shopify Plus (OAuth)
+• Cratejoy, WooCommerce (API key)
+• Helpdesks: Gorgias, Zendesk, HelpScout
+• DMs: IG, FB, TikTok, Twitter
+• Review apps: Yotpo, Stamped
+Total setup time founders report: 27 min average.
+
+Need more tech details or good to go?
+
+Chips: [Need More Details] [Main Menu]
+
+If “More Details” CJ gives quick bullet on webhooks & data scopes, then Main Menu.
+
+────────────────────────────
+E. PRICING SNAPSHOT
+────────────────────────────
+CJ
+Founder-beta pricing: pay only for tickets I fully resolve.
+
+• $0.35 per email/chat solved
+• $0.15 per social DM solved
+• First 30 days: 100 free resolutions
+• No seat fees, no annual lock-in.
+
+Ready to lock-in beta rates?
+
+Chips: [Join Waitlist] [Main Menu]
+
+────────────────────────────
+F. I’M DONE — JOIN WAITLIST
+────────────────────────────
+CJ
+Inbox quiet, coffee hot—let’s give your real store the same treatment. Drop your email, I’ll hold a slot and send the onboarding link.
+
+Chip: [Join Waitlist] [Restart Demo] [Leave Demo]
+
+If user restarts → back to Start Demo.
+If leave → “Thanks for visiting! You can restart anytime.” + Waitlist CTA in footer.
+
+────────────────────────────
+END OF EXTENDED SCRIPT
+────────────────────────────
+

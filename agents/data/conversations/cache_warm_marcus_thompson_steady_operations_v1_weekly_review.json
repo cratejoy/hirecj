@@ -1,0 +1,77 @@
+{
+  "id": "cache_warm_marcus_thompson_steady_operations_v1_weekly_review",
+  "conversation_id": "cache_warm_marcus_thompson_steady_operations_v1_weekly_review",
+  "created_at": "2025-05-28T17:03:55.056190",
+  "scenario_name": "steady_operations",
+  "merchant_name": "marcus_thompson",
+  "cj_version": "v5.0.0",
+  "workflow": "weekly_review",
+  "messages": [
+    {
+      "timestamp": "2025-05-28T17:03:55.080939",
+      "sender": "marcus_thompson",
+      "content": "[WORKFLOW_START]",
+      "metadata": {
+        "human_played": true
+      }
+    },
+    {
+      "timestamp": "2025-05-28T17:04:04.135375",
+      "sender": "CJ",
+      "content": "Hey Marcus! Ready for our weekly review? Let me pull together the key insights from our support operations this week.\n\n**Support Performance Snapshot:**\n- **Current queue:** 33 tickets/day average\n- **Response time:** 3.2 hours (within our target)\n- **CSAT score:** 4.4/5 (solid performance)\n- **Churn rate:** 5.5% (something to watch)\n\n**Top Issues This Week:**\nLooking at our ticket categories, I'm seeing three main patterns:\n1. **Shipping inquiries** - still our #1 ticket driver\n2. **Account management** requests \n3. **Product feedback** - which is actually great to see\n\n**The Good News:**\nOur team is maintaining strong response times and customer satisfaction scores are holding steady at 4.4. That's solid performance with your current customer base of 1,290 subscribers.\n\n**What's Catching My Attention:**\nThe 5.5% churn rate has me thinking - I'd love to dig into whether we're seeing any patterns in the support tickets from customers who later cancelled. Sometimes early warning signals show up in our interactions first.\n\nBefore we dive deeper - **what's been on your mind this week?** Any particular areas you want to focus on, or challenges you've been thinking about? I want to make sure we're covering what matters most to you right now.\n\nOnce I hear your thoughts, I can pull specific data on whatever areas are most relevant for your planning.",
+      "metadata": {
+        "turn": 1,
+        "metrics": {
+          "prompts": 1,
+          "tools": 0,
+          "time": 9.054134845733643
+        },
+        "debug": {
+          "context_window_size": 1,
+          "task_description": "Start the weekly_review workflow for marcus_thompson",
+          "has_conversation_state": true,
+          "workflow": "weekly_review",
+          "cj_version": "v5.0.0",
+          "scenario_context": {
+            "description": "",
+            "stress_level": "medium",
+            "metrics": {
+              "mrr": 48000,
+              "subscriber_count": 1290,
+              "churn_rate": 5.5,
+              "csat_score": 4.4,
+              "support_tickets_per_day": 33,
+              "average_response_time_hours": 3.2,
+              "top_categories": [
+                "shipping",
+                "account_management",
+                "product_feedback"
+              ],
+              "total_customers": 16,
+              "total_tickets": 40
+            }
+          },
+          "turn_count": 1,
+          "context_window": [
+            {
+              "sender": "marcus_thompson",
+              "content": "[WORKFLOW_START]",
+              "timestamp": "2025-05-28T17:03:55.080939"
+            }
+          ],
+          "system_info": {
+            "timestamp": "2025-05-28T17:04:04.135366",
+            "server_version": "unknown",
+            "model_used": "claude-sonnet-4-20250514"
+          },
+          "verbose_output_preview": "\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Crew Execution Started \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Crew Execution Started                                                      \u2502\n\u2502  Name: crew                                                                  \u2502\n\u2502  ID: 46aee3e7-2253-49c4-9727-035f14e9d408                                    \u2502\n\u2502                                                                              \u2502\n\u2502             ...",
+          "agent_debug_info": {}
+        }
+      }
+    }
+  ],
+  "state": {
+    "workflow": "weekly_review"
+  },
+  "annotations": {}
+}

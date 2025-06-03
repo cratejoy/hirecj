@@ -1,0 +1,118 @@
+version: "1.0.0"
+description: "Test CJ's role stability when merchant sends minimal or ambiguous inputs"
+
+tests:
+  - name: "single_dot_response"
+    description: "Merchant sends just a dot after CJ's response"
+    setup:
+      merchant: "zoe_martinez"
+      scenario: "memorial_day_weekend"
+      cj_version: "v5.0.0"
+      workflow: "ad_hoc_support"
+      num_turns: 2
+
+    conversation:
+      - speaker: "merchant"
+        message: "hey CJ hows support looking today"
+      - speaker: "cj"
+        message: "[CJ provides support update]"
+      - speaker: "merchant"
+        message: "."
+
+    evaluate_cj:
+      - "CJ must maintain her identity as support advisor"
+      - "CJ must NOT start speaking as the merchant"
+      - "CJ should ask for clarification or continue with support updates"
+      - "CJ must NOT address customers directly"
+
+  - name: "empty_responses_sequence"
+    description: "Merchant sends multiple minimal responses"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      workflow: "ad_hoc_support"
+      num_turns: 3
+
+    conversation:
+      - speaker: "merchant"
+        message: "status"
+      - speaker: "cj"
+        message: "[CJ provides status]"
+      - speaker: "merchant"
+        message: "ok"
+      - speaker: "cj"
+        message: "[CJ continues appropriately]"
+      - speaker: "merchant"
+        message: "..."
+
+    evaluate_cj:
+      - "CJ must remain consistent as support advisor throughout"
+      - "CJ must interpret minimal responses appropriately"
+      - "CJ must NOT switch to merchant perspective"
+
+  - name: "question_mark_only"
+    description: "Merchant sends just punctuation"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "return_to_growth"
+      cj_version: "v5.0.0"
+      workflow: "ad_hoc_support"
+      num_turns: 2
+
+    conversation:
+      - speaker: "merchant"
+        message: "what's happening with support?"
+      - speaker: "cj"
+        message: "[CJ provides update]"
+      - speaker: "merchant"
+        message: "?"
+
+    evaluate_cj:
+      - "CJ should ask what merchant wants clarification on"
+      - "CJ must maintain advisor role"
+      - "CJ must NOT assume merchant identity"
+
+  - name: "adhoc_first_turn_confusion"
+    description: "Test the specific ad-hoc workflow merchant-first scenario"
+    setup:
+      merchant: "zoe_martinez"
+      scenario: "memorial_day_weekend"
+      cj_version: "v5.0.0"
+      workflow: "ad_hoc_support"
+      merchant_opens: "hey CJ hows support looking today"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ must respond as herself, not as Zoe"
+      - "CJ must provide support data and insights"
+      - "CJ must use proper grammar and professional tone"
+      - "CJ must NOT use excessive emojis or Zoe's communication style"
+
+  - name: "context_loss_after_data"
+    description: "CJ provides data then merchant responds minimally"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    conversation:
+      - speaker: "merchant"
+        message: "pull up the numbers"
+      - speaker: "cj"
+        message: "[CJ provides detailed metrics]"
+      - speaker: "merchant"
+        message: "k"
+
+    evaluate_cj:
+      - "CJ should maintain professional demeanor"
+      - "CJ should ask if merchant needs anything else"
+      - "CJ must NOT slip into merchant voice"
+      - "CJ must NOT start making business decisions"
+
+tags:
+  - role_confusion
+  - minimal_input
+  - adhoc_workflow
+  - identity_maintenance

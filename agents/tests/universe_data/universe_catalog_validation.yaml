@@ -1,0 +1,45 @@
+version: "1.0.0"
+description: "Validates that CJ references correct merchant catalog products and tiers from universe data"
+
+tests:
+  - name: "subscription_tier_validation"
+    description: "Verify CJ uses actual merchant subscription tiers not generic names"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "steady_operations"
+      cj_version: "v5.0.0"
+      merchant_opens: "CJ, what are our current subscription tiers and how many subscribers in each?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ must reference actual Marcus Thompson tiers: Pitmaster Pro, Competition Grade, or Craft Collector"
+      - "CJ must NOT use generic tier names like Basic, Premium, or Standard"
+      - "CJ should provide specific subscriber counts for each actual tier"
+
+  - name: "product_reference_validation"
+    description: "Verify CJ references actual BBQ products from merchant catalog"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "steady_operations"
+      cj_version: "v5.0.0"
+      merchant_opens: "CJ, what products are customers complaining about in recent tickets?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ must reference actual BBQ products like Sweet Heat Blend, rubs, sauces, or wood chips"
+      - "CJ must NOT reference products from wrong merchant categories (e.g., beauty products, skincare)"
+      - "Product names should match those in Marcus Thompson's catalog"
+
+  - name: "supplier_reference_validation"
+    description: "Verify CJ references actual merchant suppliers when relevant"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "steady_operations"
+      cj_version: "v5.0.0"
+      merchant_opens: "CJ, are there any supplier-related issues in our tickets?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "If supplier issues exist, CJ should reference actual suppliers like Austin Smoke Co or Smoky Mountain Rubs"
+      - "CJ should NOT use generic supplier names like 'Supplier A' or 'Vendor 1'"
+      - "If no supplier issues exist, CJ should clearly state that"

@@ -1,0 +1,2007 @@
+Generating overall summary...
+<code_analysis>
+  <individual_script_summaries>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/repop_mens_collection.py</file>
+      <summary>This script defines a SQLAlchemy ORM model for a 'Keyword' table. It includes columns for id, updated_at, keyword, cpc (cost per click), and search_volume. The model also establishes a relationship with a 'PageKeywordRank' model. The script uses SQLAlchemy's declarative base system and imports custom base classes and sequences.</summary>
+      <function_signatures>No explicit function signatures are present in this script.</function_signatures>
+      <external_dependencies>- sqlalchemy: Used for defining database models and relationships
+- src.db_models.base: Custom module providing Base and id_seq</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/tag_products_in_collection.py</file>
+      <summary>This script tags products within a specified Shopify collection with a given tag. It uses the Shopify API to find a custom collection, retrieve its products, and add a new tag to each product if it doesn't already have it. The script is designed to be run from the command line with two arguments: the tag to add and the collection ID. It handles pagination of product results and uses external utility functions for Shopify session management.</summary>
+      <function_signatures>def tag_products_in_collection(tag: str, collection_id: str) -> None</function_signatures>
+      <external_dependencies>1. sys: Used for accessing command-line arguments.
+2. shopify: Shopify API library, used for interacting with Shopify collections and products.
+3. src.util.shopify_util: Custom module, used for managing Shopify sessions.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/product_collection_rank.py</file>
+      <summary>This script is designed to repopulate a Shopify custom collection with products from other collections. It uses the Shopify API to find a specific collection, then iterates through a list of other collection IDs, retrieves their products, and adds them to the main collection. The script demonstrates the use of Shopify's Python API, pagination handling, and bulk product assignment to collections.</summary>
+      <function_signatures>main():
+    - No explicit function signatures defined in the script.
+    - The main logic is contained within the __main__ block.</function_signatures>
+      <external_dependencies>1. shopify:
+   - Used for interacting with the Shopify API
+   - Specifically uses CustomCollection, Collect, and Product objects
+2. src.util.shopify_util:
+   - Custom module, likely containing utility functions for Shopify operations
+   - Uses the get_session() function to establish a Shopify API session</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/keyword.py</file>
+      <summary>This Python script defines a system for generating and ranking products within a collection based on SEO best practices. It uses the langdspy library to create a prompt-based model for generating product rankings. The script defines two main classes: PromptGenerateProductCollectionRanks, which specifies the input and output fields for the ranking prompt, and ProductCollectionRanks, which handles the actual invocation of the ranking process. The script incorporates SEO considerations, collection-specific criteria, and product information to determine the optimal ranking of products within a collection.</summary>
+      <function_signatures>class PromptGenerateProductCollectionRanks(langdspy.PromptSignature):
+    collection_title: langdspy.InputField
+    collection_summary: langdspy.InputField
+    product_list: langdspy.InputField
+    fitness_criteria: langdspy.InputField
+    ranks: langdspy.OutputField
+
+class ProductCollectionRanks(langdspy.Model):
+    generate_output: langdspy.PromptRunner
+    def invoke(self, input: Any, config: Any) -> List[int]</function_signatures>
+      <external_dependencies>typing: Used for type hinting (List, Dict)
+src.prompt_signatures: Imports 'sigs' (usage not shown in the provided code)
+src.prompt.seo: Imports 'BestPractices' (usage not shown in the provided code)
+src.prompt.collections: Imports 'CollectionPromptInputs' as 'PromptInputs' (usage not shown in the provided code)
+src.lib.keyword_lib: Imported but not used in the provided code
+langdspy: Main library used for creating prompt-based models and handling input/output fields</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/collection_lib.py</file>
+      <summary>This Python script defines a system for generating SEO-optimized summaries for product collections. It uses the langdspy library to create a prompt-based model. The script defines two main classes: PromptGenerateCollectionSummary, which specifies the input and output fields for the summary generation prompt, and GenerateCollectionSummary, which implements the actual summary generation logic. The script follows object-oriented programming principles and utilizes custom data structures and formatting techniques to handle various aspects of collection information.</summary>
+      <function_signatures>PromptGenerateCollectionSummary.__init__(self)
+GenerateCollectionSummary.__init__(self)
+GenerateCollectionSummary.invoke(self, input, config)</function_signatures>
+      <external_dependencies>1. src.prompt_signatures: Imports sigs (usage not shown in the provided code)
+2. src.prompt.seo: Imports BestPractices (usage not shown in the provided code)
+3. src.prompt.collections: Imports CollectionPromptInputs as PromptInputs (used for input field descriptions)
+4. langdspy: Extensively used for creating prompt-based models, defining input/output fields, and running prompts</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_collection_summary.py</file>
+      <summary>This Python script serves as a dispatcher for handling Slack thread messages and commands. It defines various functions to process different types of commands related to email writing, image prompt generation, color generation, and Yotpo review synchronization. The script uses regular expressions to match incoming messages against predefined command patterns and routes them to the appropriate handler functions. It also includes an AI response function that processes conversation history using a language model. The script integrates with Redis for storing collection IDs and utilizes several custom modules for specific functionalities.</summary>
+      <function_signatures>generate_image_prompts_command(channel_id, session, thread_ts, collection_id)
+write_email_collection_command(channel_id, session, thread_ts, collection_id, email_text)
+write_email_command(channel_id, session, thread_ts, collection_id)
+brainstorm_email(channel_id, session, thread_ts, theme, collection_id)
+generate_email_colors_command(channel_id, session, thread_ts, collection_id)
+resync_yotpo_reviews_command(channel_id, session, thread_ts)
+new_thread_message(channel_id, session, thread_ts, text)
+process_thread_message(channel_id, session, thread_ts, text)
+process_command_thread_message(channel_id, session, thread_ts, text)
+_process_thread_message(channel_id, session, thread_ts, text, collection_id=None)
+ai_response(channel_id, thread_ts, text)</function_signatures>
+      <external_dependencies>logging: Used for logging debug and info messages.
+redis_util: Custom module for Redis connection management.
+re: Used for regular expression operations.
+slack_thread_ai: Custom AI model for processing Slack threads.
+os: Used to access environment variables.
+slack_util: Custom module for Slack-related utility functions.
+writer, images, email_colors, email_commands: Custom modules for specific command functionalities.
+sync_lib: Custom module for synchronization operations.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/slack_thread_dispatcher.py</file>
+      <summary>This script is designed to manage and fix blog links for a Shopify-based e-commerce platform, likely Cratejoy. It includes functions to populate blog links from Shopify articles into a database, clean and fix links based on predefined rules, and update links in Shopify articles. The script uses various libraries for web scraping, database operations, and interacting with the Shopify API. It follows a procedural programming style with defined functions for specific tasks.</summary>
+      <function_signatures>def swap_deadlink(uri): -> str or None
+def get_link_type(uri): -> BlogLinkType
+def clean_link(link): -> str
+def fix_link(link): -> str
+def populate_blog_links(session): -> None
+def find_replacement_rule(link): -> tuple or None
+def fix_links(session): -> None</function_signatures>
+      <external_dependencies>csv: Used for potential CSV operations (not explicitly used in the provided code)
+time: Used for potential time-related operations (not explicitly used in the provided code)
+requests: Used for making HTTP requests (not explicitly used in the provided code)
+html: Used for HTML escaping
+shopify: Used for interacting with the Shopify API
+BeautifulSoup from bs4: Used for parsing HTML content
+colored from termcolor: Used for colored console output (not explicitly used in the provided code)
+urlparse from urllib.parse: Used for parsing URLs
+Custom modules:
+    src.util.shopify_util: Used for Shopify session management
+    src.util.retry_util: Imported but not used in the provided code
+    src.util.db_util: Used for database operations
+    src.db_models.enums: Used for enum types
+    src.db_models.page: Used for Page model
+    src.db_models.blog_link: Used for BlogLink model</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/fix_blogs.py</file>
+      <summary>This script, collection_lib.py, is a Python module for managing and creating Shopify collections. It provides functions for creating, updating, and merchandising collections, as well as evaluating product fitness for collections. The script uses various AI models to generate collection titles, descriptions, and keywords, and to evaluate product-collection fitness. It also interacts with a database to store and retrieve collection and product information.
+
+Key features include:
+1. Creating and updating Shopify collections
+2. Evaluating product fitness for collections
+3. Merchandising collections by adding or removing products
+4. Generating collection titles, descriptions, and keywords using AI models
+5. Managing collection pages in a database
+6. Concurrent processing of product evaluations and collection updates
+
+The script follows object-oriented and functional programming paradigms, uses async programming with concurrent.futures, and integrates with external AI models and the Shopify API.</summary>
+      <function_signatures>1. create_collection(title: str, slug: str, description: str) -> str
+2. get_or_create_page_from_collection(session: sqlalchemy.orm.Session, collection: dict) -> Page
+3. evaluate_product_fitness(product_page: Page, collection: dict, criteria: str, config: dict, results: dict, perform_action: bool = True) -> None
+4. evaluate_ranks_for_chunk(session: sqlalchemy.orm.Session, product_pages: List[Page], collection: dict, criteria: str, config: dict) -> List[str]
+5. merchandise_collection(session: sqlalchemy.orm.Session, collection: dict, keywords: str, title: str, desc: str, results: dict, tag: str = None) -> None
+6. merch_product_to_collections(session: sqlalchemy.orm.Session, product: Product) -> Tuple[List[Collection], List[Collection]]
+7. create_or_update_collection(session: sqlalchemy.orm.Session, title: str, slug: str, description: str, results: dict = None) -> Tuple[dict, str, str, str]
+8. create_collections(session: sqlalchemy.orm.Session, collections_to_create: List[dict]) -> None</function_signatures>
+      <external_dependencies>1. src.util.shopify_util: Custom module for Shopify utility functions
+2. time: Python's built-in time module
+3. shopify: Shopify API client library
+4. sqlalchemy.orm: SQLAlchemy ORM for database operations
+5. concurrent.futures: For concurrent execution of tasks
+6. tqdm: For progress bar visualization
+7. src.lib.shopify_lib: Custom module for Shopify-related operations
+8. src.prompt_models.*: Custom AI models for generating collection data
+9. src.ai_tools.lib_model: Custom module for AI model management
+10. src.db_models.*: Custom database models
+11. src.util.db_util: Custom module for database utility functions
+12. src.lib.keyword_lib: Custom module for keyword-related operations
+13. collections.defaultdict: Python's built-in defaultdict data structure</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/init_db.py</file>
+      <summary>This script initializes and populates a database for a web application, likely an e-commerce platform using Shopify. It performs several tasks including creating database tables, syncing data from Shopify, updating collections, products, and articles, and adding summaries to various entities. The script uses SQLAlchemy for database operations and implements multithreading for improved performance. It also utilizes custom libraries for specific functionalities like Shopify integration, keyword management, and AI-powered summarization.</summary>
+      <function_signatures>if __name__ == '__main__':
+    # No explicit function definitions in the main script</function_signatures>
+      <external_dependencies>1. time: Used for timing script execution
+2. urllib.parse: Used for URL encoding (quote function)
+3. concurrent.futures: Used for multithreading (ThreadPoolExecutor, as_completed)
+4. tqdm: Used for progress bars
+5. sqlalchemy: Used for database operations and ORM
+6. src.util.db_util: Custom module for database utility functions
+7. src.db_models: Custom modules for database models (Base, Page, Product, Collection, Article, Keyword, PageKeywordRank, PageType)
+8. src.lib: Custom libraries (shopify_lib, sync_lib, page_lib, sitemap_lib, summary_lib, keyword_lib)
+9. src.util: Custom utility modules (traffic_map_util, shopify_util)
+10. src.ai_tools.lib_model: Custom AI model library</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/email_commands.py</file>
+      <summary>This Python file defines three enumeration classes using the enum module: PageType, BlogLinkStatus, and BlogLinkType. These enums are likely used to categorize different types of pages, link statuses, and link types in a web application, possibly related to a blog or e-commerce platform. The file uses the enum.auto() method to automatically assign unique values to each enum member.</summary>
+      <function_signatures>No explicit function signatures are present in this file.</function_signatures>
+      <external_dependencies>- enum: This standard Python library is used to create enumeration classes.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/enums.py</file>
+      <summary>This Python script defines a function for brainstorming email ideas based on a given collection, theme, and brand voice. It utilizes various database models, AI models, and external libraries to generate email ideas. The script interacts with a Slack channel to send messages and snippets about the brainstorming process and results. It also uses Nosto, an e-commerce personalization platform, to fetch product information.</summary>
+      <function_signatures>def brainstorm_email_ideas(channel_id: str, session: object, collection_id: int, theme: str, thread_ts: str) -> str</function_signatures>
+      <external_dependencies>1. logging: Used for logging warnings and errors.
+2. src.db_models: Imports various database models (Collection, Product, Page, Review, PageKeywordRank, Keyword, CollectionBrandVoice).
+3. src.ai_models.brainstorm_email_ai: Imports the BrainstormEmailIdeas AI model.
+4. src.ai_tools.lib_model: Used to get a smart language model.
+5. src.util.slack_util: Used for sending messages and snippets to Slack.
+6. src.lib.nosto_lib: Used to fetch products for a given collection from Nosto.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/write_text_ai.py</file>
+      <summary>This Python script, db_util.py, provides utility functions for database operations using SQLAlchemy. It includes functions for creating and dropping databases, establishing database connections, creating tables, and managing database sessions. The script uses environment variables for database connection strings and handles potential programming errors. It follows a modular approach with clear function definitions and error handling.</summary>
+      <function_signatures>def get_engine(db='seodb'):
+    return sqla.create_engine
+
+def drop_database():
+    return None
+
+def create_database():
+    return engine
+
+def get_session(engine=None):
+    return Session()
+
+def create_tables(engine=None):
+    return None</function_signatures>
+      <external_dependencies>1. os: Used for accessing environment variables.
+2. sqlalchemy (imported as sqla): Core library for database operations.
+3. sqlalchemy.orm.sessionmaker: Used for creating database sessions.
+4. src.db_models.base.Base: Likely a custom base class for SQLAlchemy models.
+5. sqlalchemy.exc.ProgrammingError: Used for handling specific database errors.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/db_util.py</file>
+      <summary>This Python script defines a series of classes and models for generating and editing blog articles using AI. It includes functionality for creating outlines, writing drafts, targeting keywords, adding product mentions, editing for factual accuracy and grammar, and generating image prompts. The script uses a custom framework called 'langdspy' for defining prompt templates and running AI models. It also integrates with Slack for sending updates during the article generation process.
+
+Key components include:
+- Outline generation (WriteBlogOutlineModel)
+- Article writing in multiple passes (WriteArticle)
+- Product integration (AddProducts)
+- Article editing and fact-checking (EditArticle)
+- Photo prompt generation (AddPhotos)
+
+The script follows a modular approach, breaking down the article creation process into distinct steps, each handled by separate classes and methods.</summary>
+      <function_signatures>- WriteBlogOutlineModel.invoke(self, input_dict, config)
+- WriteArticle.invoke(self, input_dict, config)
+- AddProducts.invoke(self, input_dict, config)
+- EditArticle.invoke(self, input_dict, config)
+- AddPhotos.invoke(self, input_dict, config)</function_signatures>
+      <external_dependencies>- langdspy: Custom framework for defining prompt templates and running AI models
+- logging: For logging functionality
+- src.formatters.langdspy_formatters: Custom formatters for input/output fields
+- src.ai_models.materials: For AI guidelines
+- langchain.globals: For LLM cache management
+- src.ai_tools.lib_model: For AI model utilities
+- src.util.slack_util: For Slack integration</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/write_collection_ai.py</file>
+      <summary>This Python script defines several classes for generating and suggesting copy for e-commerce product collections using AI-powered language models. The main components include:
+
+1. SuggestCollectionCopy: A class that generates H1, tagline, SEO title, and SEO description for a collection.
+2. SuggestFAQCopy: A class that generates FAQ questions and answers for a collection.
+3. WriteInCollectionVoice: A class that rewrites given text in a specific brand voice for a collection.
+
+The script utilizes a custom library called 'langdspy' for defining prompt signatures, input/output fields, and running AI models. It also incorporates SEO guidelines, brand voice considerations, and product information to generate appropriate content for e-commerce collections.</summary>
+      <function_signatures>1. class SuggestCollectionCopy(langdspy.Model):
+    def invoke(self, input_dict, config)
+
+2. class SuggestFAQCopy(langdspy.Model):
+    def invoke(self, input_dict, config)
+
+3. class WriteInCollectionVoice(langdspy.Model):
+    def invoke(self, input_dict, config)</function_signatures>
+      <external_dependencies>1. sys
+2. csv
+3. argparse
+4. datetime
+5. langdspy
+6. src.formatters.langdspy_formatters
+7. src.ai_models.materials
+8. logging</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/sitemap_lib.py</file>
+      <summary>This Python script, named sitemap_lib.py, is designed to fetch and parse XML sitemaps. It contains two main functions: get_sitemap() and fetch_sitemap(). The script retrieves the main sitemap from 'https://cratejoy.com/sitemap.xml', then processes each sitemap URL found within it. It extracts information such as URL locations, last modification dates, and image details (if present) for each URL entry. The script uses XML parsing to handle the sitemap structure and returns the collected data as a list of dictionaries.</summary>
+      <function_signatures>def get_sitemap() -> list
+def fetch_sitemap() -> list</function_signatures>
+      <external_dependencies>1. requests: Used to make HTTP GET requests to fetch sitemap XML files.
+2. src.util.diskcache_util: Imported but not used in the provided code snippet.
+3. xml.etree.ElementTree: Used for parsing XML content of the sitemaps.
+4. pprint: Imported but not used in the provided code snippet.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/pull_collection_screenshots.py</file>
+      <summary>This script is designed to take screenshots of Shopify collection pages in parallel. It utilizes Shopify's API to fetch collections, filters out certain types, and then uses multithreading to capture screenshots efficiently. The script employs progress tracking with tqdm and safely handles console output in a multithreaded environment.</summary>
+      <function_signatures>def take_screenshot_task(data: tuple) -> None
+if __name__ == '__main__':</function_signatures>
+      <external_dependencies>1. src.util.shopify_util: Used for interacting with Shopify API (get_session, get_collections).
+2. src.util.screenshot_util: Provides functionality for taking screenshots (take_screenshot).
+3. concurrent.futures: Utilized for parallel execution of screenshot tasks.
+4. tqdm: Employed for progress tracking and thread-safe console output.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/rag/load_shopify_products.py</file>
+      <summary>This script loads product data from a database and creates documents for a RAG (Retrieval-Augmented Generation) system. It performs the following main tasks:
+1. Initializes environment logging
+2. Fetches product rankings from Nosto for a specific collection
+3. Queries the database for products of specific types
+4. Creates Document objects for each product with relevant metadata
+5. Adds the created documents to a RAG system
+6. Provides a main function to execute the loading process
+The script uses multiprocessing and tqdm for progress tracking, and includes logging for debugging purposes.</summary>
+      <function_signatures>def load_products() -> List[Document]
+def main(args: argparse.Namespace) -> None</function_signatures>
+      <external_dependencies>1. sys: Used for system-specific parameters and functions
+2. datetime: Imported but not used in the provided code
+3. multiprocessing: Imported but not used in the provided code
+4. tqdm: Imported but not used in the provided code
+5. argparse: Used for parsing command-line arguments
+6. time: Used for timestamp generation
+7. logging: Used for logging information and debugging
+8. langchain: Used for document storage (Document class)
+9. src.common.env_logging: Custom module for environment logging
+10. src.util.db_util: Custom module for database session management
+11. src.db_models: Custom modules for database models (Base, Page, Product, PageKeywordRank, Keyword)
+12. src.util.nosto_util: Custom module for fetching product rankings
+13. src.lib.rag_lib: Custom module for RAG system operations</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/shopify_lib.py</file>
+      <summary>This Python script, named 'diff_util.py', is designed to generate and display a colorized diff between two HTML strings. It utilizes the difflib library for comparison and the colorama library for terminal color output. The script defines a main function 'generate_diff' that takes two HTML strings as input, along with an optional parameter for context lines. It splits the HTML into lines, compares them, and then prints the differences with color-coding: green for additions, red for deletions, and blue for changes. The script also includes a simple example usage in the __main__ block.</summary>
+      <function_signatures>def generate_diff(old_html: str, new_html: str, context_lines: int = 3) -> None</function_signatures>
+      <external_dependencies>1. difflib: Used for comparing sequences and generating diff output.
+2. colorama: Used for adding color to terminal output. The Fore, Style, and init components are imported and used to colorize the diff output.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/diff_util.py</file>
+      <summary>This Python script provides a comprehensive set of functions for interacting with the Shopify API. It includes operations for managing collections, products, articles, redirects, and metafields. The script utilizes GraphQL queries and mutations to perform various tasks such as creating, updating, and deleting collections, fetching product information, managing tags, and handling SEO-related data. It also includes utility functions for formatting prices and handling pagination in API responses.</summary>
+      <function_signatures>update_collection_product(collection_id, product_id, action)
+update_collection_description(collection_id, description_html)
+update_collection_title(collection_id, title)
+format_price(price_str)
+fetch_products()
+fetch_articles()
+create_collection(title, handle, description, metafields=None)
+set_collection_blurb_metafield(collection_id, new_blurb)
+set_collection_slug(collection_id, new_slug)
+fetch_collection_by_slug(collection_slug)
+set_collection_seo_title(collection_id, new_seo_title)
+set_collection_title(collection_id, new_title)
+set_collection_title_description(collection_id, new_title, new_description)
+set_collection_seo_title_description(collection_id, new_seo_title, new_seo_description)
+get_article_by_handle(handle)
+fetch_collection(collection_id)
+fetch_collections()
+create_or_update_redirect(path, target)
+delete_collection(collection_id)
+add_tag_to_products(product_ids, tag)
+publish_collection(collection_id)
+set_collection_faq_metafield(collection_id, faq_data)
+get_product_ids_with_tag(tag)
+remove_tag_from_products(tag, product_ids)</function_signatures>
+      <external_dependencies>requests
+json
+shopify
+collections (defaultdict)
+datetime
+src.util.diskcache_util
+xml.etree.ElementTree
+src.util.shopify_util
+src.util.db_util
+src.db_models.page</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/image_prompt_ai.py</file>
+      <summary>This Python script defines a system for generating and post-processing image prompts for Midjourney, an AI image generation tool. It uses the langdspy library to create prompt models and runners. The script contains two main classes: ImagePromptModel and PostProcessImagePromptsModel, which define the structure for generating initial prompts and post-processing them, respectively. The GenerateImagePrompts class orchestrates the entire process, running multiple iterations of prompt generation and then post-processing the results. The script also integrates with Slack to send updates about the generated prompts.</summary>
+      <function_signatures>class ImagePromptModel(langdspy.PromptSignature):
+    # No explicit function signatures, but contains several field definitions
+
+class PostProcessImagePromptsModel(langdspy.PromptSignature):
+    # No explicit function signatures, but contains several field definitions
+
+class GenerateImagePrompts(langdspy.Model):
+    def invoke(self, input_dict, config) -> str:</function_signatures>
+      <external_dependencies>1. langdspy: Used for creating prompt models and runners
+2. src.ai_models.materials: Imports _write_article_ai_guidelines for Midjourney guidelines
+3. src.ai_tools.lib_model: Used for LLM configuration and caching
+4. src.util.slack_util: Used for sending messages to Slack</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/fix_collections.py</file>
+      <summary>This Python script is designed to format and display code files from specified paths. It can handle individual files or directories, with options for recursive traversal. The script supports various file extensions and can ignore specified directories. It formats the code with language-specific syntax highlighting and can limit the number of lines processed or displayed. The main functionalities include reading files, determining the programming language based on file extension, and formatting the code output.</summary>
+      <function_signatures>def format_file(file_path, extensions, max_skip, trunc_lines=None):
+    # Returns a formatted string of the file content
+
+def format_directory(directory, recursive, extensions, ignore_dirs, max_skip, trunc_lines):
+    # Returns a formatted string of all matching files in the directory
+
+def format_paths(paths, recursive, extensions, ignore_dirs, max_skip, trunc_lines):
+    # Returns a formatted string of all matching files from given paths</function_signatures>
+      <external_dependencies>1. os: Used for file and directory operations
+2. sys: Imported but not explicitly used in the provided code
+3. argparse: Used for parsing command-line arguments
+4. glob: Used for pathname pattern expansion</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/dev_utils/code_tree.py</file>
+      <summary>This script is designed to update Shopify collections by modifying their handles and descriptions. It iterates through all collections, focusing on those containing the year "2023" in their handle or description. The script is set up to replace "2023" with "2024", but most of the update operations are currently commented out. It uses a custom Shopify library (shopify_lib) to interact with the Shopify API. The script follows a procedural programming style and is intended to be run as a standalone program.</summary>
+      <function_signatures>if __name__ == '__main__':
+    # No explicit function definitions in the main script</function_signatures>
+      <external_dependencies>1. src.lib.shopify_lib: A custom library for interacting with Shopify. Used for the following operations:
+   - get_collections(): Retrieves all collections from Shopify
+   - set_collection_slug(): Updates a collection's handle (commented out)
+   - create_or_update_redirect(): Creates or updates a URL redirect (commented out)
+   - set_collection_title(): Updates a collection's title (commented out)</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/slack_lib.py</file>
+      <summary>This script analyzes product performance data and manages tags for Shopify products based on traffic and conversion rate thresholds. It fetches data from a CSV file via a Periscope Data API, processes each product, and either adds or removes a specific tag ("NostoOptimizeAuto") depending on the product's performance. The script also respects an ignore tag ("NostoOptimizeNever") to prevent automatic optimization for certain products. It uses the Shopify API to interact with product data and update tags.</summary>
+      <function_signatures>def should_add_tag(row): -> bool
+def remove_tag(p): -> None
+def add_tag(p): -> None</function_signatures>
+      <external_dependencies>csv: Used for parsing CSV data
+requests: Used for making HTTP requests to fetch CSV data
+io.StringIO: Used for handling CSV data as a string buffer
+shopify_util.get_session: Custom utility function for getting a Shopify session
+shopify: Shopify API library for interacting with product data</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/nosto_optimize_poor_converters.py</file>
+      <summary>This Python script provides utility functions for processing and analyzing traffic data. It contains two main functions: get_traffic_map() and get_path_session_map(). The first function reads traffic data from a local CSV file and creates a map of collection names to traffic counts. The second function fetches traffic data from a remote CSV file (specified by an environment variable), processes it, and creates a map of page paths to session data including sessions, bounces, and purchases. The script demonstrates usage of file I/O, CSV parsing, HTTP requests, and environment variable handling.</summary>
+      <function_signatures>def get_traffic_map() -> dict
+def get_path_session_map() -> dict</function_signatures>
+      <external_dependencies>1. csv: Used for reading and parsing CSV files.
+2. requests: Used to download CSV content from a remote URL.
+3. os: Used to access environment variables.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/traffic_map_util.py</file>
+      <summary>This script loads Yotpo reviews into a document database. It retrieves product IDs from a database, fetches reviews for each product from the Yotpo API, and inserts them into both a SQL database and a document database. The script uses multiprocessing to parallelize the review loading process. It includes error handling, retries, and logging functionality. The script also provides an option to specify the number of threads to use for processing.</summary>
+      <function_signatures>def do_product(product_id):
+    # Returns: None
+def load_and_insert_reviews(product_ids):
+    # Returns: None
+def main(args):
+    # Returns: None</function_signatures>
+      <external_dependencies>1. sys: Used for system-specific parameters and functions.
+2. time: Used for time-related functions.
+3. random: Used for generating random numbers.
+4. datetime: Used for working with dates and times.
+5. os: Used for interacting with the operating system.
+6. argparse: Used for parsing command-line arguments.
+7. json: Used for JSON data handling.
+8. langchain.docstore.document: Used for document handling in langchain.
+9. multiprocessing: Used for parallel processing.
+10. tqdm: Used for creating progress bars.
+11. logging: Used for logging messages.
+12. tenacity: Used for retrying operations.
+13. src.common.env_logging: Custom module for environment logging.
+14. src.lib.rag_lib: Custom module for RAG (Retrieval-Augmented Generation) functionality.
+15. src.lib.yotpo_lib: Custom module for interacting with Yotpo API.
+16. src.formatters.rag_formatters: Custom module for formatting RAG data.
+17. src.db_models.base: Custom module for database models.
+18. src.db_models.page: Custom module for page database model.
+19. src.db_models.product: Custom module for product database model.
+20. src.db_models.review: Custom module for review database model.
+21. src.util.db_util: Custom module for database utility functions.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/rag/load_yotpo_reviews.py</file>
+      <summary>This script defines a Slack bot application with various commands and functionalities. It includes functions for searching products, collections, articles, and keywords; brainstorming blog ideas; managing brand voice; writing content; syncing data; creating collections, discounts, and redirects; tagging products; and more. The script uses a pattern-matching approach to route incoming commands to the appropriate handler functions. It also includes functionality for processing file uploads, handling threaded conversations, and integrating with external services like Redis and Shopify.</summary>
+      <function_signatures>- format_msg(text: str) -> dict
+- determine_page_type(search_space) -> str
+- search_keywords(channel_id, session, query) -> str
+- search_pages(channel_id, session, query, search_space) -> str
+- brainstorm_blogs(channel_id, session, query) -> str
+- get_brand_voice(channel_id, session, collection_id) -> str
+- parse_key_value_pairs(string) -> dict
+- write_content(channel_id, session, content_type, kwargs_str) -> str
+- process_file_upload(body) -> None
+- search_files(channel_id, session, query) -> str
+- find_related_products(channel_id, session, query) -> str
+- find_related_videos(channel_id, session, query) -> str
+- generate_brand_voice(channel_id, session, collection_id) -> str
+- write_collection_copy(channel_id, session, collection_id) -> str
+- test(channel_id, session) -> str
+- sync_command(channel_id, session, sync_type, ids) -> str
+- flush_redis(channel_id, session) -> str
+- create_collection(channel_id, session, collection_handle, description) -> str
+- add_child_code(channel_id, session, discount_id, code) -> str
+- create_redirect(channel_id, session, path, target) -> str
+- classify_products_for_tag(channel_id, session, tag, query) -> str
+- delete_tag(channel_id, session, tag) -> str
+- merch_product(channel_id, session, product_id_or_slug) -> str
+- resync_yotpo_reviews(channel_id, session) -> str
+- _process_query(channel_id, query) -> str
+- process_app_mention(body) -> None
+- process_message(body) -> None
+- process_query(channel_id: str, response_url: str, query: str) -> httpx.Response</function_signatures>
+      <external_dependencies>- re: Used for regular expression operations
+- os: Used for environment variable access
+- httpx: Used for HTTP requests
+- logging: Used for logging functionality
+- src.lib.slack_thread_dispatcher: Custom module for handling Slack thread dispatching
+- src.lib.keyword_lib: Custom module for keyword-related operations
+- src.lib.page_lib: Custom module for page-related operations
+- src.util.db_util: Custom module for database utilities
+- src.db_models.enums: Custom module for database enums
+- src.apps.commands: Custom module for various command implementations
+- src.formatters: Custom module for formatting output
+- src.lib: Custom module containing various utility functions
+- src.util: Custom module for utility functions
+- src.ai_models: Custom module for AI-related functionality
+- src.ai_tools: Custom module for AI tools
+- src.util.shopify_util: Custom module for Shopify-related utilities
+- src.util.redis_util: Custom module for Redis-related utilities</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/collection_brand_voice_ai.py</file>
+      <summary>This Python script defines a system for building and updating a brand voice for a collection. It uses the langdspy library to create a prompt structure and an AI model for processing. The script includes two main classes: CollectionBrandVoice_Prompt for defining input and output fields, and BuildCollectionBrandVoice for invoking the AI model to generate an updated brand voice. The code follows object-oriented programming principles and utilizes custom formatters for data handling.</summary>
+      <function_signatures>CollectionBrandVoice_Prompt()
+BuildCollectionBrandVoice.invoke(self, input_dict, config) -> str</function_signatures>
+      <external_dependencies>langdspy: Used for creating prompt structures and AI model frameworks.
+src.ai_tools.lib_model: Imported but not directly used in the provided code snippet.
+src.formatters.langdspy_formatters: Used for custom formatting of input fields.
+src.ai_models.materials._write_copy_guidelines: Used to access the BRAND_VOICE_TEMPLATE constant.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/brainstorm_blogs_ai.py</file>
+      <summary>This Python script defines a system for generating blog post ideas using AI. It includes two main classes: GenerateIdeasPrompt and PickArticleTopic. The GenerateIdeasPrompt class sets up the structure for an AI prompt, including hints, input fields for target keywords, SEO guidelines, relevant products, and video transcripts. The PickArticleTopic class uses this prompt to generate article ideas. The script employs the langdspy library for prompt engineering and incorporates logging for debugging purposes.</summary>
+      <function_signatures>GenerateIdeasPrompt(langdspy.PromptSignature)
+PickArticleTopic.invoke(self, input_dict, config) -> article_titles</function_signatures>
+      <external_dependencies>langdspy: Used for prompt engineering and defining input/output fields.
+logging: Utilized for logging and debugging.
+src.ai_models.materials._write_article_ai_guidelines: Imports SEO guidelines.
+src.ai_tools.lib_model: Imported but not directly used in the provided code snippet.
+src.formatters.langdspy_formatters: Used for custom formatting of input fields.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/get_redirects.py</file>
+      <summary>This script connects to an SQLite database, retrieves data from a table named 'processed_keywords', and exports the data to a CSV file. It uses the sqlite3 module to interact with the database and the csv module to write data to a CSV file. The script follows a straightforward procedural approach, executing SQL queries, fetching results, and writing them to a file.</summary>
+      <function_signatures>No explicit function definitions are present in this script.</function_signatures>
+      <external_dependencies>1. sqlite3: Used to connect to and interact with the SQLite database.
+   - sqlite3.connect(): Establishes a connection to the database.
+   - cursor(): Creates a cursor object for executing SQL queries.
+   - execute(): Executes SQL queries.
+   - fetchall(): Retrieves all rows from a query result.
+
+2. csv: Used to write data to a CSV file.
+   - csv.writer(): Creates a CSV writer object.
+   - writerow(): Writes a single row to the CSV file.
+   - writerows(): Writes multiple rows to the CSV file.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/discount_lib.py</file>
+      <summary>This script provides functionality to add child discount codes to existing Shopify price rules. It uses the Shopify Admin API to interact with the platform. The main function, add_child_code, takes a discount_id and a child_code as parameters, finds the corresponding price rule, and adds the child code to it. The script uses environment variables for API authentication and makes HTTP requests to the Shopify API.</summary>
+      <function_signatures>def add_child_code(discount_id: str, child_code: str) -> str</function_signatures>
+      <external_dependencies>1. os: Used to access environment variables.
+2. shopify: Used to interact with Shopify's API, specifically to find price rules.
+3. requests: Used to make HTTP POST requests to the Shopify API.
+4. json: Used to serialize the payload for the API request.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/optimize_collection_seo.py</file>
+      <summary>This Python script defines two classes for generating product summaries using the langdspy library. The PromptGenerateProductSummary class defines input fields for product information and an output field for the summary. The GenerateProductSummary class uses a PromptRunner to generate the summary based on the input. The script follows object-oriented programming principles and utilizes custom prompt generation techniques for creating product summaries.</summary>
+      <function_signatures>PromptGenerateProductSummary()
+GenerateProductSummary.invoke(input, config)</function_signatures>
+      <external_dependencies>langdspy: Used extensively throughout the script for defining input/output fields, prompt signatures, and model classes. It provides the framework for generating product summaries using language models.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_product_summary.py</file>
+      <summary>This script is designed to optimize SEO for collections in an e-commerce platform, likely Shopify. It uses AI models to generate keywords, headings, and summaries for collections based on their products and existing metadata. The script processes multiple collections concurrently using ThreadPoolExecutor and writes the results to a CSV file. Key features include:
+
+1. Utilizes custom libraries for Shopify, sitemap, Nosto, and keyword operations
+2. Implements a GenerateKeywordsHeadingMeta class using the langdspy library for AI-powered content generation
+3. Fetches collection data, including traffic information, and sorts collections by traffic
+4. Generates primary keywords, collection summaries, and recommended headings for each collection
+5. Outputs results to a CSV file with various SEO-related fields
+6. Uses concurrent processing to handle multiple collections efficiently
+7. Implements progress tracking using tqdm</summary>
+      <function_signatures>1. class GenerateKeywordsHeadingMeta(langdspy.Model):
+    def invoke(self, input, config)
+
+2. def run_model(collection, collection_product_map)
+
+3. def serialize_response(collection, response)
+
+4. def process_collection(collection, collection_product_map, lock, writer)
+
+5. if __name__ == '__main__':
+    # Main execution block</function_signatures>
+      <external_dependencies>1. src.lib.shopify_lib
+2. src.lib.sitemap_lib
+3. src.lib.nosto_lib
+4. src.util.shopify_util
+5. src.util.traffic_map_util
+6. src.lib.keyword_lib
+7. src.prompt_models
+8. src.prompt.seo
+9. src.ai_tools
+10. src.prompt_signatures
+11. csv
+12. dotenv
+13. concurrent.futures
+14. threading
+15. tqdm
+16. langdspy</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/pgvector_reconnect.py</file>
+      <summary>This script defines a custom class PGVectorReconnect that extends PGVector from the langchain_community.vectorstores module. It implements a reconnection mechanism for database operations using a decorator function 'with_reconnect'. The class overrides several similarity search methods from PGVector, wrapping them with the reconnection logic. The script also includes error handling for SQLAlchemy and Psycopg2 operational errors, and uses logging for warning messages.</summary>
+      <function_signatures>def with_reconnect(max_retries=3, wait_seconds=1)
+def decorator(func)
+def wrapper(*args, **kwargs)
+class PGVectorReconnect(PGVector):
+    def __init__(self, *args, **kwargs)
+    def reconnect(self)
+    def similarity_search(self, *args, **kwargs)
+    def similarity_search_with_score(self, *args, **kwargs)
+    def similarity_search_by_vector(self, *args, **kwargs)
+    def similarity_search_with_score_by_vector(self, *args, **kwargs)</function_signatures>
+      <external_dependencies>functools: Used for function decorators
+sqlalchemy.exc: Imports OperationalError as SQLAlchemyOperationalError
+psycopg2.errors: Imports OperationalError as Psycopg2OperationalError
+logging: Used for logging warning messages
+langchain_community.vectorstores: Imports PGVector class
+time: Used for implementing wait times between reconnection attempts</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/collection.py</file>
+      <summary>This Python script defines a SQLAlchemy ORM model for a 'Collection' table. The Collection class inherits from Base and represents a database table named 'collection'. It includes various columns such as id, page_id, title, description, type, collection_type, short_name, blurb, discount_code, discount_text, and discount_tag. The script also establishes a relationship with a 'Page' model. The model uses various SQLAlchemy column types including BigInteger, String, and ForeignKey. It follows SQLAlchemy conventions for defining database models and relationships.</summary>
+      <function_signatures>Collection.__init__(self, **kwargs)</function_signatures>
+      <external_dependencies>sqlalchemy: Used for defining database models and relationships. Imports Column, Integer, ForeignKey, String, JSON, Boolean, and BigInteger.
+sqlalchemy.orm: Used for defining relationships between models. Imports relationship.
+src.db_models.base: Imports Base class, likely for SQLAlchemy declarative base.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/slack_thread_ai.py</file>
+      <summary>This Python file defines a class called CollectionPromptInputs that encapsulates various attributes related to SEO and e-commerce product collections on Cratejoy.com. The class serves as a data structure to hold information about collection pages, including SEO best practices, keywords, headings, slugs, descriptions, and other metadata. It appears to be designed for use in generating or optimizing content for collection pages with SEO considerations in mind.</summary>
+      <function_signatures>class CollectionPromptInputs(object):
+    # No explicit function signatures are present in this class definition</function_signatures>
+      <external_dependencies>No external dependencies or libraries are explicitly imported or used in this file.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt/collections.py</file>
+      <summary>This Python script implements a Slack bot that processes conversation threads using AI-powered language models. The main components and functionalities include:
+
+1. Two prompt classes (SlackThreadPrompt1 and SlackThreadPrompt2) for handling different stages of the conversation processing.
+2. A SlackThreadModel class that orchestrates the conversation flow, including RAG (Retrieval-Augmented Generation) decisions and response generation.
+3. A process_thread function that serves as the main entry point for processing Slack threads.
+
+Key features:
+- Uses langdspy library for prompt management and model execution
+- Implements RAG functionality to retrieve relevant objects based on conversation context
+- Supports multiple types of RAG objects (products, videos, reviews, collections)
+- Formats responses with markdown for better readability
+- Integrates with Slack API for sending messages and managing threads</summary>
+      <function_signatures>1. class SlackThreadPrompt1(langdspy.PromptSignature):
+   - No explicit method signatures
+
+2. class SlackThreadPrompt2(langdspy.PromptSignature):
+   - No explicit method signatures
+
+3. class SlackThreadModel(langdspy.Model):
+   - def invoke(self, input_dict, config) -> str
+
+4. def process_thread(conversation_history: list, user_prompt: str, channel_id: str, thread_ts: str) -> str</function_signatures>
+      <external_dependencies>1. langdspy: Used for prompt management and model execution
+2. os: Used to access environment variables
+3. src.ai_tools.lib_model: Provides access to language models
+4. src.lib.related_object_lib: Handles retrieval of related objects for RAG
+5. src.lib.rag_lib: Initializes RAG functionality
+6. src.util.slack_util: Provides utility functions for Slack interactions</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/rag/load_biz_youtube.py</file>
+      <summary>This Python script defines a system for generating marketing descriptions for collections. It utilizes the langdspy library to create a prompt structure and model for generating these descriptions. The script defines two main classes: PromptGenerateCollectionDescription, which outlines the input and output fields for the prompt, and GenerateDescription, which is a model that uses the prompt to generate the final description.</summary>
+      <function_signatures>PromptGenerateCollectionDescription.__init__(self)
+GenerateDescription.__init__(self)
+GenerateDescription.invoke(self, input, config)</function_signatures>
+      <external_dependencies>1. src.prompt.collections: Imports CollectionPromptInputs as PromptInputs
+2. langdspy: Used extensively for creating prompt structures, input/output fields, and model definition. Key components used include PromptSignature, InputField, OutputField, Model, PromptRunner, and DefaultPromptStrategy.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_collection_description.py</file>
+      <summary>This script is designed to process YouTube video transcripts stored in JSON files and add them to a document database. It uses multiprocessing to handle large volumes of data efficiently. The script walks through a specified directory, loads JSON files containing video metadata and transcriptions, converts them into Document objects, and then adds these documents to a database using the rag_lib module. The script also includes logging functionality and uses a progress bar to display the processing status.</summary>
+      <function_signatures>def load_documents(directory):
+    # Returns a list of Document objects
+
+def process_batch(batch):
+    # No return value
+
+def main(args):
+    # No return value</function_signatures>
+      <external_dependencies>1. sys: Used for system-specific parameters and functions.
+2. datetime: Used for handling date and time operations.
+3. os: Used for interacting with the operating system, particularly for file and directory operations.
+4. argparse: Used for parsing command-line arguments.
+5. json: Used for JSON encoding and decoding.
+6. langchain.docstore.document: Used for creating Document objects.
+7. multiprocessing: Used for parallel processing of data batches.
+8. tqdm: Used for displaying progress bars.
+9. logging: Used for logging messages.
+10. src.common.env_logging: Custom module used for initializing environment logging.
+11. src.lib.rag_lib: Custom module used for adding documents to the database.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/ahrefs_util.py</file>
+      <summary>This Python script provides utility functions for processing and analyzing keyword data from Ahrefs and target keywords. It includes functions to normalize keys, read and process CSV files containing Ahrefs keyword data and target keywords. The script demonstrates data parsing, CSV handling, and basic data transformation techniques.</summary>
+      <function_signatures>def normalize_key(key: str) -> str
+def get_ahrefs_data() -> List[Dict[str, str]]
+def get_target_keywords() -> List[Dict[str, Union[str, int]]]</function_signatures>
+      <external_dependencies>csv: Used for reading CSV files.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/summary_lib.py</file>
+      <summary>This Python script, named summary_lib.py, is designed to generate and manage summaries for different types of pages (collections, products, and blog articles) in an e-commerce platform. It utilizes various external libraries and custom modules to fetch data, generate summaries using AI models, and update database records. The script includes functions for handling different page types, interacting with Shopify and Nosto APIs, and managing database operations. It follows a modular approach with separate functions for each page type and uses asynchronous operations for improved performance.</summary>
+      <function_signatures>get_collection_summary_map(collections) -> dict
+get_collection_summary(page) -> str
+get_product_summary(page) -> str
+get_blog_summary(page) -> str or None
+get_page_summary(page) -> str or None
+get_summary(collection) -> str
+add_summaries_to_collections(session) -> None
+add_summaries_to_products(session) -> None
+add_summaries_to_articles(session) -> None</function_signatures>
+      <external_dependencies>json: Used for JSON data handling
+src.prompt_models.generate_collection_summary: Custom module for generating collection summaries
+src.prompt_models.generate_product_summary: Custom module for generating product summaries
+src.prompt_models.generate_blog_summary: Custom module for generating blog summaries
+src.util.diskcache_util: Custom module for disk caching utilities
+src.ai_tools.lib_model: Custom module for AI model operations
+src.lib.nosto_lib: Custom module for Nosto API interactions
+src.lib.shopify_lib: Custom module for Shopify API interactions
+src.db_models.enums: Custom module for database enumerations
+src.util.db_util: Custom module for database utilities
+src.db_models.page: Custom module for database models (Page, Product, PageType, Collection)</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/screenshot_util.py</file>
+      <summary>This Python script provides functionality to take screenshots of web pages using Selenium WebDriver. It includes a main function 'take_screenshot' that navigates to a given URL, waits for specific elements to load, removes popups, and captures a full-page screenshot. The script uses Chrome in headless mode and handles various scenarios such as waiting for images to load and dealing with dynamic content. It also includes error handling and cleanup procedures.</summary>
+      <function_signatures>def take_screenshot(url: str, filename: str, folder: str = 'screenshots') -> None</function_signatures>
+      <external_dependencies>1. selenium: Used for web automation and taking screenshots.
+   - webdriver: For controlling the browser
+   - webdriver.chrome.service.Service: For managing the ChromeDriver service
+   - webdriver.support.ui.WebDriverWait: For implementing explicit waits
+   - webdriver.common.exceptions.TimeoutException: For handling timeout errors
+   - webdriver.common.by.By: For locating elements
+   - webdriver.support.expected_conditions: For defining expected conditions in waits
+
+2. webdriver_manager.chrome.ChromeDriverManager: For automatic management of ChromeDriver
+
+3. os: Used for file and directory operations
+   - os.path.exists: To check if a directory exists
+   - os.makedirs: To create directories
+   - os.path.join: To create file paths</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/dev_utils/summarize_code.py</file>
+      <summary>This Python script is designed to test the speed of database connections. It imports necessary modules and defines a function 'test_connection_speed' that executes a simple SQL query 1000 times and measures the elapsed time. The script uses SQLAlchemy for database operations and includes imports from custom modules, suggesting it's part of a larger project structure. The main execution block creates a database session and runs the speed test.</summary>
+      <function_signatures>def test_connection_speed(session):
+    # No explicit return value</function_signatures>
+      <external_dependencies>1. time: Used for measuring elapsed time.
+2. sqlalchemy (imported as sqla): Used for database operations, specifically executing SQL queries.
+3. src.util.db_util: Custom module, used to get a database session.
+4. src.db_models.page: Imports Page model, though not used in this script.
+5. src.db_models.page_keyword_rank: Imports PageKeywordRank model, though not used in this script.
+6. src.db_models.keyword: Imports Keyword model, though not used in this script.
+7. src.db_models.enums: Imports enums module, though not used in this script.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/db_playground.py</file>
+      <summary>This script is a command-line interface (CLI) tool for updating SEO titles of Shopify collections. It reads collection data from a CSV file, processes each collection, and allows the user to update collection titles based on recommendations or custom input. The script uses environment variables, interacts with Shopify's API through custom libraries, and implements a simple user interaction flow for confirming changes.</summary>
+      <function_signatures>if __name__ == '__main__':
+    # No explicit function definitions in the main script</function_signatures>
+      <external_dependencies>1. os: Used for file path operations
+2. csv: Used for reading CSV files
+3. dotenv: Used to load environment variables from a .env file
+4. src.lib.shopify_lib: Custom module providing functions for Shopify operations (set_collection_seo_title, set_collection_title, get_collections)
+5. src.util.shopify_util: Custom module providing the get_session function for Shopify API authentication</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/seo_update_cli.py</file>
+      <summary>This script contains comprehensive guidelines for writing SEO-optimized content, crafting effective prompts for Midjourney V6 AI image generation, and producing realistic photos using Midjourney. It includes detailed instructions on title creation, content structuring, keyword optimization, artistic styles, image composition, and prompt refinement. The guidelines cover various aspects such as understanding user intent, leveraging color psychology, creating visual contrast, evoking sensory experiences, and incorporating storytelling elements. The script also provides numerous examples of prompts for different photographic styles and effects in Midjourney.</summary>
+      <function_signatures>This script does not contain any function definitions. It consists entirely of string constants containing guidelines and examples.</function_signatures>
+      <external_dependencies>This script does not explicitly import or use any external libraries or dependencies. It is a collection of text-based guidelines and does not require any additional modules to function.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/materials/_write_article_ai_guidelines.py</file>
+      <summary>This Python script is a comprehensive code analysis tool that uses AI to analyze source code files. It provides functionality to parse command-line arguments, set up logging, read source files, and analyze them using a custom ScriptAnalyzer class. The script supports parallel processing for improved performance and generates both individual file summaries and an overall project summary. Key features include:
+
+1. Command-line interface for specifying input files, directories, or file masks
+2. Support for multiple programming languages
+3. Parallel processing using ProcessPoolExecutor
+4. AI-powered analysis of individual scripts and overall project
+5. Detailed output including function signatures and external dependencies
+6. Colorized console output for improved readability
+7. Error handling and logging capabilities
+8. LLM caching support for improved performance
+
+The script follows object-oriented programming principles, uses type hints, and leverages external libraries for enhanced functionality.</summary>
+      <function_signatures>def setup_logging(enable_logging, disable_cache): None
+def get_source_files(paths, base_dir): List[str]
+def read_source_files(file_paths): Dict[str, Dict[str, str]]
+class AnalyzeScriptPrompt(langdspy.PromptSignature): None
+class OverallSummaryPrompt(langdspy.PromptSignature): None
+class ScriptAnalyzer(langdspy.Model):
+    def invoke(self, input_dict, config): Dict[str, Any]
+def analyze_file(file_path, content, disable_cache): Tuple[str, Optional[str], Optional[str], Optional[str]]
+def main(): None</function_signatures>
+      <external_dependencies>1. sys: Used for system-specific parameters and functions, particularly for exiting the script.
+2. os: Used for file and directory operations, path manipulations.
+3. argparse: Used to parse command-line arguments.
+4. glob: Used for Unix style pathname pattern expansion.
+5. langdspy: Custom library used for prompt signatures and model definitions.
+6. logging: Used for logging messages and errors.
+7. signal: Used for handling interrupt signals.
+8. tqdm: Used to create progress bars for file analysis.
+9. colorama: Used for adding color to console output.
+10. concurrent.futures: Used for parallel processing with ProcessPoolExecutor.
+11. src.common.env_logging: Custom module for environment-based logging setup.
+12. src.ai_tools.lib_model: Custom module for AI model initialization and management.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/product_tag_rank.py</file>
+      <summary>This Python script defines two classes: PromptProductTagRank and ProductTagRank. It uses the langdspy library to create a prompt-based model for ranking products within a collection. The PromptProductTagRank class defines input and output fields for the prompt, while the ProductTagRank class handles the actual invocation and processing of the generated output. The script is designed to take various inputs such as collection title, tag description, product list, and fitness criteria, and return a ranked list of product IDs based on how well they fit the collection.</summary>
+      <function_signatures>class PromptProductTagRank(langdspy.PromptSignature):
+    tag: langdspy.InputField
+    tag_description: langdspy.InputField
+    product_list: langdspy.InputField
+    fitness_criteria: langdspy.InputField
+    ranks: langdspy.OutputField
+
+class ProductTagRank(langdspy.Model):
+    generate_output: langdspy.PromptRunner
+    def invoke(self, input, config) -> List[int]</function_signatures>
+      <external_dependencies>1. langdspy: Used extensively throughout the script for defining prompt structures, input/output fields, and model behavior.
+   - langdspy.PromptSignature: Base class for PromptProductTagRank
+   - langdspy.InputField: Used to define input fields for the prompt
+   - langdspy.OutputField: Used to define the output field for the prompt
+   - langdspy.formatters: Used for formatting input and output fields
+   - langdspy.Model: Base class for ProductTagRank
+   - langdspy.PromptRunner: Used to run the prompt and generate output
+   - langdspy.DefaultPromptStrategy: Used as the prompt strategy for generate_output</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/retry_util.py</file>
+      <summary>This script defines a retry decorator that can be applied to functions to automatically retry them in case of exceptions. The decorator allows customization of the maximum number of retries and delay between retries. It uses Python's decorator pattern with functools.wraps to preserve the original function's metadata. The script demonstrates error handling, function wrapping, and the use of closures.</summary>
+      <function_signatures>1. retry_decorator(max_retries=3, delay=1) -> function
+2. decorator(func) -> function
+3. wrapper(*args, **kwargs) -> Any</function_signatures>
+      <external_dependencies>1. functools: Used for the wraps decorator to preserve function metadata.
+2. time: Used for introducing delays between retries with time.sleep().</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/brainstorm_email_ai.py</file>
+      <summary>This Python script defines a system for brainstorming email ideas using AI. It utilizes the langdspy library to create a prompt structure and model for generating email ideas. The script defines two main classes: BrainstormEmailIdeasPrompt and BrainstormEmailIdeas. The BrainstormEmailIdeasPrompt class sets up the input and output fields for the prompt, including theme, brand voice, and product information. The BrainstormEmailIdeas class uses this prompt to generate email ideas based on the given inputs. The script employs a structured approach to AI-assisted content generation, focusing on creating email marketing materials.</summary>
+      <function_signatures>BrainstormEmailIdeasPrompt.__init__(self)
+BrainstormEmailIdeas.__init__(self)
+BrainstormEmailIdeas.invoke(self, input_dict, config) -> email_ideas</function_signatures>
+      <external_dependencies>langdspy: Used extensively for creating prompt structures and running AI models.
+src.formatters.langdspy_formatters: Imported for custom formatting, specifically the as_db_product formatter.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_blog_summary.py</file>
+      <summary>This Python file contains a single multi-line string constant named EMAIL_WRITING_GUIDELINES. The constant provides detailed guidelines for writing effective marketing emails, covering best practices for subject lines and email content. It includes specific recommendations for improving open rates, engagement, and conversion, along with statistics to support the advice given.</summary>
+      <function_signatures>This file does not contain any function definitions.</function_signatures>
+      <external_dependencies>This file does not import or use any external libraries or dependencies.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/materials/_write_email_ai_guidelines.py</file>
+      <summary>This Python script defines a system for generating blog article summaries using the langdspy library. It consists of two main classes: PromptGenerateBlogSummary and GenerateBlogSummary. The PromptGenerateBlogSummary class defines the input and output fields for the summary generation process, while the GenerateBlogSummary class contains the logic for invoking the summary generation. The script uses a prompt-based approach to generate summaries, likely leveraging a language model or AI system through the langdspy library.</summary>
+      <function_signatures>class PromptGenerateBlogSummary(langdspy.PromptSignature):
+    blog_title: langdspy.InputField
+    blog_description: langdspy.InputField
+    blog_body_html: langdspy.InputField
+    blog_slug: langdspy.InputField
+    summary: langdspy.OutputField
+
+class GenerateBlogSummary(langdspy.Model):
+    generate_summary: langdspy.PromptRunner
+    def invoke(self, input, config) -> str</function_signatures>
+      <external_dependencies>langdspy: Used extensively throughout the script for defining prompt structures, input/output fields, and running the summary generation process. It appears to be a custom library for language model interactions and prompt engineering.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/graphql_util.py</file>
+      <summary>This Python script defines a utility function for making GraphQL queries. It uses the requests library to send POST requests to a GraphQL endpoint. The script handles headers, authentication, and error handling for GraphQL queries. It follows common Python conventions and uses a functional programming style.</summary>
+      <function_signatures>def graphql_query(uri: str, query: str, variables: dict = None, headers: dict = None, auth: tuple = None) -> dict</function_signatures>
+      <external_dependencies>1. os: Imported but not used in the provided code snippet.
+2. requests: Used to send HTTP POST requests to the GraphQL endpoint. It handles the actual network communication and response parsing.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/markdown_fixes_blog.py</file>
+      <summary>This Python script is designed to generate image prompts for a collection using AI. It interacts with a database to retrieve brand voice information, uses Slack for communication, and leverages AI models for generating prompts. The script follows object-oriented programming principles and uses SQLAlchemy for database operations. It includes error handling and logging functionality.</summary>
+      <function_signatures>def generate_image_prompts(channel_id, session, thread_ts, collection_id):
+    # Returns: str</function_signatures>
+      <external_dependencies>1. os: Used for operating system dependent functionality
+2. argparse: Used for parsing command-line arguments
+3. json: Used for JSON data handling
+4. langdspy: Custom library, usage not specified in the given code
+5. logging: Used for logging messages and warnings
+6. slack_util: Custom module for Slack communication
+7. SQLAlchemy: ORM library for database operations (implied by the use of session and database models)
+8. image_prompt_ai: Custom AI module for generating image prompts
+9. lib_model: Custom module for AI model management</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/rag/load_collections.py</file>
+      <summary>This script analyzes and fixes markdown-related issues in Shopify blog articles. It uses BeautifulSoup to parse HTML content and applies various fixes for improperly converted markdown elements. The script iterates through Shopify articles, detects and corrects issues such as unconverted headers, images, links, and attributes, then saves the modified content back to Shopify. It also generates diffs to show changes made to each article.</summary>
+      <function_signatures>def detect_markdown_problems(soup):
+    # No explicit return value
+
+if __name__ == '__main__':
+    # No explicit return value</function_signatures>
+      <external_dependencies>1. shopify: Used for interacting with Shopify's API to retrieve and update articles.
+2. bs4 (BeautifulSoup): Used for parsing and manipulating HTML content.
+3. re: Used for regular expression operations to detect markdown patterns.
+4. src.util.shopify_util: Custom module for Shopify-related utilities.
+5. src.util.db_util: Custom module for database-related utilities.
+6. src.util.diff_util: Custom module for generating diffs between old and new HTML content.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/images.py</file>
+      <summary>This script is designed to load collection data from a database and add it to a RAG (Retrieval-Augmented Generation) system. It performs the following main tasks:
+1. Initializes environment logging
+2. Connects to a database and fetches collection pages
+3. Processes the collection data into Document objects
+4. Initializes and adds the documents to a RAG system
+5. Provides a main function to execute the loading process
+The script uses SQLAlchemy for database operations, multiprocessing for potential parallelization, and custom utility functions for database sessions and RAG operations.</summary>
+      <function_signatures>def load_collections() -> List[Document]
+def main(args: argparse.Namespace) -> None</function_signatures>
+      <external_dependencies>1. sys: Used for system-specific parameters and functions
+2. datetime: Imported but not used in the provided code
+3. src.common.env_logging: Custom module for environment logging
+4. src.util.db_util: Custom module for database utility functions
+5. src.db_models: Custom module for database models and enums
+6. sqlalchemy.orm: Used for database ORM operations
+7. multiprocessing: Imported but not used in the provided code
+8. tqdm: Imported but not used in the provided code
+9. langchain.docstore.document: Used for creating Document objects
+10. time: Used for timestamp generation
+11. argparse: Used for parsing command-line arguments
+12. logging: Used for logging information and debug messages
+13. src.lib.rag_lib: Custom module for RAG system operations</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/diskcache_util.py</file>
+      <summary>This Python script defines a disk-based caching utility using the diskcache library. It implements a decorator function 'diskcache_decorator' that can be used to cache function results on disk. The script sets up logging and initializes a cache directory. The decorator function creates a unique key based on the function name, arguments, and version, checks if the result is in the cache, and either returns the cached result or computes and caches the new result.</summary>
+      <function_signatures>def diskcache_decorator(version=1):
+    return decorator
+
+def decorator(func):
+    return wrapper
+
+def wrapper(*args, **kwargs):
+    return result</function_signatures>
+      <external_dependencies>1. diskcache: Used for disk-based caching (imported as 'dc')
+2. functools.wraps: Used to preserve function metadata in the decorator
+3. logging: Used for logging cache hits and misses</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/generate_summaries.py</file>
+      <summary>This Python script defines a function to read and process collection summaries from a CSV file. It uses the csv module to read the file and returns a dictionary mapping collection IDs to their summaries. The script follows a functional programming style and uses context managers for file handling.</summary>
+      <function_signatures>def get_collection_summaries() -> dict</function_signatures>
+      <external_dependencies>csv: Used for reading CSV files efficiently.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/nosto_util.py</file>
+      <summary>This Python script provides utility functions for interacting with the Nosto GraphQL API. It includes functions to query products for a given collection, get the lowest-priced product in a collection, and retrieve product rankings within a collection. The script uses environment variables for authentication and implements pagination for large result sets.</summary>
+      <function_signatures>def graphql_query(query, variables=None)
+def get_products_for_collection(collection_id)
+def get_lowest_priced_product_for_collection(collection_id)
+def get_product_rankings_for_collection(collection_id)</function_signatures>
+      <external_dependencies>os: Used for accessing environment variables
+dotenv: Used to load environment variables from a .env file
+src.util.graphql_util: Custom module used for making GraphQL queries</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/summary_util.py</file>
+      <summary>This script generates missing summaries for blog pages stored in a database. It uses multi-threading to process pages concurrently, improving efficiency. The script connects to a database, queries for blog pages without summaries, generates summaries using a custom library, and updates the database with the new summaries. It also utilizes various utility functions and external libraries for tasks such as database operations, Shopify integration, and progress tracking.</summary>
+      <function_signatures>def process_page(session, page): None
+def generate_missing_summaries(session): None</function_signatures>
+      <external_dependencies>1. src.lib.shopify_lib: Used for Shopify-related functionality
+2. src.lib.summary_lib: Used for generating page summaries
+3. src.lib.nosto_lib: Likely used for Nosto integration (not directly used in the provided code)
+4. src.util.traffic_map_util: Utility for traffic mapping (not directly used in the provided code)
+5. src.util.shopify_util: Used for Shopify utility functions
+6. src.prompt.seo: Imports global_keywords and BestPractices (not directly used in the provided code)
+7. src.ai_tools.lib_model: Used for initializing an AI model
+8. dotenv: Used for loading environment variables
+9. concurrent.futures: Used for multi-threading
+10. tqdm: Used for displaying progress bars
+11. src.util.diskcache_util: Utility for disk caching (not directly used in the provided code)
+12. src.util.db_util: Used for database operations
+13. src.db_models.enums: Used for enum definitions
+14. src.db_models.page: Imports the Page model
+15. langdspy: Imported but not directly used in the provided code</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/process_collection_keywords.py</file>
+      <summary>This script processes collection keywords data, integrating information from various sources such as Shopify collections, traffic data, product data, and collection summaries. It prepares a dataset for machine learning by creating feature vectors (X) and target labels (y) from collection data and associated keywords. The script then splits the data into training and test sets, and saves these datasets to a JSON file for further use.</summary>
+      <function_signatures>if __name__ == '__main__':
+    # No explicit function definitions in the main script</function_signatures>
+      <external_dependencies>1. csv: Used for reading CSV files.
+2. json: Used for writing data to JSON format.
+3. sklearn.model_selection.train_test_split: Used for splitting data into training and test sets.
+4. src.lib.shopify_lib: Used to get collections data.
+5. src.lib.nosto_lib: Used to get products for collections.
+6. src.util.traffic_map_util: Used to get traffic map data.
+7. src.lib.keyword_lib: Used to get keywords.
+8. src.util.summary_util: Used to get collection summaries.
+9. src.prompt.seo.BestPractices: Imported but not used in the provided code snippet.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/sqlite_util.py</file>
+      <summary>This Python script provides utility functions for working with SQLite databases. It includes functions for creating database connections, creating tables, inserting keywords, and checking for processed keywords and redirected collections. The script follows a modular approach, with each function handling a specific database operation. It uses error handling to manage potential SQLite errors and implements URL normalization by removing the base URL from source and redirect URLs.</summary>
+      <function_signatures>def create_connection(db_file) -> sqlite3.Connection
+def create_table(conn: sqlite3.Connection, create_table_sql: str) -> None
+def insert_keyword(conn: sqlite3.Connection, keyword: str, source_url: str = None, redirect_url: str = None) -> int
+def check_keyword_processed(conn: sqlite3.Connection, keyword: str) -> bool
+def check_collection_redirected(conn: sqlite3.Connection, collection_slug: str) -> bool</function_signatures>
+      <external_dependencies>sqlite3: Used for creating and managing SQLite database connections, executing SQL queries, and handling database operations.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/product_lib.py</file>
+      <summary>This Python script defines a function to retrieve product information from a database. It uses SQLAlchemy ORM for database operations and handles both numeric IDs and string slugs for product lookup. The script implements error logging and eager loading of related data (Product.page) for optimization.</summary>
+      <function_signatures>def get_product(session, product_id_or_slug):
+    return Product or None</function_signatures>
+      <external_dependencies>1. logging: Used for error logging.
+2. sqlalchemy.orm: Used for ORM operations, specifically joinedload for eager loading.
+3. src.db_models.product: Imports the Product model.
+4. src.db_models.page: Imports the Page model.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/redis_util.py</file>
+      <summary>This Python script provides a utility function for establishing a connection to a Redis database. It uses environment variables to configure the connection, including support for SSL. The script follows common Python conventions and uses the logging module for debugging.</summary>
+      <function_signatures>def get_redis_connection() -> redis.Redis</function_signatures>
+      <external_dependencies>1. redis: Used to create and return a Redis connection object.
+2. os: Used to access environment variables for configuration.
+3. urllib.parse: Used to parse the Redis URL from the environment variable.
+4. logging: Used to set up logging for debugging purposes.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/tag_lib.py</file>
+      <summary>This Python script defines classes and models for evaluating the fitness of product tags. It uses the langdspy library to create prompt signatures and models for generating fitness criteria and evaluating product-tag fitness. The script contains two main components: TagFitnessCriteria for generating criteria, and ProductTagFitness for evaluating the fitness of a product for a given tag.</summary>
+      <function_signatures>1. class TagFitnessCriteriaSig(langdspy.PromptSignature)
+2. class TagFitnessCriteriaModel(langdspy.Model):
+   def invoke(self, input, config)
+3. class PromptGenerateProductTagFitness(langdspy.PromptSignature)
+4. class ProductTagFitness(langdspy.Model):
+   def invoke(self, input, config)</function_signatures>
+      <external_dependencies>1. langdspy: Used extensively throughout the script for creating prompt signatures, models, and running prompts. It provides the core functionality for the tag fitness evaluation system.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/materials/_write_copy_guidelines.py</file>
+      <summary>This Python script contains guidelines for writing copy for e-commerce product collections. It includes several multi-line string variables that provide detailed instructions on various aspects of content creation:
+
+1. FAQ_GUIDELINES: Instructions for creating effective FAQ sections, including how to choose and write FAQs for maximum sales impact.
+2. SEO_GUIDELINES: Guidelines for targeting keywords in e-commerce product collection copy, focusing on user intent, natural keyword usage, and content optimization.
+3. ELEMENT_GUIDELINES: Specific guidelines for optimizing various on-page elements such as page title, SEO meta title, SEO meta description, H1 title, and tagline/subtitle.
+4. COLLECTION_H1_GUIDELINES: Instructions for creating effective H1 titles for collection pages.
+5. PAGE_TITLE_GUIDELINES: Guidelines for crafting compelling page titles.
+6. COLLECTION_TAGLINE_GUIDELINES: Tips for writing concise and engaging collection taglines.
+7. BRAND_VOICE_TEMPLATE: A comprehensive template for defining a brand's voice, including sections on collection overview, audience profile, tone and style, language and vocabulary, content structure, and examples/quotes.
+
+The script serves as a reference guide for content creators and marketers to ensure consistency and effectiveness in their e-commerce copy.</summary>
+      <function_signatures>This script does not contain any function definitions. It consists solely of multi-line string variables containing guidelines and templates.</function_signatures>
+      <external_dependencies>This script does not import or use any external libraries or dependencies. It is a self-contained set of guidelines stored as string variables.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_tools/lib_model.py</file>
+      <summary>This script, tag_lib.py, is a Python module for managing product tags in an e-commerce system, likely using Shopify. It provides functionality for evaluating product tag fitness, ranking products for tags, and managing tag assignments. The script uses concurrent processing for efficiency and integrates with AI models for tag fitness evaluation and ranking. Key features include:
+
+1. Evaluating product tag fitness using AI models
+2. Ranking products for specific tags
+3. Classifying and tagging products based on queries
+4. Adding tags to products in bulk
+5. Deleting tags from products
+6. Using concurrent processing for improved performance
+7. Integrating with database models and Shopify utilities
+
+The script follows object-oriented and functional programming paradigms, uses external AI models, and interacts with a database (likely SQL-based) for product and page information.</summary>
+      <function_signatures>1. evaluate_product_tag_fitness(product_page, tag, tag_description, criteria, config, results) -> None
+2. evaluate_ranks_for_chunk(product_pages, tag_name, tag_description, criteria, config) -> List[str]
+3. classify_products_for_tag(session, tag, query) -> str
+4. merchandise_tag(session, tag, query) -> str
+5. delete_tag(tag) -> None</function_signatures>
+      <external_dependencies>1. concurrent.futures: Used for parallel processing of tag evaluations
+2. src.util.shopify_util: Shopify utility functions
+3. tqdm: Progress bar for tracking evaluation progress
+4. src.lib.shopify_lib: Shopify-related functions for tag management
+5. src.prompt_models.product_tag_fitness: AI model for product tag fitness evaluation
+6. src.prompt_models.product_tag_rank: AI model for ranking products by tag relevance
+7. src.ai_tools.lib_model: AI model management
+8. src.db_models.page: Database model for pages
+9. src.db_models.product: Database model for products
+10. src.db_models.enums: Enums for database models
+11. src.util.db_util: Database utility functions
+12. re: Regular expression library
+13. collections.defaultdict: Used for grouping results
+14. sqlalchemy.orm: SQL Alchemy ORM for database operations</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/product_tag_fitness.py</file>
+      <summary>This script defines a module for managing language models, embeddings, and vector databases. It includes functions for initializing various components, enabling/disabling caching, and retrieving different types of language models. The script uses environment variables for configuration and supports both OpenAI and Anthropic models. It also includes functionality for database initialization and management using PGVector and SQLRecordManager.</summary>
+      <function_signatures>enable_llm_cache() -> None
+disable_llm_cache() -> None
+init() -> None
+get_superfast_llm() -> ChatAnthropic or ChatOpenAI
+get_fast_llm() -> ChatAnthropic or ChatOpenAI
+get_smart_llm() -> ChatAnthropic or ChatOpenAI
+get_high_temp_smart_llm() -> ChatAnthropic or ChatOpenAI
+get_embedding_fn() -> OpenAIEmbeddings
+initialize_db(db_connection_string: str, record_manager_connection_string: str, db_collection_name: str = "docs") -> PGVector
+get_new_vectordb() -> None
+get_record_manager() -> SQLRecordManager
+get_vectordb() -> PGVector
+get_llm() -> ChatAnthropic or ChatOpenAI
+get_json_llm() -> ChatOpenAI</function_signatures>
+      <external_dependencies>logging: Used for logging messages
+os: Used for accessing environment variables
+langchain_community.llms.OpenAI: OpenAI language model
+langchain_openai.ChatOpenAI, OpenAIEmbeddings: OpenAI chat model and embeddings
+langchain_anthropic.ChatAnthropic: Anthropic chat model
+langchain.indexes.SQLRecordManager, index: For managing records
+langchain_community.cache.SQLiteCache: SQLite caching
+langchain_community.vectorstores.pgvector.PGVector: Vector database
+langchain.globals.set_llm_cache: For setting LLM cache
+langchain_community.cache.RedisCache: Redis caching
+redis.Redis: Redis client
+httpx: HTTP client library
+src.util.redis_util.get_redis_connection: Custom Redis connection utility</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/article.py</file>
+      <summary>This Python script defines an SQLAlchemy ORM model for an Article class. It represents a database table named 'article' with various columns including id, page_id, title, article_type, products, author, related_articles, related_categories, and og_image_url. The class also establishes a relationship with a Page model and includes a property method for accessing the article type. The script follows SQLAlchemy conventions for defining database models and uses JSON columns for storing complex data.</summary>
+      <function_signatures>Article.type() -> String</function_signatures>
+      <external_dependencies>sqlalchemy: Used for defining database models and relationships. Imports Column, Integer, ForeignKey, String, JSON, and BigInteger for defining table columns.
+sqlalchemy.orm: Imports relationship for defining ORM relationships between models.
+src.db_models.base: Imports Base class, likely for SQLAlchemy declarative base.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/keyword_lib.py</file>
+      <summary>This script populates a vector store with page data from a database and performs a similarity search. It initializes necessary modules, establishes database and Shopify sessions, creates a PGVectorStore instance, inserts pages with summaries into the vector store, and then tests the vector store by finding the closest blog posts to the query "gifts for mom". The script demonstrates the use of database operations, external APIs (Shopify), and vector-based similarity search.</summary>
+      <function_signatures>main():
+    No explicit function definitions in the script. The main logic is executed in the __main__ block.</function_signatures>
+      <external_dependencies>1. src.util.db_util: Used for database session management.
+2. src.util.shopify_util: Used to establish a Shopify session.
+3. src.ai_tools.lib_model: Used for initialization (purpose not clear from the given code).
+4. src.lib.pgvector_lib: Provides PGVectorStore class for vector-based operations.
+5. src.db_models.enums: Provides enumeration types, specifically PageType.
+6. src.db_models.page: Provides the Page model for database operations.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/fill_page_vectorstore.py</file>
+      <summary>This script, keyword_lib.py, is a Python module for managing keyword-related operations in a database. It includes functions for retrieving keywords, creating a vector store for keywords, finding similar keywords, and updating keyword data from external sources. The script uses SQLAlchemy for database operations and integrates with external utilities for data retrieval. It employs bulk operations for efficient database updates and includes error handling for missing data.</summary>
+      <function_signatures>def get_keywords(session)
+def create_kw_vector_store(session)
+def get_closest_keywords_for_query(session, query, k=25)
+def update_keywords(session)</function_signatures>
+      <external_dependencies>1. src.db_models.keyword: Imports Keyword model
+2. src.util.ahrefs_util: Used for retrieving Ahrefs data and target keywords
+3. src.lib.pgvector_lib: Used for vector operations on keywords
+4. datetime: Used for timestamp operations
+5. sqlalchemy: Used for database operations
+6. src.db_models.page: Imports Page model
+7. src.db_models.page_keyword_rank: Imports PageKeywordRank model
+8. src.util.db_util: Used for database session management</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/slack_util.py</file>
+      <summary>This Python script provides utility functions for interacting with the Slack API. It includes functionality for sending messages, downloading files, retrieving conversation history, sending snippets, and sending PNG images. The script uses environment variables for authentication and implements error handling and logging throughout. It follows a modular approach with separate functions for different Slack API operations, making it easy to integrate into larger applications.</summary>
+      <function_signatures>def check_response(response)
+def send_message(channel_id, message, thread_ts=None)
+def download_file_from_slack(file_id)
+def download_file_from_slack_by_url(file_url)
+def get_conversation_history(channel_id, thread_ts)
+def download_snippet_content(url)
+def send_snippet(channel_id, content, thread_ts=None)
+def get_parent_message_text(channel_id, thread_ts)
+def send_png(channel_id, png_bytes, thread_ts=None)</function_signatures>
+      <external_dependencies>logging: Used for logging messages and errors throughout the script.
+os: Used to access environment variables, specifically SLACK_BOT_TOKEN.
+requests: Used for making HTTP requests to the Slack API.
+io.BytesIO: Used for handling binary data, particularly when downloading and sending files.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/product.py</file>
+      <summary>This script defines a SQLAlchemy ORM model for a Product class. It represents a database table named 'product' with various attributes such as id, title, description, status, and pricing information. The model uses relationships to connect with Page and Review models. It utilizes different column types including String, JSON, and BigInteger to store various product details. The script follows SQLAlchemy conventions for defining database models and relationships.</summary>
+      <function_signatures>No explicit function signatures are present in this script. The Product class is defined with its attributes as class variables.</function_signatures>
+      <external_dependencies>1. sqlalchemy: Used for defining database models and relationships. Imports include Column, Integer, ForeignKey, String, JSON, BigInteger, and relationship.
+2. src.db_models.base: Imports the Base class, likely used as a base for SQLAlchemy models.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/collection_brand_voice.py</file>
+      <summary>This Python script defines a SQLAlchemy ORM model for a 'collection_brand_voice' table. It creates a class called CollectionBrandVoice that inherits from a Base class. The model has three columns: id (primary key), collection_id (foreign key), and brand_voice. It uses SQLAlchemy's declarative syntax and relationship features to define the table structure and relationships.</summary>
+      <function_signatures>None</function_signatures>
+      <external_dependencies>1. sqlalchemy: Used for ORM modeling (Column, BigInteger, String, Text, ForeignKey, relationship)
+2. src.db_models.base: Imports Base and id_seq, likely custom implementations for SQLAlchemy base model and ID sequence</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/fix_bloglinks.py</file>
+      <summary>This Python script defines a SQLAlchemy ORM model for a Review entity. It creates a table named 'review' with various columns representing different attributes of a review, such as id, yotpo_id, product_id, title, content, score, votes, sentiment, reviewer name, and source. The Review model has a relationship with the Product model, allowing for easy navigation between reviews and their associated products. The script uses SQLAlchemy's declarative base system and imports necessary data types and relationship functions from SQLAlchemy.</summary>
+      <function_signatures>No explicit function signatures are present in this script.</function_signatures>
+      <external_dependencies>1. sqlalchemy: Used for defining the database model and relationships. Imports Column, BigInteger, String, Text, ForeignKey, Integer, and Boolean for defining table columns, and relationship for establishing ORM relationships.
+2. src.db_models.base: Imports Base and id_seq, likely for setting up the SQLAlchemy declarative base and a sequence for ID generation.
+3. src.db_models.product: Imports Product, used in the relationship definition with the Review model.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/writer.py</file>
+      <summary>This Python script is a comprehensive tool for content creation, particularly focused on blog writing and email composition. It includes functions for brainstorming topics, writing blog posts, and crafting emails. The script utilizes various AI models and libraries for natural language processing tasks. It interacts with a database, handles file operations, and integrates with Slack for communication. The code follows object-oriented programming principles and employs external APIs for enhanced functionality.</summary>
+      <function_signatures>def brainstorm_topics(query):
+def write_text(**kwargs):
+def write_blog(channel_id, thread_ts, **kwargs):
+def write_email(channel_id, session, collection_id, email_text, thread_ts):</function_signatures>
+      <external_dependencies>- os: For operating system related operations
+- argparse: For parsing command-line arguments
+- json: For JSON data handling
+- langdspy: Custom library, likely for language processing
+- logging: For logging functionality
+- src.lib.related_object_lib: Custom module for related object operations
+- src.formatters.debug_formatters: Custom module for formatting debug output
+- src.ai_models: Custom AI models (brainstorm_blogs_ai, write_text_ai, write_email_ai)
+- src.ai_tools.lib_model: Custom module for AI model management
+- src.lib.slack_file_lib: Custom module for Slack file operations
+- src.util.slack_util: Custom module for Slack utility functions
+- src.db_models: Custom database models (CollectionBrandVoice, Base, Page, Product, Collection, PageKeywordRank, Keyword)
+- src.lib.nosto_lib: Custom module for Nosto integration</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/review.py</file>
+      <summary>This script is designed to fix broken links in blog articles on a Shopify-powered website (specifically for Cratejoy). It performs the following main tasks:
+1. Reads a CSV file containing information about bad links
+2. Checks the status of target URLs
+3. Updates links in articles based on their current status (301 redirects, 404 not found)
+4. Uses a vector store to find similar pages for 404 errors
+5. Allows user interaction to confirm link changes
+The script uses various utility functions and external libraries to handle Shopify interactions, database operations, and web scraping.</summary>
+      <function_signatures>1. current_status_code(target: str) -> int
+2. swap_link(source: str, article: shopify.Article, old_link: str, new_link: str) -> None
+3. fix_links(session: sqlalchemy.orm.Session) -> None</function_signatures>
+      <external_dependencies>1. csv: Used for reading CSV files
+2. time: Imported but not used in the provided code
+3. requests: Used for making HTTP requests to check link status
+4. shopify: Used for interacting with Shopify API
+5. bs4 (BeautifulSoup): Used for HTML parsing and manipulation
+6. src.util.shopify_util: Custom module for Shopify utility functions
+7. src.util.db_util: Custom module for database utility functions
+8. src.db_models.page: Custom module for Page database model
+9. src.util.diskcache_util: Custom module for disk caching
+10. src.lib.pgvector_lib: Custom module for vector store operations
+11. src.lib.page_lib: Custom module for page-related operations
+12. src.db_models.enums: Custom module for enumerations
+13. src.util.diff_util: Custom module for generating diffs</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/related_object_lib.py</file>
+      <summary>This Python script, named 'related_object_lib.py', provides functions for retrieving related objects such as videos, products, reviews, and collections based on given queries or database objects. It uses RAG (Retrieval-Augmented Generation) techniques and similarity searches to find relevant items. The script includes logging for debugging and utilizes external libraries for data retrieval and processing.</summary>
+      <function_signatures>def get_related_biz_videos(query, db_products=[], db_collection=None, rag_products=[], k=5)
+def get_related_videos(query, db_products=[], db_collection=None, rag_products=[], k=5)
+def get_related_products(query, k=10)
+def get_related_reviews(db_collection, db_products, num_reviews)
+def get_related_collections(query, k=5)</function_signatures>
+      <external_dependencies>logging: Used for logging debug and info messages throughout the script.
+src.util.retry_util: Imports retry_decorator, although it's commented out in the current version.
+src.util.nosto_util: Imported but not directly used in the active code.
+src.lib.nosto_lib: Imported as nosto_lib, but not directly used in the active code.
+src.util.diskcache_util: Imported but not directly used in the active code.
+src.lib.rag_lib: Used for accessing document databases (docdb) for various data types.
+src.formatters.rag_formatters: Used for formatting database collections and products.
+src.formatters.debug_formatters: Used for formatting debug output for products and collections.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/formatters/langdspy_formatters.py</file>
+      <summary>This Python script defines several formatting functions for different types of data objects. These functions are designed to convert complex data structures into formatted strings for easier readability and display. The script focuses on formatting various types of e-commerce and content-related data, including videos, products, reviews, collections, and keywords. Each function takes a specific data object and optional keyword arguments, then returns a formatted string representation of that object. The script uses a consistent style of presenting data with labeled fields and multiline formatting.</summary>
+      <function_signatures>def as_rag_video_string(video, kwargs) -> str
+def as_rag_product(product, kwargs) -> str
+def as_db_product(product, kwargs) -> str
+def as_db_review(review, kwargs) -> str
+def as_yotpo_review(review, kwargs) -> str
+def as_collection(collection, kwargs) -> str
+def as_keyword(keyword, kwargs) -> str</function_signatures>
+      <external_dependencies>langdspy: This external library is imported and used throughout the script. The formatters module from langdspy is specifically used to apply multiline formatting to the output strings.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/formatters/debug_formatters.py</file>
+      <summary>This Python script contains two functions for formatting product and video information with associated scores. The file uses a consistent formatting style for both functions, creating multi-line string outputs with relevant details. The script appears to be part of a larger system, possibly related to e-commerce or content management, that deals with product and video data retrieval and presentation.</summary>
+      <function_signatures>def format_rag_product_with_score(product, score) -> str
+def format_rag_video_with_score(video, score) -> str</function_signatures>
+      <external_dependencies>No external libraries or dependencies are explicitly imported or used in this file. The functions rely on input objects (product and video) that are expected to have specific metadata structures, suggesting these objects may be defined in other parts of the project or come from an external library not directly visible in this script.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/slack_file_lib.py</file>
+      <summary>This Python script provides functionality for interacting with Amazon S3 storage. It includes functions for uploading files to S3, searching for files by name, and downloading files from S3. The script uses the boto3 library to interact with AWS services and implements logging for debugging purposes. It also uses environment variables for AWS credentials, following security best practices.</summary>
+      <function_signatures>def upload_file_to_s3(file_obj, file_name) -> str or None
+def search_files_by_name(query) -> list
+def download_file_from_s3(file_path) -> str or None</function_signatures>
+      <external_dependencies>1. boto3: Used for AWS S3 operations (client creation, file upload, listing objects, file download)
+2. logging: Used for logging debug information
+3. os: Used to access environment variables for AWS credentials
+4. requests: Imported but not used in the provided code
+5. io.BytesIO: Imported but not used in the provided code</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/product_collection_fitness.py</file>
+      <summary>This Python script defines two classes for generating a collection title using the langdspy library. The PromptGenerateCollectionTitle class defines the input and output fields for the prompt, while the GenerateCollectionTitle class handles the actual generation of the title. The script uses a prompt-based approach to generate SEO-friendly titles based on a collection description and slug.</summary>
+      <function_signatures>PromptGenerateCollectionTitle.__init__(self)
+GenerateCollectionTitle.__init__(self)
+GenerateCollectionTitle.invoke(self, input, config) -> str</function_signatures>
+      <external_dependencies>langdspy: Used for creating prompt signatures, input/output fields, and running prompts. The script imports and utilizes various classes and methods from this library, including PromptSignature, InputField, OutputField, Model, PromptRunner, and DefaultPromptStrategy.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_collection_title.py</file>
+      <summary>This Python script defines classes and models for evaluating the fitness of products in collections, particularly for e-commerce applications. It uses the langdspy library to create prompt signatures and models for generating fitness criteria and evaluating product-collection fitness. The script focuses on SEO-appropriate keywords, collection summaries, and product summaries to determine fitness scores. It employs a Likert scale for fitness evaluation and uses example-based learning for generating fitness criteria.</summary>
+      <function_signatures>- class FitnessCriteriaSig(langdspy.PromptSignature):
+    - No explicit function signatures defined
+- class FitnessCriteriaModel(langdspy.Model):
+    - def invoke(self, input, config) -> str
+- class PromptGenerateProductCollectionFitness(langdspy.PromptSignature):
+    - No explicit function signatures defined
+- class ProductCollectionFitness(langdspy.Model):
+    - def invoke(self, input, config) -> str</function_signatures>
+      <external_dependencies>- typing: Used for type hinting (List, Dict)
+- src.prompt_signatures: Imports sigs (usage not shown in the provided code)
+- src.prompt.seo: Imports BestPractices (usage not shown in the provided code)
+- src.prompt.collections: Imports CollectionPromptInputs as PromptInputs (usage not shown in the provided code)
+- src.lib.keyword_lib: Imported but not used in the provided code
+- langdspy: Extensively used for creating prompt signatures, models, and handling input/output fields</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/rag_lib.py</file>
+      <summary>This Python script is responsible for generating email color palettes based on email text and a collection's brand voice. It uses AI models to generate color palettes and convert them to JSON format. The script interacts with a database to retrieve brand voice information, uses Slack for communication, and employs logging for error tracking. It also includes functionality to plot the generated color palettes as a PNG image.</summary>
+      <function_signatures>def generate_email_colors(channel_id: str, session: object, collection_id: int, email_text: str, thread_ts: str) -> str</function_signatures>
+      <external_dependencies>1. logging: Used for logging messages and errors.
+2. src.ai_models.email_colors_ai: Provides AI models for generating email colors and converting to JSON.
+3. src.ai_tools.lib_model: Used to get the smart language model.
+4. src.db_models.collection_brand_voice: Provides the CollectionBrandVoice database model.
+5. src.util.slack_util: Used for sending messages and images to Slack.
+6. src.lib.plot_colors: Used for plotting color palettes as PNG images.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/email_colors.py</file>
+      <summary>This Python script defines a library for managing document storage and retrieval using vector embeddings. It initializes and manages connections to a PostgreSQL database with vector capabilities, handles document embedding, and provides functions for adding documents to the database. The script uses environment variables for configuration and implements retry logic for error handling. It also includes input validation for document metadata.</summary>
+      <function_signatures>def get_embedding_fn() -> OpenAIEmbeddings
+def init(collection_name: str) -> None
+def get_docdb(collection_name: str) -> PGVectorReconnect
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+def add_docs_with_retry(collection_name: str, docs: List, source: str, doc_type: str) -> Any
+def add_docs(collection_name: str, docs: List, source: str, doc_type: str) -> Any</function_signatures>
+      <external_dependencies>1. os: Used for accessing environment variables.
+2. logging: Used for logging information and errors.
+3. langchain_openai.OpenAIEmbeddings: Used for creating embeddings using OpenAI's API.
+4. src.lib.pgvector_reconnect.PGVectorReconnect: Custom module for handling PostgreSQL vector database connections.
+5. langchain.indexes.SQLRecordManager: Used for managing SQL records.
+6. langchain.indexes.index: Imported but not used in the provided code.
+7. tenacity: Used for implementing retry logic with decorators.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/page_lib.py</file>
+      <summary>This Python script, page_lib.py, provides functionality for managing and querying pages in a database. It includes functions for creating a vector store of pages, finding pages based on queries, retrieving pages by URL, and adding traffic data to pages. The script uses PostgreSQL with pgvector for efficient similarity searches and follows object-relational mapping (ORM) conventions.</summary>
+      <function_signatures>def create_page_vector_store(session)
+def get_page_type_from_path(path)
+def find_pages_for_query(session, query, page_type=enums.PageType.BLOG.value, k=25)
+def get_page(session, url)
+def add_traffic_to_pages(session)</function_signatures>
+      <external_dependencies>src.lib.pgvector_lib: Used for vector storage and similarity searches
+src.db_models.enums: Provides enumeration for page types
+src.db_models.page: Imports the Page model
+src.util.traffic_map_util: Used for retrieving traffic data
+src.util.db_util: Imported for database session management (only in __main__ block)</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/delete_old_collections.py</file>
+      <summary>This Python script processes keyword collection data from a CSV file. It groups collections by keyword, displays summary information for each keyword including ranking URL and volume, and shows up to 5 matching collections. The script then prompts the user to select a collection or skip to the next keyword. It utilizes file I/O, CSV parsing, data structures like defaultdict, and user interaction via command-line input.</summary>
+      <function_signatures>No explicit function definitions in this script.</function_signatures>
+      <external_dependencies>1. csv: Used for reading and parsing CSV data.
+2. collections.defaultdict: Used to create a dictionary with default values for grouping collections by keyword.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/process_kw_collection_data.py</file>
+      <summary>This script is designed to manage and optimize collections in an e-commerce system, likely for Cratejoy. It performs the following main tasks:
+1. Initializes various libraries and loads environment variables
+2. Retrieves sitemap, collections, traffic data, and product information
+3. Creates a vector store for collections using PGVectorStore
+4. Processes collections, focusing on those of type 'Store'
+5. For collections with low traffic (<=100) and no products:
+   - Finds the closest related collection using vector similarity
+   - Creates a redirect from the old collection to the new one
+   - Attempts to delete the old collection
+6. Counts and reports on the number of redirected collections
+
+The script uses various custom libraries for interacting with Shopify, managing sitemaps, and handling collections. It also employs AI tools for generating summaries and keywords, though these features are not actively used in the main logic of this script.</summary>
+      <function_signatures>main():
+    # No explicit function definitions in the script
+    # The main logic is contained within the if __name__ == '__main__': block</function_signatures>
+      <external_dependencies>1. csv: Used for potential CSV operations (not explicitly used in the main logic)
+2. dotenv: Used to load environment variables from a .env file
+3. collections.Counter: Used for counting redirected collections
+4. langdspy: Imported but not explicitly used in the script
+5. Custom libraries:
+   - src.lib.sitemap_lib
+   - src.lib.nosto_lib
+   - src.lib.summary_lib
+   - src.util.shopify_util
+   - src.lib.shopify_lib
+   - src.util.traffic_map_util
+   - src.lib.keyword_lib
+   - src.prompt_models
+   - src.prompt.seo
+   - src.ai_tools
+   - src.prompt_signatures
+   - src.lib.pgvector_lib
+6. PGVectorStore: Used for vector similarity searches on collections</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/email_colors_ai.py</file>
+      <summary>This Python script defines a system for generating color palettes for emails based on the email text and brand voice. It uses the langdspy library to create prompt templates and models. The script consists of two main parts:
+
+1. GenerateEmailColors: This model takes email text and brand voice as input and generates three color palette options.
+
+2. EmailColorsToJSON: This model takes the generated color palettes and converts them into a JSON format.
+
+The script uses a class-based approach with custom prompt signatures and models. It demonstrates the use of input and output fields, formatters, and examples for prompt engineering.</summary>
+      <function_signatures>1. class EmailColorsPrompt(langdspy.PromptSignature):
+   - No explicit function signatures
+
+2. class GenerateEmailColors(langdspy.Model):
+   - def invoke(self, input_dict, config)
+
+3. class EmailColorsToJSONPrompt(langdspy.PromptSignature):
+   - No explicit function signatures
+
+4. class EmailColorsToJSON(langdspy.Model):
+   - def invoke(self, input_dict, config)</function_signatures>
+      <external_dependencies>1. langdspy: Used extensively for creating prompt templates, models, and handling input/output fields.
+2. json: Used for parsing JSON strings in the EmailColorsToJSON class.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/sync_lib.py</file>
+      <summary>This Python script, sync_lib.py, is responsible for synchronizing data between a Shopify store and a local database. It includes functions for creating page records, updating products, articles, and collections, and resyncing Yotpo reviews. The script utilizes various libraries and modules for database operations, API interactions, and logging. It follows a modular approach with separate functions for different synchronization tasks and includes error handling and progress reporting.</summary>
+      <function_signatures>create_page_records(session)
+resync_yotpo_reviews(channel_id, session, thread_ts)
+_resync_yotpo_reviews_internal(channel_id, session, thread_ts=None)
+update_products(session)
+update_articles(session)
+update_collections(session, ids=None)</function_signatures>
+      <external_dependencies>logging
+src.lib.shopify_lib
+src.lib.sitemap_lib
+src.db_models.enums
+src.util.db_util
+src.db_models.page
+sqlalchemy.orm
+json
+urllib.parse
+src.util.slack_util
+src.lib.yotpo_lib
+datetime
+langchain.docstore.document
+src.lib.rag_lib
+src.formatters.rag_formatters
+src.db_models.review</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/prettify_blogs.py</file>
+      <summary>This Python script is designed to process and update Shopify blog articles. It performs several tasks:
+1. Identifies and tags related posts and categories sections in article content.
+2. Normalizes links within the articles, adjusting URLs and removing unnecessary attributes.
+3. Iterates through Shopify articles, applies these changes, and optionally saves the updated content.
+The script uses BeautifulSoup for HTML parsing and manipulation, and interacts with the Shopify API to fetch and update articles. It also includes a diff utility to show changes before committing them.</summary>
+      <function_signatures>def related_posts_content(s): -> bool
+def related_categories_content(s): -> bool
+def tag_related_content_section(soup): -> None
+def normalize_links(soup): -> None</function_signatures>
+      <external_dependencies>1. shopify: Used to interact with the Shopify API, fetching and updating articles.
+2. bs4 (BeautifulSoup): Used for HTML parsing and manipulation.
+3. src.util.shopify_util: Custom module, likely for Shopify-related utility functions.
+4. src.util.db_util: Custom module, possibly for database operations.
+5. src.util.diff_util: Custom module, used for generating diffs between old and new HTML content.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/train_keyword_model.py</file>
+      <summary>This script trains and evaluates a keyword generation model. It uses TF-IDF vectorization and cosine similarity to measure the similarity between predicted and true keywords. The script loads a dataset, trains a model if not already trained, evaluates the model's performance, and saves the trained model. It utilizes external libraries for machine learning tasks and environment variable management.</summary>
+      <function_signatures>kw_similarity(y_true, y_pred) -> float
+evaluate_model(model, X, y) -> float</function_signatures>
+      <external_dependencies>os: Used for file operations and path checks
+json: Used for loading JSON data
+dotenv: Used to load environment variables
+sklearn.feature_extraction.text.TfidfVectorizer: Used for text vectorization
+sklearn.metrics.pairwise.cosine_similarity: Used to calculate similarity between vectors
+numpy: Used for numerical operations
+src.prompt_models.generate_keywords.GenerateKeywords: Custom module for keyword generation
+src.ai_tools.lib_model: Custom module for AI model operations</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/pgvector_lib.py</file>
+      <summary>This Python script defines a class called PGVectorStore that provides functionality for managing and querying vector embeddings using PostgreSQL and pgvector. The class allows for inserting collections, keywords, and pages into the vector store, as well as finding the closest matches for given queries. It uses OpenAI embeddings and SQLAlchemy for database operations. The script follows object-oriented programming principles and includes methods for various operations on the vector store.</summary>
+      <function_signatures>__init__(self, pre_delete_collections, collection_name="collections")
+insert_collections(self, collections, summary_map)
+insert_keywords(self, keywords)
+insert_pages(self, pages)
+find_closest_pages(self, query, page_type=None, k=1)
+find_closest_keywords(self, query, k=1)
+find_closest_collections(self, query, k=1)
+delete_collection(self, collection_id)</function_signatures>
+      <external_dependencies>os: Used for environment variable access
+sqlalchemy.orm.Session: Used for database session management
+sqlalchemy.delete: Used for delete operations
+langchain_openai.OpenAIEmbeddings: Used for creating embeddings
+langchain.text_splitter.CharacterTextSplitter: Imported but not used in the provided code
+langchain_community.vectorstores.pgvector: Used for vector store operations</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_signatures/sigs.py</file>
+      <summary>This Python script defines several classes for generating and optimizing SEO-related content for collections. It uses a custom library called 'langdspy' to define input and output fields for various prompts. The script includes classes for generating secondary keywords, titles, subheadings, and URL slugs, as well as evaluating keyword fitness. Each class is structured as a PromptSignature, containing input fields for collection metadata, keywords, and SEO best practices, along with output fields for the generated content and rationale. The script follows object-oriented programming principles and uses type hinting for improved code readability and maintainability.</summary>
+      <function_signatures>as_list_of_dicts(dicts: List[Dict], kwargs: Dict) -> str</function_signatures>
+      <external_dependencies>1. typing: Used for type hinting (List, Dict)
+2. json: Used for JSON manipulation in the as_list_of_dicts function
+3. langdspy: Custom library used extensively for defining PromptSignature classes and input/output fields
+4. src.prompt.seo: Imports BestPractices (not directly used in the provided code)
+5. src.prompt.collections: Imports CollectionPromptInputs as PromptInputs (used for field descriptions)</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/rest.py</file>
+      <summary>This Python script contains several formatting functions for different types of data objects. It includes functions to format database collections, database products, RAG (Retrieval-Augmented Generation) products, and Yotpo API reviews. The script uses f-strings for string formatting and accesses various attributes or dictionary keys of the input objects to create formatted string representations. Some parts of the functions are commented out, suggesting that the script may be in development or has undergone recent modifications.</summary>
+      <function_signatures>def format_db_collection(collection) -> str
+def format_db_product(product) -> str
+def format_rag_product(product, score=None) -> str
+def format_yotpo_api_review(review) -> str</function_signatures>
+      <external_dependencies>No external libraries or dependencies are explicitly imported or used in this file. The script relies on the attributes and methods of the objects passed to its functions, which are likely defined elsewhere in the project.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/formatters/rag_formatters.py</file>
+      <summary>This script defines a FastAPI application for handling various API endpoints and Slack interactions. It includes functionality for keyword and page searches, processing Slack actions, commands, and file uploads. The script utilizes Redis for caching, implements logging, and integrates with external libraries for natural language processing and Shopify interactions. It also employs background tasks and multiprocessing for handling asynchronous operations.</summary>
+      <function_signatures>async def before_request_middleware(request: Request, call_next)
+async def get_keywords(query: str, k: int = 25)
+async def get_pages(query: str, page_type: str = None, k: int = 25)
+async def slack_action_response(request: Request, background_tasks: BackgroundTasks)
+async def slack_command(request: Request, background_tasks: BackgroundTasks)</function_signatures>
+      <external_dependencies>json: Used for JSON parsing and serialization
+fastapi: Web framework for building the API
+multiprocessing: Used for parallel processing
+urllib.parse: For parsing query strings
+logging: For application logging
+redis: Used via custom redis_util module for caching
+SQLAlchemy: Implied by the use of get_session() for database operations
+uvicorn: ASGI server for running the FastAPI application
+Custom modules:
+    src.common.env_logging
+    src.util.redis_util
+    src.lib.keyword_lib
+    src.lib.page_lib
+    src.lib.slack_lib
+    src.util.db_util
+    src.db_models
+    src.lib.rag_lib
+    src.ai_tools.lib_model
+    src.util.shopify_util</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/page.py</file>
+      <summary>This file defines a SQLAlchemy ORM model for a 'Page' table. It includes various columns for storing page-related information such as path, canonical URL, meta title, meta description, traffic, summary, and page type. The Page model has relationships with PageKeywordRank, Product, Collection, and Article models. It also includes two property methods: 'slug' which extracts the last part of the path, and 'object_id' which returns the id of the associated product, collection, or article.</summary>
+      <function_signatures>class Page(Base):
+    @property
+    def slug(self) -> str
+    @property
+    def object_id(self) -> int or None</function_signatures>
+      <external_dependencies>1. sqlalchemy: Used for ORM functionality, importing Column, Integer, String, Enum, JSON, Text, BigInteger, and relationship.
+2. src.db_models.enums: Imports PageType enum.
+3. src.db_models.base: Imports Base class and id_seq.
+4. src.db_models.product: Imports Product model (commented out with # noqa).
+5. src.db_models.collection: Imports Collection model (commented out with # noqa).
+6. src.db_models.article: Imports Article model (commented out with # noqa).
+7. src.db_models.page_keyword_rank: Imports PageKeywordRank model (commented out with # noqa).</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/page_keyword_rank.py</file>
+      <summary>This Python script defines a SQLAlchemy ORM model called PageKeywordRank. It represents a many-to-many relationship between pages and keywords, storing ranking information. The model includes columns for updated_at, position, organic_traffic, and serp_features. It uses a composite primary key consisting of page_id and keyword_id, which are foreign keys to the 'page' and 'keyword' tables respectively. The model also defines relationships to the Page and Keyword models.</summary>
+      <function_signatures>No explicit function signatures are present in this file.</function_signatures>
+      <external_dependencies>1. sqlalchemy: Used for defining database models and relationships (Column, Integer, String, Enum, JSON, Text, BigInteger, ForeignKey, DateTime, relationship)
+2. src.db_models.base: Imports the Base class, likely used as a base for SQLAlchemy models
+3. src.db_models.keyword: Imports the Keyword model (commented out with # noqa)</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/nosto_lib.py</file>
+      <summary>This Python script, nosto_lib.py, provides functions for retrieving product information from collections using Nosto, an e-commerce personalization platform. It includes three main functions: get_products_for_collections, get_products_for_collection, and get_lowest_priced_products_for_collections. The script utilizes caching through a custom diskcache decorator to improve performance. It follows a functional programming style and uses list comprehensions for efficient data processing.</summary>
+      <function_signatures>def get_products_for_collections(collection_ids, limit=None) -> dict
+def get_products_for_collection(collection_id) -> list
+@diskcache_util.diskcache_decorator()
+def get_lowest_priced_products_for_collections(collection_ids) -> dict</function_signatures>
+      <external_dependencies>1. src.util.nosto_util: Used for retrieving product information from Nosto.
+2. src.util.diskcache_util: Provides caching functionality through a custom decorator.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/collection_commands.py</file>
+      <summary>This script is designed to remove community product features from blog pages in a Shopify store. It queries the database for product and blog pages, identifies community products linked in blog posts, removes them from the blog's product metadata, and updates the Shopify Article metafields. The script also generates a CSV file with information about the removed product links. The code uses database queries, Shopify API interactions, and file I/O operations.</summary>
+      <function_signatures>def remove_blog_features(session):
+    # No explicit return value</function_signatures>
+      <external_dependencies>1. json: Used for JSON parsing and serialization.
+2. csv: Used for writing data to CSV files.
+3. shopify: Shopify API library for interacting with Shopify resources.
+4. termcolor: Used for colored console output (though not explicitly used in the provided code).
+5. src.util.shopify_util: Custom module for Shopify utility functions.
+6. src.util.db_util: Custom module for database utility functions.
+7. src.db_models.enums: Custom module containing enum definitions.
+8. src.db_models.page: Custom module containing the Page model.
+9. src.lib.shopify_lib: Custom module for Shopify-related functions (though not explicitly used in the provided code).</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/remove_community_page_blog_features.py</file>
+      <summary>This Python script is designed to generate and update collection copy for an e-commerce platform. It includes functions to retrieve brand voice, write collection copy, and update various aspects of a collection including title, description, SEO metadata, and FAQ. The script interacts with a database, uses AI models for content generation, and integrates with external services like Shopify and Slack for updates and notifications.</summary>
+      <function_signatures>def get_brand_voice(session, collection_id):
+    # Returns a CollectionBrandVoice object
+
+def write_collection_copy(channel_id, session, collection_id):
+    # Returns a string with the update result or error message</function_signatures>
+      <external_dependencies>1. logging: Used for logging debug and info messages.
+2. sqlalchemy: Used for database operations and queries.
+3. src.db_models: Various database models are imported from this package.
+4. src.ai_models: AI models for generating collection copy and FAQ.
+5. src.ai_tools.lib_model: Used for getting the AI language model.
+6. src.lib: Various utility libraries including related_object_lib, nosto_lib, rag_lib, and shopify_lib.
+7. src.formatters.debug_formatters: Presumably used for formatting debug output.
+8. src.util.slack_util: Used for sending messages to Slack.
+9. enums: Used for enum types in the script.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/find_collections_by_kw.py</file>
+      <summary>This Python file defines a class called BestPractices that contains lists of best practices for various SEO elements such as primary keywords, secondary keywords, titles, headings, subheadings, and slugs. The class is designed to provide guidelines for optimizing content for search engines, particularly for subscription box and gift box related websites. The file also defines a global variable 'global_keywords' with common keywords for this domain.</summary>
+      <function_signatures>BestPractices(object):
+    No explicit function signatures are present in this class.</function_signatures>
+      <external_dependencies>No external dependencies are used in this file.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt/seo.py</file>
+      <summary>This Python script manages environment-based logging configuration. It provides functionality to initialize logging based on environment variables and a configuration file. The script also sets logging levels for various libraries and offers a function to check if prompts should be shown. It uses the dotenv library for loading environment variables and the standard logging module for configuration.</summary>
+      <function_signatures>def init_env_logging(env_path):
+    # Returns: None
+
+def show_prompts():
+    # Returns: bool</function_signatures>
+      <external_dependencies>1. dotenv: Used to load environment variables from a file.
+2. logging: Used for configuring and managing logging.
+3. os: Used for file and directory operations, and accessing environment variables.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/common/env_logging.py</file>
+      <summary>This script analyzes keywords and their corresponding collections in an e-commerce platform. It uses various libraries to process data, interact with databases, and manage collections. The main functionalities include:
+
+1. Displaying keyword information and matching collections
+2. Managing a vector store for efficient collection searching
+3. Handling collection redirects and deletions
+4. Interacting with a SQLite database to track processed keywords
+5. Integrating with Shopify for collection management
+6. Using Ahrefs data for keyword analysis
+
+The script follows a command-line interface pattern, allowing users to interactively select collections and manage redirects. It also implements caching mechanisms using pickle files for performance optimization.</summary>
+      <function_signatures>def display_keyword_info(keyword)
+def display_collection_info(closest_collections, slugs_by_id, titles_by_id, collection_traffic_map, kw_url, ahrefs_data, selected_collection_id=None)
+def delete_collections_by_source_urls(vector_store, source_urls)</function_signatures>
+      <external_dependencies>pprint: Used for pretty-printing complex data structures
+tabulate: Used for creating formatted tables in the console output
+os: Used for file and directory operations
+pickle: Used for serializing and deserializing Python objects
+termcolor: Used for adding color to console output
+src.lib.shopify_lib: Custom library for Shopify-related operations
+src.lib.nosto_lib: Custom library (usage not apparent in the given code)
+src.lib.summary_lib: Custom library for generating collection summaries
+src.util.traffic_map_util: Custom utility for handling traffic data
+src.lib.keyword_lib: Custom library (usage not apparent in the given code)
+src.util.ahrefs_util: Custom utility for handling Ahrefs data
+src.ai_tools.lib_model: Custom AI model library
+src.lib.pgvector_lib: Custom library for vector operations using PostgreSQL
+src.util.sqlite_util: Custom utility for SQLite database operations</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/write_email_ai.py</file>
+      <summary>This Python script defines a system for rewriting email content using AI. It includes two main classes: WriteEmailPrompt and WriteEmail. The WriteEmailPrompt class defines the structure for an AI prompt, including input fields for the original email text, brand voice, product information, and email writing guidelines. The WriteEmail class uses this prompt to generate three rewritten versions of the email in the specified brand voice. The script utilizes the langdspy library for prompt engineering and handling AI interactions.</summary>
+      <function_signatures>1. class WriteEmailPrompt(langdspy.PromptSignature):
+   - No explicit method signatures
+
+2. class WriteEmail(langdspy.Model):
+   - def invoke(self, input_dict, config) -> str</function_signatures>
+      <external_dependencies>1. langdspy: Used for prompt engineering and AI model interaction.
+2. src.ai_models.materials: Imports _write_email_ai_guidelines for email writing guidelines.
+3. src.formatters.langdspy_formatters: Used for formatting product information.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_keywords.py</file>
+      <summary>This Python script defines a system for generating primary keywords for SEO purposes. It includes two main classes: PromptGeneratePrimaryKeywords and GenerateKeywords. The script uses a custom library called langdspy for handling prompts and input/output fields. It also incorporates typing for better code clarity and imports various modules from a custom 'src' package. The script follows object-oriented programming principles and uses decorators for defining input and output fields.</summary>
+      <function_signatures>as_keywords(input, kwargs: Dict) -> str
+class PromptGeneratePrimaryKeywords(langdspy.PromptSignature):
+    site_keywords = langdspy.InputField(name="Possible keywords", desc="A list of SEO-appropriate keyword phrases may be appropriate for this collection.")
+    collection_title = langdspy.InputField(name="Collection Title", desc=PromptInputs.collection_heading)
+    collection_summary = langdspy.InputField("Collection Summary", desc="A brief summary of what the purpose of this collection is, what it contains, the intent with which it was created, and who it might serve. This summary should be a few sentences long and should encapsulate the most important SEO-related terms that the collection might satisfy.")
+    primary_keywords = langdspy.OutputField(name="Primary keywords", desc="The primary keywords that we should be targeting for this collection, choose up to five according to SEO best practices. Only output the keywords themselves as a comma-separated list. don't include any rationale or dashes or newlines.", formatter=as_keywords)
+class GenerateKeywords(langdspy.Model):
+    generate_primary_keywords = langdspy.PromptRunner(template_class=PromptGeneratePrimaryKeywords, prompt_strategy=langdspy.DefaultPromptStrategy)
+    def invoke(self, input, config) -> List</function_signatures>
+      <external_dependencies>1. typing: Used for type hinting (List, Dict)
+2. src.prompt_signatures: Imports 'sigs' (usage not shown in the provided code)
+3. src.prompt.seo: Imports 'BestPractices' (usage not shown in the provided code)
+4. src.prompt.collections: Imports 'CollectionPromptInputs' as 'PromptInputs'
+5. src.lib.keyword_lib: Imported but not directly used in the provided code
+6. langdspy: Custom library used extensively for prompt handling, input/output fields, and model definition</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/brand_voice.py</file>
+      <summary>This script defines a function to plot color palettes using matplotlib. It creates a visual representation of color schemes, with each palette displayed as a row of colored rectangles. The function takes a dictionary of color palettes as input and returns the plot as a byte array. The script uses logging to record information about the plotting process.</summary>
+      <function_signatures>def plot_colors(palettes: dict) -> io.BytesIO</function_signatures>
+      <external_dependencies>1. matplotlib: Used for creating and manipulating plots. The 'Agg' backend is specifically set for non-interactive plotting.
+2. io: Utilized to create a BytesIO object for storing the plot image.
+3. logging: Employed for logging information about the plotting process.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/plot_colors.py</file>
+      <summary>This script manages the generation and storage of brand voices for collections. It uses AI models to analyze product reviews and generate a brand voice. The script interacts with a database to fetch and store data, and uses external libraries for AI processing and data retrieval. Key features include batch processing of products, review analysis, and incremental brand voice generation.</summary>
+      <function_signatures>def save_or_update_brand_voice(session, collection_id, brand_voice)
+def get_brand_voice(session, collection_id)
+def generate_brand_voice(channel_id, session, collection_id)</function_signatures>
+      <external_dependencies>1. logging: Used for logging debug information and exceptions.
+2. sqlalchemy: Used for database operations and querying.
+3. src.db_models: Imports various database models (CollectionBrandVoice, Collection, Product, Review, PageKeywordRank, Keyword).
+4. src.ai_models.collection_brand_voice_ai: Imports BuildCollectionBrandVoice for AI processing.
+5. src.ai_tools.lib_model: Used for getting the AI model.
+6. src.lib.related_object_lib: Imported but not used in the provided code snippet.
+7. src.formatters.debug_formatters: Imported but not used in the provided code snippet.
+8. src.lib.nosto_lib: Used for getting products for a collection.
+9. src.lib.rag_lib: Used for initialization of the "reviews" system.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/shopify_util.py</file>
+      <summary>This file, shopify_util.py, contains utility functions for interacting with the Shopify API. It includes functions for making GraphQL queries, managing Shopify sessions, and handling API authentication. The script uses environment variables for configuration and implements retry logic for API calls. It also utilizes disk caching, though the specific implementation is not shown in this excerpt.</summary>
+      <function_signatures>graphql_query(query, variables=None) -> dict
+get_session(api_version=None) -> shopify.Session
+close_session() -> None</function_signatures>
+      <external_dependencies>os: Used for accessing environment variables
+shopify: Shopify API library for Python, used for session management
+src.util.diskcache_util: Custom module for disk caching, though not directly used in the shown code
+src.util.graphql_util: Custom module for making GraphQL queries
+collections.defaultdict: Imported but not used in the shown code
+src.util.retry_util: Custom module for implementing retry logic on API calls</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/set_related_posts.py</file>
+      <summary>This script is designed to identify and retrieve blog posts related to a specific query, in this case "mother's day". It utilizes various libraries and custom modules for database operations, Shopify integration, and similarity searching. The script establishes database and Shopify sessions, then uses a custom function to find relevant blog posts. Finally, it prints the path and h1 title of each found blog post.</summary>
+      <function_signatures>if __name__ == '__main__':
+    # No explicit function definitions in the main script</function_signatures>
+      <external_dependencies>1. csv: Standard library for CSV file operations (not directly used in the provided code snippet)
+2. time: Standard library for time-related functions (not directly used in the provided code snippet)
+3. requests: Used for making HTTP requests (not directly used in the provided code snippet)
+4. shopify: Shopify API integration library
+5. bs4 (BeautifulSoup): HTML parsing library (not directly used in the provided code snippet)
+6. src.lib.pgvector_lib: Custom module for vector operations, likely used in similarity search
+7. src.lib.page_lib: Custom module containing the find_blogs_for_query function
+8. src.db_models.enums: Custom module for database-related enumerations
+9. src.util.diff_util: Custom module for diffing operations (not directly used in the provided code snippet)
+10. src.util.shopify_util: Custom module for Shopify utility functions, used for session management
+11. src.util.db_util: Custom module for database utility functions, used for session management
+12. src.db_models.page: Custom module containing the Page model</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/identify_similar_blogs.py</file>
+      <summary>This script is designed to set related articles and categories for Shopify blog posts. It uses a combination of database queries and Shopify API calls to find and set related content. The script iterates through all articles in a Shopify store, analyzes their content, and sets related articles and categories based on keyword rankings and page types. It also includes functionality to update existing related content if it's outdated or incomplete.</summary>
+      <function_signatures>find_page_by_path(session, path)
+find_ranks_for_page(session, page)
+get_keyword_by_id(session, keyword_id)
+remove_related_cats(session, soup)
+get_related_pages(session, article, page_type)
+set_related_articles(article, existing_related_articles, matched_posts)
+set_related_cats(article, existing_related_cats, matched_cats)
+parse_dt(s)</function_signatures>
+      <external_dependencies>shopify: Used for interacting with the Shopify API to fetch and update article data.
+json: Used for JSON encoding and decoding.
+datetime: Imported as dt, used for date and time operations.
+src.util.shopify_util: Custom module for Shopify utility functions.
+src.util.db_util: Custom module for database utility functions.
+src.util.diff_util: Custom module (imported but not used in the provided code).
+src.lib.page_lib: Custom module for page-related operations.
+src.db_models.page: Imports the Page model.
+src.db_models.page_keyword_rank: Imports the PageKeywordRank model.
+src.db_models.keyword: Imports the Keyword model.
+src.db_models.enums: Imports enums for page types.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/rag/load_youtube_transcripts.py</file>
+      <summary>This script processes YouTube video transcripts stored in JSON files and adds them to a document database. It uses multiprocessing for parallel processing of batches. The script walks through a specified directory, loads JSON files containing video metadata and transcriptions, creates Document objects, and adds them to a document database using a custom RAG (Retrieval-Augmented Generation) library. It also includes logging functionality and command-line argument parsing.</summary>
+      <function_signatures>def load_documents(directory: str) -> List[Document]
+def process_batch(batch: List[Document]) -> None
+def main(args: argparse.Namespace) -> None</function_signatures>
+      <external_dependencies>1. sys: Used for system-specific parameters and functions.
+2. datetime: Used for handling dates and times.
+3. os: Used for interacting with the operating system, particularly for file and directory operations.
+4. argparse: Used for parsing command-line arguments.
+5. json: Used for JSON data encoding and decoding.
+6. langchain.docstore.document: Used for the Document class.
+7. multiprocessing: Used for parallel processing of batches.
+8. tqdm: Used for displaying progress bars.
+9. logging: Used for logging messages.
+10. src.common.env_logging: Custom module for initializing environment logging.
+11. src.lib.rag_lib: Custom module for RAG (Retrieval-Augmented Generation) functionality.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_heading.py</file>
+      <summary>This Python script defines two classes for generating headings for collections. The PromptGenerateHeading class is a prompt signature that defines input and output fields for heading generation. The GenerateHeading class is a model that uses the PromptGenerateHeading to invoke the heading generation process. The script utilizes the langdspy library for prompt engineering and follows object-oriented programming principles.</summary>
+      <function_signatures>class PromptGenerateHeading(langdspy.PromptSignature):
+    hint_keywords: langdspy.HintField
+    seo_best_practices: langdspy.InputFieldList
+    collection_heading: langdspy.InputField
+    collection_summary: langdspy.InputField
+    store_name: langdspy.InputField
+    primary_keywords: langdspy.InputField
+    heading: langdspy.OutputField
+
+class GenerateHeading(langdspy.Model):
+    generate_heading: langdspy.PromptRunner
+    def invoke(self, input: dict, config) -> str</function_signatures>
+      <external_dependencies>1. src.prompt_signatures: Imports sigs (usage not shown in the provided code)
+2. src.prompt.seo: Imports BestPractices (used for heading_best_practices)
+3. src.prompt.collections: Imports CollectionPromptInputs as PromptInputs (used for field descriptions)
+4. langdspy: Main library used for prompt engineering, including classes like PromptSignature, Model, PromptRunner, and various field types</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/yotpo_lib.py</file>
+      <summary>This script is a Python library for interacting with the Yotpo API to fetch product reviews. It includes functions for initializing API credentials, obtaining access tokens, fetching reviews for specific products, and updating product reviews in a database. The script uses environment variables for API credentials, implements caching using a custom decorator, and includes error handling and logging. It follows a modular approach with separate functions for different API operations.</summary>
+      <function_signatures>init() -> None
+get_access_token() -> str
+get_reviews_for_product(product_id: str, page: int = 1, count: int = 100, since_date: str = None) -> list
+get_all_reviews_for_product(product_id: str, since_date: str = None) -> list
+update_product_reviews(session, product_id: str, reviews: list) -> None</function_signatures>
+      <external_dependencies>requests: Used for making HTTP requests to the Yotpo API.
+os: Used for accessing environment variables.
+json: Used for parsing JSON responses from the API.
+src.util.diskcache_util: Custom module used for caching API responses.
+logging: Used for logging debug and error messages.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/create_collections.py</file>
+      <summary>This Python script is designed to create collections in a Shopify store. It imports various utility modules and libraries, defines a list of collections to create with their titles, slugs, and inspiration descriptions, and then uses these to create the collections. The script is set up to run only when executed directly, not when imported as a module. It initializes a session, a model library, and then calls a function to create the collections based on the defined list.</summary>
+      <function_signatures>if __name__ == '__main__':</function_signatures>
+      <external_dependencies>1. src.util.shopify_util: Used for getting a session, likely for Shopify API interactions.
+2. src.ai_tools.lib_model: Used for initializing a model, possibly for AI-related tasks.
+3. src.util.db_util: Used for getting a database session.
+4. collections.defaultdict: Imported but not used in the visible code.
+5. src.lib.collection_lib: Used for creating collections.</external_dependencies>
+    </script_summary>
+    <script_summary>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/slack_cli.py</file>
+      <summary>This script implements a command-line interface (CLI) for interacting with Slack and performing various operations. It initializes environment logging, sets up AI models and RAG (Retrieval-Augmented Generation) systems for videos, products, and reviews. The script defines two main commands: 'main' for processing Slack queries and 'test_resync_yotpo_reviews' for testing the resynchronization of Yotpo reviews. It uses the Click library for creating the CLI structure and argparse for command-line argument parsing.</summary>
+      <function_signatures>cli()
+main(command)
+test_resync_yotpo_reviews(limit: int = None)</function_signatures>
+      <external_dependencies>1. argparse: Used for parsing command-line arguments.
+2. json: Imported but not explicitly used in the provided code.
+3. click: Used for creating the command-line interface structure.
+4. src.common.env_logging: Used for initializing environment logging.
+5. src.lib.slack_lib: Used for processing Slack queries.
+6. src.ai_tools.lib_model: Used for initializing AI models.
+7. src.lib.rag_lib: Used for initializing RAG systems for videos, products, and reviews.
+8. src.lib.sync_lib: Used for resynchronizing Yotpo reviews.
+9. src.util.db_util: Used for getting database sessions.</external_dependencies>
+    </script_summary>
+  </individual_script_summaries>
+  <overall_summary>
+    <analyzed_files>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/repop_mens_collection.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/tag_products_in_collection.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/product_collection_rank.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/keyword.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/collection_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_collection_summary.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/slack_thread_dispatcher.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/fix_blogs.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/init_db.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/email_commands.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/enums.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/write_text_ai.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/db_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/write_collection_ai.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/sitemap_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/pull_collection_screenshots.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/rag/load_shopify_products.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/shopify_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/diff_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/image_prompt_ai.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/fix_collections.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/dev_utils/code_tree.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/slack_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/nosto_optimize_poor_converters.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/traffic_map_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/rag/load_yotpo_reviews.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/collection_brand_voice_ai.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/brainstorm_blogs_ai.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/get_redirects.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/discount_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/optimize_collection_seo.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_product_summary.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/pgvector_reconnect.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/collection.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/slack_thread_ai.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt/collections.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/rag/load_biz_youtube.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_collection_description.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/ahrefs_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/summary_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/screenshot_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/dev_utils/summarize_code.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/db_playground.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/seo_update_cli.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/materials/_write_article_ai_guidelines.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/product_tag_rank.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/retry_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/brainstorm_email_ai.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_blog_summary.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/materials/_write_email_ai_guidelines.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/graphql_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/markdown_fixes_blog.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/rag/load_collections.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/images.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/diskcache_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/generate_summaries.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/nosto_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/summary_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/process_collection_keywords.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/sqlite_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/product_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/redis_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/tag_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/materials/_write_copy_guidelines.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_tools/lib_model.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/product_tag_fitness.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/article.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/keyword_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/fill_page_vectorstore.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/slack_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/product.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/collection_brand_voice.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/fix_bloglinks.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/writer.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/review.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/related_object_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/formatters/langdspy_formatters.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/formatters/debug_formatters.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/slack_file_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/product_collection_fitness.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_collection_title.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/rag_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/email_colors.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/page_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/delete_old_collections.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/process_kw_collection_data.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/email_colors_ai.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/sync_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/prettify_blogs.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/train_keyword_model.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/pgvector_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_signatures/sigs.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/rest.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/formatters/rag_formatters.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/page.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/db_models/page_keyword_rank.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/nosto_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/collection_commands.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/remove_community_page_blog_features.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/find_collections_by_kw.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt/seo.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/common/env_logging.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/ai_models/write_email_ai.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_keywords.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/commands/brand_voice.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/plot_colors.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/util/shopify_util.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/set_related_posts.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/identify_similar_blogs.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/rag/load_youtube_transcripts.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/prompt_models/generate_heading.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/lib/yotpo_lib.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/scripts/create_collections.py</file>
+      <file>/Users/aelaguiz/workspace/shopify-scripts/src/apps/slack_cli.py</file>
+    </analyzed_files>
+    <summary>This codebase represents a comprehensive e-commerce platform management system, likely for a subscription box or gift service like Cratejoy. The scripts cover a wide range of functionalities including SEO optimization, content generation, product and collection management, email marketing, and integration with various APIs (Shopify, Slack, Yotpo, Nosto, etc.). 
+
+Key features of the system include:
+1. AI-powered content generation for product descriptions, collection summaries, blog posts, and email marketing.
+2. SEO optimization tools for keywords, meta descriptions, and content structure.
+3. Database management using SQLAlchemy ORM for products, collections, articles, and keywords.
+4. Integration with e-commerce platforms (primarily Shopify) for product and collection management.
+5. Slack bot functionality for team communication and task automation.
+6. Image generation and color palette creation for marketing materials.
+7. YouTube video transcript processing for content enrichment.
+8. Review management and synchronization with Yotpo.
+9. Vector-based similarity search for related content suggestions.
+10. Traffic analysis and collection optimization based on performance metrics.
+
+The codebase follows object-oriented and functional programming paradigms, employs asynchronous programming for performance optimization, and utilizes various AI and machine learning techniques for content generation and analysis. It also implements caching mechanisms and error handling for improved reliability and performance.</summary>
+    <overall_dependencies>The codebase relies on numerous external libraries and APIs, including:
+
+1. SQLAlchemy: For database ORM and operations
+2. Shopify API: For e-commerce platform integration
+3. Slack API: For bot functionality and team communication
+4. OpenAI API: For AI-powered content generation and embeddings
+5. Anthropic API: Alternative AI model provider
+6. langdspy: Custom library for prompt engineering and AI model management
+7. BeautifulSoup: For HTML parsing and manipulation
+8. Requests: For HTTP operations
+9. FastAPI: For API development
+10. Redis: For caching and session management
+11. Boto3: For Amazon S3 integration
+12. Nosto API: For e-commerce personalization
+13. Yotpo API: For review management
+14. Periscope Data API: For data analysis
+15. Selenium WebDriver: For web scraping and screenshot capture
+16. Matplotlib: For data visualization
+17. tqdm: For progress bar functionality
+18. diskcache: For disk-based caching
+19. dotenv: For environment variable management
+20. Click: For command-line interface creation
+21. concurrent.futures: For parallel processing
+22. logging: For application logging
+23. csv: For CSV file operations
+24. json: For JSON data handling
+25. os, sys: For system operations
+26. re: For regular expressions
+27. datetime: For date and time operations
+28. typing: For type hinting
+29. functools: For function decorators
+30. multiprocessing: For parallel processing
+31. argparse: For command-line argument parsing
+32. pgvector: PostgreSQL extension for vector operations
+33. difflib: For generating text differences
+34. colorama: For terminal color output
+
+The system also integrates with several external services and APIs, including Shopify, Slack, OpenAI, Anthropic, Nosto, Yotpo, Amazon S3, and potentially others for specific functionalities.</overall_dependencies>
+  </overall_summary>
+</code_analysis>

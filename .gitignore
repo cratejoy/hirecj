@@ -4,6 +4,12 @@
 .env.*.local
 *.env
 
+# Ngrok
+ngrok.yml
+.env.tunnel
+*/.env.tunnel
+.env.ngrok
+
 # Python
 __pycache__/
 *.py[cod]

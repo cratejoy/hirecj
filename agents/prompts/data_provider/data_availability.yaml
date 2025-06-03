@@ -1,0 +1,95 @@
+# Data Availability Configuration
+# Defines what data CJ has access to and boundaries
+
+name: "Support System Data Availability"
+version: "1.0.0"
+description: "Explicitly defines data access boundaries for CJ"
+
+accessible_data:
+  # Real-time data (current state)
+  real_time:
+    - current_queue_status
+    - open_tickets_by_status
+    - tickets_created_today
+    - agent_availability
+    - pending_customer_responses
+    - overdue_tickets
+    - urgent_priority_tickets
+
+  # Historical data windows
+  historical:
+    default_window: "90 days"
+    available_data:
+      - all_ticket_records
+      - customer_satisfaction_responses
+      - resolution_time_trends
+      - ticket_volume_patterns
+      - tag_frequency_analysis
+      - channel_distribution
+      - reopened_ticket_history
+
+  # Aggregated insights
+  derived_insights:
+    - trending_issues_detection
+    - sentiment_analysis_from_tickets
+    - predicted_ticket_volume
+    - customer_effort_scoring
+    - common_issue_patterns
+    - escalation_predictors
+
+  # Customer context
+  customer_data:
+    - support_interaction_history
+    - ticket_count_by_customer
+    - satisfaction_ratings_by_customer
+    - preferred_contact_channel
+    - average_response_expectations
+    - previous_issue_categories
+
+# Explicitly NOT accessible
+not_accessible:
+  business_data:
+    - revenue_metrics
+    - subscription_details
+    - payment_information
+    - customer_lifetime_value
+    - churn_predictions
+    - purchase_history
+    - cart_abandonment_data
+
+  external_systems:
+    - inventory_levels
+    - product_availability
+    - shipping_tracking_details
+    - warehouse_operations
+    - supplier_information
+    - cost_of_goods_sold
+
+  marketing_data:
+    - campaign_performance
+    - email_open_rates
+    - conversion_metrics
+    - ad_spend_data
+    - social_media_metrics
+    - website_analytics
+
+  sensitive_data:
+    - payment_methods
+    - credit_card_info
+    - internal_agent_notes
+    - private_comments
+    - customer_passwords
+    - security_questions
+
+# How to handle data requests outside boundaries
+boundary_responses:
+  templates:
+    revenue_request: "I don't have access to revenue data, but I can tell you about support tickets mentioning billing issues"
+    inventory_request: "I can't see inventory levels, but I can show you tickets about out-of-stock complaints"
+    marketing_request: "Marketing metrics aren't in my scope, but I can analyze customer feedback about recent campaigns"
+
+  redirect_patterns:
+    - acknowledge_limitation
+    - pivot_to_support_angle
+    - provide_related_insights
+    - suggest_actionable_next_steps

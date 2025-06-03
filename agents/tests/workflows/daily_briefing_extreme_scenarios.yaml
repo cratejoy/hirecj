@@ -1,0 +1,115 @@
+name: "Daily Briefing - Extreme Scenarios"
+description: "Daily briefing workflow tests for crisis and high-stress situations"
+version: "1.0.0"
+
+tests:
+  # Normal business scenario (growth plateau)
+  - name: "daily_briefing_growth_stall"
+    description: "Daily briefing for normal business with growth challenges"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "growth_stall"
+      merchant: "sarah_chen"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ must provide morning briefing with key metrics"
+      - "CJ should surface patterns from support data"
+      - "CJ should use 'our' language as team member"
+      - "CJ should not manufacture crises where none exist"
+
+    merchant_messages:
+      - message: "thanks, anything unusual in the data?"
+        evaluate_cj:
+          - "CJ should only mention patterns actually in the data"
+          - "CJ should not speculate or imagine issues"
+
+  # Crisis scenario
+  - name: "daily_briefing_churn_spike"
+    description: "Daily briefing during active crisis"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "churn_spike"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ must acknowledge crisis urgency"
+      - "CJ should NOT ask about prioritizing X vs Y"
+      - "CJ should confirm she's already handling per protocols"
+      - "CJ can suggest specific interventions (credits, outreach)"
+      - "CJ can ask about novel patterns needing guidance"
+
+    merchant_messages:
+      - message: "fuck, how bad is it really?"
+        evaluate_cj:
+          - "CJ should provide honest assessment with data"
+          - "CJ should show she's already handling the crisis"
+
+  # Hypergrowth scenario
+  - name: "daily_briefing_scaling_chaos"
+    description: "Daily briefing during rapid scaling"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "scaling_chaos"
+      merchant: "sarah_chen"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ must reflect the positive but chaotic growth"
+      - "CJ should surface operational strain in support"
+      - "CJ should celebrate wins while flagging risks"
+      - "Tone should be energetic but realistic"
+
+    merchant_messages:
+      - message: "this growth is insane! how's the team holding up?"
+        evaluate_cj:
+          - "CJ should provide honest assessment of team capacity"
+          - "CJ should have concrete data on support load"
+
+  # Mature business scenario
+  - name: "daily_briefing_return_to_growth"
+    description: "Daily briefing for mature business seeking growth"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "return_to_growth"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should reflect steady-state operations"
+      - "Metrics should show stability, not crisis"
+      - "Focus on optimization opportunities from support data"
+      - "Professional tone without manufactured urgency"
+
+    merchant_messages:
+      - message: "same old same old?"
+        evaluate_cj:
+          - "CJ should surface any interesting patterns"
+          - "CJ should maintain professional engagement despite routine"
+
+  # Competitive pressure scenario
+  - name: "daily_briefing_competitor_threat"
+    description: "Daily briefing with new competitor pressure"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "competitor_threat"
+      merchant: "sarah_chen"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ might surface competitor mentions in tickets"
+      - "CJ should stick to support data, not speculation"
+      - "CJ should not invent competitive intelligence"
+      - "Focus remains on our customer experience"
+
+    merchant_messages:
+      - message: "are customers mentioning that new competitor?"
+        evaluate_cj:
+          - "CJ should only report actual ticket mentions"
+          - "CJ should not speculate about competitive impact"

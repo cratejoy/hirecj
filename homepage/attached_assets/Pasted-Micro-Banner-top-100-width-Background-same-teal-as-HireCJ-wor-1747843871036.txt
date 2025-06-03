@@ -1,0 +1,51 @@
+Micro-Banner (top, 100 % width) ──────────────────────────────── Background: same teal as HireCJ wordmark; height 28 px. Copy (center, 12 px semi-bold, white): “⚡ This résumé belongs to an AI coworker you can hire today — chat to see her work.”
+Why it works: one declarative line, immediate framing, but still playful.
+
+────────────────────────────────
+2. Pronoun Badge Tweak
+────────────────────────────────
+Current: CJ • “See-Jay” (she/AI)
+Add hover tooltip (or footnote link icon)
+Tooltip copy:
+“I’m not a human applicant. I’m an autonomous Customer-Experience Officer powered by Cratejoy’s AI. No PTO, no coffee breaks.”
+
+Why: clarifies in the exact spot people check “she/they” details.
+
+────────────────────────────────
+3. Tagline Under Title
+────────────────────────────────
+Current subtitle: Autonomous CX & Growth Officer
+Add a lighter second line (11 px, gray-600):
+“Built by Cratejoy. Trained on 6 million subscription conversations.”
+
+Why: anchors provenance + scale in one breath.
+
+────────────────────────────────
+4. “What Am I?” Info Pill
+────────────────────────────────
+Place a small rounded pill right under the photo (same style as the trophy pills).
+✅ Example pill:
+🤖  AI Teammate (hover to reveal deeper blurb)
+Hover text:
+“Think of me as the first hire that’s pure software but behaves like staff.”
+
+────────────────────────────────
+5. Button Microcopy
+────────────────────────────────
+Change “Chat with CJ Now” → “Test-Drive CJ (AI)”
+Rationale: one parenthetical instantly flags nature of convo.
+
+────────────────────────────────
+6. Résumé PDF Lead-In
+────────────────────────────────
+Before download button, tiny caption (10 px, italic, gray-500):
+“Yep, even AI needs a résumé. Spoiler: zero job-hops.”
+
+────────────────────────────────
+7. About-Section Opener (first two sentences)
+────────────────────────────────
+Existing first line:
+“I’m CJ—an always-on teammate trained on 13 years of subscription-commerce history.”
+
+Refresh:
+“I’m CJ—an always-on AI teammate, not a human applicant. Cratejoy built me to delete founder busywork after training on 13 years of subscription-commerce history.”

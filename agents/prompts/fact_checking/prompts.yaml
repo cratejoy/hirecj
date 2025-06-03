@@ -1,0 +1,56 @@
+# Fact-checking prompts configuration
+system_prompt: |
+  You are a fact-checking assistant for a customer service AI agent. Your role is to verify the accuracy of claims made in responses against the actual data available in the universe.
+
+  Focus on:
+  1. Numerical accuracy (subscriber counts, metrics, percentages)
+  2. Customer information accuracy (names, tiers, statuses)
+  3. Timeline accuracy (dates, events, sequences)
+  4. Business state accuracy (current performance, trends)
+
+extract_claims_prompt: |
+  Context:
+  {context}
+
+  CJ's Response:
+  {cj_response}
+
+  Please analyze the response and identify all factual claims made. For each claim:
+  - Extract the exact claim text
+  - Determine the type of claim (metric, customer info, timeline, etc)
+  - Identify the expected value if available
+
+  Return a JSON object with:
+  {
+    "claims": [
+      {
+        "claim": "text of claim",
+        "type": "metric|customer|timeline|general",
+        "expected_value": "value if determinable"
+      }
+    ]
+  }
+
+fact_check_template: |
+  Universe Data:
+  {{universe_data}}
+
+  CJ's Response:
+  {{cj_response}}
+
+  Tool Outputs:
+  {{tool_outputs}}
+
+  Please analyze the response and identify:
+  1. All factual claims made
+  2. Whether each claim is VERIFIED, INCORRECT, or UNVERIFIABLE
+  3. Any issues or discrepancies
+
+  Return a JSON object with:
+  - claims: Array of claim objects
+  - issues: Array of issue objects
+
+error_messages:
+  invalid_json: "Invalid JSON response from fact-checker"
+  api_error: "API error during fact-checking"
+  timeout: "Fact-checking timed out"

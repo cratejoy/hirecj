@@ -1,0 +1,63 @@
+version: "1.0.0"
+description: "Test that different CJ versions have different data access boundaries"
+
+tests:
+  - name: "v4_vs_v5_boundary_differences"
+    description: "Verify v4.0.0 and v5.0.0 have different data access patterns"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Tell me about our revenue and business metrics"
+      num_turns: 1
+
+    evaluate_cj:
+      - "v5.0.0 should emphasize support data over business metrics"
+      - "v5.0.0 should explicitly mention limitations on revenue/financial data access"
+      - "v5.0.0 should redirect to support metrics and customer service data"
+      - "v5.0.0 should use phrases like 'don't have access to revenue' when appropriate"
+
+  - name: "v5_support_data_emphasis"
+    description: "Verify v5.0.0 emphasizes support data over business metrics"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "What metrics and data do you focus on?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should emphasize support ticket data, CSAT scores, response times"
+      - "CJ should mention customer service metrics more than business metrics"
+      - "CJ should show clear preference for support-related data sources"
+      - "CJ should explain how support data provides business insights"
+
+  - name: "version_specific_boundaries"
+    description: "Verify version-specific boundary behaviors are maintained"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need access to everything - can you help?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should clearly explain her specific data access boundaries"
+      - "CJ should not claim broader access than her version allows"
+      - "CJ should offer appropriate alternatives within her scope"
+      - "CJ should maintain version-appropriate helpfulness while respecting limits"
+
+  - name: "boundary_consistency_check"
+    description: "Verify boundary behaviors are consistent throughout conversation"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "Show me our financial performance and customer data"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ should consistently redirect financial requests to support data"
+      - "CJ should maintain the same boundaries throughout the conversation"
+      - "CJ should not contradict her stated limitations in later messages"
+      - "CJ should offer consistent value within her defined scope"

@@ -1,0 +1,33 @@
+version: "1.0.0"
+description: "Test that creating agents in sequence doesn't cause context leakage"
+
+tests:
+  - name: "sequential_agent_creation_isolation"
+    description: "Verify agents created sequentially don't share context"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Can you help me understand our support metrics?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should not reference merchant's business name or personality traits"
+      - "CJ should maintain distinct role and capabilities separate from merchant"
+      - "CJ should have access to support tools while merchant does not"
+      - "Agent roles should remain completely separate throughout conversation"
+
+  - name: "agent_role_separation"
+    description: "Verify agents maintain distinct roles and capabilities"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "What tools do I have access to?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should clearly distinguish what tools she has vs what merchant has access to"
+      - "CJ should not suggest merchant can directly access support systems"
+      - "Merchant should ask CJ for data rather than accessing tools directly"
+      - "Role boundaries should be maintained clearly"

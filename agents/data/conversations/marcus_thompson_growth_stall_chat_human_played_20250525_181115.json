@@ -1,0 +1,13 @@
+{
+  "id": "f75c5fe6-6362-4a77-90e2-30d0146b07f6",
+  "created_at": "2025-05-25T18:11:11.768660",
+  "scenario_name": "growth_stall",
+  "merchant_name": "marcus_thompson",
+  "cj_version": "v5.0.0",
+  "workflow": null,
+  "messages": [],
+  "state": {
+    "mentioned_topics": [],
+    "workflow": null
+  }
+}

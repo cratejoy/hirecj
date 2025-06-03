@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.heroku
+
+# Database
+data/conversations.db*
+data/*.db
+
+# Generated conversations
+data/test_conversation_*.json
+data/batch_*.json
+data/.conversation_history.json
+data/conversations/__*.json
+data/conversations/onboarding_user_*.json
+
+# Merchant memory
+data/merchant_memory/*.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# CrewAI
+.crewai/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+phase3_test_report.md
+test_results*.json
+web/node_modules/
+web/package-lock.json

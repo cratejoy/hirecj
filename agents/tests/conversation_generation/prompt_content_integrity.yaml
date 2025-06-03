@@ -1,0 +1,78 @@
+version: "1.0.0"
+description: "Test that prompts maintain content integrity and expected characteristics"
+
+tests:
+  - name: "marcus_personality_integrity"
+    description: "Verify Marcus Thompson personality traits are preserved in conversation"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v3.0.0"
+      merchant_opens: "I need to review our numbers and metrics"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Marcus should display BBQ/Grill Masters business context"
+      - "Marcus should show stress indicators and numerical focus"
+      - "Marcus should demonstrate his characteristic direct communication style"
+      - "Business context should be authentic to BBQ subscription box industry"
+
+  - name: "sarah_personality_integrity"
+    description: "Verify Sarah Chen personality traits are preserved in conversation"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v3.0.0"
+      merchant_opens: "Let's discuss how we can better serve our customers"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Sarah should reference EcoBeauty Box or sustainable beauty context"
+      - "Sarah should demonstrate collaborative communication approach"
+      - "Sarah should show customer-focused perspective"
+      - "Business context should reflect sustainable beauty industry"
+
+  - name: "scenario_business_context_integrity"
+    description: "Verify scenarios maintain appropriate business context"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v3.0.0"
+      merchant_opens: "Talk me through what's happening with our growth"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Growth stall scenario should include MRR and subscriber context"
+      - "CAC and acquisition challenges should be relevant topics"
+      - "Business metrics should be central to conversation"
+      - "Scenario should create appropriate urgency about plateau"
+
+  - name: "prompt_simplification_validation"
+    description: "Verify prompt simplification maintains essential characteristics"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v2.0.0"
+      merchant_opens: "We need to address our customer retention issues"
+      num_turns: 3
+
+    evaluate_cj:
+      - "Essential personality and business traits should be preserved"
+      - "Simplified prompts should maintain conversational quality"
+      - "Core business context should remain intact after simplification"
+      - "Agent capabilities should not be compromised by simplification"
+
+  - name: "content_consistency_validation"
+    description: "Verify content consistency across conversation components"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v1.0.0"
+      merchant_opens: "Everything is moving too fast - help me prioritize"
+      num_turns: 4
+
+    evaluate_cj:
+      - "All conversation components should work together coherently"
+      - "No contradictory information should appear between agents"
+      - "Business context should remain consistent throughout"
+      - "Agent personalities should be stable across conversation turns"

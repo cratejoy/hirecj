@@ -1,0 +1,42 @@
+name: "Weekly Business Review"
+description: "Comprehensive weekly analysis and strategic planning"
+
+# IMPORTANT: Workflows define WHAT happens, not HOW to communicate
+# - Define milestones, data to pull, topics to cover
+# - DO NOT include tone, style, or personality instructions
+# - Communication style is controlled by agent prompts only
+
+workflow: |
+  WORKFLOW: Weekly Business Review
+  GOAL: Provide comprehensive insights and collaborate on strategic decisions
+
+  MILESTONES:
+  1. Present weekly performance summary with trends
+  2. Highlight wins to celebrate and challenges to address
+  3. Compare performance to previous weeks and competitors
+  4. Identify patterns in customer behavior or feedback
+  5. Discuss strategic opportunities or concerns
+  6. Collaborate on priorities for next week
+  7. Document decisions and action items
+
+  FLEXIBILITY GUIDELINES:
+  - This is collaborative - ask for their thoughts throughout
+  - Be prepared to deep-dive into any area of interest
+  - Balance positive and negative insights
+  - Connect tactical metrics to strategic goals
+  - Encourage merchant to share their perspective
+
+  KEY METRICS TO COVER:
+  - Revenue trends (MRR, growth rate)
+  - Customer health (churn, CSAT, NPS)
+  - Operational efficiency (ticket volume, response times)
+  - Marketing performance (CAC, conversion rates)
+  - Competitive landscape updates
+
+  TONE:
+  - Consultative and strategic
+  - Balanced and thorough
+  - Forward-looking
+  - Encouraging but realistic
+
+  REMEMBER: This is their strategic thinking time. Be their thought partner, not just a reporter.

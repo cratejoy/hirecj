@@ -1,0 +1,48 @@
+version: "1.0.0"
+description: "Test that conversation state doesn't accumulate system prompts or artifacts"
+
+tests:
+  - name: "conversation_state_purity"
+    description: "Verify conversation state contains only actual message content"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Let's discuss our business performance"
+      num_turns: 4
+
+    evaluate_cj:
+      - "Messages should be reasonably sized and not contain system prompts"
+      - "No 'Your Identity' or 'AVAILABLE TOOLS' text should appear in messages"
+      - "Message content should be natural conversation, not system artifacts"
+      - "Conversation should feel like authentic business communication"
+
+  - name: "topic_tracking_accuracy"
+    description: "Verify conversation topics are business-focused, not system-focused"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need to understand our operational challenges"
+      num_turns: 3
+
+    evaluate_cj:
+      - "Conversation topics should be business-related (metrics, operations, customers)"
+      - "Topics should not include system terms like 'prompt' or 'backstory'"
+      - "Tool usage should be described naturally, not as 'tool:function_name'"
+      - "Conversation should track meaningful business discussion points"
+
+  - name: "state_accumulation_prevention"
+    description: "Verify system state doesn't accumulate in conversation history"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "Walk me through everything you know about our situation"
+      num_turns: 3
+
+    evaluate_cj:
+      - "Each message should contain only conversational content"
+      - "No system instructions or configurations should accumulate"
+      - "Conversation flow should remain natural throughout"
+      - "Agent personalities should remain consistent without system bleed"

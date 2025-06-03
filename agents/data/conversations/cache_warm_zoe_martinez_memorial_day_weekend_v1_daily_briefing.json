@@ -1,0 +1,77 @@
+{
+  "id": "cache_warm_zoe_martinez_memorial_day_weekend_v1_daily_briefing",
+  "conversation_id": "cache_warm_zoe_martinez_memorial_day_weekend_v1_daily_briefing",
+  "created_at": "2025-05-28T17:03:55.224693",
+  "scenario_name": "memorial_day_weekend",
+  "merchant_name": "zoe_martinez",
+  "cj_version": "v5.0.0",
+  "workflow": "daily_briefing",
+  "messages": [
+    {
+      "timestamp": "2025-05-28T17:03:55.250779",
+      "sender": "zoe_martinez",
+      "content": "[WORKFLOW_START]",
+      "metadata": {
+        "human_played": true
+      }
+    },
+    {
+      "timestamp": "2025-05-28T17:04:02.863571",
+      "sender": "CJ",
+      "content": "Morning Zoe! Here's our support queue status:\n\n\ud83d\udcca **Queue Status:** 28 tickets today (normal flow)\n\ud83c\udfab **Performance:** Averaging 3.2-hour response time \n\ud83d\udcc8 **CSAT:** Holding steady at 4.3/5.0\n\u23f1\ufe0f **Trending:** Top categories are shipping, account management, and product feedback\n\nWorth noting: We're seeing a pretty typical mix this morning. Shipping questions are leading the pack as usual, but nothing out of the ordinary pattern-wise. Our response times are tracking well within SLA.\n\nEverything's running smoothly on the support front. The team's handling the flow efficiently and customers seem satisfied based on the feedback coming through.\n\nAnything specific you want me to dive into today, or shall I keep managing the queue as normal?",
+      "metadata": {
+        "turn": 1,
+        "metrics": {
+          "prompts": 1,
+          "tools": 0,
+          "time": 7.61220383644104
+        },
+        "debug": {
+          "context_window_size": 1,
+          "task_description": "Start the daily_briefing workflow for zoe_martinez",
+          "has_conversation_state": true,
+          "workflow": "daily_briefing",
+          "cj_version": "v5.0.0",
+          "scenario_context": {
+            "description": "",
+            "stress_level": "medium",
+            "metrics": {
+              "mrr": 50000,
+              "subscriber_count": 1000,
+              "churn_rate": 5.3,
+              "csat_score": 4.3,
+              "support_tickets_per_day": 28,
+              "average_response_time_hours": 3.2,
+              "top_categories": [
+                "shipping",
+                "account_management",
+                "product_feedback"
+              ],
+              "total_customers": 14,
+              "total_tickets": 41
+            }
+          },
+          "turn_count": 1,
+          "context_window": [
+            {
+              "sender": "zoe_martinez",
+              "content": "[WORKFLOW_START]",
+              "timestamp": "2025-05-28T17:03:55.250779"
+            }
+          ],
+          "system_info": {
+            "timestamp": "2025-05-28T17:04:02.863558",
+            "server_version": "unknown",
+            "model_used": "claude-sonnet-4-20250514"
+          },
+          "verbose_output_preview": "\ud83d\ude80 Crew: crew\n\u2514\u2500\u2500 \ud83d\udccb Task: b3fe5fd8-f423-4765-97ca-7b0eefffe022\n    Status: Executing Task...\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Crew Execution Started \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Crew Execution Started                                                      \u2502\n\u2502  Name: crew                                                                  \u2502\n\u2502  ID: 5a2d529b-a2ce-4fbb-9912-516d4efb9c9a                                    \u2502\n\u2502   ...",
+          "agent_debug_info": {}
+        }
+      }
+    }
+  ],
+  "state": {
+    "workflow": "daily_briefing"
+  },
+  "annotations": {}
+}

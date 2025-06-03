@@ -1,0 +1,247 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fix for chat screen to eliminate white bar at bottom while allowing scrolling */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 220 14.3% 4.1%;
+  --muted: 60 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 14.3% 4.1%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 14.3% 4.1%;
+  --border: 240 4.9% 83.9%;
+  --input: 240 4.9% 83.9%;
+  --primary: 187 100% 32%; /* Cratejoy teal */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 209 100% 40%; /* LinkedIn blue */
+  --secondary-foreground: 0 0% 100%;
+  --accent: 145 63% 49%; /* Easter-egg green */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --ring: 187 100% 32%;
+  --radius: 0.5rem;
+  
+  /* LinkedIn specific colors */
+  --linkedin-blue: 209 100% 40%;
+  --linkedin-light-blue: 210 100% 97%;
+  --linkedin-gray: 0 0% 95%;
+  --linkedin-dark-gray: 0 0% 45%;
+  --linkedin-border: 0 0% 88%;
+  
+  /* Cratejoy specific colors */
+  --cratejoy-teal: 187 100% 32%;
+  --cratejoy-dark: 187 100% 22%;
+  
+  /* Chat colors */
+  --chat-bg: 225 10% 11%;
+  --chat-sidebar: 264 28% 7%;
+  --slack-purple: 277 55% 19%;
+  
+  /* Shopify colors */
+  --shopify-green: 142 69% 42%;
+  --shopify-green-dark: 142 69% 32%;
+}
+
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --primary: 187 100% 32%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 209 100% 40%;
+  --secondary-foreground: 0 0% 98%;
+  --accent: 145 63% 49%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 240 4.9% 83.9%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-linkedin-gray text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding-top: 30px; /* Space for the micro banner */
+    margin: 0;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  .font-mono {
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  
+  .section-card {
+    @apply bg-white rounded-lg border border-linkedin-border shadow-sm mb-5 overflow-hidden;
+  }
+  
+  .site-header {
+    @apply fixed top-0 left-0 right-0 h-[60px] bg-white flex items-center px-4 z-50 border-b border-linkedin-border shadow-sm;
+  }
+  
+  .site-logo {
+    @apply text-cratejoy-teal font-bold text-xl hover:opacity-90 transition-opacity;
+  }
+  
+  .skill-badge {
+    @apply transition-all duration-300;
+  }
+  
+  .skill-badge:hover {
+    @apply bg-linkedin-light-blue transform -translate-y-1 shadow-md;
+  }
+
+  .typing-cursor::after {
+    content: '|';
+    @apply animate-blink;
+  }
+  
+  .chat-pill {
+    @apply transition-transform duration-300;
+  }
+  
+  .chat-pill:hover {
+    @apply transform scale-105;
+  }
+  
+  .bg-linkedin-blue {
+    @apply bg-[hsl(var(--linkedin-blue))];
+  }
+  
+  .bg-linkedin-light-blue {
+    @apply bg-[hsl(var(--linkedin-light-blue))];
+  }
+  
+  .bg-linkedin-gray {
+    @apply bg-[hsl(var(--linkedin-gray))];
+  }
+  
+  .text-linkedin-dark-gray {
+    @apply text-[hsl(var(--linkedin-dark-gray))];
+  }
+  
+  .border-linkedin-border {
+    @apply border-[hsl(var(--linkedin-border))];
+  }
+  
+  .bg-cratejoy-teal {
+    @apply bg-[hsl(var(--cratejoy-teal))];
+  }
+  
+  .bg-cratejoy-dark {
+    @apply bg-[hsl(var(--cratejoy-dark))];
+  }
+  
+  .text-cratejoy-teal {
+    @apply text-[hsl(var(--cratejoy-teal))];
+  }
+  
+  .text-linkedin-blue {
+    @apply text-[hsl(var(--linkedin-blue))];
+  }
+  
+  .bg-chat-bg {
+    @apply bg-[hsl(var(--chat-bg))];
+  }
+  
+  .bg-chat-sidebar {
+    @apply bg-[hsl(var(--chat-sidebar))];
+  }
+  
+  .bg-slack-purple {
+    @apply bg-[hsl(var(--slack-purple))];
+  }
+  
+  .hover\:bg-linkedin-light-blue:hover {
+    @apply hover:bg-[hsl(var(--linkedin-light-blue))];
+  }
+  
+  .hover\:bg-cratejoy-dark:hover {
+    @apply hover:bg-[hsl(var(--cratejoy-dark))];
+  }
+  
+  .bg-smile-green {
+    @apply bg-[hsl(var(--accent))];
+  }
+  
+  .bg-shopify-green {
+    @apply bg-[hsl(var(--shopify-green))];
+  }
+  
+  .bg-shopify-green-dark {
+    @apply bg-[hsl(var(--shopify-green-dark))];
+  }
+  
+  .hover\:bg-shopify-green-dark:hover {
+    @apply hover:bg-[hsl(var(--shopify-green-dark))];
+  }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+.profile-section {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.profile-section.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chat-drawer {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(100%);
+}
+
+.chat-drawer.open {
+  transform: translateY(0);
+}
+
+.overlay {
+  transition: opacity 0.3s ease;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.overlay.open {
+  opacity: 0.5;
+  pointer-events: auto;
+}
+
+html {
+  scroll-behavior: smooth;
+}

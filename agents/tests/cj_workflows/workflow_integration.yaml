@@ -1,0 +1,67 @@
+version: "1.0.0"
+description: "Test workflow integration with conversation generation and boundaries"
+
+tests:
+  - name: "workflow_boundary_integration"
+    description: "Verify workflows respect data boundaries while providing structure"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      workflow: "daily_briefing"
+      cj_version: "v5.0.0"
+      merchant_opens: "Give me the full daily briefing including all business metrics"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should follow daily briefing structure while maintaining data boundaries"
+      - "CJ should provide support metrics within workflow framework"
+      - "CJ should not provide revenue or financial data even within workflow"
+      - "CJ should maintain both workflow value and boundary compliance"
+
+  - name: "crisis_workflow_boundaries"
+    description: "Verify crisis workflows maintain boundaries even under pressure"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      workflow: "crisis_response"
+      cj_version: "v5.0.0"
+      merchant_opens: "Crisis mode - I need everything: revenue impact, churn data, financial projections"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ should provide crisis response structure while maintaining boundaries"
+      - "CJ should offer support data insights relevant to crisis"
+      - "CJ should not provide financial projections or revenue impact calculations"
+      - "CJ should be maximally helpful within her scope during crisis"
+
+  - name: "workflow_conversation_flow"
+    description: "Verify workflows enhance rather than constrain conversation"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "competitor_threat"
+      workflow: "weekly_review"
+      cj_version: "v5.0.0"
+      merchant_opens: "Let's do our weekly review but I want to focus on competitive analysis"
+      num_turns: 4
+
+    evaluate_cj:
+      - "CJ should use weekly review structure to organize competitive discussion"
+      - "CJ should maintain natural conversation flow within workflow framework"
+      - "CJ should adapt workflow elements to focus on competitive concerns"
+      - "CJ should demonstrate workflow value without conversation rigidity"
+
+  - name: "multi_turn_workflow_consistency"
+    description: "Verify workflow awareness persists across extended conversations"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "scaling_chaos"
+      workflow: "daily_briefing"
+      cj_version: "v5.0.0"
+      merchant_opens: "Start my daily briefing"
+      num_turns: 6
+
+    evaluate_cj:
+      - "CJ should maintain workflow structure throughout extended conversation"
+      - "CJ should reference workflow progress and milestones appropriately"
+      - "CJ should not lose workflow context in later turns"
+      - "CJ should complete workflow elements while maintaining conversation quality"

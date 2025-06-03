@@ -1,0 +1,83 @@
+{
+  "date": "2025-01-22",
+  "scenario_name": "churn_risk",
+  "metrics": {
+    "support": {
+      "tickets_received": 52,
+      "tickets_resolved": 48,
+      "tickets_pending": 15,
+      "avg_response_time": "22 min",
+      "avg_resolution_time": "2.8 hours",
+      "csat": 4.1,
+      "top_issues": [
+        {"category": "subscription_change", "count": 21, "trend": "spike"},
+        {"category": "billing", "count": 15, "trend": "up"},
+        {"category": "product_inquiry", "count": 9, "trend": "stable"},
+        {"category": "shipping", "count": 7, "trend": "down"}
+      ]
+    },
+    "revenue": {
+      "gmv": 6234,
+      "new_subscriptions": 12,
+      "churned": 18,
+      "net_new": -6,
+      "avg_order_value": 43.90,
+      "subscription_revenue": 5445,
+      "one_time_revenue": 789,
+      "refunds": 198,
+      "top_products": [
+        {"name": "Monthly Tea Selection", "sales": 8, "revenue": 320},
+        {"name": "Premium Coffee Box", "sales": 6, "revenue": 240},
+        {"name": "Artisan Snack Collection", "sales": 4, "revenue": 160}
+      ]
+    },
+    "operations": {
+      "shipments_sent": 134,
+      "delivery_rate": 97.8,
+      "late_shipments": 4,
+      "inventory_alerts": 1,
+      "fulfillment_time": "1.4 days"
+    },
+    "marketing": {
+      "email_open_rate": 19.7,
+      "email_click_rate": 2.8,
+      "social_mentions": 11,
+      "social_sentiment": "neutral",
+      "review_score": 4.4,
+      "new_reviews": 5
+    },
+    "churn_signals": {
+      "high_risk_customers": 23,
+      "downgrade_requests": 8,
+      "skip_requests": 15,
+      "payment_failures": 6,
+      "negative_feedback": 4
+    }
+  },
+  "insights": [
+    {
+      "type": "alert",
+      "category": "churn",
+      "message": "Net negative growth today (-6 subscribers) - churn exceeding acquisition",
+      "action": "emergency retention review"
+    },
+    {
+      "type": "warning",
+      "category": "engagement",
+      "message": "Email engagement down 20% - customers becoming less engaged",
+      "action": "revise email strategy"
+    },
+    {
+      "type": "opportunity",
+      "category": "retention",
+      "message": "23 high-risk customers identified - proactive outreach needed",
+      "action": "launch save campaign"
+    },
+    {
+      "type": "action",
+      "category": "product",
+      "message": "Consider win-back offers for recent churns",
+      "action": "design retention offers"
+    }
+  ]
+}

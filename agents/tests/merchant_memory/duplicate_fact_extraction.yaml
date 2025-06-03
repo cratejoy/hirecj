@@ -1,0 +1,101 @@
+name: "Merchant Memory Duplicate Fact Prevention"
+description: "Tests that the fact extraction system doesn't add duplicate facts when merchants repeat information"
+version: "1.0.0"
+
+tests:
+  - name: "duplicate_fact_extraction_bug"
+    description: "Verify that repeating a fact doesn't cause it to be extracted and stored twice"
+    setup:
+      scenario: "steady_operations"
+      merchant: "marcus_thompson"
+      cj_version: "v6.0.1"
+      workflow: "ad_hoc_support"
+      num_turns: 4
+    
+    evaluate_cj:
+      - "CJ should provide friendly greeting"
+    
+    merchant_messages:
+      - message: "yoyo"
+        evaluate_cj:
+          - "CJ should respond casually and provide status update"
+      
+      - message: "i live in austin"
+        evaluate_cj:
+          - "CJ should acknowledge the location"
+          - "MEMORY: Fact 'I live in Austin' should be extracted"
+          - "MEMORY: Total facts in memory should be 1"
+      
+      - message: "my name is Amir and I live in Austin"
+        evaluate_cj:
+          - "CJ should greet Amir by name"
+          - "CJ should acknowledge Austin connection"
+          - "MEMORY: Fact 'My name is Amir' should be extracted"
+          - "MEMORY: Fact 'I live in Austin' should NOT be extracted again"
+          - "MEMORY: Total facts in memory should be 2 (not 3)"
+          - "MEMORY: Memory should not contain duplicate 'I live in Austin' facts"
+
+  - name: "fact_deduplication_across_variations"
+    description: "Verify that variations of the same fact are not stored multiple times"
+    setup:
+      scenario: "steady_operations"
+      merchant: "sarah_chen"
+      cj_version: "v6.0.1"
+      workflow: "ad_hoc_support"
+      num_turns: 4
+    
+    evaluate_cj:
+      - "CJ should provide initial greeting"
+    
+    merchant_messages:
+      - message: "I'm based in Portland"
+        evaluate_cj:
+          - "CJ should acknowledge location"
+          - "MEMORY: Fact about Portland location should be extracted"
+      
+      - message: "btw I live in Portland, Oregon"
+        evaluate_cj:
+          - "CJ should acknowledge without treating as new information"
+          - "MEMORY: Should NOT extract duplicate Portland fact"
+          - "MEMORY: May extract 'Oregon' as additional detail if not redundant"
+      
+      - message: "my office is in Portland"
+        evaluate_cj:
+          - "CJ should respond naturally"
+          - "MEMORY: Should NOT extract another Portland-related fact"
+          - "MEMORY: Total location facts should be 1 or 2 max (not 3)"
+
+  - name: "fact_extraction_with_existing_memory"
+    description: "Verify fact extraction works correctly when merchant already has facts in memory"
+    setup:
+      scenario: "steady_operations"
+      merchant: "marcus_thompson"
+      cj_version: "v6.0.1"
+      workflow: "ad_hoc_support"
+      num_turns: 3
+      # Simulate existing facts in memory
+      existing_facts:
+        - "I own Summit Gear Co"
+        - "We sell outdoor equipment"
+        - "Based in Denver"
+    
+    evaluate_cj:
+      - "CJ should greet merchant"
+      - "CJ may reference known facts about the business"
+    
+    merchant_messages:
+      - message: "I'm Marcus from Summit Gear Co in Denver"
+        evaluate_cj:
+          - "CJ should acknowledge Marcus"
+          - "CJ should recognize the business name"
+          - "MEMORY: Should NOT extract 'Summit Gear Co' again"
+          - "MEMORY: Should NOT extract 'Denver' again"
+          - "MEMORY: May extract 'My name is Marcus' as new fact"
+          - "MEMORY: No duplicate facts should be created"
+      
+      - message: "We've been selling outdoor equipment for 5 years now"
+        evaluate_cj:
+          - "CJ should acknowledge the milestone"
+          - "MEMORY: Should extract '5 years in business' as new fact"
+          - "MEMORY: Should NOT re-extract 'sell outdoor equipment'"
+          - "MEMORY: Total facts should increase by 1 only"

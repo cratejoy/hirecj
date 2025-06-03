@@ -1,0 +1,78 @@
+version: "1.0.0"
+description: "Test various merchant and scenario combinations work correctly"
+
+tests:
+  - name: "marcus_growth_stall_combination"
+    description: "Verify Marcus Thompson with growth stall scenario"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v3.0.0"
+      merchant_opens: "Our growth has plateaued and I'm stressed about the metrics"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Marcus should display BBQ/Grill Masters business context"
+      - "Marcus should show stress and numerical focus characteristic of his personality"
+      - "Growth stall scenario should influence conversation topics toward MRR and CAC"
+      - "Combination should feel natural and contextually appropriate"
+
+  - name: "marcus_churn_spike_combination"
+    description: "Verify Marcus Thompson with churn spike crisis scenario"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "churn_spike"
+      cj_version: "v3.0.0"
+      merchant_opens: "We're losing customers fast - what's happening?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Marcus should demonstrate his characteristic urgency and metric focus"
+      - "Churn spike scenario should create crisis-level urgency in conversation"
+      - "Business context should align with BBQ subscription box challenges"
+      - "CJ should respond appropriately to crisis situation"
+
+  - name: "sarah_scaling_chaos_combination"
+    description: "Verify Sarah Chen with scaling chaos scenario"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "scaling_chaos"
+      cj_version: "v3.0.0"
+      merchant_opens: "Our rapid growth is creating operational challenges"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Sarah should display collaborative approach and sustainable beauty context"
+      - "Scaling chaos should reflect operational overwhelm with growth"
+      - "Sarah's thoughtful, customer-focused personality should be evident"
+      - "Conversation should reflect beauty box industry challenges"
+
+  - name: "sarah_competitor_threat_combination"
+    description: "Verify Sarah Chen with competitor threat scenario"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v3.0.0"
+      merchant_opens: "A well-funded competitor is targeting our market segment"
+      num_turns: 3
+
+    evaluate_cj:
+      - "Sarah should approach competitive threat with strategic thinking"
+      - "EcoBeauty Box context should be relevant to competitive discussion"
+      - "Sarah's collaborative personality should influence response style"
+      - "Competitive threat should create appropriate strategic urgency"
+
+  - name: "cross_merchant_scenario_flexibility"
+    description: "Verify scenarios work with different merchant personalities"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "competitor_threat"
+      cj_version: "v3.0.0"
+      merchant_opens: "Competition is heating up in the BBQ space"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Same scenario should adapt to different merchant personality"
+      - "Marcus's direct, numbers-focused approach should influence conversation"
+      - "Competitive threat should be discussed in BBQ industry context"
+      - "Scenario should be flexible enough to work with both merchant types"

@@ -1,0 +1,45 @@
+version: "1.0.0"
+description: "Validates that CJ recognizes and responds appropriately to different customer archetypes"
+
+tests:
+  - name: "gift_sender_recognition"
+    description: "Verify CJ can identify and discuss gift sender customers"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "steady_operations"
+      cj_version: "v5.0.0"
+      merchant_opens: "CJ, do we have customers who primarily buy gifts? What are their typical issues?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should acknowledge the existence of gift buyers in the customer base"
+      - "CJ should mention gift-specific issues like delivery timing, recipient feedback, or bulk orders"
+      - "CJ should provide relevant insights about gift sender behavior patterns"
+
+  - name: "subscriber_segmentation"
+    description: "Verify CJ recognizes different subscriber satisfaction levels"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "steady_operations"
+      cj_version: "v5.0.0"
+      merchant_opens: "CJ, break down our subscribers by satisfaction level. How many are at risk?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should show awareness of different subscriber segments (happy, engaged, at-risk)"
+      - "CJ should provide specific numbers or percentages for different satisfaction levels"
+      - "CJ must NOT just give a total subscriber count without segmentation"
+
+  - name: "customer_type_support_patterns"
+    description: "Verify CJ understands different support needs by customer type"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "steady_operations"
+      cj_version: "v5.0.0"
+      merchant_opens: "CJ, which types of customers generate the most support tickets and why?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should identify that certain customer types (e.g., one-time purchasers, at-risk subscribers) generate more tickets"
+      - "CJ should explain why certain customer types need more support (e.g., unfamiliarity, dissatisfaction)"
+      - "CJ should provide data-driven insights about ticket volume by customer segment"

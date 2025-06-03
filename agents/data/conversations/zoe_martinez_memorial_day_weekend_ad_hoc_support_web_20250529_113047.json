@@ -1,0 +1,14 @@
+{
+  "id": "zoe_martinez_memorial_day_weekend_ad_hoc_support_32e5acf3",
+  "conversation_id": "zoe_martinez_memorial_day_weekend_ad_hoc_support_32e5acf3",
+  "created_at": "2025-05-29T11:30:47.047626",
+  "scenario_name": "memorial_day_weekend",
+  "merchant_name": "zoe_martinez",
+  "cj_version": "v5.0.0",
+  "workflow": "ad_hoc_support",
+  "messages": [],
+  "state": {
+    "workflow": "ad_hoc_support"
+  },
+  "annotations": {}
+}
