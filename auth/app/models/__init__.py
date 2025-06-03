@@ -1,0 +1,1 @@
+"""Data models for HireCJ Auth Service."""
