@@ -34,7 +34,7 @@ def main():
         
         # Run backend in right pane
         backend_cmd = """
-cd hirecj-data && 
+cd hirecj-agents && 
 source venv/bin/activate && 
 export FLASK_APP=cj_test_server.py && 
 export FLASK_ENV=development && 
@@ -57,7 +57,7 @@ python -m flask run --host=0.0.0.0 --port=5001 --reload
         
         print(f"{YELLOW}[ALTERNATIVE]{END} Open two terminal windows and run:")
         print(f"\n{BLUE}Terminal 1 (Backend):{END}")
-        print("  cd hirecj-data")
+        print("  cd hirecj-agents")
         print("  source venv/bin/activate")
         print("  export FLASK_ENV=development")
         print("  export FLASK_DEBUG=1")

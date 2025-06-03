@@ -34,7 +34,7 @@ if [ -n "$TMUX" ]; then
     tmux split-window -h
     
     # Send backend command to right pane
-    tmux send-keys -t 1 "cd $(pwd)/hirecj-data && source venv/bin/activate && PORT=5001 python -m uvicorn src.api.server:app --host 0.0.0.0 --port 5001 --reload" C-m
+    tmux send-keys -t 1 "cd $(pwd)/hirecj-agents && source venv/bin/activate && PORT=5001 python -m uvicorn src.api.server:app --host 0.0.0.0 --port 5001 --reload" C-m
     
     # Run frontend in current pane
     cd hirecj-homepage && npm run dev
@@ -42,7 +42,7 @@ else
     # Not in tmux - use background processes
     echo -e "${BLUE}Starting Backend (port 5001)...${NC}"
     (
-        cd hirecj-data
+        cd hirecj-agents
         source venv/bin/activate
         export PORT=5001
         python -m uvicorn src.api.server:app --host 0.0.0.0 --port 5001 --reload 2>&1 | sed "s/^/[BACKEND] /"

@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 # Configuration
-BACKEND_DIR = Path(__file__).parent / "hirecj-data"
+BACKEND_DIR = Path(__file__).parent / "hirecj-agents"
 FRONTEND_DIR = Path(__file__).parent / "hirecj-homepage"
 BACKEND_PORT = 5001
 FRONTEND_PORT = 3456
@@ -50,7 +50,7 @@ def check_dependencies():
     venv_path = BACKEND_DIR / "venv"
     if not venv_path.exists():
         print_colored(Colors.WARNING, "[WARNING]", f"Virtual environment not found at {venv_path}")
-        print_colored(Colors.WARNING, "[WARNING]", "Create it with: cd hirecj-data && python -m venv venv && source venv/bin/activate && pip install -r requirements.txt")
+        print_colored(Colors.WARNING, "[WARNING]", "Create it with: cd hirecj-agents && python -m venv venv && source venv/bin/activate && pip install -r requirements.txt")
         return False
     
     return True

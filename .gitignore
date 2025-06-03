@@ -1,3 +1,9 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.env
+
 # Python
 __pycache__/
 *.py[cod]
@@ -7,24 +13,56 @@ __pycache__/
 env/
 venv/
 ENV/
+.venv
 env.bak/
 venv.bak/
 *.egg-info/
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .tox/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+.hypothesis/
+.nox/
+.pytype/
+*.egg
+eggs/
+.eggs/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
 
-# Node
+# Node.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 .npm
 .yarn-integrity
+dist/
+build/
+.next/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
@@ -34,52 +72,86 @@ logs/
 *.db
 *.sqlite
 *.sqlite3
+*.sqlite-shm
+*.sqlite-wal
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
+# Docker
+.docker/
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Build outputs
-dist/
-build/
-*.egg
-
-# Environment variables
-.env
-.env.local
-.env.*.local
+# Local data (preserve structure with .gitkeep)
+data/conversations/*.json
+data/merchant_memory/*.yaml
+!data/conversations/.gitkeep
+!data/merchant_memory/.gitkeep
 
 # Temporary files
 *.tmp
 *.temp
+*.bak
 tmp/
 temp/
 
 # Local development
 local/
-*.local
 
 # Testing
 test-results/
 coverage/
+nosetests.xml
+*.cover
+*.py,cover
+cover/
 
 # Documentation builds
 docs/_build/
 site/
 
-# Certificates
+# Certificates and secrets
 *.pem
 *.key
 *.crt
 *.cert
-
-# Secrets
 secrets/
 credentials/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment specific
+.python-version
+.node-version
+
+# Cache
+.cache/
+*.cache
+
+# Old structure (remove after migration)
+hirecj-*/
+
+# Heroku
+*.pyc
+
+# Flask/Django
+instance/
+.webassets-cache
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath
+*.sage.py
+
+# Scrapy
+.scrapy
+
+# mkdocs
+/site
+
+# Third-party
+third-party/LightRAG/.git/
+third-party/*/venv/
+third-party/*/node_modules/

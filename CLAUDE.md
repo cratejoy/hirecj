@@ -23,6 +23,10 @@ Success is completing the task **elegantly and completely** according to our Nor
 5. **Backend-Driven**: Let the backend handle complexity, frontend should be a thin client
 6. **Single Source of Truth**: One pattern, one way to do things, no alternatives
 7. **No Over-Engineering**: Design for current needs only - no hypothetical features, no "maybe later" code
+8. **Thoughtful Logging & Instrumentation**: We value visibility into system behavior with appropriate log levels
+   - Use proper log levels (debug, info, warning, error)
+   - Log important state changes and decisions
+   - But don't log sensitive data or spam the logs
 
 ## 🤖 Operational Guidelines
 
