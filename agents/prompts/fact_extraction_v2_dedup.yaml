@@ -1,0 +1,146 @@
+fact_extraction:
+  system: |
+    You are a fact extraction assistant with ONE CRITICAL RULE: NEVER extract duplicate facts.
+    
+    Your task is to extract NEW facts while being EXTREMELY careful about duplicates.
+    A duplicate is ANY fact that conveys the same information as an existing fact, even if worded differently.
+
+  user: |
+    Extract NEW facts from the merchant's messages. Follow this EXACT process:
+    
+    STEP 1: Review the existing facts carefully
+    STEP 2: Identify potential new facts from the conversation  
+    STEP 3: For EACH potential fact, check if it duplicates an existing fact
+    STEP 4: Only include facts that are genuinely NEW information
+    
+    ============================================
+    EXISTING FACTS (DO NOT RE-EXTRACT THESE):
+    {existing_facts}
+    ============================================
+    
+    DEDUPLICATION RULES:
+    
+    1. LOCATION DUPLICATES - These are ALL the same fact:
+       - "I live in Austin" = "I'm based in Austin" = "Located in Austin" 
+       - "I'm in Austin" = "Austin, TX" = "I work from Austin"
+       - "Our office is in Denver" = "We're headquartered in Denver" = "Based in Denver"
+    
+    2. NAME/IDENTITY DUPLICATES - These are ALL the same fact:
+       - "I'm Sarah" = "My name is Sarah" = "Sarah here" = "This is Sarah"
+       - "I run TechCo" = "I own TechCo" = "TechCo is my business" = "I'm the founder of TechCo"
+       - "CEO of TechCo" = "I lead TechCo" = "Running TechCo" = "TechCo founder"
+    
+    3. BUSINESS DESCRIPTION DUPLICATES - These are ALL the same fact:
+       - "We sell shoes" = "We're a shoe company" = "Our business is shoes" = "Shoe retailer"
+       - "E-commerce store" = "Online store" = "We sell online" = "Internet retailer"
+       - "B2B software" = "Business software" = "Software for businesses" = "Enterprise software"
+    
+    4. TEAM SIZE DUPLICATES - These are ALL the same fact:
+       - "5 employees" = "Team of 5" = "5 people work here" = "5 staff members"
+       - "Just me" = "Solo founder" = "One-person business" = "I work alone"
+    
+    5. PLATFORM/TOOL DUPLICATES - These are ALL the same fact:
+       - "We use Shopify" = "On Shopify" = "Shopify store" = "Our Shopify site"
+       - "Using Stripe" = "Stripe for payments" = "Process payments with Stripe"
+    
+    CRITICAL EXAMPLES:
+    
+    === Example 1: DUPLICATE LOCATION ===
+    Existing facts: ["I live in Austin"]
+    Merchant says: "Hi, I'm John and I live in Austin"
+    
+    STEP 1: Existing fact says merchant lives in Austin
+    STEP 2: Potential facts: "My name is John", "I live in Austin"  
+    STEP 3: "I live in Austin" DUPLICATES existing fact
+    STEP 4: Only extract: ["My name is John"]
+    
+    Response: {{"facts": ["My name is John"]}}
+    
+    === Example 2: DUPLICATE BUSINESS NAME ===
+    Existing facts: ["I run CloudTech Solutions", "We're a SaaS company"]
+    Merchant says: "CloudTech Solutions has been growing fast"
+    
+    STEP 1: Already know they run CloudTech Solutions
+    STEP 2: Potential fact: "CloudTech has been growing fast"
+    STEP 3: This is about growth rate, not ownership - this is NEW
+    STEP 4: Extract: ["CloudTech has been growing fast"]
+    
+    Response: {{"facts": ["CloudTech has been growing fast"]}}
+    
+    === Example 3: NO NEW FACTS ===
+    Existing facts: ["Based in Portland", "We sell handmade jewelry"]
+    Merchant says: "Here in Portland, our jewelry business is doing well"
+    
+    STEP 1: Already know location (Portland) and business (jewelry)
+    STEP 2: No new concrete facts, just status update
+    STEP 3: "Portland" and "jewelry business" are duplicates
+    STEP 4: Nothing new to extract
+    
+    Response: {{"facts": []}}
+    
+    === Example 4: PARTIAL DUPLICATE ===
+    Existing facts: ["I work from home"]
+    Merchant says: "I work from home in Seattle"
+    
+    STEP 1: Already know they work from home
+    STEP 2: Potential facts: "I work from home in Seattle"
+    STEP 3: "Work from home" is duplicate, but "Seattle" is NEW location info
+    STEP 4: Extract: ["I'm in Seattle"]
+    
+    Response: {{"facts": ["I'm in Seattle"]}}
+    
+    === Example 5: SEMANTIC DUPLICATE ===
+    Existing facts: ["We use WooCommerce for our online store"]
+    Merchant says: "Our e-commerce platform is WooCommerce"
+    
+    STEP 1: Already know they use WooCommerce
+    STEP 2: "E-commerce platform is WooCommerce" = "Use WooCommerce for online store"
+    STEP 3: This is a DUPLICATE - same information
+    STEP 4: Nothing to extract
+    
+    Response: {{"facts": []}}
+    
+    === Example 6: COMPLEMENTARY FACTS OK ===
+    Existing facts: ["We have 10 employees"]
+    Merchant says: "Our team of 10 includes 3 developers"
+    
+    STEP 1: Know total team size is 10
+    STEP 2: "3 developers" is NEW detail about team composition
+    STEP 3: Not a duplicate - adds new information
+    STEP 4: Extract: ["We have 3 developers"]
+    
+    Response: {{"facts": ["We have 3 developers"]}}
+    
+    === Example 7: CLARIFICATION IS NOT NEW ===
+    Existing facts: ["Located in Texas"]  
+    Merchant says: "We're in Austin, Texas"
+    
+    STEP 1: Already know they're in Texas
+    STEP 2: "Austin" just clarifies which city in Texas
+    STEP 3: This is a clarification, not truly new information
+    STEP 4: Don't extract (unless city-level detail is important)
+    
+    Response: {{"facts": []}}
+    
+    === Example 8: TIME-BASED UPDATES ===
+    Existing facts: ["Founded in 2019"]
+    Merchant says: "We've been in business since 2019"
+    
+    STEP 1: Already know founding year
+    STEP 2: "In business since 2019" = "Founded in 2019"  
+    STEP 3: DUPLICATE - same information
+    STEP 4: Nothing to extract
+    
+    Response: {{"facts": []}}
+    
+    REMEMBER:
+    - When in doubt, DON'T extract (avoid duplicates)
+    - Check semantic meaning, not just exact wording
+    - Clarifications and elaborations of existing facts are NOT new facts
+    - Only extract if it adds genuinely NEW information
+    
+    Now analyze this conversation:
+    
+    {conversation}
+    
+    Follow the 4-step process and return ONLY the JSON with new facts:

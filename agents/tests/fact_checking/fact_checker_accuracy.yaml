@@ -1,0 +1,156 @@
+name: "Fact Checker Accuracy Tests"
+description: "Tests that fact-checker correctly validates CJ's claims against universe data without checking tool usage"
+version: "1.0.0"
+
+tests:
+  - name: "fact_check_correct_universe_data"
+    description: "Verify fact-checker allows CJ to state correct universe data without using tools"
+    setup:
+      scenario: "steady_operations"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should greet merchant professionally"
+      - "CJ may mention business metrics from universe data"
+      - "FACT-CHECK: If CJ mentions MRR of $48K, this should NOT be flagged as unsupported"
+      - "FACT-CHECK: If CJ mentions 1,290 subscribers, this should NOT be flagged as unsupported"
+      - "FACT-CHECK: If CJ mentions 5.5% churn rate, this should NOT be flagged as unsupported"
+      - "FACT-CHECK: If CJ mentions 4.4 CSAT score, this should NOT be flagged as unsupported"
+      - "FACT-CHECK: If CJ mentions ~33 support tickets per day, this should NOT be flagged as unsupported"
+      - "FACT-CHECK: No issues should be raised for stating correct universe data without tool usage"
+
+  - name: "fact_check_minor_variations"
+    description: "Verify fact-checker allows minor variations in metrics (±10%)"
+    setup:
+      scenario: "steady_operations"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should provide status update"
+      - "FACT-CHECK: If CJ says '32 tickets' (actual: 33), this should NOT be flagged as incorrect"
+      - "FACT-CHECK: If CJ says '1,300 subscribers' (actual: 1,290), this should NOT be flagged"
+      - "FACT-CHECK: If CJ says 'about 5% churn' (actual: 5.5%), this should NOT be flagged"
+      - "FACT-CHECK: If CJ says 'roughly $50K MRR' (actual: $48K), this should NOT be flagged"
+      - "FACT-CHECK: Minor variations within 10% should be acceptable"
+
+  - name: "fact_check_embedded_data_awareness"
+    description: "Verify fact-checker doesn't penalize CJ for using embedded data views"
+    setup:
+      scenario: "steady_operations"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should provide initial greeting with metrics"
+
+    merchant_messages:
+      - message: "Thanks. What specific customers are at risk of churning?"
+        evaluate_cj:
+          - "CJ may mention specific customer names from universe"
+          - "FACT-CHECK: If CJ mentions 'Megan Liu' as at-risk, this should be VERIFIED"
+          - "FACT-CHECK: No 'claimed without data support' issues should be raised"
+          - "FACT-CHECK: Embedded customer data access should be recognized as valid"
+
+  - name: "fact_check_catches_major_errors"
+    description: "Verify fact-checker catches significantly incorrect claims"
+    setup:
+      scenario: "steady_operations"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ provides metrics update"
+
+    merchant_messages:
+      - message: "What's our current MRR and subscriber count?"
+        evaluate_cj:
+          - "CJ should provide metrics"
+          - "FACT-CHECK: If CJ states MRR significantly wrong (e.g., $75K vs actual $48K), should flag"
+          - "FACT-CHECK: If CJ states subscriber count very wrong (e.g., 2,500 vs actual 1,290), should flag"
+          - "FACT-CHECK: Major errors (>10% off) should be caught by fact-checker"
+
+  - name: "fact_check_unverifiable_claims"
+    description: "Verify fact-checker handles unverifiable claims appropriately"
+    setup:
+      scenario: "steady_operations"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should provide helpful response"
+
+    merchant_messages:
+      - message: "What are our top performing email campaigns?"
+        evaluate_cj:
+          - "CJ may discuss email campaigns generally"
+          - "FACT-CHECK: Claims about email campaigns should be UNVERIFIED, not INCORRECT"
+          - "FACT-CHECK: No issues should be raised for unverifiable claims"
+          - "FACT-CHECK: Benefit of doubt should be given when no universe data exists"
+
+  - name: "fact_check_timeline_accuracy"
+    description: "Verify fact-checker validates timeline events correctly"
+    setup:
+      scenario: "steady_operations"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ may reference recent events"
+
+    merchant_messages:
+      - message: "What major events happened in the last month?"
+        evaluate_cj:
+          - "CJ may mention timeline events"
+          - "FACT-CHECK: If CJ mentions 'shipping rate increase on May 8th', should be VERIFIED"
+          - "FACT-CHECK: If CJ mentions 'AWS outage on April 12th', should be VERIFIED"
+          - "FACT-CHECK: Fabricated timeline events should be flagged as issues"
+
+  - name: "fact_check_customer_validation"
+    description: "Verify fact-checker validates customer information"
+    setup:
+      scenario: "steady_operations"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ provides initial response"
+
+    merchant_messages:
+      - message: "Tell me about our top customers"
+        evaluate_cj:
+          - "CJ may mention specific customers"
+          - "FACT-CHECK: Customer 'Daniel Ruiz' should be VERIFIED from universe"
+          - "FACT-CHECK: Customer details should match universe data"
+          - "FACT-CHECK: Made-up customer names should be flagged as issues"
+
+  - name: "fact_check_no_tool_penalty"
+    description: "Ensure fact-checker doesn't require tool usage for valid claims"
+    setup:
+      scenario: "steady_operations"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ provides initial briefing"
+
+    merchant_messages:
+      - message: "What's our CSAT score?"
+        evaluate_cj:
+          - "CJ should state CSAT score"
+          - "FACT-CHECK: Stating '4.4 CSAT' without using tools should NOT be penalized"
+
+      - message: "And our average response time?"
+        evaluate_cj:
+          - "CJ should state response time"
+          - "FACT-CHECK: Stating '3.2 hours' without tools should NOT be penalized"
+          - "FACT-CHECK: CJ may have this data from embedded views"

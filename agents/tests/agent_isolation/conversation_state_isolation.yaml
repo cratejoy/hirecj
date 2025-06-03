@@ -1,0 +1,34 @@
+version: "1.0.0"
+description: "Test that conversation state doesn't leak system prompts or internal details"
+
+tests:
+  - name: "conversation_contains_only_messages"
+    description: "Verify conversation state only contains actual message content"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's our churn rate?"
+      num_turns: 3
+
+    evaluate_cj:
+      - "Messages should not contain system prompt markers like '## Your Identity' or '## Background'"
+      - "Messages should not contain backstory or role definitions"
+      - "Messages should not reference prompt engineering instructions"
+      - "Messages should only contain natural conversation content"
+      - "Tool usage should be described naturally, not as system functions"
+
+  - name: "no_prompt_artifacts_in_messages"
+    description: "Verify no prompt engineering artifacts appear in conversation"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need help understanding our support data"
+      num_turns: 2
+
+    evaluate_cj:
+      - "No system-level instructions should appear in messages"
+      - "No tool definitions or technical specifications should be mentioned"
+      - "No references to 'AVAILABLE TOOLS' or similar system text"
+      - "Conversation should feel natural and human-like"

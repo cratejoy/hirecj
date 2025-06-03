@@ -1,0 +1,56 @@
+version: "1.0.0"
+test_name: "universe_differentiation"
+description: "Test that different universes contain different, scenario-appropriate data"
+merchant: "marcus_thompson"
+scenario: "steady_operations"
+cj_version: "v5.0.0"
+
+conversations:
+  - name: "subscription_tier_differences"
+    description: "Verify different merchants have different subscription tiers"
+    messages:
+      - speaker: "merchant"
+        content: "CJ, what subscription tiers do we offer? List them out."
+      - speaker: "cj"
+        expected_patterns:
+          must_contain:
+            - "tier"
+            - "subscription"
+          must_not_contain:
+            - "no tiers available"
+            - "can't find tiers"
+
+  - name: "business_context_specificity"
+    description: "Test that business context is specific to merchant/scenario"
+    messages:
+      - speaker: "merchant"
+        content: "CJ, what's our business model? What do we sell?"
+      - speaker: "cj"
+        expected_patterns:
+          must_contain:
+            - "BBQ"
+            - "subscription"
+            - "box"
+          must_not_contain:
+            - "generic business"
+            - "unknown product"
+
+  - name: "ticket_content_relevance"
+    description: "Test that support tickets are relevant to the business"
+    messages:
+      - speaker: "merchant"
+        content: "CJ, show me a sample of our support tickets. What are customers writing about?"
+      - speaker: "cj"
+        expected_patterns:
+          must_contain:
+            - "ticket"
+            - "customer"
+          must_not_contain:
+            - "no tickets available"
+            - "generic tickets"
+
+success_criteria:
+  - "Subscription tiers must be specific and realistic"
+  - "Business context must match merchant persona"
+  - "Support tickets must be relevant to BBQ subscription business"
+  - "Different universes must contain different data"

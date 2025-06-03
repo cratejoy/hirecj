@@ -1,0 +1,77 @@
+{
+  "id": "zoe_martinez_memorial_day_weekend_ad_hoc_support_93fa190c",
+  "conversation_id": "zoe_martinez_memorial_day_weekend_ad_hoc_support_93fa190c",
+  "created_at": "2025-05-29T17:45:39.567157",
+  "scenario_name": "memorial_day_weekend",
+  "merchant_name": "zoe_martinez",
+  "cj_version": "v5.0.0",
+  "workflow": "ad_hoc_support",
+  "messages": [
+    {
+      "timestamp": "2025-05-29T17:45:39.602213",
+      "sender": "zoe_martinez",
+      "content": "Respond helpfully to the merchant's message",
+      "metadata": {
+        "human_played": true
+      }
+    },
+    {
+      "timestamp": "2025-05-29T17:45:46.885239",
+      "sender": "CJ",
+      "content": "Hey there! CJ here from your support team. I just picked up the signal that you need some help with something. \n\nLooking at our current support landscape - we've got 28 tickets flowing through today with our response time sitting pretty at 3.2 hours average. CSAT is holding strong at 4.3, so our customers are generally happy with how we're handling things.\n\nI'm seeing our main ticket categories are shipping questions, account management issues, and product feedback - pretty typical mix for us.\n\nWhat's on your mind? Whether it's a specific customer situation, a pattern you're noticing, or just need me to dig into something from the support side - I'm here and ready to help. Just let me know what you need!",
+      "metadata": {
+        "turn": 1,
+        "metrics": {
+          "prompts": 1,
+          "tools": 0,
+          "time": 7.282812118530273
+        },
+        "debug": {
+          "context_window_size": 1,
+          "task_description": "Start the ad_hoc_support workflow for zoe_martinez",
+          "has_conversation_state": true,
+          "workflow": "ad_hoc_support",
+          "cj_version": "v5.0.0",
+          "scenario_context": {
+            "description": "",
+            "stress_level": "medium",
+            "metrics": {
+              "mrr": 50000,
+              "subscriber_count": 1000,
+              "churn_rate": 5.3,
+              "csat_score": 4.3,
+              "support_tickets_per_day": 28,
+              "average_response_time_hours": 3.2,
+              "top_categories": [
+                "shipping",
+                "account_management",
+                "product_feedback"
+              ],
+              "total_customers": 14,
+              "total_tickets": 41
+            }
+          },
+          "turn_count": 1,
+          "context_window": [
+            {
+              "sender": "zoe_martinez",
+              "content": "Respond helpfully to the merchant's message",
+              "timestamp": "2025-05-29T17:45:39.602213"
+            }
+          ],
+          "system_info": {
+            "timestamp": "2025-05-29T17:45:46.885222",
+            "server_version": "unknown",
+            "model_used": "claude-sonnet-4-20250514"
+          },
+          "verbose_output_preview": "\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Crew Execution Started \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Crew Execution Started                                                      \u2502\n\u2502  Name: crew                                                                  \u2502\n\u2502  ID: eeaaa068-de3c-4a7e-8bf2-bc52624164d7                                    \u2502\n\u2502                                                                              \u2502\n\u2502             ...",
+          "agent_debug_info": {}
+        }
+      }
+    }
+  ],
+  "state": {
+    "workflow": "ad_hoc_support"
+  },
+  "annotations": {}
+}

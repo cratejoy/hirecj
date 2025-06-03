@@ -1,0 +1,213 @@
+# Support Tools Registry
+# Defines available tools and their data access patterns
+
+name: "Customer Support Tools"
+version: "1.0.0"
+description: "Tools available to CJ for accessing support data"
+
+tools:
+  get_support_dashboard:
+    description: "Overview of current support queue and key metrics"
+    category: "dashboard"
+    returns:
+      current_queue:
+        new_tickets: integer
+        open_tickets: integer
+        pending_tickets: integer
+        on_hold_tickets: integer
+        overdue_tickets: integer
+
+      today_stats:
+        tickets_created: integer
+        tickets_solved: integer
+        tickets_reopened: integer
+        avg_first_response_time: duration
+        current_csat: float
+
+      response_metrics:
+        within_sla: percentage
+        breached_sla: integer
+        at_risk: integer
+
+      trending_issues:
+        type: array
+        items:
+          tag: string
+          count: integer
+          change_percent: float
+          sample_quote: string
+
+  search_tickets:
+    description: "Search support tickets with filters"
+    category: "search"
+    parameters:
+      query:
+        type: string
+        description: "Search terms to look for in tickets"
+      filters:
+        status: optional[array[enum]]
+        priority: optional[array[enum]]
+        channel: optional[array[enum]]
+        date_range:
+          from: optional[datetime]
+          to: optional[datetime]
+        tags: optional[array[string]]
+
+    returns:
+      total_results: integer
+      tickets:
+        type: array
+        limit: 10
+        items:
+          id: string
+          subject: string
+          excerpt: string
+          requester_name: string
+          status: string
+          priority: string
+          created_at: datetime
+          sentiment: enum[positive, neutral, negative, urgent]
+
+      insights:
+        common_phrases: array[string]
+        sentiment_breakdown: object
+        channel_distribution: object
+
+  analyze_ticket_category:
+    description: "Deep analysis of tickets by category or tag"
+    category: "analytics"
+    parameters:
+      category:
+        type: string
+        description: "Category, tag, or issue type to analyze"
+      time_period:
+        type: enum
+        values: [today, week, month, quarter, custom]
+      date_range:
+        from: optional[datetime]
+        to: optional[datetime]
+
+    returns:
+      summary:
+        total_tickets: integer
+        avg_resolution_time: duration
+        avg_first_response: duration
+        satisfaction_score: float
+        escalation_rate: percentage
+
+      patterns:
+        peak_hours: array[integer]
+        common_customer_phrases: array[string]
+        related_tags: array[object]
+        typical_resolution: string
+
+      customer_impact:
+        affected_customers: integer
+        repeat_contactors: integer
+        vip_customers_affected: integer
+
+  get_customer_support_history:
+    description: "View a customer's support interaction history"
+    category: "customer"
+    parameters:
+      customer_identifier:
+        type: string
+        description: "Email, customer ID, or name"
+      limit:
+        type: integer
+        default: 10
+
+    returns:
+      customer_summary:
+        total_tickets: integer
+        open_tickets: integer
+        avg_satisfaction: float
+        first_contact: datetime
+        last_contact: datetime
+        preferred_channel: string
+
+      recent_tickets:
+        type: array
+        items:
+          id: string
+          subject: string
+          status: string
+          created_at: datetime
+          resolved_at: datetime
+          satisfaction_rating: enum
+
+      patterns:
+        common_issues: array[string]
+        avg_time_between_contacts: duration
+        escalation_history: integer
+
+  get_urgent_tickets:
+    description: "Analyze urgent and escalated tickets"
+    category: "alerts"
+    parameters:
+      include_at_risk:
+        type: boolean
+        default: true
+
+    returns:
+      urgent_queue:
+        total_urgent: integer
+        overdue: integer
+        approaching_sla: integer
+        escalated: integer
+
+      breakdown:
+        by_issue:
+          type: array
+          items:
+            issue: string
+            count: integer
+            avg_age: duration
+            sample_quotes: array[string]
+
+        by_customer_segment:
+          vip_customers: integer
+          new_customers: integer
+          at_risk_customers: integer
+
+      escalation_patterns:
+        common_reasons: array[object]
+        avg_escalation_time: duration
+        resolution_after_escalation: percentage
+
+  get_team_performance:
+    description: "Support team performance metrics"
+    category: "performance"
+    parameters:
+      time_period:
+        type: enum
+        values: [today, week, month]
+
+    returns:
+      team_metrics:
+        total_tickets_handled: integer
+        avg_resolution_time: duration
+        avg_first_response: duration
+        csat_score: float
+        one_touch_resolution: percentage
+
+      efficiency:
+        tickets_per_hour: float
+        avg_replies_to_resolve: float
+        reopen_rate: percentage
+
+      quality:
+        customer_effort_score: float
+        positive_feedback_count: integer
+        negative_feedback_count: integer
+
+# Tool validation rules
+validation:
+  data_freshness:
+    real_time_tools: [get_support_dashboard, get_urgent_tickets]
+    cached_duration: "5 minutes"
+
+  access_patterns:
+    read_only: true
+    no_customer_pii: false  # We can see names/emails in support context
+    audit_required: true

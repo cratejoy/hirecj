@@ -1,0 +1,23 @@
+{
+  "id": "872263c0-865d-469b-ab19-4c5787fb23b7",
+  "conversation_id": "872263c0-865d-469b-ab19-4c5787fb23b7",
+  "created_at": "2025-05-28T12:19:55.559680",
+  "scenario_name": "memorial_day_weekend",
+  "merchant_name": "zoe_martinez",
+  "cj_version": "v5.0.0",
+  "workflow": "daily_briefing",
+  "messages": [
+    {
+      "timestamp": "2025-05-28T12:19:55.596979",
+      "sender": "zoe_martinez",
+      "content": "[WORKFLOW_START]",
+      "metadata": {
+        "human_played": true
+      }
+    }
+  ],
+  "state": {
+    "workflow": "daily_briefing"
+  },
+  "annotations": {}
+}

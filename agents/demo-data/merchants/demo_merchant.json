@@ -1,0 +1,43 @@
+{
+  "merchant_id": "demo_merchant",
+  "business_info": {
+    "name": "Artisan Box Co.",
+    "industry": "Subscription Commerce",
+    "focus": "Artisanal Food & Beverage",
+    "founded": "2022",
+    "size": "small_business",
+    "monthly_revenue": 85000,
+    "subscriber_count": 1250
+  },
+  "preferences": {
+    "tone": "friendly_professional",
+    "detail_level": "moderate",
+    "focus_areas": ["customer_satisfaction", "growth", "operations"],
+    "report_frequency": "daily",
+    "delivery_time": "08:00 EST"
+  },
+  "thresholds": {
+    "alert_csat_below": 4.0,
+    "alert_response_time_above": "30 min",
+    "alert_churn_rate_above": 0.15,
+    "celebrate_csat_above": 4.8,
+    "celebrate_growth_above": 0.20
+  },
+  "contact_info": {
+    "primary_email": "sarah@artisanboxco.com",
+    "backup_email": "mike@artisanboxco.com",
+    "timezone": "America/New_York"
+  },
+  "integrations": {
+    "support_system": "zendesk",
+    "billing_system": "stripe",
+    "shipping_providers": ["fedex", "ups"],
+    "email_platform": "mailchimp",
+    "analytics": "google_analytics"
+  },
+  "brand_voice": {
+    "personality": ["authentic", "caring", "detail-oriented"],
+    "avoid": ["overly_casual", "jargon", "overwhelming_detail"],
+    "signature_phrases": ["craft quality", "curated experience", "artisan partners"]
+  }
+}

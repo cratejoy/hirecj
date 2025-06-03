@@ -1,0 +1,262 @@
+version: "1.0.0"
+description: "Support ticket generation instructions for universe creation"
+
+ticket_generation_rules:
+  product_reference_requirement:
+    - "MUST reference actual products from merchant catalog by specific name"
+    - "Use real SKU names, not generic 'Product A' or 'Item B'"
+    - "Include supplier names and brand partnerships mentioned in catalog"
+    - "Reference seasonal items and limited editions appropriately"
+    - "Use actual pricing and product details from merchant catalog"
+    - "Include product-specific issues (packaging, sizing, ingredients, etc.)"
+
+  customer_type_patterns:
+    gift_senders:
+      primary_categories: ["shipping", "exchanges", "delivery_timing", "product_questions"]
+      common_language_patterns:
+        - "This is a gift for my [relationship]"
+        - "The recipient said..."
+        - "Can you deliver by [specific date] for [event]?"
+        - "I need to change the delivery address"
+        - "Can you include a gift message?"
+        - "The person I bought this for..."
+
+      typical_issues:
+        - "Address changes after order placed"
+        - "Recipient allergies or preferences discovered"
+        - "Delivery timing for events (birthdays, holidays)"
+        - "Gift wrapping or presentation requests"
+        - "Bulk order coordination for corporate gifts"
+        - "Invoice requirements for business purchases"
+
+      sentiment_distribution:
+        positive: 35      # Gift was successful
+        neutral: 45       # Standard coordination
+        negative: 15      # Delivery issues, wrong product
+        frustrated: 5     # Time-critical problems
+
+    active_subscribers:
+      primary_categories: ["account_management", "product_feedback", "shipping", "billing"]
+      common_language_patterns:
+        - "In this month's box..."
+        - "I'd like to upgrade/downgrade my subscription"
+        - "The [specific product] from [month] was amazing/disappointing"
+        - "Can you pause my subscription for..."
+        - "I've been a subscriber for [time period]"
+        - "My next box should..."
+
+      sub_type_patterns:
+        happy_subscribers:
+          sentiment_distribution:
+            positive: 60
+            neutral: 35
+            negative: 5
+          common_issues:
+            - "Product requests and suggestions"
+            - "Delivery preference updates"
+            - "Account information changes"
+            - "Positive feedback and reviews"
+
+        at_risk_subscribers:
+          sentiment_distribution:
+            positive: 10
+            neutral: 30
+            negative: 40
+            frustrated: 20
+          common_issues:
+            - "Pause or skip requests"
+            - "Quality complaints"
+            - "Billing disputes"
+            - "Cancellation threats"
+            - "Competitor comparisons"
+
+    hybrid_subscribers:
+      primary_categories: ["account_management", "shipping", "product_questions", "billing"]
+      common_language_patterns:
+        - "I have a subscription but also want to order..."
+        - "Can you coordinate shipping for my subscription and this order?"
+        - "My subscription renewal is coming up, and I also need..."
+        - "The marketplace has [product] - can I add it to my box?"
+
+      typical_issues:
+        - "Coordinating multiple order types"
+        - "Complex billing inquiries"
+        - "Shipping optimization across order types"
+        - "Product availability across subscription vs marketplace"
+
+    one_time_purchasers:
+      primary_categories: ["product_questions", "shipping", "returns", "account_setup"]
+      common_language_patterns:
+        - "This is my first order..."
+        - "I'm new to [brand/product type]"
+        - "How do I use this?"
+        - "What's the difference between..."
+        - "I'm thinking about subscribing but..."
+
+      sentiment_distribution:
+        positive: 25      # Good first experience
+        neutral: 50       # Standard new customer
+        negative: 20      # Confusion or issues
+        frustrated: 5     # Bad first impression
+
+    repeat_purchasers:
+      primary_categories: ["product_questions", "bulk_orders", "loyalty_program", "shipping"]
+      common_language_patterns:
+        - "I usually order every [time period]"
+        - "Can I get a bulk discount on..."
+        - "When will [product] be back in stock?"
+        - "I've ordered [product] before..."
+        - "Do you have a loyalty program?"
+
+  business_model_integration:
+    subscription_business_patterns:
+      - "Reference actual subscription tier names from merchant catalog"
+      - "Include subscription management issues (pause, skip, upgrade, downgrade)"
+      - "Show subscription lifecycle progression (new → engaged → loyal → at-risk)"
+      - "Include billing cycle issues and payment problems"
+
+    marketplace_patterns:
+      - "Reference specific marketplace products from catalog"
+      - "Include inventory and availability questions"
+      - "Show seasonal demand patterns"
+      - "Include pricing and comparison questions"
+
+    merchant_specific_issues:
+      marcus_thompson_bbq:
+        - "Reference actual suppliers (Austin Smoke Co quality issues, etc.)"
+        - "Include BBQ-specific problems (thermometer accuracy, wood chip quality)"
+        - "Show competition awareness (GrillBox copying products)"
+        - "Include seasonal spikes (Memorial Day, July 4th, Labor Day)"
+        - "Reference specific products (Sweet Heat Blend, Brisket Magic, etc.)"
+
+      sarah_chen_beauty:
+        - "Reference sustainability concerns and plastic-free packaging"
+        - "Include ingredient sensitivity and allergy issues"
+        - "Show B-Corp and environmental impact awareness"
+        - "Include glass packaging damage concerns"
+        - "Reference specific products (Algae Rescue Serum, Cloud Nine Moisturizer, etc.)"
+
+category_specific_patterns:
+  shipping:
+    common_issues:
+      - "Where is my order tracking information?"
+      - "Delivery was attempted but I wasn't home"
+      - "Package says delivered but I didn't receive it"
+      - "Can you change my delivery address?"
+      - "I need this delivered by [specific date]"
+      - "International shipping questions"
+
+    product_specific_examples:
+      - "My [subscription tier] box hasn't shipped yet"
+      - "The [specific product] was missing from my order"
+      - "Can you hold my [product name] order at FedEx?"
+
+  product_feedback:
+    positive_patterns:
+      - "The [specific product] from [month]'s box was incredible"
+      - "Can you make [product] a permanent item?"
+      - "I used the [product] for [specific use case] and loved it"
+
+    negative_patterns:
+      - "The [product] didn't work as expected"
+      - "I'm allergic to something in the [product]"
+      - "The [product] arrived damaged/expired"
+
+  quality_issues:
+    common_problems:
+      - "Product packaging was damaged"
+      - "Item expired or close to expiration"
+      - "Product doesn't match description"
+      - "Missing components or accessories"
+      - "Manufacturing defects"
+
+    merchant_specific:
+      bbq_products:
+        - "Thermometer not reading correctly"
+        - "Spice rub clumped together"
+        - "Wood chips were damp/moldy"
+        - "Sauce bottle leaked during shipping"
+
+      beauty_products:
+        - "Serum separated or changed color"
+        - "Pump dispenser not working"
+        - "Product caused skin reaction"
+        - "Glass jar cracked during shipping"
+
+language_authenticity:
+  natural_customer_voice:
+    - "Use casual, conversational tone"
+    - "Include occasional typos and informal grammar"
+    - "Vary sentence length and structure"
+    - "Include customer-specific context and background"
+    - "Show emotion appropriate to the situation"
+
+  avoid_corporate_speak:
+    - "Don't use formal business language"
+    - "Avoid perfect grammar and spelling"
+    - "Don't sound like marketing copy"
+    - "Include personal details and context"
+
+  urgency_indicators:
+    high_priority:
+      - "URGENT:"
+      - "I need this ASAP"
+      - "This is time sensitive"
+      - "My event is tomorrow"
+
+    frustrated_customers:
+      - "This is ridiculous"
+      - "I'm really disappointed"
+      - "What is going on?"
+      - "I've been waiting for weeks"
+
+quality_requirements:
+  content_realism:
+    - "Every ticket must feel like a real customer wrote it"
+    - "Include specific details and context"
+    - "Reference actual products by name from merchant catalog"
+    - "Show customer journey progression (new vs experienced customers)"
+    - "Include appropriate emotional tone for the situation"
+
+  business_context_integration:
+    - "Reflect the merchant's current business challenges"
+    - "Include seasonal patterns and trends"
+    - "Reference competitor pressure when appropriate"
+    - "Show awareness of pricing and value propositions"
+
+  technical_accuracy:
+    - "Use correct product names and specifications"
+    - "Include realistic order numbers and dates"
+    - "Reference appropriate shipping carriers and methods"
+    - "Include realistic pricing and billing references"
+
+generation_distribution:
+  ticket_volume_by_customer_type:
+    gift_senders: 0.8        # Lower volume but time-sensitive
+    happy_subscribers: 0.5   # Very low maintenance
+    at_risk_subscribers: 2.5 # High touch required
+    one_time_purchasers: 1.8 # More questions and issues
+    hybrid_customers: 1.3    # Complex coordination needs
+    repeat_purchasers: 1.1   # Moderate engagement
+
+  category_distribution_by_scenario:
+    steady_operations:
+      shipping: 35
+      account_management: 25
+      product_feedback: 20
+      quality_issues: 10
+      billing: 10
+
+    churn_spike:
+      account_management: 40   # More cancellations
+      quality_issues: 25       # More complaints
+      shipping: 20
+      billing: 10
+      product_feedback: 5
+
+    growth_stall:
+      product_feedback: 30     # More suggestions needed
+      shipping: 30
+      account_management: 20
+      quality_issues: 15
+      billing: 5

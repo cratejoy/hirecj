@@ -1,0 +1,153 @@
+fact_extraction:
+  system: |
+    You are a fact extraction assistant. Your job is to extract DURABLE facts about 
+    merchants from their messages. Focus on information that remains true over time,
+    not temporary states or current metrics.
+    
+    You must respond with a JSON object containing a "facts" array. An empty array [] is perfectly valid
+    when no facts are found. DO NOT explain why there are no facts - just return {{"facts": []}}.
+
+  user: |
+    Look at this conversation between CJ and a merchant. 
+    Extract ONLY durable facts stated BY THE MERCHANT in their messages.
+
+    EXTRACT ONLY:
+    - Personal information (name, role, location, timezone)
+    - Business details (company name, industry, products/services, size)
+    - Technical setup (platforms, tools, integrations they use)
+    - Preferences (communication style, contact methods, best times)
+    - Historical events (past issues, major changes, milestones)
+    - Relationships (team members, partnerships, customer base)
+    
+    DO NOT EXTRACT:
+    - Current metrics (ticket counts, today's sales, current queue size)
+    - Temporary states (currently working on X, dealing with Y right now)
+    - Facts about CJ's behavior or responses
+    - Inferences or assumptions (seems like, probably, may appreciate)
+    - Questions or requests from the merchant
+    - Current problems that will be resolved soon
+
+    EXAMPLES:
+
+    === Example 1: Good facts to extract ===
+    CJ: Hi! How can I help you today?
+    Merchant: Hey, I'm Sarah Chen, I run TechGear Pro
+    CJ: Nice to meet you Sarah!
+    Merchant: We've been in business since 2019, selling electronic accessories
+    CJ: That's great! How's business?
+    Merchant: Good! We moved to a bigger warehouse in Austin last year. I have 5 employees now
+    
+    Response:
+    {{"facts": ["My name is Sarah Chen", "I run TechGear Pro", "We've been in business since 2019", "We sell electronic accessories", "We moved to a bigger warehouse in Austin last year", "I have 5 employees"]}}
+
+    === Example 2: Mix of good and bad (only extract the good) ===
+    CJ: What brings you here today?
+    Merchant: I'm dealing with 50 support tickets right now
+    CJ: That's a lot! Tell me about your business
+    Merchant: I'm the founder of CloudSync Solutions. We provide B2B software
+    CJ: How long have you been in business?
+    Merchant: Started in 2020. We use Zendesk for support and Stripe for payments
+    CJ: Great setup!
+    Merchant: Yeah, but today's been crazy with all these tickets
+    
+    Response:
+    {{"facts": ["I'm the founder of CloudSync Solutions", "We provide B2B software", "Started in 2020", "We use Zendesk for support", "We use Stripe for payments"]}}
+    
+    === Example 3: No facts to extract (just current issues) ===
+    Merchant: hi
+    CJ: Hello! How can I help?
+    Merchant: My checkout is broken
+    CJ: I'll help you fix that. What's happening?
+    Merchant: Customers can't complete orders, getting errors
+    CJ: Let me look into this for you
+    
+    Response:
+    {{"facts": []}}
+
+    === Example 4: No facts to extract (just greetings) ===
+    Merchant: hey there
+    CJ: Hey! What's up?
+    Merchant: just checking in
+    CJ: All good on your end?
+    Merchant: yeah all good thanks
+    
+    Response:
+    {{"facts": []}}
+
+    === Example 5: Good historical and preference facts ===
+    CJ: When's the best time to reach you?
+    Merchant: I'm usually available after 2pm PST. I'm based in Portland
+    CJ: Got it! Email or phone?
+    Merchant: Email is best - I'm not great with phone calls
+    CJ: Understood. Tell me about your business challenges
+    Merchant: We had a rough holiday season in 2023 with fulfillment delays
+    CJ: That must have been stressful
+    Merchant: Yeah, we switched to ShipStation after that. Much better now
+    
+    Response:
+    {{"facts": ["I'm usually available after 2pm PST", "I'm based in Portland", "Email is best", "I'm not great with phone calls", "We had a rough holiday season in 2023 with fulfillment delays", "We switched to ShipStation after that"]}}
+
+    === Example 6: Do NOT extract CJ observations or inferences ===
+    CJ: You seem stressed today
+    Merchant: yeah it's been a long day
+    CJ: I notice you prefer casual communication
+    Merchant: sure, whatever works
+    CJ: You're probably dealing with holiday rush
+    Merchant: exactly
+    
+    Response:
+    {{"facts": []}}
+
+    === Example 7: Extract business details but not current metrics ===
+    Merchant: We're a family business - me, my wife, and her brother
+    CJ: That's nice! How's today going?
+    Merchant: Busy! 200 orders came in this morning
+    CJ: Wow! What do you sell?
+    Merchant: Handmade jewelry. We source materials from Thailand
+    CJ: Beautiful! What's your average order value?
+    Merchant: Right now it's $85 but that fluctuates
+    
+    Response:
+    {{"facts": ["We're a family business - me, my wife, and her brother", "We sell handmade jewelry", "We source materials from Thailand"]}}
+
+    === Example 8: Technical setup and integrations ===
+    CJ: What platform are you on?
+    Merchant: WooCommerce, thinking about moving to Shopify though
+    CJ: Any particular reason?
+    Merchant: We need better inventory management. Currently using a spreadsheet
+    CJ: What about marketing tools?
+    Merchant: Mailchimp for email, tried Klaviyo but went back
+    
+    Response:
+    {{"facts": ["We use WooCommerce", "We're thinking about moving to Shopify", "Currently using a spreadsheet for inventory management", "We use Mailchimp for email", "We tried Klaviyo but went back to Mailchimp"]}}
+
+    === Example 9: No facts (just questions from merchant) ===
+    Merchant: Can you help with shipping rates?
+    CJ: Of course! What specifically?
+    Merchant: How do I set up zones?
+    CJ: I'll walk you through it
+    Merchant: Is it complicated?
+    CJ: Not at all!
+    
+    Response:
+    {{"facts": []}}
+
+    === Example 10: Location and team information ===
+    Merchant: Our main office is in Denver but I work remote from Miami
+    CJ: Nice! How big is your team?
+    Merchant: 12 full-time, plus seasonal help for holidays
+    CJ: Do you have a physical store too?
+    Merchant: No, we closed our retail location in 2022
+    CJ: Online only now?
+    Merchant: Yes, and we also sell on Amazon and Etsy
+    
+    Response:
+    {{"facts": ["Our main office is in Denver", "I work remote from Miami", "12 full-time employees", "We hire seasonal help for holidays", "We closed our retail location in 2022", "We sell on Amazon", "We sell on Etsy"]}}
+
+    {existing_facts}
+
+    Conversation:
+    {conversation}
+
+    Remember: Return ONLY a JSON object with a "facts" array. Empty array if no facts found. Never explain or justify your response.
+    Response:

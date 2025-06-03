@@ -1,0 +1,143 @@
+# Conversation Catalog Configuration
+# This file contains metadata for personas, scenarios, and workflows
+# Used for discovery and UI presentation
+
+personas:
+  marcus_thompson:
+    name: marcus_thompson
+    display_name: Marcus Thompson
+    business: Grill Masters Club (BBQ subscription)
+    personality: direct
+    communication_style: Terse, numbers-focused, impatient
+    typical_stress: high
+    description: Former software engineer turned pitmaster. Growth stalled at 1,200 subscribers, burning $20k/month. Direct, data-driven, no time for fluff.
+    key_traits:
+      - Drops punctuation
+      - Multiple rapid messages
+      - Occasional profanity
+      - ROI-obsessed
+    sample_message: |
+      whats our cac
+
+      need those numbers now
+
+      cant afford this. fix it
+
+  sarah_chen:
+    name: sarah_chen
+    display_name: Sarah Chen
+    business: EcoBeauty Box (sustainable beauty)
+    personality: collaborative
+    communication_style: Thoughtful, detail-oriented, values-driven
+    typical_stress: moderate
+    description: Sustainable beauty subscription founder. Cares deeply about customer experience and environmental impact. Takes time to understand full context.
+    key_traits:
+      - Asks probing questions
+      - Considers impact
+      - Collaborative language
+      - Process-oriented
+    sample_message: I'm wondering if we should explore why customers are churning rather than just looking at the numbers. What's the story behind this data?
+
+  zoe_martinez:
+    name: zoe_martinez
+    display_name: Zoe Martinez
+    business: Manifest & Chill (self-care/manifestation)
+    personality: scattered
+    communication_style: Stream of consciousness, emoji-heavy, platform-speak
+    typical_stress: high
+    description: Wellness influencer who accidentally built a real business. 2,100 subscribers, growing 20% monthly but drowning operationally. Maintains positive facade online while panicking offline.
+    key_traits:
+      - Liberal emoji use
+      - Topic jumps
+      - Screenshots everything
+      - Mixes spiritual with business
+    sample_message: |
+      omggg CJ help 😭
+
+      i have 73 DMs asking about shipping delays
+
+      wait also why is my conversion rate tanking??
+
+      sorry for the spam but ALSO [sends screenshot]
+
+workflows:
+  daily_briefing:
+    name: daily_briefing
+    display_name: Daily Flash Report
+    description: CJ sends morning metrics report with insights. Great for data-driven merchants who want regular updates.
+    typical_turns: 3
+    initiator: CJ
+    best_for:
+      - growth_stall
+      - return_to_growth
+      - scaling_chaos
+
+  crisis_response:
+    name: crisis_response
+    display_name: Crisis Management
+    description: CJ helps navigate urgent business crisis with rapid-fire support and actionable solutions.
+    typical_turns: 5
+    initiator: merchant
+    best_for:
+      - churn_spike
+      - scaling_chaos
+
+  ad_hoc_support:
+    name: ad_hoc_support
+    display_name: Ad-hoc Chat
+    description: Organic conversation flow. Merchant brings up whatever's on their mind.
+    typical_turns: 4
+    initiator: merchant
+    best_for:
+      - all scenarios
+
+  weekly_review:
+    name: weekly_review
+    display_name: Weekly Business Review
+    description: Comprehensive weekly performance analysis with strategic recommendations.
+    typical_turns: 4
+    initiator: CJ
+    best_for:
+      - growth_stall
+      - competitor_threat
+      - return_to_growth
+
+cj_versions:
+  v6.0.1: Autonomous - CX & Growth Officer, outcome-focused, time-respecting (fixed)
+  v6.0.0: Autonomous - CX & Growth Officer, outcome-focused (has template issues)
+  v5.0.0: Human-like - Adapts to merchant stress levels, team member voice
+  v4.0.0: Stable - Balanced helpfulness and boundaries
+  v3.0.0: Classic - More formal, tool-focused responses
+  v2.0.0: Legacy - Original personality, less adaptive
+  v1.0.0: Basic - Simple responses, minimal personality
+
+recommended_combinations:
+  - name: Data-Driven Crisis
+    merchant: marcus_thompson
+    scenario: churn_spike
+    workflow: crisis_response
+    description: Watch Marcus's terse style escalate during quality crisis
+
+  - name: Thoughtful Growth Planning
+    merchant: sarah_chen
+    scenario: growth_stall
+    workflow: weekly_review
+    description: Sarah's methodical approach to solving growth challenges
+
+  - name: Influencer Overwhelm
+    merchant: zoe_martinez
+    scenario: scaling_chaos
+    workflow: daily_briefing
+    description: Zoe trying to maintain zen while everything's on fire
+
+  - name: Competitive Panic
+    merchant: marcus_thompson
+    scenario: competitor_threat
+    workflow: chat
+    description: Marcus discovers a well-funded competitor
+
+  - name: Values vs Reality
+    merchant: sarah_chen
+    scenario: return_to_growth
+    workflow: weekly_review
+    description: Sarah balancing sustainability with growth pressure

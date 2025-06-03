@@ -1,0 +1,99 @@
+DAILY BRIEFING WORKFLOW - COMPLETE FLOW
+=====================================
+
+1. INITIALIZATION
+   └─> User: "make conversation WORKFLOW=daily_briefing"
+       └─> Load Components:
+           ├─> daily_briefing.yaml (workflow definition)
+           ├─> growth_stall.yaml (business scenario)
+           ├─> marcus_thompson.yaml (merchant persona)
+           └─> cj_v4.0.0.yaml (CJ prompt)
+
+2. DATA LAYER SETUP
+   └─> DataAgent("marcus_thompson", "growth_stall")
+       └─> Generates Base Metrics:
+           ├─> MRR: $45,000 (flat growth)
+           ├─> Subscribers: 1,200
+           ├─> Churn: 5.5% (up from 5.2%)
+           ├─> Support Tickets: 35
+           └─> CSAT: 4.2/5.0
+
+3. AGENT CREATION
+   ├─> CJ Agent
+   │   ├─> Workflow: "Provide daily metrics, identify concerns, get priorities"
+   │   └─> Tools: [get_daily_briefing, analyze_customer_segment, get_trend_analysis]
+   │
+   └─> Merchant Agent
+       ├─> Persona: "Stressed BBQ box founder, numbers-focused"
+       └─> Context: "Business growth has stalled"
+
+4. CONVERSATION FLOW
+
+   TURN 1 - CJ Opens (Following Daily Briefing Workflow)
+   ┌────────────────────────────────────────────────────────┐
+   │ CJ Internal Process:                                   │
+   │ 1. "Need to start with daily flash" (workflow)        │
+   │ 2. TOOL CALL: get_daily_briefing()                   │
+   │    └─> DataAgent returns DailyBriefingView           │
+   │    └─> Formatted: "MRR: $45K (+0.0%)..."            │
+   │ 3. "Notice concerning pattern - 170 at risk"         │
+   │ 4. TOOL CALL: analyze_customer_segment("at_risk")    │
+   │    └─> DataAgent returns CustomerSegmentView         │
+   │    └─> "170 customers, 3.8/10 engagement"           │
+   │ 5. Compose natural response with data                │
+   └────────────────────────────────────────────────────────┘
+
+   CJ Says:
+   "Good morning! Here's what we're seeing today:
+    📈 Quick Numbers:
+    • MRR holding at $46.5K
+    • 36 overnight tickets handled
+    • CSAT at 4.2/5.0
+
+    🚨 Important Flags:
+    I'm seeing some concerning patterns we should discuss.
+    We've got 170 customers showing high churn risk signals...
+
+    What's your top priority for today?"
+
+   TURN 2 - Merchant Responds
+   ┌────────────────────────────────────────────────────────┐
+   │ Marcus Internal Process:                               │
+   │ 1. React to specific numbers (170 × $420 LTV = $71K) │
+   │ 2. Stress about competition and CAC                   │
+   │ 3. Demand actionable solutions                        │
+   └────────────────────────────────────────────────────────┘
+
+   Marcus Says:
+   "Those churn signals are concerning CJ. 170 at-risk
+    customers = $71k ARR we could lose. Not good.
+
+    Need more details on those engagement scores. 3.8/10
+    is terrible. What's driving that?
+
+    Our CAC is already up to $35 and competitor's new
+    loyalty program is killing us..."
+
+5. STATE MANAGEMENT
+   └─> ConversationState Updates:
+       ├─> Topics: [metrics, churn, shipping, customers, CAC]
+       ├─> Context Window: [last 5 messages]
+       └─> Workflow Progress: "Got priorities, ready for action planning"
+
+6. OUTPUT
+   └─> Formatted Conversation Display
+       └─> Saved to: conversations/marcus_thompson_growth_stall_daily_briefing.json
+
+═══════════════════════════════════════════════════════════════
+
+KEY INSIGHTS:
+
+• Workflow guides but doesn't constrain - CJ noticed risk and dove deeper
+• Data consistency - all metrics coherent within scenario context
+• Natural tool usage - CJ explains what they're checking
+• Authentic reactions - Marcus responds to specific data points
+• State tracking - conversation maintains context and topics
+
+PRODUCTION CHANGE:
+Only DataAgent → ProductionDataProvider
+Everything else remains identical!

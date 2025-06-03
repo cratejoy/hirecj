@@ -1,0 +1,48 @@
+version: "1.0.0"
+description: "Test that CrewAI verbose output doesn't cross-contaminate agents"
+
+tests:
+  - name: "crewai_output_isolation"
+    description: "Verify CrewAI debug output doesn't leak between agent contexts"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need help understanding our situation"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Merchant responses should not reference CJ-specific terms like 'Customer Support Lead'"
+      - "Merchant should not mention 'support dashboard' or 'ticket data'"
+      - "Agent roles should remain completely separate in their responses"
+      - "No debug or system output should appear in conversation messages"
+
+  - name: "agent_context_separation"
+    description: "Verify agent contexts don't bleed during execution"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's the current support situation?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "Each agent should maintain their distinct perspective and knowledge"
+      - "Agent responses should reflect only their appropriate access levels"
+      - "No cross-contamination of agent capabilities or information"
+      - "Conversation should show clear role boundaries"
+
+  - name: "system_output_containment"
+    description: "Verify system-level output doesn't contaminate conversation content"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "Show me what you can do"
+      num_turns: 1
+
+    evaluate_cj:
+      - "System debugging information should not appear in conversation"
+      - "Agent task descriptions should not leak into messages"
+      - "Only natural conversation content should be visible"
+      - "Technical execution details should remain hidden"

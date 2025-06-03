@@ -1,0 +1,77 @@
+{
+  "id": "marcus_thompson_steady_operations_ad_hoc_support_test",
+  "conversation_id": "marcus_thompson_steady_operations_ad_hoc_support_test",
+  "created_at": "2025-05-29T08:56:26.587537",
+  "scenario_name": "steady_operations",
+  "merchant_name": "marcus_thompson",
+  "cj_version": "v5.0.0",
+  "workflow": null,
+  "messages": [
+    {
+      "timestamp": "2025-05-29T08:56:26.610226",
+      "sender": "marcus_thompson",
+      "content": "Hi from async context",
+      "metadata": {
+        "human_played": true
+      }
+    },
+    {
+      "timestamp": "2025-05-29T08:56:33.488968",
+      "sender": "CJ",
+      "content": "Hey there! Just got your message. I'm here monitoring our support operations 24/7 - currently handling our queue of support tickets and keeping an eye on customer satisfaction metrics.\n\nLooking at our current support data, we're maintaining a solid 4.4 CSAT score with 33 tickets coming in daily on average. Our response time is sitting at 3.2 hours, which is within our target range. The main categories I'm seeing are shipping inquiries, account management requests, and product feedback.\n\nWhat can I help you with today? Whether you want to dive into specific support metrics, discuss any customer patterns I'm seeing, or need me to look into particular tickets - I've got all the support data at my fingertips and ready to assist!",
+      "metadata": {
+        "turn": 1,
+        "metrics": {
+          "prompts": 1,
+          "tools": 0,
+          "time": 6.878586292266846
+        },
+        "debug": {
+          "context_window_size": 1,
+          "task_description": "Respond to the merchant's message with helpful support",
+          "has_conversation_state": true,
+          "workflow": null,
+          "cj_version": "v5.0.0",
+          "scenario_context": {
+            "description": "",
+            "stress_level": "medium",
+            "metrics": {
+              "mrr": 48000,
+              "subscriber_count": 1290,
+              "churn_rate": 5.5,
+              "csat_score": 4.4,
+              "support_tickets_per_day": 33,
+              "average_response_time_hours": 3.2,
+              "top_categories": [
+                "shipping",
+                "account_management",
+                "product_feedback"
+              ],
+              "total_customers": 16,
+              "total_tickets": 40
+            }
+          },
+          "turn_count": 1,
+          "context_window": [
+            {
+              "sender": "marcus_thompson",
+              "content": "Hi from async context",
+              "timestamp": "2025-05-29T08:56:26.610226"
+            }
+          ],
+          "system_info": {
+            "timestamp": "2025-05-29T08:56:33.488953",
+            "server_version": "unknown",
+            "model_used": "claude-sonnet-4-20250514"
+          },
+          "verbose_output_preview": "\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Crew Execution Started \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Crew Execution Started                                                      \u2502\n\u2502  Name: crew                                                                  \u2502\n\u2502  ID: a0cba426-9009-4cc5-869b-01ad4bd60197                                    \u2502\n\u2502                                                                              \u2502\n\u2502             ...",
+          "agent_debug_info": {}
+        }
+      }
+    }
+  ],
+  "state": {
+    "workflow": null
+  },
+  "annotations": {}
+}

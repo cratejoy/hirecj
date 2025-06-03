@@ -1,0 +1,4 @@
+# Conversation Context Configuration
+# Simple global configuration for conversation context management
+
+window_size: 10  # How many recent messages to include in context

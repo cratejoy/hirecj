@@ -1,0 +1,256 @@
+# Workflow Definitions with Data Requirements
+
+workflows:
+  daily_briefing:
+    name: "Daily Briefing"
+    description: "Morning check-in with key metrics and alerts"
+    initiator: "cj"
+    typical_duration_minutes: 5-10
+    data_requirements:
+      - view: "daily_briefing"
+        refresh: "24h"
+        required_metrics:
+          - ticket_volume
+          - ticket_response_time
+          - mrr
+          - churn_rate
+          - critical_alerts
+      - tools_available:
+          - get_ticket_details
+          - analyze_metric_trend
+          - get_customer_list
+    conversation_flow:
+      - cj_sends_briefing
+      - merchant_reacts
+      - cj_provides_details
+      - action_items_identified
+    success_criteria:
+      - merchant_informed_of_key_issues
+      - actionable_insights_provided
+      - under_10_minutes
+
+  crisis_response:
+    name: "Crisis Response"
+    description: "Immediate response to critical business issues"
+    initiator: "cj"
+    typical_duration_minutes: 15-30
+    data_requirements:
+      - view: "crisis_response"
+        refresh: "5m"
+        required_metrics:
+          - affected_customers
+          - revenue_impact
+          - service_status
+          - historical_incidents
+      - tools_available:
+          - get_affected_customer_list
+          - analyze_impact
+          - get_remediation_options
+          - track_resolution_progress
+    conversation_flow:
+      - cj_alerts_crisis
+      - merchant_asks_impact
+      - cj_provides_analysis
+      - action_plan_developed
+      - progress_updates
+    success_criteria:
+      - crisis_acknowledged_quickly
+      - impact_clearly_communicated
+      - action_plan_in_place
+      - merchant_confidence_restored
+
+  customer_deep_dive:
+    name: "Customer Analysis Deep Dive"
+    description: "Detailed analysis of customer segment or behavior"
+    initiator: "merchant"
+    typical_duration_minutes: 10-20
+    data_requirements:
+      - view: "customer_analysis"
+        refresh: "1h"
+        required_metrics:
+          - segment_size
+          - segment_value
+          - behavior_patterns
+          - churn_signals
+          - opportunities
+      - tools_available:
+          - segment_customers
+          - analyze_behavior
+          - predict_churn
+          - calculate_ltv
+          - find_similar_customers
+    conversation_flow:
+      - merchant_asks_question
+      - cj_clarifies_scope
+      - cj_runs_analysis
+      - insights_presented
+      - next_steps_discussed
+    success_criteria:
+      - question_fully_answered
+      - actionable_insights_found
+      - clear_next_steps
+
+  weekly_review:
+    name: "Weekly Business Review"
+    description: "Comprehensive weekly performance review"
+    initiator: "cj"
+    typical_duration_minutes: 20-30
+    data_requirements:
+      - view: "weekly_summary"
+        refresh: "7d"
+        required_metrics:
+          - week_over_week_comparisons
+          - trend_analysis
+          - cohort_performance
+          - competitive_landscape
+      - tools_available:
+          - generate_weekly_report
+          - compare_periods
+          - analyze_cohorts
+          - benchmark_metrics
+    conversation_flow:
+      - cj_presents_summary
+      - key_wins_highlighted
+      - concerns_discussed
+      - strategic_planning
+      - goals_set
+    success_criteria:
+      - comprehensive_coverage
+      - strategic_insights
+      - clear_action_items
+      - goals_defined
+
+  ad_hoc_question:
+    name: "Ad Hoc Question"
+    description: "Merchant asks specific question"
+    initiator: "merchant"
+    typical_duration_minutes: 5-15
+    data_requirements:
+      - view: "dynamic"  # Determined by question
+        refresh: "on_demand"
+        required_metrics: []  # Flexible based on question
+      - tools_available:
+          - all_tools  # CJ determines which to use
+    conversation_flow:
+      - merchant_asks
+      - cj_understands
+      - cj_researches
+      - answer_provided
+      - follow_up_offered
+    success_criteria:
+      - question_answered
+      - data_backed_response
+      - merchant_satisfied
+
+  proactive_insight:
+    name: "Proactive Insight"
+    description: "CJ shares important discovery or trend"
+    initiator: "cj"
+    typical_duration_minutes: 5-10
+    data_requirements:
+      - view: "anomaly_detection"
+        refresh: "1h"
+        required_metrics:
+          - anomaly_score
+          - affected_metrics
+          - potential_impact
+          - recommended_action
+      - tools_available:
+          - detect_anomalies
+          - analyze_root_cause
+          - estimate_impact
+          - suggest_remediation
+    conversation_flow:
+      - cj_shares_insight
+      - merchant_engages
+      - details_explored
+      - action_decided
+    success_criteria:
+      - insight_understood
+      - value_recognized
+      - action_taken_or_planned
+
+# Tool Definitions for CJ
+tools:
+  get_daily_briefing:
+    description: "Get complete daily briefing with all key metrics"
+    returns: "DailyBriefingView"
+    parameters: {}
+
+  get_ticket_metrics:
+    description: "Get detailed ticket/support metrics"
+    returns: "TicketMetrics"
+    parameters:
+      time_range:
+        type: "string"
+        required: false
+        default: "24h"
+      category:
+        type: "string"
+        required: false
+
+  get_financial_metrics:
+    description: "Get financial metrics (MRR, churn, CAC, etc)"
+    returns: "FinancialMetrics"
+    parameters:
+      time_range:
+        type: "string"
+        required: false
+        default: "30d"
+      include_cohorts:
+        type: "boolean"
+        required: false
+
+  analyze_customer_segment:
+    description: "Analyze a specific customer segment"
+    returns: "CustomerAnalysisView"
+    parameters:
+      segment:
+        type: "string"
+        required: true
+        examples: ["high_value", "at_risk", "new", "churned"]
+      depth:
+        type: "string"
+        required: false
+        default: "standard"
+
+  get_crisis_analysis:
+    description: "Get comprehensive crisis impact analysis"
+    returns: "CrisisResponseView"
+    parameters:
+      crisis_type:
+        type: "string"
+        required: true
+      include_historical:
+        type: "boolean"
+        required: false
+        default: true
+
+  detect_anomalies:
+    description: "Detect anomalies in business metrics"
+    returns: "AnomalyReport"
+    parameters:
+      metrics:
+        type: "array"
+        required: false
+        default: ["all"]
+      sensitivity:
+        type: "number"
+        required: false
+        default: 2.0
+
+  get_customer_list:
+    description: "Get list of customers matching criteria"
+    returns: "CustomerList"
+    parameters:
+      filter:
+        type: "object"
+        required: true
+      limit:
+        type: "integer"
+        required: false
+        default: 100
+      sort_by:
+        type: "string"
+        required: false
+        default: "value"

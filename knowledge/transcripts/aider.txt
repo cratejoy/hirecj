@@ -1,0 +1,3 @@
+Generating overall summary...
+
+Interrupt received, stopping workers.

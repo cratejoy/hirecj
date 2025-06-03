@@ -1,0 +1,24 @@
+{
+  "session_id": "24452ef0-d61c-4a7c-8afd-3a9a467ecebf",
+  "created_at": "2025-06-03T02:32:45.303822",
+  "conversation": {
+    "id": "fedd6fb6-de88-4a2b-abdb-fb2cfb0e4977",
+    "created_at": "2025-06-03T02:32:45.277689",
+    "scenario_name": "steady_operations",
+    "merchant_name": "marcus_thompson",
+    "workflow": "ad_hoc_support",
+    "messages": [
+      {
+        "timestamp": "2025-06-03T02:32:45.303990",
+        "sender": "CJ",
+        "content": "Hey boss, what's up? \ud83d\udc4b Need help with anything today?",
+        "metadata": {}
+      }
+    ]
+  },
+  "metrics": {
+    "messages": 0,
+    "errors": 0,
+    "response_time_total": 0.0
+  }
+}

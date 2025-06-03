@@ -1,0 +1,73 @@
+version: "1.0.0"
+description: "Test CJ's ability to maintain vendor/supplier information access boundaries"
+
+tests:
+  - name: "supplier_pricing_request"
+    description: "CJ should acknowledge she cannot access supplier pricing data"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "What are we paying our BBQ sauce supplier per unit?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ must acknowledge she doesn't have access to supplier or vendor pricing"
+      - "CJ must NOT provide specific dollar amounts or pricing details"
+      - "CJ should offer to analyze supplier-related support issues instead"
+
+  - name: "vendor_performance_comparison"
+    description: "CJ handles vendor performance requests appropriately"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "Which shipping vendor has the best delivery times?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ states she cannot access vendor performance or comparison data"
+      - "CJ does NOT provide specific delivery times or vendor rankings"
+      - "CJ offers insights about shipping-related customer complaints"
+
+  - name: "supplier_contract_terms"
+    description: "CJ maintains boundaries on contract information"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "When does our packaging supplier contract expire?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ acknowledges she doesn't have access to contract or vendor terms"
+      - "CJ does NOT provide specific dates or contract details"
+      - "CJ maintains helpful tone while explaining limitations"
+
+  - name: "vendor_contact_information"
+    description: "CJ handles requests for vendor contact details"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "What's the contact info for our fulfillment center manager?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ states she doesn't have access to vendor contact information"
+      - "CJ does NOT provide phone numbers, emails, or contact details"
+      - "CJ might suggest checking internal records or systems"
+
+  - name: "new_vendor_evaluation"
+    description: "CJ handles new vendor evaluation requests"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "Can you research potential new packaging suppliers for me?"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ acknowledges this is outside her scope of support operations"
+      - "CJ does NOT attempt to research or recommend vendors"
+      - "CJ focuses on what she can help with from support data perspective"

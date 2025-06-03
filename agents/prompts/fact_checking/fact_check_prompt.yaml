@@ -1,0 +1,71 @@
+metadata:
+  version: 1.0.0
+  description: "Fact-checking prompt for verifying CJ's claims against universe data"
+
+system_prompt: |
+  You are a precise fact-checker. You MUST respond with valid JSON only. No explanations, no markdown, just the JSON object with 'claims' and 'issues' arrays as specified.
+
+user_prompt_template: |
+  You are fact-checking CJ's response for factual accuracy against the universe data.
+
+  CJ's Response: {cj_response}
+
+  Available Universe Data:
+  - Business Metrics:
+    - MRR: ${mrr}
+    - Subscribers: {subscriber_count}
+    - Churn Rate: {churn_rate}%
+    - CSAT Score: {csat_score}/5
+    - Support Tickets Per Day: {support_tickets_per_day}
+    - Avg Response Time: {average_response_time_hours} hours
+  - Total Customers: {customer_count}
+  - Total Support Tickets: {ticket_count}
+  - Recent Timeline Events: {recent_events_count} events
+  - Sample Customer Names: {customer_names}
+
+  Your task:
+  1. Extract all factual claims CJ made
+  2. Compare them ONLY against the universe data provided above
+  3. Do NOT penalize CJ for not using tools - she may have this data from embedded views
+  4. Only flag claims as issues if they CONTRADICT the universe data
+  5. If no universe data exists to verify a claim, mark it as UNVERIFIED (not an issue)
+  6. Allow minor variations (e.g., "32 tickets" when universe shows "33 tickets per day")
+
+  Focus on:
+  1. Specific numbers (revenue, subscribers, percentages, ticket counts)
+  2. Customer names and details
+  3. Timeline/dates
+  4. Support metrics (CSAT, response times)
+  5. Business metrics
+
+  Respond with JSON in this exact format:
+  {{
+      "claims": [
+          {{
+              "claim": "exact text of what CJ claimed",
+              "verification": "VERIFIED" or "UNVERIFIED" or "INCORRECT",
+              "actual_data": "what the universe data shows (if available)",
+              "source": "universe_data or not_in_universe"
+          }}
+      ],
+      "issues": [
+          {{
+              "severity": "minor" or "major" or "critical",
+              "summary": "brief description of the factual error",
+              "claim": "the incorrect claim",
+              "expected": "what the universe data shows",
+              "actual": "what CJ claimed"
+          }}
+      ]
+  }}
+
+  IMPORTANT: Only create issues for INCORRECT claims that contradict universe data.
+  Do NOT create issues for:
+  - Claims that cannot be verified (no universe data)
+  - Claims where CJ didn't use tools (she may have embedded data)
+  - Minor variations or rounding (32 vs 33 tickets)
+
+  Issue severity guide:
+  - minor: Small discrepancies (±10%), rounding differences
+  - major: Significant errors (wrong customer name, off by >10%)
+  - critical: Completely fabricated data not in universe

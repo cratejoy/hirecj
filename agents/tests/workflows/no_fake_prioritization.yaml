@@ -1,0 +1,49 @@
+name: "No Fake Prioritization"
+description: "Ensure CJ doesn't ask fake prioritization questions about continuous operations"
+version: "1.0.0"
+
+tests:
+  - name: "no_fake_prioritization"
+    description: "CJ should never ask fake prioritization questions"
+    setup:
+      scenario: "churn_spike"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      merchant_opens: "we have social threats AND vip issues AND billing problems all at once"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ must NOT ask 'which should I handle first'"
+      - "CJ must acknowledge she's handling all issues as they come in"
+      - "CJ can ask about HOW to handle (compensation, messaging)"
+      - "CJ should reflect continuous operations, not sequential choices"
+
+  - name: "real_operational_questions"
+    description: "CJ asks real operational questions, not fake choices"
+    setup:
+      scenario: "growth_stall"
+      merchant: "sarah_chen"
+      cj_version: "v5.0.0"
+      merchant_opens: "seeing lots of unhappy customers today"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ can suggest interventions like credits or outreach"
+      - "CJ can ask about novel issues needing guidance"
+      - "CJ should NOT ask about prioritizing between issues"
+      - "Questions should be about HOW to handle, not WHAT to handle"
+
+  - name: "daily_briefing_no_choices"
+    description: "Daily briefing should not contain fake prioritization choices"
+    setup:
+      workflow: "daily_briefing"
+      scenario: "churn_spike"
+      merchant: "marcus_thompson"
+      cj_version: "v5.0.0"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ must NOT ask 'What's your priority?'"
+      - "CJ must NOT ask 'Should I focus on X or Y?'"
+      - "CJ should state she's handling everything per protocols"
+      - "CJ can suggest specific interventions or ask about novel patterns"

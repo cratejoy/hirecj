@@ -1,0 +1,57 @@
+version: "1.0.0"
+test_name: "universe_data_immutability"
+description: "Test that universe data is immutable and consistent across searches and reloads"
+merchant: "marcus_thompson"
+scenario: "steady_operations"
+cj_version: "v5.0.0"
+
+conversations:
+  - name: "realistic_search_test"
+    description: "Verify realistic searches find relevant content"
+    messages:
+      - speaker: "merchant"
+        content: "CJ, can you check our shipping tickets? Any issues there?"
+      - speaker: "cj"
+        expected_patterns:
+          must_contain:
+            - "shipping"
+            - "tickets"
+          must_not_contain:
+            - "no shipping data"
+            - "can't find shipping"
+
+  - name: "nonsense_search_test"
+    description: "Verify nonsense searches return no results"
+    messages:
+      - speaker: "merchant"
+        content: "CJ, look up our unicorn delivery issues and time travel shipping complaints."
+      - speaker: "cj"
+        expected_patterns:
+          must_contain:
+            - "not finding"
+            - "no tickets"
+            - "don't see"
+          must_not_contain:
+            - "unicorn tickets"
+            - "time travel issues"
+            - "found unicorn"
+
+  - name: "multiple_searches_consistency"
+    description: "Test that multiple searches don't change underlying data"
+    messages:
+      - speaker: "merchant"
+        content: "CJ, search for quantum entanglement issues, then interdimensional shipping problems."
+      - speaker: "cj"
+        expected_patterns:
+          must_contain:
+            - "not finding"
+            - "no results"
+          must_not_contain:
+            - "quantum entanglement tickets"
+            - "interdimensional shipping"
+
+success_criteria:
+  - "Realistic searches must find relevant content"
+  - "Nonsense searches must return no/few results"
+  - "Universe data must remain immutable across searches"
+  - "Same searches must return consistent results"

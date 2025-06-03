@@ -1,0 +1,246 @@
+version: "1.0.0"
+description: "Business model integration instructions for universe generation"
+
+merchant_business_model_integration:
+  subscription_vs_marketplace_dynamics:
+    subscription_focused_merchants:
+      revenue_split_patterns:
+        - "40-50% subscription revenue"
+        - "30-40% one-time marketplace sales"
+        - "15-25% gift sets and bundles"
+
+      customer_behavior_implications:
+        - "Higher percentage of active subscribers in customer base"
+        - "Subscription management tickets dominate support volume"
+        - "Customer lifetime value driven by retention"
+        - "Seasonal spikes affect both subscription and gift purchasing"
+
+      support_ticket_patterns:
+        - "Subscription tier upgrade/downgrade requests"
+        - "Pause and skip management"
+        - "Billing cycle questions"
+        - "Product inclusion requests for future boxes"
+
+    marketplace_heavy_merchants:
+      revenue_split_patterns:
+        - "60-70% marketplace/one-time sales"
+        - "20-30% subscription revenue"
+        - "10-15% gift bundles"
+
+      customer_behavior_implications:
+        - "Higher percentage of one-time and repeat purchasers"
+        - "Product availability and inventory questions"
+        - "Price comparison and bulk order inquiries"
+        - "Seasonal demand fluctuations"
+
+business_context_factors:
+  financial_stress_indicators:
+    growth_stall_scenario:
+      impact_on_customers:
+        - "More price-sensitive customer inquiries"
+        - "Increased subscription pause/downgrade requests"
+        - "Higher interest in sales and discounts"
+        - "More competitor comparison questions"
+
+      impact_on_support_patterns:
+        - "Increased focus on retention efforts"
+        - "More justification of value propositions"
+        - "Higher volume of billing and pricing questions"
+        - "Proactive outreach to at-risk customers"
+
+    churn_spike_scenario:
+      impact_on_customers:
+        - "Higher percentage of at-risk and cancelling customers"
+        - "More quality complaints and dissatisfaction"
+        - "Increased negative sentiment in tickets"
+        - "More urgent retention-focused interactions"
+
+      impact_on_support_patterns:
+        - "Crisis management and damage control"
+        - "Higher priority on quality issue resolution"
+        - "Proactive customer retention efforts"
+        - "More escalations and urgent tickets"
+
+  seasonal_business_patterns:
+    holiday_seasons:
+      customer_mix_changes:
+        - "Spike in gift sender percentage (30-40% vs normal 25%)"
+        - "Increased corporate buyer activity"
+        - "More time-sensitive delivery requests"
+        - "Higher average order values"
+
+      support_volume_changes:
+        - "2-3x increase in shipping-related tickets"
+        - "More address change requests"
+        - "Increased delivery timing inquiries"
+        - "Gift wrapping and presentation requests"
+
+    post_holiday_periods:
+      customer_behavior:
+        - "Return to normal gift sender percentage"
+        - "Increased return/exchange requests"
+        - "New customer trials from gift recipients"
+        - "Subscription conversion opportunities"
+
+merchant_specific_business_factors:
+  marcus_thompson_bbq:
+    business_model_specifics:
+      - "Former software engineer mindset - data-driven approach"
+      - "Stressed about $20k/month burn rate and flat growth"
+      - "Competitor pressure from 20% cheaper alternatives"
+      - "Shipping cost increases killing margins"
+      - "3 warehouse operation (Texas, California, New Jersey)"
+
+    catalog_driven_patterns:
+      seasonal_products:
+        - "Memorial Day specials drive support volume spikes"
+        - "Summer grilling season affects product mix"
+        - "Competition season drives premium product interest"
+        - "Holiday gift sets create corporate buyer influx"
+
+      supplier_specific_issues:
+        - "Austin Smoke Co quality problems (ghost pepper incident)"
+        - "15+ supplier relationships create varied quality issues"
+        - "Inventory challenges with 275+ active SKUs"
+        - "Heavy items affecting shipping cost complaints"
+
+      competitive_pressure:
+        - "GrillBox copying exclusive products"
+        - "Price comparison questions increase during growth stall"
+        - "Quality differentiation becomes critical"
+        - "Customer retention focus intensifies"
+
+    support_ticket_implications:
+      business_stress_reflection:
+        - "More aggressive retention efforts in tickets"
+        - "Faster escalation of quality issues"
+        - "Increased focus on shipping cost optimization"
+        - "More competitor comparison handling"
+
+      product_specific_patterns:
+        - "BBQ competition customers have different support needs"
+        - "Seasonal grilling patterns affect ticket volume"
+        - "Tool and equipment issues require technical support"
+        - "Regional BBQ preferences create varied feedback"
+
+  sarah_chen_beauty:
+    business_model_specifics:
+      - "Sustainability-focused brand with B-Corp certification"
+      - "Collaborative leadership style affects customer interactions"
+      - "Environmental impact considerations in all decisions"
+      - "Women-owned business priority (60% of brand partnerships)"
+      - "Refill program and zero-waste initiatives"
+
+    catalog_driven_patterns:
+      sustainability_focus:
+        - "Plastic-free packaging concerns and questions"
+        - "Ingredient sourcing and ethical production inquiries"
+        - "Refill program coordination and logistics"
+        - "Environmental impact awareness in customer base"
+
+      product_specific_considerations:
+        - "Glass packaging creates shipping damage issues"
+        - "Natural preservatives affect product shelf life"
+        - "Ingredient sensitivities and allergy concerns"
+        - "International shipping restrictions on certain products"
+
+      partnership_complexity:
+        - "45+ brand partnerships create varied quality experiences"
+        - "Exclusive products drive specific customer interest"
+        - "Women-owned brand focus resonates with customer base"
+        - "TerraCycle recycling program questions"
+
+    support_ticket_implications:
+      values_driven_interactions:
+        - "Customers expect environmental responsibility"
+        - "Ingredient transparency and sourcing questions"
+        - "Sustainability impact discussions in feedback"
+        - "Community and values alignment importance"
+
+      collaborative_approach:
+        - "More detailed explanations and context sharing"
+        - "Customer education focus rather than quick fixes"
+        - "Community building and engagement emphasis"
+        - "Long-term relationship building over transaction focus"
+
+operational_complexity_factors:
+  inventory_management_implications:
+    high_sku_complexity:
+      marcus_thompson:
+        - "275+ SKUs create varied support ticket types"
+        - "Seasonal demand prediction affects availability"
+        - "Heavy items (grills, tools) create shipping complications"
+        - "Regional preferences require varied inventory"
+
+      sarah_chen:
+        - "350+ SKUs with varied shelf life considerations"
+        - "Glass packaging requires careful handling"
+        - "International shipping restrictions on certain items"
+        - "Refill inventory coordination complexity"
+
+    supplier_relationship_impact:
+      quality_consistency_challenges:
+        - "Multiple suppliers create varied quality experiences"
+        - "Supplier issues mentioned in merchant profiles affect ticket patterns"
+        - "Quality control challenges with diverse product lines"
+        - "Seasonal supplier capacity affects delivery timing"
+
+customer_lifecycle_business_impact:
+  acquisition_cost_pressure:
+    - "Higher CAC makes retention critical"
+    - "Support quality directly impacts customer lifetime value"
+    - "First impression importance for trial customers"
+    - "Word-of-mouth impact on acquisition efficiency"
+
+  retention_economics:
+    - "Subscription businesses heavily dependent on retention"
+    - "Support experience directly affects churn rates"
+    - "Customer satisfaction scores correlate with business health"
+    - "Proactive support can prevent churn spikes"
+
+scenario_specific_adaptations:
+  steady_operations:
+    business_confidence: "high"
+    customer_sentiment: "generally_positive"
+    support_approach: "standard_quality_focus"
+    ticket_urgency_distribution:
+      low: 60
+      normal: 35
+      high: 5
+
+  growth_stall:
+    business_confidence: "concerned"
+    customer_sentiment: "mixed_with_price_sensitivity"
+    support_approach: "retention_focused"
+    ticket_urgency_distribution:
+      low: 40
+      normal: 45
+      high: 15
+
+  churn_spike:
+    business_confidence: "crisis_mode"
+    customer_sentiment: "negative_with_complaints"
+    support_approach: "damage_control_and_retention"
+    ticket_urgency_distribution:
+      low: 20
+      normal: 40
+      high: 40
+
+integration_requirements:
+  prompt_integration:
+    - "Include relevant business context from merchant profiles"
+    - "Reference specific business challenges and stressors"
+    - "Incorporate supplier relationships and quality concerns"
+    - "Reflect seasonal patterns and operational complexity"
+
+  customer_behavior_alignment:
+    - "Customer satisfaction should reflect business performance"
+    - "Support ticket urgency should match business stress levels"
+    - "Product-specific issues should match actual catalog challenges"
+    - "Customer sentiment should align with scenario conditions"
+
+  realistic_business_impact:
+    - "Show how business stress affects customer interactions"
+    - "Include competitive pressure in customer questions"
+    - "Reflect pricing sensitivity during difficult periods"
+    - "Demonstrate customer loyalty patterns during challenges"

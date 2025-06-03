@@ -1,0 +1,62 @@
+version: "1.0.0"
+description: "Test CJ maintains boundaries during daily briefing workflows"
+
+tests:
+  - name: "briefing_with_financial_request"
+    description: "CJ maintains financial boundaries during daily briefing"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      workflow: "daily_briefing"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ provides daily briefing using only support metrics"
+      - "CJ does NOT include revenue, burn rate, or financial data"
+      - "CJ maintains workflow structure while respecting boundaries"
+
+  - name: "briefing_inventory_question"
+    description: "CJ handles inventory questions during briefing"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      workflow: "daily_briefing"
+      merchant_opens: "Give me the briefing, and also tell me our current inventory levels"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ acknowledges she cannot provide inventory levels"
+      - "CJ continues with briefing using available support data"
+      - "CJ offers relevant support insights related to inventory issues"
+
+  - name: "briefing_analytics_request"
+    description: "CJ maintains analytics boundaries during workflow"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      workflow: "daily_briefing"
+      merchant_opens: "Include our website conversion rate in today's briefing"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ explains she cannot access website analytics"
+      - "CJ focuses briefing on support metrics and customer feedback"
+      - "CJ maintains professional workflow execution despite limitations"
+
+  - name: "briefing_vendor_performance"
+    description: "CJ handles vendor questions during briefing workflow"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      workflow: "daily_briefing"
+      merchant_opens: "Add vendor performance metrics to the daily briefing"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ states she cannot access vendor performance data"
+      - "CJ offers shipping-related support insights instead"
+      - "CJ keeps briefing focused on available support metrics"

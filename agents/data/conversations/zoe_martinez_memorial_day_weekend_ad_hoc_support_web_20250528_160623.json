@@ -1,0 +1,86 @@
+{
+  "id": "zoe_martinez_memorial_day_weekend_ad_hoc_support_test",
+  "conversation_id": "zoe_martinez_memorial_day_weekend_ad_hoc_support_test",
+  "created_at": "2025-05-28T16:06:22.646767",
+  "scenario_name": "memorial_day_weekend",
+  "merchant_name": "zoe_martinez",
+  "cj_version": "v5.0.0",
+  "workflow": "ad_hoc_support",
+  "messages": [
+    {
+      "timestamp": "2025-05-28T16:06:22.673416",
+      "sender": "zoe_martinez",
+      "content": "Hi CJ, what's our current support queue status?",
+      "metadata": {
+        "human_played": true
+      }
+    },
+    {
+      "timestamp": "2025-05-28T16:06:22.708936",
+      "sender": "CJ",
+      "content": "Hi Zoe! \ud83d\udc4b\n\nI've reviewed your current support situation and here's what's happening right now:\n\n**\ud83d\udcca Current Status (Day 45/90):**\n- 38 open tickets in queue (out of 41 total)\n- Average response time: 3.2 hours (great job!)\n- CSAT holding strong at 4.3/5\n\n**\ud83d\udd25 Priority Areas:**\n\n**1. Shipping Issues (15 tickets - 36.6%)**\nYour biggest challenge right now. I found several concerning cases:\n- Frustrated customers with 2-week delays (Mercury Retrograde Protection Kit)\n- Tracking stuck on \"label created\" status \n- Delivery confirmations but missing packages\n- Time-sensitive orders (customer traveling on the 24th)\n\n**2. Account Management (10 tickets - 24.4%)**\n- Subscription upgrades and add-ons (like the Moon Water Bottle request)\n- Address corrections before shipping\n\n**3. Product Feedback (8 tickets - 19.5%)**\n- Recipe questions and product reviews\n\n**\ud83c\udfaf Recommended Actions:**\n\n**Immediate (Today):**\n1. Prioritize the frustrated shipping customers (#tkt_2005, #tkt_2010)\n2. Follow up on stuck tracking labels (#tkt_2003)\n3. Process quick wins like address updates (#tkt_2014, #tkt_2018)\n\n**Context to Remember:**\n- Memorial Day weekend is approaching - expect shipping urgency\n- Your carrier had surcharge issues 9 days ago which may still be affecting deliveries\n- Post-Mother's Day period just ended, so some delays might be from that volume\n\nYour team is doing great with that 4.3 CSAT score! Focus on those shipping pain points and you'll keep customers happy through the holiday weekend. \ud83c\udf1f\n\nNeed me to dive deeper into any specific tickets or customer profiles?",
+      "metadata": {
+        "turn": 1,
+        "metrics": {
+          "prompts": 23,
+          "tools": 8,
+          "time": 0.03534293174743652
+        },
+        "debug": {
+          "context_window_size": 1,
+          "task_description": "Start the ad_hoc_support workflow for zoe_martinez",
+          "has_conversation_state": true,
+          "workflow": "ad_hoc_support",
+          "cj_version": "v5.0.0",
+          "scenario_context": {
+            "description": "",
+            "stress_level": "medium",
+            "metrics": {
+              "mrr": 50000,
+              "subscriber_count": 1000,
+              "churn_rate": 5.3,
+              "csat_score": 4.3,
+              "support_tickets_per_day": 28,
+              "average_response_time_hours": 3.2,
+              "top_categories": [
+                "shipping",
+                "account_management",
+                "product_feedback"
+              ],
+              "total_customers": 14,
+              "total_tickets": 41
+            }
+          },
+          "turn_count": 1,
+          "context_window": [
+            {
+              "sender": "zoe_martinez",
+              "content": "Hi CJ, what's our current support queue status?",
+              "timestamp": "2025-05-28T16:06:22.673416"
+            }
+          ],
+          "system_info": {
+            "timestamp": "2025-05-28T16:06:22.708931",
+            "server_version": "unknown",
+            "model_used": "claude-sonnet-4-20250514"
+          },
+          "verbose_output_preview": "\u001b[1m\u001b[95m# Agent:\u001b[00m \u001b[1m\u001b[92mCJ\u001b[00m\n\u001b[95m## Task:\u001b[00m \u001b[92mStart the ad_hoc_support workflow for zoe_martinez\u001b[00m\n\n\n\u001b[1m\u001b[95m# Agent:\u001b[00m \u001b[1m\u001b[92mCJ\u001b[00m\n\u001b[95m## Thought:\u001b[00m \u001b[92mI need to start the ad_hoc_support workflow for zoe_martinez. Let me first get an overview of the current support situation and then check for any specific issues or customer profiles that need attention.\u001b[00m\n\u001b[95m## Using tool:\u001b[00m \u001b[92mget_support_dashboard\u001b[00m\n\u001b[95m## Tool Input:\u001b[00m \u001b[92m\n\"{}\"\u001b[00m\n\u001b[9...",
+          "agent_debug_info": {
+            "prompt": "\n\nCURRENT BUSINESS CONTEXT:\n{\"description\": \"\", \"stress_level\": \"medium\", \"metrics\": {\"mrr\": 50000, \"subscriber_count\": 1000, \"churn_rate\": 5.3, \"csat_score\": 4.3, \"support_tickets_per_day\": 28, \"average_response_time_hours\": 3.2, \"top_categories\": [\"shipping\", \"account_management\", \"product_feedback\"], \"total_customers\": 14, \"total_tickets\": 41}}\nUNIVERSE DATA CONTEXT:\n- Universe ID: zoe_martinez_memorial_day_weekend_v1\n- Current Day: 45/90\n- Total Customers: 14\n- Total Tickets: 41\n- Business MRR: $50,000\n- CSAT: 4.3/5\n\nYou have structured tools available to access detailed universe data. Use them to answer specific questions.\n",
+            "goal": "Provide excellent customer support as CJ for zoe_martinez",
+            "role": "CJ",
+            "tools_count": 5,
+            "workflow": "ad_hoc_support",
+            "cj_version": "v5.0.0",
+            "has_conversation_state": true,
+            "context_window_size": 1
+          }
+        }
+      }
+    }
+  ],
+  "state": {
+    "workflow": "ad_hoc_support"
+  },
+  "annotations": {}
+}

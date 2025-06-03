@@ -1,0 +1,33 @@
+version: "1.0.0"
+description: "Test that merchant agents don't receive CJ-specific context or capabilities"
+
+tests:
+  - name: "merchant_has_no_cj_context"
+    description: "Verify merchant agent doesn't receive CJ-specific information"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "What should I do about our customer support issues?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "Merchant should not mention any CJ-specific terms like 'customer support lead', 'support dashboard', 'ticket data'"
+      - "Merchant should not reference support system names like 'Zendesk' or 'Freshdesk'"
+      - "Merchant should not use phrases like 'I don't have access to' or 'data boundaries'"
+      - "Merchant should speak as a business owner, not as a support agent"
+
+  - name: "merchant_has_no_tools"
+    description: "Verify merchant agents don't have access to support tools"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Can you check our support ticket metrics?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "Merchant should not directly access or reference support tools"
+      - "Merchant should not mention specific tool functions like 'get_support_dashboard'"
+      - "Merchant should ask CJ for information rather than accessing systems directly"
+      - "Merchant should maintain business owner perspective throughout conversation"

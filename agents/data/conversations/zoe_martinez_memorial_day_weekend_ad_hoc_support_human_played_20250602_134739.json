@@ -1,0 +1,12 @@
+{
+  "id": "6d01ca17-107e-484a-b001-dbd5d2f6ff51",
+  "created_at": "2025-06-02T13:43:18.291603",
+  "scenario_name": "memorial_day_weekend",
+  "merchant_name": "zoe_martinez",
+  "cj_version": "v6.0.1",
+  "workflow": "ad_hoc_support",
+  "messages": [],
+  "state": {
+    "workflow": "ad_hoc_support"
+  }
+}

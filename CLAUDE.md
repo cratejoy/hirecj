@@ -23,7 +23,19 @@ Success is completing the task **elegantly and completely** according to our Nor
 5. **Backend-Driven**: Let the backend handle complexity, frontend should be a thin client
 6. **Single Source of Truth**: One pattern, one way to do things, no alternatives
 7. **No Over-Engineering**: Design for current needs only - no hypothetical features, no "maybe later" code
+8. **Thoughtful Logging & Instrumentation**: We value visibility into system behavior with appropriate log levels
+   - Use proper log levels (debug, info, warning, error)
+   - Log important state changes and decisions
+   - But don't log sensitive data or spam the logs
 
 ## 🤖 Operational Guidelines
 
 - When the server needs to be restarted simply stop and ask me to do it.
+- **No Magic Values**: Never hardcode values inline. Use named constants, configuration, or explicit parameters
+  - ❌ `if count > 10:` 
+  - ✅ `if count > MAX_RETRIES:`
+- **No Unsolicited Optimizations**: Only implement what was explicitly requested
+  - Don't add caching unless asked
+  - Don't optimize algorithms unless asked
+  - Don't refactor unrelated code unless asked
+  - If you see an opportunity for improvement, mention it but don't implement it

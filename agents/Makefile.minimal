@@ -1,0 +1,26 @@
+# Minimal Makefile for hirecj-agents
+# Most commands should be run from the root monorepo
+
+.PHONY: run test help
+
+help:
+	@echo "This is a minimal Makefile. Use the root Makefile for most operations:"
+	@echo "  cd .. && make dev-agents    # Run the service"
+	@echo "  cd .. && make test-agents   # Run tests"
+	@echo "  cd .. && make install       # Install dependencies"
+
+run:
+	@echo "Starting agents service..."
+	@cd .. && make dev-agents
+
+test:
+	@echo "Running agents tests..."
+	@cd .. && make test-agents
+
+# Keep these for backwards compatibility during migration
+dev:
+	@$(MAKE) run
+
+install:
+	@echo "Installing dependencies..."
+	@cd .. && make install

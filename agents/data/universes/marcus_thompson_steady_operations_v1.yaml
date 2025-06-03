@@ -1,0 +1,740 @@
+metadata:
+  universe_id: marcus_thompson_steady_operations_v1
+  merchant: marcus_thompson
+  scenario: steady_operations
+  generated_at: '2025-05-26T14:25:51.454635Z'
+  generator_version: 1.0.0
+  timeline_days: 90
+  current_day: 45
+business_context:
+  current_state:
+    mrr: 48000
+    subscriber_count: 1290
+    churn_rate: 5.5
+    csat_score: 4.4
+    support_tickets_per_day: 33
+    average_response_time_hours: 3.2
+  subscription_tiers:
+  - name: Pitmaster Pro
+    price: 59
+    active_subscribers: 650
+  - name: Competition Grade
+    price: 89
+    active_subscribers: 420
+  - name: Craft Collector
+    price: 129
+    active_subscribers: 220
+timeline_events:
+- day: 1
+  date: '2024-03-31'
+  event: Start-of-quarter business review sets a modest Q2 growth target and allocates
+    extra budget toward product development.
+  impact: positive
+- day: 6
+  date: '2024-04-05'
+  event: Launch of the spring "Smart Bundles" feature announced via blog and in-app
+    messages, driving a spike in trials.
+  impact: positive
+- day: 13
+  date: '2024-04-12'
+  event: Two-hour AWS outage affects checkout flow; quick recovery but a handful of
+    users request refunds.
+  impact: minor_negative
+- day: 22
+  date: '2024-04-21'
+  event: Automated email campaign offering 20 % off annual plans goes live, boosting
+    new subscriber conversions for the week.
+  impact: positive
+- day: 30
+  date: '2024-04-29'
+  event: Operations hires two additional support reps, reducing average first-response
+    time to under 3 hours.
+  impact: positive
+- day: 39
+  date: '2024-05-08'
+  event: Primary shipping partner announces a 3 % rate increase effective immediately,
+    slightly squeezing gross margins.
+  impact: minor_negative
+- day: 45
+  date: '2024-05-14'
+  event: "Regular Tuesday in May\u2014systems stable, support queue at 30-35 tickets/day,\
+    \ MRR hits $48 K with 1,290 subscribers and 5.5 % churn."
+  impact: none
+- day: 53
+  date: '2024-05-22'
+  event: Closed beta of the new analytics dashboard opens to 50 power users; early
+    feedback is enthusiastic.
+  impact: positive
+- day: 65
+  date: '2024-06-03'
+  event: Major competitor announces a price cut, triggering an uptick in comparison
+    questions from prospects.
+  impact: minor_negative
+- day: 80
+  date: '2024-06-18'
+  event: Quarterly product webinar draws 500 attendees and converts 60 new paid subscribers,
+    bolstering end-of-quarter MRR.
+  impact: positive
+customers:
+- customer_id: cust_001
+  name: Daniel Ruiz
+  email: daniel.ruiz@example.com
+  customer_type: active_subscriber
+  sub_type: happy_subscriber
+  subscription_tier: Pitmaster Pro
+  subscription_start_date: '2022-03-15'
+  lifetime_value: 1650
+  orders_count: 29
+  last_order_date: '2024-05-07'
+  status: active
+  satisfaction_score: 4.8
+  support_tickets_count: 1
+- customer_id: cust_002
+  name: Megan Liu
+  email: megan.liu@example.com
+  customer_type: active_subscriber
+  sub_type: at_risk_subscriber
+  subscription_tier: Pitmaster Pro
+  subscription_start_date: '2023-09-10'
+  lifetime_value: 531
+  orders_count: 9
+  last_order_date: '2024-05-05'
+  status: paused
+  satisfaction_score: 3.2
+  support_tickets_count: 6
+- customer_id: cust_003
+  name: Robert Miller
+  email: rob.miller@example.com
+  customer_type: active_subscriber
+  sub_type: engaged_subscriber
+  subscription_tier: Competition Grade
+  subscription_start_date: '2022-11-05'
+  lifetime_value: 1702
+  orders_count: 20
+  last_order_date: '2024-05-04'
+  status: active
+  satisfaction_score: 4.3
+  support_tickets_count: 3
+- customer_id: cust_004
+  name: Stephanie Carter
+  email: steph.carter@example.com
+  customer_type: active_subscriber
+  sub_type: power_subscriber
+  subscription_tier: Craft Collector
+  subscription_start_date: '2021-08-01'
+  lifetime_value: 5157
+  orders_count: 48
+  last_order_date: '2024-05-06'
+  status: active
+  satisfaction_score: 4.7
+  support_tickets_count: 4
+- customer_id: cust_005
+  name: Jordan Blake
+  email: jordan.blake@example.com
+  customer_type: active_subscriber
+  sub_type: engaged_subscriber
+  subscription_tier: Pitmaster Pro
+  subscription_start_date: '2023-02-12'
+  lifetime_value: 1020
+  orders_count: 18
+  last_order_date: '2024-05-06'
+  status: active
+  satisfaction_score: 4.2
+  support_tickets_count: 3
+- customer_id: cust_006
+  name: Olivia Martinez
+  email: olivia.martinez@example.com
+  customer_type: active_subscriber
+  sub_type: happy_subscriber
+  subscription_tier: Competition Grade
+  subscription_start_date: '2024-01-10'
+  lifetime_value: 445
+  orders_count: 5
+  last_order_date: '2024-05-09'
+  status: active
+  satisfaction_score: 4.7
+  support_tickets_count: 1
+- customer_id: cust_007
+  name: Carlos Ramirez
+  email: carlos.ramirez@example.com
+  customer_type: gift_sender
+  sub_type: personal_gifter
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 245
+  orders_count: 3
+  last_order_date: '2024-04-30'
+  status: active
+  satisfaction_score: 4.6
+  support_tickets_count: 2
+- customer_id: cust_008
+  name: Lisa Henderson
+  email: lisa.henderson@globalcorp.com
+  customer_type: gift_sender
+  sub_type: corporate_buyer
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 3200
+  orders_count: 4
+  last_order_date: '2024-03-28'
+  status: active
+  satisfaction_score: 4.4
+  support_tickets_count: 5
+- customer_id: cust_009
+  name: Pete Johnson
+  email: pete.johnson@example.com
+  customer_type: gift_sender
+  sub_type: event_gifter
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 380
+  orders_count: 2
+  last_order_date: '2024-02-05'
+  status: active
+  satisfaction_score: 3.9
+  support_tickets_count: 3
+- customer_id: cust_010
+  name: Sarah Park
+  email: sarah.park@example.com
+  customer_type: gift_sender
+  sub_type: personal_gifter
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 280
+  orders_count: 2
+  last_order_date: '2024-05-01'
+  status: active
+  satisfaction_score: 4.9
+  support_tickets_count: 1
+- customer_id: cust_011
+  name: Anita Patel
+  email: anita.patel@example.com
+  customer_type: hybrid_subscriber
+  sub_type: hybrid_subscriber
+  subscription_tier: Competition Grade
+  subscription_start_date: '2022-06-18'
+  lifetime_value: 2890
+  orders_count: 35
+  last_order_date: '2024-05-08'
+  status: active
+  satisfaction_score: 4.5
+  support_tickets_count: 4
+- customer_id: cust_012
+  name: George Kim
+  email: gkim@example.com
+  customer_type: hybrid_subscriber
+  sub_type: hybrid_subscriber
+  subscription_tier: Pitmaster Pro
+  subscription_start_date: '2023-01-20'
+  lifetime_value: 1194
+  orders_count: 21
+  last_order_date: '2024-05-03'
+  status: active
+  satisfaction_score: 3.7
+  support_tickets_count: 5
+- customer_id: cust_013
+  name: Luis Gomez
+  email: luis.gomez@example.com
+  customer_type: hybrid_subscriber
+  sub_type: hybrid_subscriber
+  subscription_tier: Craft Collector
+  subscription_start_date: '2023-05-22'
+  lifetime_value: 1988
+  orders_count: 20
+  last_order_date: '2024-05-06'
+  status: active
+  satisfaction_score: 4.1
+  support_tickets_count: 3
+- customer_id: cust_014
+  name: Emily Sanders
+  email: emily.sanders@example.com
+  customer_type: one_time_purchaser
+  sub_type: trial_converter
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 68
+  orders_count: 1
+  last_order_date: '2024-05-10'
+  status: active
+  satisfaction_score: 4.8
+  support_tickets_count: 1
+- customer_id: cust_015
+  name: Frank O'Neal
+  email: frank.oneal@example.com
+  customer_type: one_time_purchaser
+  sub_type: one_and_done
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 35
+  orders_count: 1
+  last_order_date: '2023-12-12'
+  status: active
+  satisfaction_score: 2.2
+  support_tickets_count: 2
+- customer_id: cust_016
+  name: Laura Chen
+  email: laura.chen@example.com
+  customer_type: repeat_purchaser
+  sub_type: repeat_purchaser
+  subscription_tier: ''
+  subscription_start_date: ''
+  lifetime_value: 620
+  orders_count: 8
+  last_order_date: '2024-04-15'
+  status: active
+  satisfaction_score: 4.5
+  support_tickets_count: 2
+support_tickets:
+- ticket_id: tkt_0001
+  created_at: '2024-05-14T08:15:00-05:00'
+  customer_id: cust_007
+  category: shipping
+  subject: Need to change gift address before it ships
+  content: "Hi there,\n\nI ordered the \"Ultimate Pitmaster\" gift box (order #GM47569)\
+    \ for my dad and just found out he\u2019s staying with my sister next week. Can\
+    \ you switch delivery to 427 Palm Ave, Sarasota FL 34236? Father\u2019s Day is\
+    \ creeping up so as long as it lands before 6/10 we\u2019re good.\n\nThanks! \
+    \ \u2013Lori"
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_0002
+  created_at: '2024-05-14T08:22:00-05:00'
+  customer_id: cust_008
+  category: shipping
+  subject: 'URGENT: Memorial Day bulk order timing'
+  content: "URGENT: We need 35 \"BBQ Starter Kit\" bundles split to three offices\
+    \ for our employee cook-outs on 5/27. Can you confirm you\u2019ve actually got\
+    \ that many in stock and that they\u2019ll leave the Texas warehouse no later\
+    \ than 5/17?  PO 88913 is already in SAP, accounting just needs ship dates + tracking.\n\
+    \nthx\nJulia \u2013 HR Ops"
+  sentiment: neutral
+  priority: high
+  status: open
+- ticket_id: tkt_0003
+  created_at: '2024-05-14T08:30:00-05:00'
+  customer_id: cust_002
+  category: shipping
+  subject: "May box still stuck on \u201Clabel created\u201D"
+  content: "Hey my May Pitmaster Pro box (sub #PP-2208) hasn\u2019t moved since 5/10,\
+    \ tracking just says label created. GrillBox users already got theirs. Not cool.\
+    \ If it\u2019s not out the door today I\u2019m hitting pause."
+  sentiment: frustrated
+  priority: normal
+  status: open
+- ticket_id: tkt_0004
+  created_at: '2024-05-14T08:37:00-05:00'
+  customer_id: cust_003
+  category: shipping
+  subject: Tracking shows delivered but no package
+  content: "Morning!\nFedEx shows my Competition Grade box as delivered yesterday\
+    \ but nothing on the porch (order CG-51261). Any chance it was shipped signature-required?\
+    \ Porch pirates hit our street a lot.\n\nappreciate the help \u2013Kyle"
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_0005
+  created_at: '2024-05-14T08:45:00-05:00'
+  customer_id: cust_009
+  category: shipping
+  subject: Need Ultimate Pitmaster box before Memorial Day party
+  content: "Hi, throwing a backyard bash 5/25 and bought the Ultimate Pitmaster gift\
+    \ box for the grill master contest (order #UP-14522). Can you guarantee arrival\
+    \ by 5/23? Happy to pay for upgraded shipping if you think ground from NJ won\u2019\
+    t make it."
+  sentiment: neutral
+  priority: high
+  status: open
+- ticket_id: tkt_0006
+  created_at: '2024-05-14T08:52:00-05:00'
+  customer_id: cust_010
+  category: shipping
+  subject: Package says delivered but my brother never got it
+  content: "Hey, I sent a BBQ Starter Kit (order #BSK-78901) to my brother in Denver.\
+    \ UPS marked it delivered 5/12 but he\u2019s got nothing. Can you start a trace\
+    \ or something? It\u2019s his birthday gift and he\u2019s giving me grief \U0001F602\
+    ."
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_0007
+  created_at: '2024-05-14T09:05:00-05:00'
+  customer_id: cust_011
+  category: shipping
+  subject: Sync May box with marketplace add-on order
+  content: "I grabbed a bottle of \"Grill Masters Reserve Chipotle Bourbon\" sauce\
+    \ last night (order #MKT-6467). Any way to toss it in with my Craft Collector\
+    \ box that ships this week so I\u2019m not paying shipping twice?"
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_0008
+  created_at: '2024-05-14T09:12:00-05:00'
+  customer_id: cust_012
+  category: shipping
+  subject: $29 to ship wood chunks??
+  content: "Guys \u2013 $29.40 to ship two boxes of cherry wood chunks (order #WC-22311)\
+    \ to Phoenix feels rough. Any lighter rate options? Could you ship from CA warehouse\
+    \ instead of TX?"
+  sentiment: frustrated
+  priority: normal
+  status: open
+- ticket_id: tkt_0009
+  created_at: '2024-05-14T09:20:00-05:00'
+  customer_id: cust_014
+  category: shipping
+  subject: First order status question
+  content: 'Hey! First timer here. Just wondering when Sweet Heat Blend + Brisket
+    Magic combo (order #TRIAL-1003) will head out. Site said 1-2 business days. Placed
+    it Friday.'
+  sentiment: neutral
+  priority: low
+  status: open
+- ticket_id: tkt_0010
+  created_at: '2024-05-14T09:27:00-05:00'
+  customer_id: cust_015
+  category: shipping
+  subject: Missing Texas Thunder in my box
+  content: "Package CG-51880 arrived but Texas Thunder wasn\u2019t in there. Kinda\
+    \ the whole reason I ordered. Can you ship that ASAP or refund?"
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_0011
+  created_at: '2024-05-14T09:34:00-05:00'
+  customer_id: cust_006
+  category: shipping
+  subject: Hold delivery at FedEx Office
+  content: 'Hi! Traveling next week. Can you put a hold at FedEx Office store #4389
+    for my Pitmaster Pro box (tracking 6123)? Easier than a porch pile-up.'
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_0012
+  created_at: '2024-05-14T09:41:00-05:00'
+  customer_id: cust_013
+  category: shipping
+  subject: Do you ship the Death Valley Hot Sauce set to Canada?
+  content: "Thinking of sending the Death Valley Series to a buddy in Toronto (order\
+    \ wouldn\u2019t go through). Customs rules? Any workaround?"
+  sentiment: neutral
+  priority: low
+  status: open
+- ticket_id: tkt_0013
+  created_at: '2024-05-14T09:49:00-05:00'
+  customer_id: cust_016
+  category: shipping
+  subject: Bulk order lead time for Sweet Heat Blend
+  content: Hey, I usually grab 12 jars of Sweet Heat Blend at a time for caterings.
+    If I order 24 today, will that still ship within 3 days? Need it for a 6/1 wedding.
+  sentiment: positive
+  priority: normal
+  status: open
+- ticket_id: tkt_0014
+  created_at: '2024-05-14T09:56:00-05:00'
+  customer_id: cust_002
+  category: shipping
+  subject: Need replacement bottle shipped overnight
+  content: "The ghost pepper sauce that leaked (see other ticket) ruined the box.\
+    \ If you\u2019re sending a new one can you overnight? Got a cook-off Saturday."
+  sentiment: frustrated
+  priority: high
+  status: open
+- ticket_id: tkt_0015
+  created_at: '2024-05-14T10:05:00-05:00'
+  customer_id: cust_002
+  category: account_management
+  subject: Pause my subscription two months
+  content: "Ok I\u2019m traveling June/July. Pause Pitmaster Pro for those cycles.\
+    \ Don\u2019t charge me til August."
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_0016
+  created_at: '2024-05-14T10:12:00-05:00'
+  customer_id: cust_001
+  category: account_management
+  subject: Switch to quarterly shipments
+  content: Love the box but storage is piling up. Can you move my subscription to
+    quarterly starting next cycle?
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_0017
+  created_at: '2024-05-14T10:19:00-05:00'
+  customer_id: cust_004
+  category: account_management
+  subject: Upgrade me to Craft Collector
+  content: Been on Competition Grade a year, ready for the big leagues. Please bump
+    me to Craft Collector for June box and keep same card.
+  sentiment: positive
+  priority: normal
+  status: open
+- ticket_id: tkt_0018
+  created_at: '2024-05-14T10:26:00-05:00'
+  customer_id: cust_005
+  category: account_management
+  subject: Downgrade one tier for summer
+  content: Hey friends, grilling less in summer travel season. Can you drop me from
+    Competition Grade to Pitmaster Pro for June & July only?
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_0019
+  created_at: '2024-05-14T10:33:00-05:00'
+  customer_id: cust_011
+  category: account_management
+  subject: Add a 3-month gift sub for my dad
+  content: Can you set up a 3-month Pitmaster Pro gift starting June for my dad, separate
+    from my own sub? Charge same card ending 9081.
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_0020
+  created_at: '2024-05-14T10:40:00-05:00'
+  customer_id: cust_012
+  category: account_management
+  subject: Change default ship address to work
+  content: Moved offices. New default should be 722 N Central Ave, Phoenix AZ 85004.
+    Applies to sub + any marketplace orders.
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_0021
+  created_at: '2024-05-14T10:47:00-05:00'
+  customer_id: cust_003
+  category: account_management
+  subject: Skip July box
+  content: "Family vacation whole month, nobody\u2019s home to smoke brisket sadly.\
+    \ Please skip July shipment."
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_0022
+  created_at: '2024-05-14T10:54:00-05:00'
+  customer_id: cust_006
+  category: account_management
+  subject: Update card on file
+  content: New Amex just showed up. How do I swap the card before the 20th bill?
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_0023
+  created_at: '2024-05-14T11:01:00-05:00'
+  customer_id: cust_002
+  category: account_management
+  subject: "Thinking of canceling \u2013 price vs GrillBox"
+  content: "Look, GrillBox is $12 cheaper and ships faster. Convince me why I shouldn\u2019\
+    t bail."
+  sentiment: frustrated
+  priority: high
+  status: open
+- ticket_id: tkt_0024
+  created_at: '2024-05-14T11:08:00-05:00'
+  customer_id: cust_013
+  category: account_management
+  subject: Combine my subscription & add-on into one monthly ship
+  content: Getting too many separate deliveries. Any way to ship my Craft Collector
+    box together with whatever marketplace stuff I grab each month?
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_0025
+  created_at: '2024-05-14T11:15:00-05:00'
+  customer_id: cust_002
+  category: billing
+  subject: Double charge on 5/1
+  content: Statement shows two $59 hits same day. Fix it.
+  sentiment: negative
+  priority: high
+  status: open
+- ticket_id: tkt_0026
+  created_at: '2024-05-14T11:22:00-05:00'
+  customer_id: cust_008
+  category: billing
+  subject: Need invoice with PO for accounting
+  content: 'Can you email a PDF invoice for order #CORP-5521 referencing PO 88913
+    and net-30 terms?'
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_0027
+  created_at: '2024-05-14T11:29:00-05:00'
+  customer_id: cust_015
+  category: billing
+  subject: "Requesting refund \u2013 unhappy first experience"
+  content: "Between the leaked sauce and missing item I\u2019m done. Please refund\
+    \ the full $89, order CG-51880."
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_0028
+  created_at: '2024-05-14T11:36:00-05:00'
+  customer_id: cust_012
+  category: billing
+  subject: Tax-exempt certificate on file?
+  content: Our company is AZ sales-tax exempt. Where do I upload the certificate so
+    future orders skip tax?
+  sentiment: neutral
+  priority: low
+  status: open
+- ticket_id: tkt_0029
+  created_at: '2024-05-14T11:43:00-05:00'
+  customer_id: cust_003
+  category: product_feedback
+  subject: "Sweet Heat Blend is epic \u2013 keep it coming"
+  content: "The Sweet Heat Blend from May\u2019s box was \U0001F525. Any chance it\
+    \ becomes a permanent SKU? I damn near used half the jar on wings already."
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_0030
+  created_at: '2024-05-14T11:50:00-05:00'
+  customer_id: cust_004
+  category: product_feedback
+  subject: Need a Texas Thunder XL option
+  content: Love Texas Thunder but a 4oz shaker lasts me like 2 cooks. Would buy a
+    1-lb bag in a heartbeat.
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_0031
+  created_at: '2024-05-14T11:57:00-05:00'
+  customer_id: cust_006
+  category: product_feedback
+  subject: 12 Days of BBQ was a hit
+  content: Just wanted to say the "12 Days of BBQ" calendar made our holiday season.
+    Any summer version coming?
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_0032
+  created_at: '2024-05-14T12:04:00-05:00'
+  customer_id: cust_001
+  category: product_feedback
+  subject: Would love to see a digital thermometer in boxes
+  content: 'Idea: toss a decent instant-read digital thermometer (like the $39.99
+    one you sell) in an upcoming Pitmaster Pro box. Newbies need it.'
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_0033
+  created_at: '2024-05-14T12:11:00-05:00'
+  customer_id: cust_005
+  category: product_feedback
+  subject: Less sugar please
+  content: Noticed a lot of the recent rubs lean sweet (looking at you, Sweet Heat).
+    Any chance of more low-sugar blends? Keto folks unite.
+  sentiment: neutral
+  priority: low
+  status: open
+- ticket_id: tkt_0034
+  created_at: '2024-05-14T12:18:00-05:00'
+  customer_id: cust_014
+  category: product_feedback
+  subject: Brisket Magic on pork?
+  content: "Loved Brisket Magic on beef ribs. You think it\u2019ll work on pork shoulder\
+    \ or is that BBQ blasphemy?"
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_0035
+  created_at: '2024-05-14T12:25:00-05:00'
+  customer_id: cust_009
+  category: product_feedback
+  subject: Recipient not a fan of ghost pepper sauce
+  content: "My buddy can\u2019t handle heat. Any way to swap the Ghost Pepper Death\
+    \ Valley bottle in the gift box for something milder before it ships?"
+  sentiment: neutral
+  priority: normal
+  status: open
+- ticket_id: tkt_0036
+  created_at: '2024-05-14T12:32:00-05:00'
+  customer_id: cust_016
+  category: product_feedback
+  subject: Suggestion on bulk packaging
+  content: Buying 24 jars at once means a ton of little plastic lids. Any chance of
+    a food-service pouch for Sweet Heat Blend?
+  sentiment: positive
+  priority: low
+  status: open
+- ticket_id: tkt_0037
+  created_at: '2024-05-14T12:39:00-05:00'
+  customer_id: cust_015
+  category: quality_issues
+  subject: Sauce bottle leaked everywhere
+  content: Opened the box and Grill Masters Reserve Peach Habanero was cracked, sticky
+    mess all over. Box smelled awesome but wife not amused. Need replacement (and
+    refund of ruined Texas Thunder shaker).
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_0038
+  created_at: '2024-05-14T12:46:00-05:00'
+  customer_id: cust_012
+  category: quality_issues
+  subject: Wood chips arrived damp/moldy
+  content: "The cedar chips from Austin Smoke Co (order #WC-22311) are literally wet\
+    \ and fuzzy. Can\u2019t burn that. What happened in the warehouse?"
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_0039
+  created_at: '2024-05-14T12:53:00-05:00'
+  customer_id: cust_011
+  category: quality_issues
+  subject: Thermometer reading way off
+  content: "Digital thermometer I added last month reads 220\xB0F in ice water. Pretty\
+    \ sure my freezer isn\u2019t on fire. Replacement?"
+  sentiment: negative
+  priority: normal
+  status: open
+- ticket_id: tkt_0040
+  created_at: '2024-05-14T13:00:00-05:00'
+  customer_id: cust_002
+  category: quality_issues
+  subject: Spice rub solid brick
+  content: "Sweet Heat Blend in my May box is one giant clump. Won\u2019t even shake.\
+    \ Guessing moisture? Need fresh jar."
+  sentiment: frustrated
+  priority: normal
+  status: open
+ticket_categories_distribution:
+  shipping:
+    percentage: 35
+    average_per_day: 11
+    common_issues:
+    - Where is my order?
+    - Shipping delay questions
+  account_management:
+    percentage: 25
+    average_per_day: 8
+    common_issues:
+    - Subscription upgrades
+    - Payment updates
+  product_feedback:
+    percentage: 20
+    average_per_day: 6
+    common_issues:
+    - Product reviews
+    - Recipe questions
+  quality_issues:
+    percentage: 10
+    average_per_day: 3
+    common_issues:
+    - Damaged packaging
+    - Missing items
+  billing:
+    percentage: 10
+    average_per_day: 3
+    common_issues:
+    - Charge questions
+    - Refund requests
+product_performance:
+  top_rated_products:
+  - name: Sweet Heat BBQ Rub
+    sku: SH-RUB-001
+    rating: 4.8
+    reviews_count: 234
+    inclusion_rate: 0.65
+  problematic_products: []

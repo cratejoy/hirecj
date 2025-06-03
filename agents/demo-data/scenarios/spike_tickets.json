@@ -1,0 +1,76 @@
+{
+  "date": "2025-01-22",
+  "scenario_name": "spike_tickets",
+  "metrics": {
+    "support": {
+      "tickets_received": 127,
+      "tickets_resolved": 89,
+      "tickets_pending": 45,
+      "avg_response_time": "34 min",
+      "avg_resolution_time": "4.1 hours",
+      "csat": 4.2,
+      "top_issues": [
+        {"category": "shipping", "count": 56, "trend": "spike"},
+        {"category": "product_inquiry", "count": 28, "trend": "up"},
+        {"category": "billing", "count": 23, "trend": "spike"},
+        {"category": "subscription_change", "count": 20, "trend": "up"}
+      ]
+    },
+    "revenue": {
+      "gmv": 7890,
+      "new_subscriptions": 19,
+      "churned": 12,
+      "net_new": 7,
+      "avg_order_value": 45.80,
+      "subscription_revenue": 6234,
+      "one_time_revenue": 1656,
+      "refunds": 289,
+      "top_products": [
+        {"name": "Premium Coffee Box", "sales": 10, "revenue": 400},
+        {"name": "Monthly Tea Selection", "sales": 8, "revenue": 320},
+        {"name": "Artisan Snack Collection", "sales": 6, "revenue": 240}
+      ]
+    },
+    "operations": {
+      "shipments_sent": 142,
+      "delivery_rate": 94.2,
+      "late_shipments": 12,
+      "inventory_alerts": 5,
+      "fulfillment_time": "2.1 days"
+    },
+    "marketing": {
+      "email_open_rate": 22.1,
+      "email_click_rate": 3.2,
+      "social_mentions": 28,
+      "social_sentiment": "mixed",
+      "review_score": 4.3,
+      "new_reviews": 12
+    }
+  },
+  "insights": [
+    {
+      "type": "alert",
+      "category": "support",
+      "message": "Support volume 170% above normal - shipping delays causing spike",
+      "action": "activate overflow protocol"
+    },
+    {
+      "type": "warning",
+      "category": "operations",
+      "message": "Delivery rate dropped to 94.2% - investigate carrier issues",
+      "action": "contact shipping partners"
+    },
+    {
+      "type": "warning",
+      "category": "revenue",
+      "message": "Churn rate elevated due to service issues",
+      "action": "proactive retention outreach"
+    },
+    {
+      "type": "action",
+      "category": "communication",
+      "message": "Consider proactive communication about delays",
+      "action": "send status update email"
+    }
+  ]
+}

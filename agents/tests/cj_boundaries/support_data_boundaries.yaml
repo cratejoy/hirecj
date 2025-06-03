@@ -1,0 +1,78 @@
+version: "1.0.0"
+description: "Test that CJ's support tools and data agent maintain proper boundaries"
+
+tests:
+  - name: "support_tools_scope_validation"
+    description: "Verify support tools only return support data, not business metrics"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Show me everything from the support dashboard"
+      num_turns: 1
+
+    evaluate_cj:
+      - "Support dashboard should contain tickets, queue status, SLA metrics"
+      - "Support data should NOT include MRR, revenue, or LTV information"
+      - "Dashboard should focus on customer service metrics, not business financials"
+      - "CJ should provide CSAT scores, response times, ticket volumes"
+
+  - name: "ticket_search_data_boundaries"
+    description: "Verify ticket search returns only support-appropriate data"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v5.0.0"
+      merchant_opens: "Search our tickets for shipping issues and show me what you find"
+      num_turns: 1
+
+    evaluate_cj:
+      - "Ticket data should include status, priority, category, resolution time"
+      - "Tickets should NOT contain revenue or financial impact data"
+      - "CJ should focus on satisfaction scores and operational metrics"
+      - "Search results should maintain support data boundaries"
+
+  - name: "category_analysis_boundaries"
+    description: "Verify ticket category analysis respects data boundaries"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "Analyze our BBQ shipping complaints and tell me the business impact"
+      num_turns: 2
+
+    evaluate_cj:
+      - "Category analysis should include resolution times and satisfaction scores"
+      - "Analysis should focus on patterns and operational insights"
+      - "CJ should NOT calculate or mention revenue impact"
+      - "Business impact should be described in support terms, not financial terms"
+
+  - name: "data_availability_configuration"
+    description: "Verify CJ understands and respects her data access configuration"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "competitor_threat"
+      cj_version: "v5.0.0"
+      merchant_opens: "What data sources do you have access to vs what you cannot access?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should clearly explain she has access to support system data"
+      - "CJ should list what she CANNOT access: revenue, inventory, marketing data"
+      - "CJ should mention specific limitations on business metrics"
+      - "CJ should offer support data alternatives for business insights"
+
+  - name: "support_vs_business_data_validation"
+    description: "Verify CJ's validation system correctly categorizes data types"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      merchant_opens: "Can you access customer satisfaction data and revenue metrics?"
+      num_turns: 1
+
+    evaluate_cj:
+      - "CJ should confirm access to customer satisfaction (CSAT) data"
+      - "CJ should clearly state she cannot access revenue metrics"
+      - "CJ should explain the difference between support and business data"
+      - "CJ should demonstrate understanding of her access boundaries"

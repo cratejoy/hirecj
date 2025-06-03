@@ -1,0 +1,269 @@
+# Universe Example: Marcus Thompson - Steady Operations
+# This represents a normal business day with typical support volume
+
+metadata:
+  universe_id: "marcus_thompson_steady_operations_v1"
+  merchant: "marcus_thompson"
+  scenario: "steady_operations"
+  generated_at: "2024-05-14T10:00:00Z"
+  generator_version: "1.0.0"
+  timeline_days: 90
+  current_day: 45  # Tuesday, May 14th (day 45 of 90)
+
+business_context:
+  current_state:
+    mrr: 48000
+    subscriber_count: 1290
+    churn_rate: 5.5
+    csat_score: 4.4
+    support_tickets_per_day: 32
+    average_response_time_hours: 1.8
+
+  subscription_tiers:
+    - name: "BBQ Beginner"
+      price: 39
+      active_subscribers: 0  # Discontinued
+    - name: "Pitmaster"
+      price: 59
+      active_subscribers: 580
+    - name: "Grill Enthusiast"
+      price: 79
+      active_subscribers: 450
+    - name: "Craft Pitmaster"
+      price: 129
+      active_subscribers: 260
+
+timeline_events:
+  - day: 1
+    date: "2024-03-30"
+    event: "Start of timeline - normal operations baseline"
+    impact: "none"
+
+  - day: 15
+    date: "2024-04-13"
+    event: "Spring product refresh - introduced 3 new rubs"
+    impact: "positive"
+    details: "Added 'Memphis Magic', 'Carolina Gold', and 'Texas Thunder' rubs"
+
+  - day: 28
+    date: "2024-04-26"
+    event: "Minor shipping delay from supplier"
+    impact: "minor_negative"
+    details: "Austin Smoke Co delayed shipment by 2 days, affected 50 orders"
+
+  - day: 35
+    date: "2024-05-03"
+    event: "Mother's Day promotion launched"
+    impact: "positive"
+    details: "15% off gift subscriptions, resulted in 42 new gift orders"
+
+  - day: 42
+    date: "2024-05-10"
+    event: "Positive review in BBQ Magazine"
+    impact: "positive"
+    details: "Featured as 'Best BBQ Subscription for Serious Grillers'"
+
+customers:
+  # Sample of active customers (in reality would be 1290)
+  - customer_id: "cust_001"
+    name: "Janet Williams"
+    email: "jwilliams@email.com"
+    subscription_tier: "Pitmaster"
+    subscription_start_date: "2022-11-15"
+    lifetime_value: 1416
+    orders_count: 18
+    last_order_date: "2024-05-01"
+    status: "active"
+    satisfaction_score: 5
+    support_tickets_count: 2
+
+  - customer_id: "cust_002"
+    name: "Robert Chen"
+    email: "rchen@email.com"
+    subscription_tier: "Craft Pitmaster"
+    subscription_start_date: "2023-03-22"
+    lifetime_value: 1806
+    orders_count: 14
+    last_order_date: "2024-05-01"
+    status: "active"
+    satisfaction_score: 4
+    support_tickets_count: 5
+    notes: "Particular about sauce quality, had issue with Austin Smoke Co products"
+
+  - customer_id: "cust_003"
+    name: "Maria Rodriguez"
+    email: "mrodriguez@email.com"
+    subscription_tier: "Grill Enthusiast"
+    subscription_start_date: "2024-01-10"
+    lifetime_value: 316
+    orders_count: 4
+    last_order_date: "2024-05-01"
+    status: "active"
+    satisfaction_score: 5
+    support_tickets_count: 1
+
+  # ... would continue for all 1290 customers
+
+support_tickets:
+  # Today's tickets (day 45)
+  - ticket_id: "tkt_4501"
+    created_at: "2024-05-14T08:23:00Z"
+    customer_id: "cust_087"
+    category: "shipping"
+    subject: "When will my May box ship?"
+    content: |
+      Hi there! I noticed my credit card was charged on May 1st but
+      haven't received a shipping notification yet. Just wondering
+      when I can expect my May Pitmaster box to ship? Thanks!
+    sentiment: "neutral"
+    priority: "normal"
+    status: "resolved"
+    resolved_at: "2024-05-14T09:45:00Z"
+    resolution: "Provided tracking number, shipping today"
+
+  - ticket_id: "tkt_4502"
+    created_at: "2024-05-14T09:15:00Z"
+    customer_id: "cust_234"
+    category: "product_feedback"
+    subject: "Memphis Magic rub is amazing!"
+    content: |
+      Just wanted to say the new Memphis Magic rub in last month's
+      box was incredible. Used it on ribs this weekend and my
+      family couldn't get enough. Will you be selling it separately?
+    sentiment: "positive"
+    priority: "low"
+    status: "resolved"
+    resolved_at: "2024-05-14T10:30:00Z"
+    resolution: "Thanked customer, noted interest in standalone sales"
+
+  - ticket_id: "tkt_4503"
+    created_at: "2024-05-14T10:45:00Z"
+    customer_id: "cust_156"
+    category: "account_management"
+    subject: "Upgrade to Craft Pitmaster"
+    content: |
+      I've been on the Grill Enthusiast tier for 6 months and
+      absolutely love it. Ready to upgrade to Craft Pitmaster!
+      Can you help me switch starting with next month's box?
+    sentiment: "positive"
+    priority: "normal"
+    status: "open"
+    assigned_to: "support_agent_1"
+
+  # Previous days would have similar patterns
+  # Average 30-35 tickets per day, mix of categories
+
+ticket_categories_distribution:
+  shipping:
+    percentage: 35
+    average_per_day: 11
+    common_issues:
+      - "Where is my order?"
+      - "Shipping delay questions"
+      - "Address changes"
+
+  account_management:
+    percentage: 25
+    average_per_day: 8
+    common_issues:
+      - "Subscription upgrades/downgrades"
+      - "Payment updates"
+      - "Pause/resume requests"
+
+  product_feedback:
+    percentage: 20
+    average_per_day: 6
+    common_issues:
+      - "Product reviews (mostly positive)"
+      - "Recipe questions"
+      - "Product availability"
+
+  quality_issues:
+    percentage: 10
+    average_per_day: 3
+    common_issues:
+      - "Damaged packaging"
+      - "Missing items"
+      - "Product substitutions"
+
+  billing:
+    percentage: 10
+    average_per_day: 3
+    common_issues:
+      - "Charge questions"
+      - "Refund requests"
+      - "Promo code issues"
+
+product_performance:
+  top_rated_products:
+    - name: "Sweet Heat BBQ Rub"
+      sku: "SH-RUB-001"
+      rating: 4.8
+      reviews_count: 234
+      inclusion_rate: 0.65  # In 65% of boxes
+
+    - name: "Applewood Smoke Chips"
+      sku: "AW-CHIPS-001"
+      rating: 4.7
+      reviews_count: 189
+      inclusion_rate: 0.45
+
+    - name: "Memphis Magic Rub"
+      sku: "MM-RUB-001"
+      rating: 4.9
+      reviews_count: 42  # New product
+      inclusion_rate: 0.30
+
+  problematic_products:
+    - name: "Austin Smoke Co Carolina Sauce"
+      sku: "AS-CAR-001"
+      rating: 3.2
+      issues: ["Inconsistent flavor", "Packaging leaks"]
+      action_taken: "Monitoring, may discontinue"
+
+inventory_status:
+  warehouse_capacity_used: 0.72
+  days_of_stock:
+    rubs_seasonings: 45
+    sauces: 38
+    tools_accessories: 60
+    wood_chips: 52
+
+  pending_orders:
+    - supplier: "Cosmic BBQ Wholesale"
+      expected_date: "2024-05-20"
+      items: ["Summer blend rubs", "New sauce varieties"]
+
+    - supplier: "Premium Grill Tools Inc"
+      expected_date: "2024-05-25"
+      items: ["Meat thermometers", "Grill brushes"]
+
+financial_snapshot:
+  daily_metrics:
+    - date: "2024-05-14"
+      new_mrr: 1180  # New subscriptions
+      churned_mrr: 1062  # Cancellations
+      net_mrr_change: 118
+
+  trends:
+    mrr_growth_rate: 0.012  # 1.2% monthly
+    cac: 32
+    ltv: 582
+    ltv_cac_ratio: 18.2
+
+# Search indexes for common queries
+search_indexes:
+  by_product:
+    "Sweet Heat": ["tkt_3891", "tkt_4122", "tkt_4234"]
+    "Memphis Magic": ["tkt_4502", "tkt_4456"]
+    "Austin Smoke": ["tkt_4234", "tkt_4301", "tkt_4388"]
+
+  by_issue_type:
+    "shipping_delay": ["tkt_4401", "tkt_4423", "tkt_4445"]
+    "quality_complaint": ["tkt_4234", "tkt_4388"]
+    "positive_feedback": ["tkt_4502", "tkt_4456", "tkt_4478"]
+
+  by_customer_sentiment:
+    frustrated: ["tkt_4234", "tkt_4388"]
+    happy: ["tkt_4502", "tkt_4503", "tkt_4456"]
+    neutral: ["tkt_4501", "tkt_4423"]

@@ -1,0 +1,77 @@
+{
+  "id": "marcus_thompson_steady_operations_ad_hoc_support_a4880290",
+  "conversation_id": "marcus_thompson_steady_operations_ad_hoc_support_a4880290",
+  "created_at": "2025-05-29T09:04:33.136218",
+  "scenario_name": "steady_operations",
+  "merchant_name": "marcus_thompson",
+  "cj_version": "v5.0.0",
+  "workflow": "ad_hoc_support",
+  "messages": [
+    {
+      "timestamp": "2025-05-29T09:04:33.169698",
+      "sender": "marcus_thompson",
+      "content": "Respond to the merchant's message with helpful support",
+      "metadata": {
+        "human_played": true
+      }
+    },
+    {
+      "timestamp": "2025-05-29T09:04:33.194725",
+      "sender": "CJ",
+      "content": "Hey there! \ud83d\udc4b \n\nI'm CJ, your AI customer support lead. I'm here and ready to help with whatever you need. \n\nLooking at our current support operations, we're running smoothly with 40 total tickets handled and maintaining a solid 4.4 CSAT score. Our average response time is sitting at 3.2 hours, and we're processing about 33 tickets per day.\n\nThe main categories I'm seeing in our ticket flow are shipping inquiries, account management requests, and product feedback - pretty typical mix for our operations.\n\nWhat can I help you with today? Whether it's diving into specific support metrics, investigating a customer issue, analyzing patterns I'm seeing, or anything else support-related - I'm all ears and ready to dig into the data to get you answers.\n\nJust let me know what's on your mind! \ud83c\udfaf",
+      "metadata": {
+        "turn": 1,
+        "metrics": {
+          "prompts": 1,
+          "tools": 0,
+          "time": 0.024602890014648438
+        },
+        "debug": {
+          "context_window_size": 1,
+          "task_description": "Start the ad_hoc_support workflow for marcus_thompson",
+          "has_conversation_state": true,
+          "workflow": "ad_hoc_support",
+          "cj_version": "v5.0.0",
+          "scenario_context": {
+            "description": "",
+            "stress_level": "medium",
+            "metrics": {
+              "mrr": 48000,
+              "subscriber_count": 1290,
+              "churn_rate": 5.5,
+              "csat_score": 4.4,
+              "support_tickets_per_day": 33,
+              "average_response_time_hours": 3.2,
+              "top_categories": [
+                "shipping",
+                "account_management",
+                "product_feedback"
+              ],
+              "total_customers": 16,
+              "total_tickets": 40
+            }
+          },
+          "turn_count": 1,
+          "context_window": [
+            {
+              "sender": "marcus_thompson",
+              "content": "Respond to the merchant's message with helpful support",
+              "timestamp": "2025-05-29T09:04:33.169698"
+            }
+          ],
+          "system_info": {
+            "timestamp": "2025-05-29T09:04:33.194708",
+            "server_version": "unknown",
+            "model_used": "claude-sonnet-4-20250514"
+          },
+          "verbose_output_preview": "\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 Crew Execution Started \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502                                                                              \u2502\n\u2502  Crew Execution Started                                                      \u2502\n\u2502  Name: crew                                                                  \u2502\n\u2502  ID: c5b75acf-2ef3-41ee-b6bc-678d63224293                                    \u2502\n\u2502                                                                              \u2502\n\u2502             ...",
+          "agent_debug_info": {}
+        }
+      }
+    }
+  ],
+  "state": {
+    "workflow": "ad_hoc_support"
+  },
+  "annotations": {}
+}

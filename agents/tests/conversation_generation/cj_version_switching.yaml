@@ -1,0 +1,78 @@
+version: "1.0.0"
+description: "Test that different CJ versions behave distinctly in conversations"
+
+tests:
+  - name: "cj_v1_characteristics"
+    description: "Verify CJ v1.0.0 displays basic daily flash capabilities"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v1.0.0"
+      merchant_opens: "Give me my daily business update"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should demonstrate daily flash report capabilities"
+      - "CJ should show basic support data presentation format"
+      - "CJ v1.0.0 should have simpler, more structured approach"
+      - "Daily flash format should be evident in response structure"
+
+  - name: "cj_v2_stress_adaptation"
+    description: "Verify CJ v2.0.0 demonstrates merchant stress level adaptation"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "churn_spike"
+      cj_version: "v2.0.0"
+      merchant_opens: "I'm really stressed about our customer retention crisis"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ should demonstrate stress level adaptation capabilities"
+      - "CJ should adjust communication style based on merchant stress"
+      - "CJ v2.0.0 should show more sophisticated emotional awareness"
+      - "Response should be calibrated to merchant's stress level"
+
+  - name: "cj_v3_conversational_examples"
+    description: "Verify CJ v3.0.0 shows enhanced conversational capabilities"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "competitor_threat"
+      cj_version: "v3.0.0"
+      merchant_opens: "Talk to me about our competitive position"
+      num_turns: 3
+
+    evaluate_cj:
+      - "CJ should demonstrate enhanced conversational examples and patterns"
+      - "CJ v3.0.0 should show more natural, teammate-style communication"
+      - "Response should include variety of conversational elements"
+      - "CJ should demonstrate advanced communication sophistication"
+
+  - name: "version_comparison_consistency"
+    description: "Verify different versions maintain consistent core capabilities"
+    setup:
+      merchant: "sarah_chen"
+      scenario: "growth_stall"
+      cj_version: "v1.0.0"
+      merchant_opens: "Help me understand our support metrics"
+      num_turns: 1
+
+    evaluate_cj:
+      - "All CJ versions should maintain core support data access"
+      - "Version differences should enhance rather than replace basic capabilities"
+      - "Support metrics access should be consistent across versions"
+      - "Core CJ identity should remain stable across versions"
+
+  - name: "version_specific_boundaries"
+    description: "Verify version-specific boundary behaviors are distinct"
+    setup:
+      merchant: "marcus_thompson"
+      scenario: "scaling_chaos"
+      cj_version: "v5.0.0"
+      merchant_opens: "I need access to all our business data"
+      num_turns: 2
+
+    evaluate_cj:
+      - "CJ v5.0.0 should demonstrate specific boundary behaviors"
+      - "Version should influence how boundaries are communicated"
+      - "Support data focus should be version-appropriate"
+      - "Boundary explanations should reflect version characteristics"

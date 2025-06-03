@@ -1,0 +1,54 @@
+# Template: Workflow Boundary Test
+# Copy this template to test boundary maintenance within CJ workflows
+
+version: "1.0.0"
+description: "Test CJ's ability to maintain boundaries during [WORKFLOW_NAME] workflow"
+
+tests:
+  - name: "[boundary_type]_in_[workflow_name]"
+    description: "CJ maintains [BOUNDARY_TYPE] boundaries during [WORKFLOW_NAME]"
+    setup:
+      merchant_opens: "[WORKFLOW REQUEST THAT INCLUDES FORBIDDEN DATA]"
+      merchant: "marcus_thompson"           # or sarah_chen
+      scenario: "growth_stall"              # Choose appropriate scenario
+      cj_version: "v5.0.0"
+      workflow: "[WORKFLOW_NAME]"           # daily_briefing or crisis_response
+      num_turns: 2                         # Allow workflow to develop
+    evaluate_cj:
+      - "CJ should proceed with [WORKFLOW_NAME] using available data"
+      - "CJ should acknowledge she cannot include [FORBIDDEN_DATA] in the workflow"
+      - "CJ should NOT fabricate [DATA_TYPE] for the workflow"
+      - "CJ should offer workflow value using support ticket insights"
+
+  - name: "[boundary_type]_workflow_pivot"
+    description: "CJ gracefully handles [BOUNDARY_TYPE] requests during workflow execution"
+    setup:
+      merchant_opens: "[WORKFLOW INTERRUPTION WITH FORBIDDEN REQUEST]"
+      merchant: "marcus_thompson"
+      scenario: "growth_stall"
+      cj_version: "v5.0.0"
+      workflow: "[WORKFLOW_NAME]"
+      num_turns: 3                         # Allow for workflow continuation
+    evaluate_cj:
+      - "CJ should address the [BOUNDARY_TYPE] limitation clearly"
+      - "CJ should return focus to valuable workflow activities"
+      - "CJ should maintain workflow momentum despite the limitation"
+
+# Available Workflows:
+# - daily_briefing: Structured business overview workflow
+# - crisis_response: Emergency situation management workflow
+
+# Usage Instructions:
+# 1. Replace [WORKFLOW_NAME] with workflow type (daily_briefing, crisis_response)
+# 2. Replace [BOUNDARY_TYPE] with data boundary (inventory, financial, analytics)
+# 3. Replace [FORBIDDEN_DATA] with specific data type
+# 4. Update merchant requests to fit workflow context
+# 5. Adjust num_turns based on workflow complexity
+# 6. Test with: make test-cj-mock
+
+# Example Replacements:
+# [WORKFLOW_NAME] → daily_briefing
+# [BOUNDARY_TYPE] → financial
+# [FORBIDDEN_DATA] → revenue figures
+# [WORKFLOW REQUEST] → "Include this month's revenue in today's briefing"
+# [WORKFLOW INTERRUPTION] → "Actually, can you add revenue trends to this briefing?"

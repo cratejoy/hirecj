@@ -1,0 +1,193 @@
+version: "1.0.0"
+description: "Quality standards and requirements for universe generation"
+
+universe_quality_standards:
+  data_realism_requirements:
+    customer_authenticity:
+      - "Every customer must feel like a real person with believable behavior"
+      - "Customer names should be diverse and realistic (avoid obvious AI patterns)"
+      - "Email addresses should match names appropriately"
+      - "Purchase history must be consistent with customer archetype"
+      - "Satisfaction scores must correlate with support ticket frequency and content"
+      - "Lifetime values must be realistic for the business model and customer type"
+
+    support_ticket_authenticity:
+      - "Every ticket must sound like it was written by a real customer"
+      - "Include natural language with occasional typos and informal grammar"
+      - "Show appropriate emotional tone for the situation"
+      - "Include specific context and personal details"
+      - "Reference actual products by exact name from merchant catalog"
+      - "Demonstrate customer journey progression (new vs experienced)"
+
+    business_context_accuracy:
+      - "Universe data must reflect the specific merchant's business model"
+      - "Seasonal patterns should match the business type"
+      - "Customer mix should align with scenario conditions"
+      - "Support volume and urgency should reflect business stress levels"
+      - "Product references must use actual catalog items"
+
+  catalog_integration_standards:
+    product_reference_accuracy:
+      must_requirements:
+        - "Use exact product names from merchant persona catalogs"
+        - "Reference actual subscription tier names and pricing"
+        - "Include real supplier names mentioned in merchant profiles"
+        - "Use accurate pricing and product specifications"
+        - "Reference actual business challenges (competitors, suppliers, etc.)"
+
+      forbidden_patterns:
+        - "Generic product names (Product A, Item B, etc.)"
+        - "Made-up subscription tier names"
+        - "Invented pricing or specifications"
+        - "Fake supplier or competitor names"
+        - "Hardcoded fallback product lists"
+
+    business_model_accuracy:
+      subscription_business:
+        - "Use actual subscription tier structure from merchant catalog"
+        - "Reflect real revenue split patterns"
+        - "Include appropriate subscription management issues"
+        - "Show realistic subscriber lifecycle patterns"
+
+      marketplace_business:
+        - "Reference actual marketplace product categories"
+        - "Include realistic inventory and availability patterns"
+        - "Show appropriate seasonal demand fluctuations"
+        - "Include bulk ordering and loyalty program patterns"
+
+  customer_behavioral_realism:
+    archetype_consistency:
+      gift_senders:
+        - "Must show appropriate seasonal purchase patterns"
+        - "Support tickets must focus on delivery timing and recipient satisfaction"
+        - "Purchase history should include gift sets and seasonal items"
+        - "Satisfaction metrics should reflect gift success vs personal use"
+
+      active_subscribers:
+        - "Support patterns must focus on subscription management"
+        - "Satisfaction scores should correlate with subscription longevity"
+        - "Ticket content should show brand relationship development"
+        - "Purchase patterns should show subscription tier progression"
+
+      hybrid_subscribers:
+        - "Must show complexity of subscription + marketplace orders"
+        - "Support tickets should reflect coordination challenges"
+        - "Highest lifetime values with lowest churn risk"
+        - "Sophisticated purchasing patterns across product categories"
+
+      one_time_purchasers:
+        - "Higher support volume with basic questions"
+        - "More return/exchange requests"
+        - "Educational support needs"
+        - "Trial behavior patterns"
+
+      repeat_purchasers:
+        - "Bulk ordering preferences"
+        - "Loyalty program engagement"
+        - "Subscription avoidance but brand loyalty"
+        - "Seasonal purchasing patterns"
+
+  scenario_adaptation_requirements:
+    steady_operations:
+      customer_sentiment: "Generally positive with normal distribution"
+      support_urgency: "Standard priority levels"
+      ticket_volume: "Baseline levels per customer type"
+      satisfaction_scores: "Normal distribution skewing positive"
+
+    growth_stall:
+      customer_sentiment: "More price sensitivity and competitor comparisons"
+      support_urgency: "Increased focus on retention issues"
+      ticket_volume: "Higher volume of pause/downgrade requests"
+      satisfaction_scores: "Slightly lower with more neutral responses"
+
+    churn_spike:
+      customer_sentiment: "Higher negative sentiment and complaints"
+      support_urgency: "More urgent tickets and escalations"
+      ticket_volume: "Significantly higher with quality focus"
+      satisfaction_scores: "Lower distribution with more dissatisfaction"
+
+  technical_accuracy_standards:
+    data_consistency:
+      - "Customer IDs must follow consistent format (cust_001, cust_002, etc.)"
+      - "Ticket IDs must follow consistent format (tkt_1001, tkt_1002, etc.)"
+      - "Dates must be consistent within universe timeline"
+      - "Subscription start dates must align with customer tenure"
+      - "Order counts must correlate with customer type and tenure"
+
+    business_metrics_realism:
+      - "MRR must align with subscriber count and tier distribution"
+      - "Churn rates must reflect customer satisfaction distribution"
+      - "CSAT scores must correlate with support ticket sentiment"
+      - "Support ticket volume must match business metrics"
+      - "Customer lifetime values must be realistic for business model"
+
+    timeline_consistency:
+      - "All dates must fall within 90-day universe timeline"
+      - "Current day (45) should represent scenario peak state"
+      - "Ticket creation times should be realistic (business hours weighted)"
+      - "Customer subscription dates should show realistic acquisition patterns"
+      - "Seasonal events should align with calendar dates"
+
+validation_criteria:
+  mandatory_checks:
+    catalog_verification:
+      - "Every product name mentioned must exist in merchant catalog"
+      - "Subscription tier names must match exactly"
+      - "Pricing references must be accurate"
+      - "Supplier names must match merchant profile"
+
+    customer_archetype_verification:
+      - "Customer distribution must match behavioral instructions"
+      - "Support ticket patterns must align with customer types"
+      - "Satisfaction scores must correlate with ticket frequency"
+      - "Purchase history must be consistent with archetype"
+
+    business_context_verification:
+      - "Scenario conditions must be reflected in customer sentiment"
+      - "Business stress must affect support urgency distribution"
+      - "Seasonal patterns must match business model"
+      - "Competitive pressure must appear in appropriate scenarios"
+
+  quality_failure_indicators:
+    immediate_rejection_criteria:
+      - "Generic product names (Product A, Basic Plan, etc.)"
+      - "Unrealistic customer names (obviously AI-generated patterns)"
+      - "Inconsistent data (high satisfaction with many complaints)"
+      - "Timeline violations (dates outside universe range)"
+      - "Business model mismatches (wrong subscription tiers)"
+
+    red_flags_requiring_revision:
+      - "All customers have similar satisfaction scores"
+      - "Support tickets lack product specificity"
+      - "Customer behavior doesn't match declared archetype"
+      - "Business scenario not reflected in customer sentiment"
+      - "Seasonal patterns don't match business type"
+
+continuous_improvement_standards:
+  universe_comparison_requirements:
+    - "Different scenarios for same merchant must show appropriate variations"
+    - "Same scenario for different merchants must reflect business model differences"
+    - "Customer archetypes must be consistent across all universes"
+    - "Product references must always use actual catalog items"
+
+  feedback_integration:
+    - "Universe quality issues must be addressed in generation prompts"
+    - "Successful patterns must be reinforced in instructions"
+    - "Business model insights must be incorporated into future generations"
+    - "Customer behavior patterns must be refined based on results"
+
+success_metrics:
+  universe_acceptance_criteria:
+    - "100% product names match merchant catalog"
+    - "Customer archetype distribution within 5% of target"
+    - "Support ticket sentiment aligns with scenario conditions"
+    - "Business metrics are internally consistent"
+    - "Timeline and date consistency maintained"
+    - "Natural language quality passes human review"
+
+  training_data_effectiveness:
+    - "Generated conversations feel authentic to business context"
+    - "CJ responses are grounded in realistic universe data"
+    - "No hallucination of products not in merchant catalog"
+    - "Customer interactions reflect appropriate business relationship"
+    - "Support scenarios cover relevant business challenges"

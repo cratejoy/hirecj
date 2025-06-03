@@ -1,0 +1,135 @@
+name: "Daily Business Briefing"
+description: "Morning check-in to review metrics and set priorities for the day"
+
+# IMPORTANT: Workflows define WHAT happens, not HOW to communicate
+# - Define milestones, data to pull, topics to cover
+# - DO NOT include tone, style, or personality instructions
+# - Communication style is controlled by agent prompts only
+
+data_requirements:
+  - view: "daily_briefing"
+    refresh: "on_start"
+  - view: "customer_segments"
+    refresh: "on_demand"
+
+available_tools:
+  - get_support_dashboard
+  - search_tickets
+  - analyze_ticket_category
+  - get_customer_support_history
+  - get_urgent_tickets
+
+workflow: |
+  # Daily Business Briefing Workflow
+
+  ## Goal
+  Ensure merchant understands key metrics and has action plan for the day
+
+  ## Critical: Match Your Tone to the Scenario
+  - **Normal business**: Keep it light, conversational, "worth noting" language
+  - **Growing concerns**: Clear but calm, "we should keep an eye on" framing
+  - **Crisis situations**: Only then use urgent language and flags
+
+  Most days are NORMAL - don't manufacture drama where none exists!
+
+  ## Workflow Milestones
+
+  ### 1. Morning Flash Report 📊
+  Share support queue status in scannable format:
+  - **Queue Status:** New, open, overdue tickets
+  - **Performance:** Tickets solved, response times
+  - **CSAT:** Customer satisfaction score
+  - **Trending:** Top issues from overnight
+
+  ### 2. Identify Patterns (Proportional to Situation) 📋
+  - **Normal Operations:** Light touch - "Worth noting" items
+  - **Growing Issues:** Clear but calm - "We should keep an eye on"
+  - **Crisis Only:** Use urgency when truly warranted
+  - Connect patterns across different data points
+
+  ### 3. Surface Insights & Unusual Patterns 🔍
+  - Share what's actually happening in the data
+  - Flag anything unusual that might need guidance
+  - Suggest interventions if patterns suggest them
+  - Ask about novel issues you haven't seen before
+
+  ### 4. Close with Reality Check 💬
+  - Confirm you're handling everything per normal protocols
+  - Mention any specific actions that need merchant input
+  - "Need anything specific from me?" or "Want me to change how we're handling anything?"
+  - Brief and action-oriented
+
+
+  ## Flexibility Guidelines
+
+  > **Important:** This workflow is a guide, not a rigid script
+
+  - **Urgent questions:** Address immediately, return to workflow after
+  - **Stress signals:** Be more concise, focus on critical items only
+  - **Engagement level:** If chatty, dive deeper; if rushed, stick to essentials
+  - **Skip milestones:** If merchant indicates they don't need something
+
+  ## Example Openers
+
+  ### Standard Morning
+  ```
+  Morning! Here's our support queue status:
+  📊 Queue: 42 open (4 overdue)
+  🎫 Overnight: 28 new tickets, 24 resolved
+  📈 CSAT: 4.5/5.0
+  ⏱️ Avg response: 2.3 hours
+
+  Seeing uptick in shipping complaints from our customers (18 tickets).
+  Anything specific you want to dive into?
+  ```
+
+  ### Normal Operations (Most Common)
+  ```
+  Morning! Queue's looking good:
+  📊 Queue: 38 open (2 overdue)
+  🎫 Overnight: 35 new tickets, 33 resolved
+  📈 CSAT: 4.4/5.0
+  ⏱️ Avg response: 1.8 hours (92% within SLA)
+
+  Worth noting: Seeing more subscription changes than usual
+  (+15%) - probably seasonal. Handling them all smoothly.
+
+  Everything else running steady. Need anything from me today?
+  ```
+
+  ### Growing Patterns (Not Yet Crisis)
+  ```
+  Morning! Here's where we're at:
+  📊 Queue: 52 open (8 overdue)
+  🎫 Support volume up 25% this week
+  📈 CSAT: 4.2/5.0 (slight dip)
+  ⏱️ Response times holding steady
+
+  We should keep an eye on quality complaints -
+  up to 15 mentions of "damaged packaging".
+  Already following up with each customer.
+
+  Also noticing more competitor questions lately.
+  Want me to draft some comparison talking points?
+
+  How's your morning looking?
+  ```
+
+  ### Crisis Mode
+  ```
+  Morning - urgent situation:
+  🚨 We lost 47 customers overnight (vs our 12 avg)
+  💸 MRR impact: -$3.2K already
+
+  Traced to batch #4521. Already in crisis protocols -
+  handling everything as it comes in.
+
+  Unusual: 14 social threats all mention posting
+  comparison photos. Should we offer replacement
+  boxes + $30 credit preemptively?
+
+  Need me to change anything about how we're
+  handling this?
+  ```
+
+  > **Remember:** Read the room. Adapt your approach to their current state.
