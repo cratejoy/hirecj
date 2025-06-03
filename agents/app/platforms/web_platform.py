@@ -411,7 +411,7 @@ class WebPlatform(Platform):
                 self.message_processor.on_progress(progress_callback)
 
                 # If workflow starts with CJ, generate initial message
-                if workflow in ["daily_briefing", "weekly_review", "ad_hoc_support"]:
+                if workflow in ["daily_briefing", "weekly_review", "ad_hoc_support", "shopify_onboarding"]:
                     # Get initial message based on workflow
                     if workflow == "daily_briefing":
                         response = await self.message_processor.process_message(
@@ -419,6 +419,27 @@ class WebPlatform(Platform):
                             message="Provide daily briefing",
                             sender="merchant",
                         )
+                    elif workflow == "shopify_onboarding":
+                        # For onboarding, we want CJ to start with a natural greeting
+                        # The workflow details will guide CJ on what to say
+                        logger.info(f"[SHOPIFY_ONBOARDING] Triggering initial greeting for conversation {conversation_id}")
+                        # Use a clear instruction that won't appear in conversation history
+                        # Similar to how daily_briefing uses "Provide daily briefing"
+                        response = await self.message_processor.process_message(
+                            session=session,
+                            message="Begin onboarding introduction",
+                            sender="merchant",
+                        )
+                        logger.info(f"[SHOPIFY_ONBOARDING] Generated greeting: {response[:100] if response else 'None'}...")
+                        
+                        # Don't add the trigger message to conversation history
+                        # Remove it so the conversation starts cleanly with CJ's greeting
+                        if session.conversation.messages and session.conversation.messages[-2].content == "Begin onboarding introduction":
+                            # Remove the trigger message (should be second to last, before CJ's response)
+                            session.conversation.messages.pop(-2)
+                            # Also remove from context window
+                            if session.conversation.state.context_window and len(session.conversation.state.context_window) > 1:
+                                session.conversation.state.context_window.pop(-2)
                     elif workflow == "ad_hoc_support":
                         response = (
                             "Hey boss, what's up? 👋 Need help with anything today?"

@@ -246,6 +246,10 @@ export function useWebSocketChat({
           wsLogger.info('Received fact check status', data.fact_check_status);
           break;
           
+        case 'conversation_started':
+          wsLogger.info('Conversation started', data.data);
+          break;
+          
         default:
           wsLogger.warn('Unknown message type', { type: data.type, data });
       }
