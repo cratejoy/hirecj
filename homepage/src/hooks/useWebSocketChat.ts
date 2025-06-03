@@ -68,6 +68,14 @@ export function useWebSocketChat({
   workflow,
   onError 
 }: UseWebSocketChatProps) {
+  // Debug initial props
+  wsLogger.debug('🎯 useWebSocketChat initialized', {
+    enabled,
+    conversationId,
+    merchantId,
+    scenario,
+    workflow
+  });
   const [state, setState] = useState<State>({
     connectionState: 'idle',
     messages: [],
@@ -109,9 +117,47 @@ export function useWebSocketChat({
 
   // Create a stable connection key
   const connectionKey = useMemo(
-    () => enabled && conversationId && merchantId && scenario && workflow
-      ? `${conversationId}-${merchantId}-${scenario}-${workflow}` 
-      : null,
+    () => {
+      wsLogger.debug('Computing connection key', {
+        enabled,
+        conversationId,
+        merchantId,
+        scenario,
+        workflow
+      });
+      
+      if (!enabled || !conversationId || !workflow) {
+        wsLogger.debug('Connection key null - missing required fields', {
+          enabled,
+          hasConversationId: !!conversationId,
+          hasWorkflow: !!workflow
+        });
+        return null;
+      }
+      
+      // For onboarding workflow, we don't need merchant/scenario
+      if (workflow === 'shopify_onboarding') {
+        const key = `${conversationId}-onboarding-${workflow}`;
+        wsLogger.info('Connection key for onboarding', { key });
+        return key;
+      }
+      
+      // For other workflows, require merchant/scenario (not empty strings)
+      if (!merchantId || !scenario || merchantId === '' || scenario === '') {
+        wsLogger.warn('Connection key null - missing merchant/scenario for non-onboarding workflow', {
+          workflow,
+          merchantId,
+          scenario,
+          hasMerchantId: !!merchantId && merchantId !== '',
+          hasScenario: !!scenario && scenario !== ''
+        });
+        return null;
+      }
+      
+      const key = `${conversationId}-${merchantId}-${scenario}-${workflow}`;
+      wsLogger.info('Connection key computed', { key });
+      return key;
+    },
     [enabled, conversationId, merchantId, scenario, workflow]
   );
 
@@ -210,15 +256,30 @@ export function useWebSocketChat({
 
   // Connect to WebSocket
   const connect = useCallback(() => {
+    wsLogger.debug('Connect function called', { 
+      hasConnectionKey: !!connectionKey,
+      connectionKey 
+    });
+    
     if (!connectionKey) {
+      wsLogger.warn('Connect aborted - no connection key');
       return;
     }
     
     // Check current state using setState callback
     setState(currentState => {
+      wsLogger.debug('Checking current connection state', {
+        currentState: currentState.connectionState
+      });
+      
       if (currentState.connectionState === 'connecting' || currentState.connectionState === 'connected') {
+        wsLogger.info('Already connecting/connected, skipping', {
+          state: currentState.connectionState
+        });
         return currentState; // Don't change state if already connecting/connected
       }
+      
+      wsLogger.info('Setting state to connecting');
       return { ...currentState, connectionState: 'connecting' };
     });
 
@@ -228,7 +289,7 @@ export function useWebSocketChat({
     const { signal } = abortControllerRef.current;
 
     setState(prev => ({ ...prev, connectionState: 'connecting' }));
-    wsLogger.info('Connecting to WebSocket', { connectionKey });
+    wsLogger.info('🚀 Connecting to WebSocket', { connectionKey });
 
     // Connection timeout
     const timeoutId = setTimeout(() => {
@@ -250,52 +311,92 @@ export function useWebSocketChat({
     });
 
     const wsUrl = `${WS_BASE_URL}/ws/chat/${conversationId}`;
-    wsLogger.info('Creating WebSocket with URL:', wsUrl);
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    wsLogger.info('🔌 Creating WebSocket', { 
+      url: wsUrl,
+      baseUrl: WS_BASE_URL,
+      conversationId 
+    });
+    
+    try {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      wsLogger.debug('WebSocket instance created');
+    } catch (error) {
+      wsLogger.error('Failed to create WebSocket', { error, wsUrl });
+      setState(prev => ({ 
+        ...prev, 
+        connectionState: 'error',
+        error: { type: 'connection', message: 'Failed to create WebSocket connection' }
+      }));
+      return;
+    }
 
-    ws.onopen = () => {
-      if (signal.aborted) return;
+    wsRef.current.onopen = () => {
+      if (signal.aborted) {
+        wsLogger.debug('Connection aborted on open');
+        return;
+      }
       
       clearTimeout(timeoutId);
-      wsLogger.info('WebSocket connected');
+      wsLogger.info('✅ WebSocket connected successfully');
       setState(prev => ({ 
-      ...prev, 
-      connectionState: 'connected',
-      error: null,
-      retryCount: 0  // Reset retry count on successful connection
-    }));
+        ...prev, 
+        connectionState: 'connected',
+        error: null,
+        retryCount: 0  // Reset retry count on successful connection
+      }));
       
       // Send start_conversation message
+      const startData = {
+        conversation_id: conversationId,
+        merchant_id: merchantId || (workflow === 'shopify_onboarding' ? 'onboarding_user' : null),
+        scenario: scenario || (workflow === 'shopify_onboarding' ? 'onboarding' : null),
+        workflow: workflow,
+      };
+      
       const startMessage = JSON.stringify({
         type: 'start_conversation',
-        data: {
-          conversation_id: conversationId,
-          merchant_id: merchantId,
-          scenario: scenario,
-          workflow: workflow,
-        }
+        data: startData
+      });
+      
+      wsLogger.info('📤 Sending start_conversation', { 
+        type: 'start_conversation',
+        data: startData 
       });
       console.log('[WebSocket] Sending start_conversation message:', startMessage);
-      ws.send(startMessage);
+      wsRef.current.send(startMessage);
       
       // Flush any queued messages
       flushMessageQueue();
     };
 
-    ws.onmessage = handleMessage;
+    wsRef.current.onmessage = handleMessage;
 
-    ws.onerror = (error) => {
-      if (signal.aborted) return;
+    wsRef.current.onerror = (error) => {
+      if (signal.aborted) {
+        wsLogger.debug('Connection aborted - ignoring error');
+        return;
+      }
       
-      wsLogger.error('WebSocket error', error);
+      wsLogger.error('❌ WebSocket error', { 
+        error,
+        readyState: wsRef.current?.readyState,
+        url: wsUrl
+      });
       setState(prev => ({ ...prev, connectionState: 'error' }));
     };
 
-    ws.onclose = (event) => {
-      if (signal.aborted) return;
+    wsRef.current.onclose = (event) => {
+      if (signal.aborted) {
+        wsLogger.debug('Connection aborted - ignoring close');
+        return;
+      }
       
-      wsLogger.info('WebSocket closed', { code: event.code, reason: event.reason });
+      wsLogger.info('🔒 WebSocket closed', { 
+        code: event.code, 
+        reason: event.reason,
+        wasClean: event.wasClean
+      });
       setState(prev => ({ 
         ...prev, 
         connectionState: 'closed',
@@ -330,14 +431,27 @@ export function useWebSocketChat({
 
   // Effect to manage connection lifecycle
   useEffect(() => {
+    wsLogger.debug('🔄 Connection lifecycle effect triggered', { 
+      hasConnectionKey: !!connectionKey,
+      connectionKey 
+    });
+    
     if (connectionKey) {
+      wsLogger.info('📞 Initiating connection for key:', connectionKey);
       connect();
+    } else {
+      wsLogger.warn('⚠️ No connection key - skipping connection');
     }
     
     return () => {
-      wsLogger.debug('Cleaning up WebSocket connection');
+      wsLogger.debug('🧹 Cleaning up WebSocket connection');
       abortControllerRef.current?.abort();
-      wsRef.current?.close(1000, 'Component unmounting');
+      if (wsRef.current) {
+        wsLogger.info('🔌 Closing WebSocket', { 
+          readyState: wsRef.current.readyState 
+        });
+        wsRef.current.close(1000, 'Component unmounting');
+      }
     };
   }, [connectionKey]); // Remove connect from dependencies to prevent infinite reconnection loop
 

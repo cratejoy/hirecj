@@ -103,6 +103,15 @@ const SlackChat = () => {
 		workflow: chatConfig.workflow || 'ad_hoc_support',
 		onError: handleChatError
 	});
+	
+	// Debug WebSocket connection
+	console.log('[SlackChat] WebSocket params:', {
+		enabled: isRealChat,
+		conversationId: chatConfig.conversationId,
+		merchantId: chatConfig.merchantId || '',
+		scenario: chatConfig.scenarioId || '',
+		workflow: chatConfig.workflow || 'ad_hoc_support'
+	});
 
 	// Use appropriate chat based on mode
 	const messages = isRealChat ? wsChat.messages : demoChat.messages;
