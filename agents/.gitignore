@@ -29,6 +29,8 @@ data/*.db
 data/test_conversation_*.json
 data/batch_*.json
 data/.conversation_history.json
+data/conversations/__*.json
+data/conversations/onboarding_user_*.json
 
 # Merchant memory
 data/merchant_memory/*.yaml
