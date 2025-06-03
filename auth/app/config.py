@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     
     # OAuth Redirect Configuration
     oauth_redirect_base_url: str = Field(
-        "http://localhost:8003",
+        "",  # Will be auto-detected or use env var
         env="OAUTH_REDIRECT_BASE_URL"
     )
     
@@ -100,9 +100,9 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8"
         extra = "ignore"  # Ignore extra fields from .env files
     
-    @field_validator("oauth_redirect_base_url", mode="before")
+    @field_validator("oauth_redirect_base_url", mode="after")
     @classmethod
-    def detect_tunnel_url(cls, v: Optional[str], values) -> str:
+    def detect_tunnel_url(cls, v: Optional[str], info) -> str:
         """Automatically detect and use ngrok tunnel URL if available."""
         # If explicitly set, use that
         if v:
@@ -128,8 +128,9 @@ class Settings(BaseSettings):
             except Exception as e:
                 logger.warning(f"Failed to read tunnel URL: {e}")
         
-        # Default to localhost
-        default_url = f"http://localhost:{values.get('app_port', 8003)}"
+        # Default to localhost with the configured app_port
+        app_port = info.data.get('app_port', 8103)
+        default_url = f"http://localhost:{app_port}"
         logger.info(f"Using default redirect URL: {default_url}")
         return default_url
     

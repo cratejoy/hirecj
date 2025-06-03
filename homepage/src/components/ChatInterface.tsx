@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/logger';
 import { FactCheckButton } from './FactCheckButton';
 import { FactCheckModal } from './FactCheckModal';
+import { MessageContent } from './MessageContent';
 import { useFactCheck } from '@/hooks/useFactCheck';
 
 const chatLogger = logger.child('chat');
