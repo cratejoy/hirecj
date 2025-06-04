@@ -189,6 +189,7 @@ async def handle_oauth_callback(
         }
         
         redirect_url = f"{settings.frontend_url}/chat?{urlencode(redirect_params)}"
+        logger.info(f"[OAUTH_CALLBACK] Redirecting to: {redirect_url}")
         return RedirectResponse(url=redirect_url, status_code=302)
         
     except Exception as e:
