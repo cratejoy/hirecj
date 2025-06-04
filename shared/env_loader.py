@@ -2,12 +2,12 @@
 Hierarchical Environment Configuration Loader
 
 Provides a consistent way to load environment variables across all services
-in the monorepo, following the hierarchy:
+in the monorepo, following the hierarchy (later files override earlier):
 1. Root .env (shared configuration)
-2. Root .env.local (local overrides)
-3. Root .env.tunnel (auto-generated tunnel URLs)
-4. Service .env.secrets (sensitive data)
-5. Service .env (service-specific overrides)
+2. Service .env.secrets (sensitive data)
+3. Service .env (service-specific overrides)
+4. Root .env.local (local overrides)
+5. Root .env.tunnel (auto-generated tunnel URLs - highest priority)
 """
 
 from pathlib import Path
@@ -36,19 +36,12 @@ def get_env_files(service_name: Optional[str] = None) -> List[Path]:
     root = get_monorepo_root()
     env_files = []
     
-    # Root configuration files (always loaded first)
-    root_files = [
-        root / ".env",              # Shared configuration
-        root / ".env.local",        # Local overrides
-        root / ".env.tunnel",       # Auto-generated tunnel URLs
-    ]
+    # Load order (later files override earlier ones in Pydantic):
+    # 1. Root .env - base shared configuration
+    if (root / ".env").exists():
+        env_files.append(root / ".env")
     
-    # Add files that exist
-    for file in root_files:
-        if file.exists():
-            env_files.append(file)
-    
-    # Service-specific files
+    # 2. Service-specific files
     if service_name:
         service_dir = root / service_name
         service_files = [
@@ -59,6 +52,14 @@ def get_env_files(service_name: Optional[str] = None) -> List[Path]:
         for file in service_files:
             if file.exists():
                 env_files.append(file)
+    
+    # 3. Local overrides (higher priority)
+    if (root / ".env.local").exists():
+        env_files.append(root / ".env.local")
+    
+    # 4. Tunnel URLs (highest priority - loaded last)
+    if (root / ".env.tunnel").exists():
+        env_files.append(root / ".env.tunnel")
     
     return env_files
 
