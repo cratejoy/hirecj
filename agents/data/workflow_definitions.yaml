@@ -142,6 +142,27 @@ workflows:
       - data_backed_response
       - merchant_satisfied
 
+  support_daily:
+    name: "Support Daily Review"
+    description: "Simple daily check showing the most recent open ticket"
+    initiator: "cj"
+    typical_duration_minutes: 2-5
+    data_requirements:
+      - view: "support_tickets"
+        refresh: "on_start"
+        required_metrics:
+          - most_recent_ticket
+      - tools_available:
+          - get_recent_ticket
+    conversation_flow:
+      - cj_greets_merchant
+      - cj_fetches_recent_ticket
+      - displays_ticket_json
+      - asks_if_help_needed
+    success_criteria:
+      - recent_ticket_displayed
+      - merchant_informed
+
   proactive_insight:
     name: "Proactive Insight"
     description: "CJ shares important discovery or trend"

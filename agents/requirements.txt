@@ -22,6 +22,7 @@ twilio>=8.10.0  # For WhatsApp platform
 # Database (if needed)
 alembic>=1.13.0
 sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0  # PostgreSQL adapter for database tools
 
 # Redis for caching
 redis>=5.0.0

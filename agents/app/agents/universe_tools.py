@@ -216,6 +216,32 @@ Recent Support History ({len(tickets)} tickets):"""
         logger.info(f"[TOOL RESULT] get_business_timeline() - Returned {len(relevant_events)} relevant events")
         return output
 
+    @tool
+    def get_recent_ticket() -> str:
+        """Get the most recent open support ticket as raw JSON data."""
+        logger.info("[TOOL CALL] get_recent_ticket() - Fetching most recent open ticket")
+        
+        # Get all tickets from universe data
+        tickets = data_agent.universe.get("support_tickets", [])
+        
+        # Filter for open tickets only
+        open_tickets = [t for t in tickets if t.get("status", "").lower() in ["open", "in_progress", "pending"]]
+        
+        if not open_tickets:
+            logger.info("[TOOL RESULT] get_recent_ticket() - No open tickets found")
+            return "No open tickets found in the system."
+        
+        # Sort by created_at to get most recent (assuming ISO format dates sort correctly)
+        sorted_tickets = sorted(open_tickets, key=lambda t: t.get("created_at", ""), reverse=True)
+        most_recent = sorted_tickets[0]
+        
+        # Return as formatted JSON
+        import json
+        result = json.dumps(most_recent, indent=2)
+        
+        logger.info(f"[TOOL RESULT] get_recent_ticket() - Returned ticket {most_recent.get('ticket_id', 'unknown')}")
+        return f"Most recent open ticket:\n```json\n{result}\n```"
+
     # Return the tools created with @tool decorator
     tools = [
         get_support_dashboard,
@@ -223,6 +249,7 @@ Recent Support History ({len(tickets)} tickets):"""
         get_customer_profile,
         get_trending_issues,
         get_business_timeline,
+        get_recent_ticket,
     ]
 
     return tools

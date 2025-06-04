@@ -144,11 +144,26 @@ class CJAgent:
         return formatted_history
 
     def _load_tools(self) -> List[Any]:
-        """Load appropriate tools based on data agent."""
+        """Load appropriate tools based on data agent and workflow."""
         tools = []
 
+        # Check if we should load database tools for support_daily workflow
+        if self.workflow_name == "support_daily":
+            try:
+                from app.agents.database_tools import create_database_tools
+                
+                db_tools = create_database_tools(merchant_name=self.merchant_name)
+                tools.extend(db_tools)
+                logger.info(f"[CJ_AGENT] Loaded {len(db_tools)} database tools for support_daily workflow")
+                
+                # Log tool names for visibility
+                db_tool_names = [tool.name for tool in db_tools]
+                logger.info(f"[CJ_AGENT] Database tools: {', '.join(db_tool_names)}")
+            except Exception as e:
+                logger.warning(f"[CJ_AGENT] Could not load database tools: {e}")
+
         if not self.data_agent:
-            logger.debug("[CJ_AGENT] No data agent provided, skipping tools")
+            logger.debug("[CJ_AGENT] No data agent provided, skipping universe tools")
             return tools
 
         # Universe data agent
@@ -156,11 +171,12 @@ class CJAgent:
             try:
                 from app.agents.universe_tools import create_universe_tools
 
-                tools = create_universe_tools(self.data_agent)
-                logger.info(f"[CJ_AGENT] Loaded {len(tools)} universe tools")
+                universe_tools = create_universe_tools(self.data_agent)
+                tools.extend(universe_tools)
+                logger.info(f"[CJ_AGENT] Loaded {len(universe_tools)} universe tools")
                 # Log tool names for visibility
-                tool_names = [tool.name for tool in tools]
-                logger.info(f"[CJ_AGENT] Available tools: {', '.join(tool_names)}")
+                universe_tool_names = [tool.name for tool in universe_tools]
+                logger.info(f"[CJ_AGENT] Universe tools: {', '.join(universe_tool_names)}")
             except Exception as e:
                 logger.warning(f"[CJ_AGENT] Could not load universe tools: {e}")
         # No longer support deprecated data agents
@@ -170,6 +186,7 @@ class CJAgent:
                 "Please use UniverseDataAgent instead."
             )
 
+        logger.info(f"[CJ_AGENT] Total tools available: {len(tools)}")
         return tools
 
     def _extract_onboarding_context(self) -> str:

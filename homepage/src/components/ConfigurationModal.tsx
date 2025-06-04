@@ -10,7 +10,7 @@ import { useUniverses } from '@/hooks/useUniverses';
 interface ConfigurationModalProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onStartChat: (scenarioId: string, merchantId: string, workflow: 'ad_hoc_support' | 'daily_briefing') => void;
+	onStartChat: (scenarioId: string, merchantId: string, workflow: 'ad_hoc_support' | 'daily_briefing' | 'support_daily') => void;
 }
 
 export function ConfigurationModal({ isOpen, onClose, onStartChat }: ConfigurationModalProps) {
@@ -19,7 +19,7 @@ export function ConfigurationModal({ isOpen, onClose, onStartChat }: Configurati
 	// Use the cached universes hook
 	const { scenarios, loading, error, refetch } = useUniverses();
 
-	const handleStartChat = (workflow: 'ad_hoc_support' | 'daily_briefing') => {
+	const handleStartChat = (workflow: 'ad_hoc_support' | 'daily_briefing' | 'support_daily') => {
 		if (selectedScenario) {
 			onStartChat(selectedScenario.scenarioId, selectedScenario.merchantId, workflow);
 		}

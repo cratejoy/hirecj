@@ -21,7 +21,7 @@ interface ChatConfig {
 	scenarioId: string | null;
 	merchantId: string | null;
 	conversationId: string;
-	workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | null;
+	workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | 'support_daily' | null;
 }
 
 const SlackChat = () => {
@@ -41,14 +41,14 @@ const SlackChat = () => {
 		scenarioId: null, // No demo scenario
 		merchantId: null, // Will be set after OAuth
 		conversationId: uuidv4(),
-		workflow: 'daily_briefing' // Always start with onboarding
+		workflow: 'support_daily' // Always start with onboarding
 	});
 	
 
 	const isRealChat = useMemo(() =>
 		!showConfigModal && !!chatConfig.conversationId && !!chatConfig.workflow && 
-		// For onboarding workflow, we don't need merchantId/scenarioId initially
-		(chatConfig.workflow === 'shopify_onboarding' || (!!chatConfig.scenarioId && !!chatConfig.merchantId)),
+		// For onboarding and support_daily workflows, we don't need merchantId/scenarioId initially
+		(chatConfig.workflow === 'shopify_onboarding' || chatConfig.workflow === 'support_daily' || (!!chatConfig.scenarioId && !!chatConfig.merchantId)),
 		[showConfigModal, chatConfig]
 	);
 
@@ -211,7 +211,7 @@ const SlackChat = () => {
 		}
 	};
 
-	const handleStartChat = useCallback((scenarioId: string, merchantId: string, workflow: 'ad_hoc_support' | 'daily_briefing') => {
+	const handleStartChat = useCallback((scenarioId: string, merchantId: string, workflow: 'ad_hoc_support' | 'daily_briefing' | 'support_daily') => {
 		const conversationId = uuidv4();
 
 		console.log('[SlackChat] Starting chat', {
