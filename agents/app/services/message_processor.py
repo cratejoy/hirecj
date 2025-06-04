@@ -2,7 +2,7 @@
 
 import asyncio
 from datetime import datetime
-from typing import List, Callable, Dict, Any
+from typing import List, Callable, Dict, Any, Union
 
 from crewai import Crew, Task
 
@@ -35,7 +35,7 @@ class MessageProcessor:
         session: Session,
         message: str,
         sender: str = "merchant",
-    ) -> str:
+    ) -> Union[str, Dict[str, Any]]:
         """Process a message and get response."""
         # Update session
         session.last_activity = datetime.utcnow()
@@ -69,22 +69,33 @@ class MessageProcessor:
             elapsed = (datetime.utcnow() - start_time).total_seconds()
             session.metrics["response_time_total"] += elapsed
 
-            # Add CJ's response
-            response_msg = Message(
-                timestamp=datetime.utcnow(),
-                sender="CJ",
-                content=response,
-            )
-            session.conversation.add_message(response_msg)
-
-            return response
+            # Handle structured response with UI elements
+            if isinstance(response, dict) and response.get("type") == "message_with_ui":
+                # Add the clean content to conversation history
+                response_msg = Message(
+                    timestamp=datetime.utcnow(),
+                    sender="CJ",
+                    content=response["content"],
+                )
+                session.conversation.add_message(response_msg)
+                # Return the full structured response for the platform layer
+                return response
+            else:
+                # Regular text response
+                response_msg = Message(
+                    timestamp=datetime.utcnow(),
+                    sender="CJ",
+                    content=response,
+                )
+                session.conversation.add_message(response_msg)
+                return response
 
         except Exception as e:
             session.metrics["errors"] += 1
             logger.error(f"Error processing message: {e}")
             raise
 
-    async def _get_cj_response(self, session: Session, message: str, is_system: bool = False) -> str:
+    async def _get_cj_response(self, session: Session, message: str, is_system: bool = False) -> Union[str, Dict[str, Any]]:
         """Get CJ's response to merchant message."""
         await self._report_progress(session.id, "thinking", {"status": "initializing"})
 
@@ -164,6 +175,20 @@ class MessageProcessor:
             f"[LLM_RESPONSE] Got response ({len(response)} chars): {response[:200]}{'...' if len(response) > 200 else ''}"
         )
         logger.info(f"[CJ_AGENT] ====== RESPONSE COMPLETE ======")
+
+        # Only parse UI components if workflow has them enabled
+        if session.conversation.workflow == "shopify_onboarding":
+            from app.services.ui_components import UIComponentParser
+            parser = UIComponentParser()
+            clean_content, ui_components = parser.parse_oauth_buttons(response)
+
+            if ui_components:
+                logger.info(f"[UI_PARSER] Found {len(ui_components)} UI components in response")
+                return {
+                    "type": "message_with_ui",
+                    "content": clean_content,
+                    "ui_elements": ui_components
+                }
 
         return response
 
