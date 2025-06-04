@@ -115,7 +115,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=load_env_for_service("auth"),
         env_file_encoding="utf-8",
-        extra="ignore"  # Ignore extra fields from .env files
+        extra="ignore",  # Ignore extra fields from .env files
+        env_ignore_empty=True,  # Don't let empty strings override values
     )
     
     @field_validator("oauth_redirect_base_url", mode="after")

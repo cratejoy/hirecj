@@ -47,6 +47,7 @@ app = FastAPI(
 # Build allowed origins from configuration
 allowed_origins = [
     settings.frontend_url,
+    settings.homepage_url,  # Add homepage_url which is set by tunnel detector
     settings.auth_url,
     # Always allow localhost for development
     "http://localhost:3456",
@@ -66,12 +67,12 @@ if "hirecj.ai" in settings.frontend_url:
         "https://amir-auth.hirecj.ai",
     ])
 
-# TEMPORARY FIX: Always add hirecj.ai domains for development
-# TODO: Remove this once env loading is fixed
-allowed_origins.extend([
-    "https://amir.hirecj.ai",
-    "https://amir-auth.hirecj.ai",
-])
+# Also check homepage_url which is set by tunnel detector
+if settings.homepage_url and "hirecj.ai" in settings.homepage_url:
+    allowed_origins.extend([
+        "https://amir.hirecj.ai",
+        "https://amir-auth.hirecj.ai",
+    ])
 
 # Remove duplicates and empty strings
 allowed_origins = list(set(filter(None, allowed_origins)))
@@ -79,6 +80,7 @@ allowed_origins = list(set(filter(None, allowed_origins)))
 # Log CORS configuration for debugging
 logger.info("🔧 CORS Configuration:")
 logger.info(f"  Frontend URL: {settings.frontend_url}")
+logger.info(f"  Homepage URL: {settings.homepage_url}")
 logger.info(f"  Public URL: {settings.public_url}")
 logger.info(f"  Allowed origins: {allowed_origins}")
 
