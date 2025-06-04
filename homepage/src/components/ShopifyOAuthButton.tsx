@@ -15,26 +15,90 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
   disabled = false
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [shopDomain, setShopDomain] = useState('');
+  const [showShopInput, setShowShopInput] = useState(false);
 
   const handleConnect = () => {
-    setIsConnecting(true);
-
-    // Get install URL directly from environment
-    const installUrl = import.meta.env.VITE_SHOPIFY_CUSTOM_INSTALL_LINK;
+    // Check if we have a shop domain in localStorage
+    const savedShop = localStorage.getItem('shopify_shop_domain');
     
-    if (!installUrl) {
-      console.error('VITE_SHOPIFY_CUSTOM_INSTALL_LINK not configured');
-      return;
+    if (savedShop) {
+      // Use saved shop domain
+      initiateOAuth(savedShop);
+    } else {
+      // Show input for shop domain
+      setShowShopInput(true);
+    }
+  };
+
+  const initiateOAuth = (shop: string) => {
+    setIsConnecting(true);
+    
+    // Validate shop domain format
+    if (!shop.endsWith('.myshopify.com')) {
+      shop = `${shop}.myshopify.com`;
     }
     
-    // Add conversation_id to the install URL so it comes back in redirect
-    const separator = installUrl.includes('?') ? '&' : '?';
-    const urlWithConversation = `${installUrl}${separator}conversation_id=${conversationId}`;
-
-    // Simply redirect to the install link
-    // Shopify will handle everything and redirect back to our /connected endpoint
-    window.location.href = urlWithConversation;
+    // Save shop domain for future use
+    localStorage.setItem('shopify_shop_domain', shop);
+    
+    // Store conversation ID for later (OAuth doesn't preserve it)
+    sessionStorage.setItem('shopify_oauth_conversation_id', conversationId);
+    
+    // Redirect to auth service install endpoint
+    const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
+    const installUrl = `${authUrl}/api/v1/shopify/install?shop=${encodeURIComponent(shop)}`;
+    
+    // Redirect to start OAuth flow
+    window.location.href = installUrl;
   };
+
+  const handleShopSubmit = () => {
+    if (shopDomain) {
+      initiateOAuth(shopDomain);
+    }
+  };
+
+  if (showShopInput) {
+    return (
+      <div className="space-y-2">
+        <div className="text-sm text-gray-600">
+          Enter your Shopify store domain:
+        </div>
+        <input
+          type="text"
+          placeholder="yourstore or yourstore.myshopify.com"
+          value={shopDomain}
+          onChange={(e) => setShopDomain(e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-shopify-green"
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') {
+              handleShopSubmit();
+            }
+          }}
+          autoFocus
+        />
+        <div className="flex gap-2">
+          <Button
+            onClick={handleShopSubmit}
+            disabled={!shopDomain || isConnecting}
+            className={`bg-shopify-green hover:bg-shopify-green-dark text-white ${className}`}
+          >
+            {isConnecting ? 'Redirecting...' : 'Connect'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setShowShopInput(false);
+              setShopDomain('');
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Button
