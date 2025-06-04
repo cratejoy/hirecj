@@ -66,6 +66,13 @@ if "hirecj.ai" in settings.frontend_url:
         "https://amir-auth.hirecj.ai",
     ])
 
+# TEMPORARY FIX: Always add hirecj.ai domains for development
+# TODO: Remove this once env loading is fixed
+allowed_origins.extend([
+    "https://amir.hirecj.ai",
+    "https://amir-auth.hirecj.ai",
+])
+
 # Remove duplicates and empty strings
 allowed_origins = list(set(filter(None, allowed_origins)))
 
@@ -163,6 +170,16 @@ async def root():
             "health": "/health",
             "api_docs": "/docs",
         },
+    }
+
+
+@app.get("/api/v1/test-cors")
+async def test_cors():
+    """Test endpoint to verify CORS is working"""
+    return {
+        "status": "ok",
+        "message": "CORS is working correctly",
+        "timestamp": datetime.now().isoformat()
     }
 
 
