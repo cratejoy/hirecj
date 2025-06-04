@@ -69,6 +69,12 @@ if "hirecj.ai" in settings.frontend_url:
 # Remove duplicates and empty strings
 allowed_origins = list(set(filter(None, allowed_origins)))
 
+# Log CORS configuration for debugging
+logger.info("🔧 CORS Configuration:")
+logger.info(f"  Frontend URL: {settings.frontend_url}")
+logger.info(f"  Public URL: {settings.public_url}")
+logger.info(f"  Allowed origins: {allowed_origins}")
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
