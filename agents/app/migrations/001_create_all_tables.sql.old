@@ -1,0 +1,375 @@
+-- Migration: Create complete ETL database schema with support analytics and daily summaries
+-- Description: Creates all tables, functions, views, and indexes for the ETL system including daily ticket summaries
+
+-- UP Migration
+BEGIN;
+
+-- Create merchants table
+CREATE TABLE IF NOT EXISTS merchants (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    is_test BOOLEAN DEFAULT FALSE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NULL
+);
+
+-- Create Shopify customers ETL table
+CREATE TABLE IF NOT EXISTS etl_shopify_customers (
+    shopify_customer_id VARCHAR(255) NOT NULL,
+    merchant_id INTEGER NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    data JSONB NOT NULL DEFAULT '{}',   -- Flexible data storage
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    PRIMARY KEY (merchant_id, shopify_customer_id)
+);
+
+-- Create Freshdesk tickets ETL table
+CREATE TABLE IF NOT EXISTS etl_freshdesk_tickets (
+    freshdesk_ticket_id VARCHAR(255) NOT NULL,
+    merchant_id INTEGER NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    data JSONB NOT NULL DEFAULT '{}',   -- Flexible ticket data storage
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    PRIMARY KEY (merchant_id, freshdesk_ticket_id)
+);
+
+-- Create sync_metadata table for tracking ETL operations
+CREATE TABLE IF NOT EXISTS sync_metadata (
+    id SERIAL PRIMARY KEY,
+    merchant_id INTEGER NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    resource_type VARCHAR(50) NOT NULL,  -- 'freshdesk_tickets', 'shopify_customers', etc.
+    last_sync_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    last_successful_id VARCHAR(255) DEFAULT NULL,
+    sync_status VARCHAR(20) DEFAULT NULL,  -- 'success', 'failed', 'in_progress'
+    error_message TEXT DEFAULT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    UNIQUE(merchant_id, resource_type)
+);
+
+-- Create merchant_integrations table for storing API keys and configurations
+CREATE TABLE IF NOT EXISTS merchant_integrations (
+    id SERIAL PRIMARY KEY,
+    merchant_id INTEGER NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,          -- Integration type ('freshdesk', 'shopify')
+    api_key TEXT NOT NULL,              -- Encrypted API key
+    config JSONB NOT NULL DEFAULT '{}', -- Additional configuration
+    is_active BOOLEAN DEFAULT TRUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    UNIQUE(merchant_id, type)           -- One integration per type per merchant
+);
+
+-- Create indexes for common queries
+CREATE INDEX IF NOT EXISTS idx_shopify_customers_merchant_id ON etl_shopify_customers(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_shopify_customers_data_gin ON etl_shopify_customers USING GIN (data);
+CREATE INDEX IF NOT EXISTS idx_shopify_customers_created_at ON etl_shopify_customers(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_freshdesk_tickets_merchant_id ON etl_freshdesk_tickets(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_freshdesk_tickets_data_gin ON etl_freshdesk_tickets USING GIN (data);
+CREATE INDEX IF NOT EXISTS idx_freshdesk_tickets_created_at ON etl_freshdesk_tickets(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_sync_metadata_merchant_id ON sync_metadata(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_sync_metadata_resource_type ON sync_metadata(resource_type);
+CREATE INDEX IF NOT EXISTS idx_sync_metadata_sync_status ON sync_metadata(sync_status);
+
+CREATE INDEX IF NOT EXISTS idx_merchant_integrations_merchant_id ON merchant_integrations(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_merchant_integrations_type ON merchant_integrations(type);
+CREATE INDEX IF NOT EXISTS idx_merchant_integrations_is_active ON merchant_integrations(is_active);
+
+-- Create daily_ticket_summaries table for storing aggregated daily summaries
+CREATE TABLE IF NOT EXISTS daily_ticket_summaries (
+    id SERIAL PRIMARY KEY,
+    date TIMESTAMP WITH TIME ZONE NOT NULL,
+    merchant_id INTEGER NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    UNIQUE(merchant_id, date)
+);
+
+-- Create indexes for daily_ticket_summaries
+CREATE INDEX IF NOT EXISTS idx_daily_ticket_summaries_merchant_id ON daily_ticket_summaries(merchant_id);
+CREATE INDEX IF NOT EXISTS idx_daily_ticket_summaries_date ON daily_ticket_summaries(date DESC);
+CREATE INDEX IF NOT EXISTS idx_daily_ticket_summaries_merchant_date ON daily_ticket_summaries(merchant_id, date DESC);
+
+-- Create updated_at trigger function
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Apply updated_at triggers
+DROP TRIGGER IF EXISTS update_merchants_updated_at ON merchants;
+CREATE TRIGGER update_merchants_updated_at BEFORE UPDATE ON merchants
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_shopify_customers_updated_at ON etl_shopify_customers;
+CREATE TRIGGER update_shopify_customers_updated_at BEFORE UPDATE ON etl_shopify_customers
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_freshdesk_tickets_updated_at ON etl_freshdesk_tickets;
+CREATE TRIGGER update_freshdesk_tickets_updated_at BEFORE UPDATE ON etl_freshdesk_tickets
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_sync_metadata_updated_at ON sync_metadata;
+CREATE TRIGGER update_sync_metadata_updated_at BEFORE UPDATE ON sync_metadata
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_merchant_integrations_updated_at ON merchant_integrations;
+CREATE TRIGGER update_merchant_integrations_updated_at BEFORE UPDATE ON merchant_integrations
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_daily_ticket_summaries_updated_at ON daily_ticket_summaries;
+CREATE TRIGGER update_daily_ticket_summaries_updated_at BEFORE UPDATE ON daily_ticket_summaries
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Add comments for documentation
+COMMENT ON TABLE merchants IS 'Merchants using the support system';
+COMMENT ON COLUMN merchants.is_test IS 'Flag to identify test/demo merchants vs production merchants';
+
+COMMENT ON TABLE etl_shopify_customers IS 'Shopify customer records with flexible JSONB data storage';
+COMMENT ON COLUMN etl_shopify_customers.shopify_customer_id IS 'The Shopify customer ID (primary key)';
+COMMENT ON COLUMN etl_shopify_customers.data IS 'Flexible JSONB storage for all customer data';
+
+COMMENT ON TABLE etl_freshdesk_tickets IS 'Freshdesk ticket records with flexible JSONB data storage';
+COMMENT ON COLUMN etl_freshdesk_tickets.freshdesk_ticket_id IS 'The Freshdesk ticket ID (primary key)';
+COMMENT ON COLUMN etl_freshdesk_tickets.data IS 'Flexible JSONB storage for all ticket data including conversations';
+
+COMMENT ON TABLE sync_metadata IS 'Tracks ETL sync operations for incremental updates';
+COMMENT ON COLUMN sync_metadata.resource_type IS 'Type of resource being synced (e.g., freshdesk_tickets)';
+COMMENT ON COLUMN sync_metadata.last_sync_at IS 'Timestamp of last successful sync';
+COMMENT ON COLUMN sync_metadata.last_successful_id IS 'ID of last successfully synced record';
+COMMENT ON COLUMN sync_metadata.sync_status IS 'Current status of sync operation';
+COMMENT ON COLUMN sync_metadata.error_message IS 'Error details if sync failed';
+
+COMMENT ON TABLE merchant_integrations IS 'API keys and configurations for merchant integrations';
+COMMENT ON COLUMN merchant_integrations.type IS 'Type of integration (freshdesk, shopify)';
+COMMENT ON COLUMN merchant_integrations.api_key IS 'Encrypted API key for the integration';
+COMMENT ON COLUMN merchant_integrations.config IS 'Additional configuration data in JSONB format';
+COMMENT ON COLUMN merchant_integrations.is_active IS 'Whether this integration is currently active';
+
+COMMENT ON TABLE daily_ticket_summaries IS 'Daily aggregated ticket summaries for each merchant';
+COMMENT ON COLUMN daily_ticket_summaries.date IS 'The date this summary covers (stored with time component for timezone handling)';
+COMMENT ON COLUMN daily_ticket_summaries.merchant_id IS 'The merchant this summary belongs to';
+COMMENT ON COLUMN daily_ticket_summaries.message IS 'The generated summary message with ticket statistics and insights';
+
+-- ========================================================================
+-- SUPPORT ANALYTICS FUNCTIONS AND VIEWS
+-- ========================================================================
+
+-- Create a function to extract ticket status from JSONB
+CREATE OR REPLACE FUNCTION extract_ticket_status(data JSONB) 
+RETURNS TEXT AS $$
+BEGIN
+    RETURN CASE 
+        WHEN data->>'status' IN ('2', 'open', 'new') THEN 'open'
+        WHEN data->>'status' IN ('3', 'pending') THEN 'pending'
+        WHEN data->>'status' IN ('4', 'resolved') THEN 'resolved'
+        WHEN data->>'status' IN ('5', 'closed') THEN 'closed'
+        ELSE 'unknown'
+    END;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Create a function to extract ticket priority
+CREATE OR REPLACE FUNCTION extract_ticket_priority(data JSONB) 
+RETURNS TEXT AS $$
+BEGIN
+    RETURN CASE data->>'priority'
+        WHEN '1' THEN 'low'
+        WHEN '2' THEN 'medium'
+        WHEN '3' THEN 'high'
+        WHEN '4' THEN 'urgent'
+        ELSE COALESCE(data->>'priority', 'unset')
+    END;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+
+-- Create function to get support summary for any period
+CREATE OR REPLACE FUNCTION get_support_summary(
+    p_merchant_id INTEGER,
+    p_start_date TIMESTAMP WITH TIME ZONE,
+    p_end_date TIMESTAMP WITH TIME ZONE
+) RETURNS TABLE (
+    total_tickets BIGINT,
+    open_tickets BIGINT,
+    pending_tickets BIGINT,
+    resolved_tickets BIGINT,
+    closed_tickets BIGINT,
+    urgent_tickets BIGINT,
+    high_priority_tickets BIGINT,
+    unique_customers BIGINT,
+    avg_conversations NUMERIC
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*)::BIGINT as total_tickets,
+        COUNT(CASE WHEN extract_ticket_status(data) = 'open' THEN 1 END)::BIGINT as open_tickets,
+        COUNT(CASE WHEN extract_ticket_status(data) = 'pending' THEN 1 END)::BIGINT as pending_tickets,
+        COUNT(CASE WHEN extract_ticket_status(data) = 'resolved' THEN 1 END)::BIGINT as resolved_tickets,
+        COUNT(CASE WHEN extract_ticket_status(data) = 'closed' THEN 1 END)::BIGINT as closed_tickets,
+        COUNT(CASE WHEN extract_ticket_priority(data) = 'urgent' THEN 1 END)::BIGINT as urgent_tickets,
+        COUNT(CASE WHEN extract_ticket_priority(data) = 'high' THEN 1 END)::BIGINT as high_priority_tickets,
+        COUNT(DISTINCT data->>'requester_id')::BIGINT as unique_customers,
+        AVG(CASE 
+            WHEN data ? 'conversation_count' 
+            THEN (data->>'conversation_count')::numeric 
+            ELSE NULL 
+        END)::NUMERIC(10,2) as avg_conversations
+    FROM etl_freshdesk_tickets
+    WHERE merchant_id = p_merchant_id
+    AND created_at >= p_start_date
+    AND created_at < p_end_date;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create function to get trending ticket categories
+CREATE OR REPLACE FUNCTION get_trending_categories(
+    p_merchant_id INTEGER,
+    p_start_date TIMESTAMP WITH TIME ZONE,
+    p_end_date TIMESTAMP WITH TIME ZONE,
+    p_limit INTEGER DEFAULT 10
+) RETURNS TABLE (
+    category TEXT,
+    ticket_count BIGINT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        tag AS category,
+        COUNT(*)::BIGINT as ticket_count
+    FROM etl_freshdesk_tickets,
+    LATERAL jsonb_array_elements_text(data->'tags') as tag
+    WHERE merchant_id = p_merchant_id
+    AND created_at >= p_start_date
+    AND created_at < p_end_date
+    GROUP BY tag
+    ORDER BY ticket_count DESC
+    LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create function for period-over-period comparison
+CREATE OR REPLACE FUNCTION compare_support_periods(
+    p_merchant_id INTEGER,
+    p_current_start TIMESTAMP WITH TIME ZONE,
+    p_current_end TIMESTAMP WITH TIME ZONE,
+    p_previous_start TIMESTAMP WITH TIME ZONE,
+    p_previous_end TIMESTAMP WITH TIME ZONE
+) RETURNS TABLE (
+    metric_name TEXT,
+    current_value NUMERIC,
+    previous_value NUMERIC,
+    change_percent NUMERIC
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH current_period AS (
+        SELECT * FROM get_support_summary(p_merchant_id, p_current_start, p_current_end)
+    ),
+    previous_period AS (
+        SELECT * FROM get_support_summary(p_merchant_id, p_previous_start, p_previous_end)
+    )
+    SELECT 
+        metric,
+        current_val,
+        previous_val,
+        CASE 
+            WHEN previous_val = 0 THEN 
+                CASE WHEN current_val = 0 THEN 0 ELSE 100 END
+            ELSE 
+                ROUND(((current_val - previous_val) / previous_val * 100)::numeric, 1)
+        END as change_pct
+    FROM (
+        VALUES 
+            ('total_tickets', 
+             (SELECT total_tickets FROM current_period)::numeric, 
+             (SELECT total_tickets FROM previous_period)::numeric),
+            ('open_tickets', 
+             (SELECT open_tickets FROM current_period)::numeric, 
+             (SELECT open_tickets FROM previous_period)::numeric),
+            ('resolved_tickets', 
+             (SELECT resolved_tickets FROM current_period)::numeric, 
+             (SELECT resolved_tickets FROM previous_period)::numeric),
+            ('unique_customers', 
+             (SELECT unique_customers FROM current_period)::numeric, 
+             (SELECT unique_customers FROM previous_period)::numeric)
+    ) AS t(metric, current_val, previous_val);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a view for real-time queue status (not materialized)
+CREATE OR REPLACE VIEW current_queue_status AS
+SELECT 
+    merchant_id,
+    extract_ticket_status(data) as status,
+    extract_ticket_priority(data) as priority,
+    COUNT(*) as count,
+    MIN(created_at) as oldest_ticket,
+    MAX(created_at) as newest_ticket
+FROM etl_freshdesk_tickets
+WHERE extract_ticket_status(data) IN ('open', 'pending')
+GROUP BY merchant_id, extract_ticket_status(data), extract_ticket_priority(data);
+
+-- Add comments for analytics objects
+COMMENT ON FUNCTION extract_ticket_status IS 'Extract normalized ticket status from JSONB data';
+COMMENT ON FUNCTION extract_ticket_priority IS 'Extract normalized ticket priority from JSONB data';
+COMMENT ON FUNCTION get_support_summary IS 'Get support metrics for any date range';
+COMMENT ON FUNCTION get_trending_categories IS 'Get most common ticket categories/tags';
+COMMENT ON FUNCTION compare_support_periods IS 'Compare metrics between two time periods';
+COMMENT ON VIEW current_queue_status IS 'Real-time view of open/pending tickets';
+
+
+COMMIT;
+
+-- DOWN Migration (commented out for safety)
+-- BEGIN;
+-- DROP VIEW IF EXISTS current_queue_status CASCADE;
+-- DROP FUNCTION IF EXISTS compare_support_periods CASCADE;
+-- DROP FUNCTION IF EXISTS get_trending_categories CASCADE;
+-- DROP FUNCTION IF EXISTS get_support_summary CASCADE;
+-- DROP FUNCTION IF EXISTS extract_ticket_priority CASCADE;
+-- DROP FUNCTION IF EXISTS extract_ticket_status CASCADE;
+-- DROP TABLE IF EXISTS daily_ticket_summaries CASCADE;
+-- DROP TABLE IF EXISTS merchant_integrations CASCADE;
+-- DROP TABLE IF EXISTS sync_metadata CASCADE;
+-- DROP TABLE IF EXISTS etl_freshdesk_tickets CASCADE;
+-- DROP TABLE IF EXISTS etl_shopify_customers CASCADE;
+-- DROP TABLE IF EXISTS merchants CASCADE;
+-- DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
+-- COMMIT;
+
+-- ========================================================================
+-- EXAMPLE USAGE
+-- ========================================================================
+/*
+-- Get today's summary
+SELECT * FROM get_support_summary(
+    1, -- merchant_id
+    CURRENT_DATE,
+    CURRENT_DATE + INTERVAL '1 day'
+);
+
+-- Get this week's trending categories
+SELECT * FROM get_trending_categories(
+    1, -- merchant_id
+    date_trunc('week', CURRENT_DATE),
+    date_trunc('week', CURRENT_DATE) + INTERVAL '1 week'
+);
+
+-- Compare this week vs last week
+SELECT * FROM compare_support_periods(
+    1, -- merchant_id
+    date_trunc('week', CURRENT_DATE),
+    date_trunc('week', CURRENT_DATE) + INTERVAL '1 week',
+    date_trunc('week', CURRENT_DATE) - INTERVAL '1 week',
+    date_trunc('week', CURRENT_DATE)
+);
+
+*/

@@ -24,6 +24,12 @@ help:
 	@echo "  make test-agents  - Test agents service"
 	@echo "  make deploy-auth  - Deploy auth to Heroku"
 	@echo "  make deploy-agents - Deploy agents to Heroku"
+	@echo ""
+	@echo "Database commands (agents service):"
+	@echo "  make clear-db     - Clear all data from agents database"
+	@echo "  make fill-db      - Fill database with migrations and test data"
+	@echo "  make reset-db     - Clear and refill agents database"
+	@echo "  make migrate-agents - Run agents database migrations"
 
 # Install all dependencies
 install:
@@ -282,6 +288,25 @@ db-reset:
 	@echo "⚠️  Resetting database..."
 	@echo "Please manually reset your local PostgreSQL database"
 	make db-migrate
+
+# HireCJ Data Database Management (agents service)
+clear-db:
+	@echo "⚠️  WARNING: This will delete all data from the agents database!"
+	@echo "Press Ctrl+C to cancel, or wait 3 seconds to continue..."
+	@sleep 3
+	cd agents && . venv/bin/activate && python scripts/clear_database.py --force
+
+fill-db:
+	@echo "🚀 Filling agents database with fresh data..."
+	cd agents && . venv/bin/activate && python scripts/fill_database.py
+
+reset-db: clear-db fill-db
+	@echo "✨ Agents database reset complete!"
+
+# Run migrations for agents database
+migrate-agents:
+	@echo "🔄 Running agents database migrations..."
+	cd agents && . venv/bin/activate && python scripts/run_migration.py
 
 # Utilities
 clean:
