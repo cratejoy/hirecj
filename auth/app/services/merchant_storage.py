@@ -28,7 +28,7 @@ class MerchantStorage:
             # Fail fast - Redis is required, no fallbacks
             raise RuntimeError(f"Redis is required for merchant storage. Failed to connect: {e}")
     
-    async def create_merchant(self, merchant_data: Dict[str, Any]) -> None:
+    def create_merchant(self, merchant_data: Dict[str, Any]) -> None:
         """Create a new merchant record."""
         shop_domain = merchant_data["shop_domain"]
         key = f"merchant:{shop_domain}"
@@ -50,7 +50,7 @@ class MerchantStorage:
             logger.error(f"[MERCHANT_STORAGE] Failed to create merchant in Redis: {e}")
             raise RuntimeError(f"Failed to store merchant data: {e}")
     
-    async def get_merchant(self, shop_domain: str) -> Optional[Dict[str, Any]]:
+    def get_merchant(self, shop_domain: str) -> Optional[Dict[str, Any]]:
         """Get merchant data by shop domain."""
         key = f"merchant:{shop_domain}"
         
@@ -68,9 +68,9 @@ class MerchantStorage:
             logger.error(f"[MERCHANT_STORAGE] Failed to get merchant from Redis: {e}")
             raise RuntimeError(f"Failed to retrieve merchant data: {e}")
     
-    async def update_token(self, shop_domain: str, access_token: str) -> None:
+    def update_token(self, shop_domain: str, access_token: str) -> None:
         """Update merchant's access token."""
-        merchant = await self.get_merchant(shop_domain)
+        merchant = self.get_merchant(shop_domain)
         if merchant:
             merchant["access_token"] = access_token
             merchant["last_seen"] = datetime.utcnow().isoformat()

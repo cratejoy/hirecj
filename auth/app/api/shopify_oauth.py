@@ -74,7 +74,7 @@ async def initiate_oauth(
     
     # Store state with shop domain in Redis
     try:
-        await merchant_storage.redis_client.setex(
+        merchant_storage.redis_client.setex(
             state_key,
             STATE_TTL,
             shop
@@ -136,7 +136,7 @@ async def handle_oauth_callback(
     if state:
         state_key = f"{STATE_PREFIX}{state}"
         try:
-            stored_shop = await merchant_storage.redis_client.get(state_key)
+            stored_shop = merchant_storage.redis_client.get(state_key)
             
             if not stored_shop or stored_shop != shop:
                 logger.error(f"[OAUTH_CALLBACK] Invalid state for shop: {shop}")
@@ -146,7 +146,7 @@ async def handle_oauth_callback(
                 )
             
             # Delete used state
-            await merchant_storage.redis_client.delete(state_key)
+            merchant_storage.redis_client.delete(state_key)
         except Exception as e:
             logger.error(f"[OAUTH_CALLBACK] Failed to verify state: {e}")
             return RedirectResponse(
@@ -173,7 +173,7 @@ async def handle_oauth_callback(
             )
         
         # Store merchant data
-        merchant_id = await store_merchant_token(shop, access_token)
+        merchant_id = store_merchant_token(shop, access_token)
         is_new = merchant_id.startswith("new_")
         if is_new:
             merchant_id = merchant_id[4:]  # Remove "new_" prefix
@@ -250,7 +250,7 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[str]:
         return None
 
 
-async def store_merchant_token(shop: str, access_token: str) -> str:
+def store_merchant_token(shop: str, access_token: str) -> str:
     """
     Store merchant access token in Redis.
     
@@ -262,13 +262,13 @@ async def store_merchant_token(shop: str, access_token: str) -> str:
         Merchant ID, prefixed with "new_" if newly created
     """
     # Check if merchant exists
-    merchant = await merchant_storage.get_merchant(shop)
+    merchant = merchant_storage.get_merchant(shop)
     is_new = merchant is None
     
     if is_new:
         # Create new merchant
         merchant_id = f"merchant_{shop.replace('.myshopify.com', '')}"
-        await merchant_storage.create_merchant({
+        merchant_storage.create_merchant({
             "merchant_id": merchant_id,
             "shop_domain": shop,
             "access_token": access_token,
@@ -278,7 +278,7 @@ async def store_merchant_token(shop: str, access_token: str) -> str:
         return f"new_{merchant_id}"
     else:
         # Update existing merchant
-        await merchant_storage.update_token(shop, access_token)
+        merchant_storage.update_token(shop, access_token)
         merchant_id = merchant.get("merchant_id", f"merchant_{shop.replace('.myshopify.com', '')}")
         logger.info(f"[STORE_TOKEN] Updated existing merchant: {shop}")
         return merchant_id
@@ -294,7 +294,7 @@ async def test_shop_api(shop: str = Query(..., description="Shop domain")):
         raise HTTPException(status_code=404, detail="Not found")
     
     # Get merchant token
-    merchant = await merchant_storage.get_merchant(shop)
+    merchant = merchant_storage.get_merchant(shop)
     if not merchant:
         return {"error": "Shop not found"}
     
