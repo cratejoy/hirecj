@@ -1,12 +1,17 @@
 """Configuration settings for the HireCJ auth service."""
 
 import os
+import sys
 import logging
 from typing import Optional
 from pathlib import Path
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Add parent directories to path to import shared modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from shared.env_loader import load_env_for_service
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +21,17 @@ class Settings(BaseSettings):
     
     # Server Configuration
     app_host: str = Field("0.0.0.0", env="APP_HOST")
-    app_port: int = Field(8103, env="APP_PORT")
+    app_port: int = Field(8103, env="AUTH_SERVICE_PORT")  # Use service-specific port
+    
+    # Service URLs (from shared config)
+    auth_service_url: str = Field("http://localhost:8103", env="AUTH_SERVICE_URL")
+    agents_service_url: str = Field("http://localhost:8000", env="AGENTS_SERVICE_URL")
+    homepage_url: str = Field("http://localhost:3456", env="HOMEPAGE_URL")
     
     # Database Configuration
     database_url: str = Field(
         "postgresql://hirecj:hirecj_dev_password@localhost:5435/hirecj_auth",
-        env="DATABASE_URL"
+        env="AUTH_DATABASE_URL"
     )
     
     # Security Configuration
@@ -95,10 +105,11 @@ class Settings(BaseSettings):
     ngrok_enabled: bool = Field(False, env="NGROK_ENABLED")
     ngrok_domain: Optional[str] = Field(None, env="NGROK_DOMAIN")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"  # Ignore extra fields from .env files
+    model_config = SettingsConfigDict(
+        env_file=load_env_for_service("auth"),
+        env_file_encoding="utf-8",
+        extra="ignore"  # Ignore extra fields from .env files
+    )
     
     @field_validator("oauth_redirect_base_url", mode="after")
     @classmethod
@@ -108,8 +119,9 @@ class Settings(BaseSettings):
         if v:
             return v
         
-        # Check for tunnel URL from .env.tunnel (created by tunnel detector)
-        tunnel_env_path = Path(".env.tunnel")
+        # Check for tunnel URL from root .env.tunnel (created by tunnel detector)
+        root_dir = Path(__file__).parent.parent.parent  # Go up to monorepo root
+        tunnel_env_path = root_dir / ".env.tunnel"
         if tunnel_env_path.exists():
             try:
                 with open(tunnel_env_path) as f:
@@ -195,11 +207,5 @@ class Settings(BaseSettings):
                 logger.info(f"  {provider.title()}: {self.get_oauth_callback_url(provider)}")
 
 
-# Create global settings instance
+# Create global settings instance with hierarchical loading
 settings = Settings()
-
-# Load additional env files if they exist
-env_files = [".env", ".env.local", ".env.tunnel"]
-for env_file in env_files:
-    if Path(env_file).exists():
-        settings = Settings(_env_file=env_file)

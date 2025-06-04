@@ -3,6 +3,8 @@
 .env.local
 .env.*.local
 *.env
+.env.secrets
+*/.env.secrets
 
 # Ngrok
 ngrok.yml

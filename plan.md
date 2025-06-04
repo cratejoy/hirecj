@@ -500,14 +500,15 @@ Use the [phase template](docs/shopify-onboarding/PHASE_TEMPLATE.md) when creatin
     └── .env               # Vite requires this, but minimal
 ```
 
-### Implementation Tasks
-- [ ] Create root `.env.example` with shared config structure
-- [ ] Update `/shared/env_loader.py` for hierarchical loading
-- [ ] Modify each service's `config.py` to load env files in order
-- [ ] Update homepage's `vite.config.ts` to read parent env
-- [ ] Enhance tunnel detector to write service URLs once
-- [ ] Migrate existing env vars to new structure
-- [ ] Update documentation and setup scripts
+### Implementation Tasks ✅ COMPLETE
+- [x] Create root `.env.example` with shared config structure
+- [x] Update `/shared/env_loader.py` for hierarchical loading
+- [x] Modify each service's `config.py` to load env files in order
+- [x] Update homepage's `vite.config.ts` to read parent env
+- [x] Enhance tunnel detector to write service URLs once
+- [x] Migrate existing env vars to new structure
+- [x] Update documentation and setup scripts
+- [x] Create verification script to test configuration
 
 ### Benefits
 - **Single source of truth** for service URLs
