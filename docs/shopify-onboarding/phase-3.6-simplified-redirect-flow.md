@@ -2,7 +2,7 @@
 
 ## 🌟 North Star Principles
 
-1. **Simplify, Simplify, Simplify**: This phase replaces 200+ lines of App Bridge complexity with ~50 lines of redirect handling
+1. **Simplify, Simplify, Simplify**: This phase replaces 200+ lines of App Bridge complexity with 49 lines of redirect handling
 2. **No Cruft**: Remove ALL Phase 3.5 code - no commented App Bridge code, no dual-context handling
 3. **Break It & Fix It Right**: Complete breaking change from embedded app to redirect flow
 4. **Long-term Elegance**: Simple redirect > complex App Bridge for our use case
@@ -36,20 +36,22 @@
 
 Replace the complex App Bridge and session token implementation with a simple redirect flow where Shopify sends the merchant back to our site with an id_token after installation. This eliminates the need for embedded app contexts and simplifies the entire authentication flow.
 
+**UPDATE**: Further simplified to remove unnecessary API call. The frontend now has the install URL directly.
+
 ## Deliverables Checklist
 
 - [x] Update Shopify app configuration with correct App URL ✅ (User confirmed this is done)
-- [ ] Create `/api/v1/shopify/connected` endpoint to handle redirect
-- [ ] Simplify `ShopifyOAuthButton` to remove polling and App Bridge
-- [ ] Remove unnecessary App Bridge dependencies and hooks
-- [ ] Implement proper token storage (Redis/Database)
+- [x] Create `/api/v1/shopify/connected` endpoint to handle redirect
+- [x] Simplify `ShopifyOAuthButton` to remove polling and App Bridge
+- [x] Remove unnecessary App Bridge dependencies and hooks
+- [x] Implement proper token storage (Redis/Database)
 - [ ] Update conversation flow to handle redirect parameters
 
 ## Prerequisites
 
 - Shopify custom app configured with install link
 - Redis or PostgreSQL available for token storage
-- Frontend and backend services running
+- Frontend service running (auth service only needed for redirect handling)
 - Access to Shopify Partner Dashboard
 
 ## Step-by-Step Implementation
@@ -217,7 +219,7 @@ merchant_storage = MerchantStorage()
 
 **File**: `homepage/src/components/ShopifyOAuthButton.tsx`
 
-Remove all the App Bridge complexity:
+Remove all the App Bridge complexity AND the unnecessary API call:
 
 ```typescript
 import React, { useState } from 'react';
@@ -237,115 +239,49 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
   disabled = false
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState('');
 
-  const handleConnect = async () => {
+  const handleConnect = () => {
     setIsConnecting(true);
-    setError('');
 
-    try {
-      const authBaseUrl = import.meta.env.VITE_AUTH_URL || 'http://localhost:8103';
-      
-      // Get custom install link from backend
-      const response = await fetch(`${authBaseUrl}/api/v1/shopify/install`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ conversation_id: conversationId }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get install link');
-      }
-
-      const { install_url } = await response.json();
-      
-      // Add conversation_id to the install URL so it comes back in redirect
-      const urlWithConversation = `${install_url}&conversation_id=${conversationId}`;
-
-      // Simply redirect to the install link
-      // Shopify will handle everything and redirect back to our /connected endpoint
-      window.location.href = urlWithConversation;
-      
-    } catch (err) {
-      console.error('Connection error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to connect to Shopify');
-      setIsConnecting(false);
+    // Get install URL directly from environment
+    const installUrl = import.meta.env.VITE_SHOPIFY_CUSTOM_INSTALL_LINK;
+    
+    if (!installUrl) {
+      console.error('VITE_SHOPIFY_CUSTOM_INSTALL_LINK not configured');
+      return;
     }
+    
+    // Add conversation_id to the install URL so it comes back in redirect
+    const separator = installUrl.includes('?') ? '&' : '?';
+    const urlWithConversation = `${installUrl}${separator}conversation_id=${conversationId}`;
+
+    // Simply redirect to the install link
+    // Shopify will handle everything and redirect back to our /connected endpoint
+    window.location.href = urlWithConversation;
   };
 
   return (
-    <>
-      <Button
-        onClick={handleConnect}
-        disabled={disabled || isConnecting}
-        className={`bg-shopify-green hover:bg-shopify-green-dark text-white ${className}`}
-        size="lg"
-      >
-        {isConnecting ? 'Redirecting to Shopify...' : text}
-      </Button>
-      
-      {error && (
-        <p className="mt-2 text-sm text-red-500">{error}</p>
-      )}
-    </>
+    <Button
+      onClick={handleConnect}
+      disabled={disabled || isConnecting}
+      className={`bg-shopify-green hover:bg-shopify-green-dark text-white ${className}`}
+      size="lg"
+    >
+      {isConnecting ? 'Redirecting to Shopify...' : text}
+    </Button>
   );
 };
 ```
 
-### 5. Update Install Endpoint
-
-**File**: `auth/app/api/shopify_custom.py`
-
-Simplify the install endpoint:
-
-```python
-@router.post("/install")
-async def initiate_custom_install(request: CustomInstallRequest):
-    """
-    Return the custom install link.
-    No need for session tracking since Shopify will redirect back with everything.
-    """
-    if not settings.shopify_custom_install_link:
-        raise HTTPException(
-            status_code=500,
-            detail="Custom app install link not configured"
-        )
-    
-    logger.info(f"[CUSTOM_INSTALL] Initiating installation for conversation={request.conversation_id}")
-    
-    return {
-        "install_url": settings.shopify_custom_install_link
-    }
-```
-
-### 6. Remove Unnecessary Code
+### 5. Remove Unnecessary Code
 
 **Files to Delete/Simplify**:
 - `homepage/src/hooks/useShopifySession.ts` - Delete entirely
 - Remove `@shopify/app-bridge` dependencies from package.json
 - Remove polling logic from the old implementation
-- Remove `/verify` and `/status` endpoints
+- Remove `/verify`, `/status`, and `/install` endpoints
 
 ## API Specifications
-
-### Install Endpoint
-```
-POST /api/v1/shopify/install
-Headers:
-  - Content-Type: application/json
-  
-Request Body:
-{
-  "conversation_id": "uuid"
-}
-
-Response:
-{
-  "install_url": "https://admin.shopify.com/oauth/install_custom_app?..."
-}
-```
 
 ### Connected Endpoint (Redirect Handler)
 ```
@@ -449,6 +385,9 @@ REDIS_URL=redis://localhost:6379/0
 SHOPIFY_CUSTOM_INSTALL_LINK=https://admin.shopify.com/oauth/install_custom_app?...
 SHOPIFY_CLIENT_ID=your_client_id
 SHOPIFY_CLIENT_SECRET=your_client_secret
+
+# Add to homepage/.env
+VITE_SHOPIFY_CUSTOM_INSTALL_LINK=https://admin.shopify.com/oauth/install_custom_app?...
 ```
 
 ## Monitoring & Logging
@@ -491,5 +430,8 @@ This approach is MUCH simpler than the App Bridge implementation:
 - No polling mechanism
 - Direct server-to-server token exchange
 - Everything happens on hirecj.ai
+- **UPDATE**: Button now 49 lines (was 73, originally 200+)
+- **UPDATE**: No backend needed for button to work
+- **UPDATE**: Install URL comes directly from frontend env
 
-The key insight is that Shopify's redirect includes everything we need to authenticate, so we don't need the complex client-side token retrieval.
+The key insight is that Shopify's redirect includes everything we need to authenticate, so we don't need the complex client-side token retrieval. Further simplified by removing unnecessary API call - the frontend can redirect directly to Shopify.
