@@ -54,6 +54,7 @@ class Settings(BaseSettings):
         "read_products,read_orders,read_customers",
         env="SHOPIFY_SCOPES"
     )
+    shopify_custom_install_link: Optional[str] = Field(None, env="SHOPIFY_CUSTOM_INSTALL_LINK")
     
     # OAuth Configuration - Data Providers
     klaviyo_client_id: Optional[str] = Field(None, env="KLAVIYO_CLIENT_ID")

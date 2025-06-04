@@ -1,129 +1,184 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface ShopifyOAuthButtonProps {
   conversationId: string;
   text?: string;
   className?: string;
   disabled?: boolean;
+  onSuccess?: (data: any) => void;
 }
 
 export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
   conversationId,
   text = 'Connect Shopify',
   className = '',
-  disabled = false
+  disabled = false,
+  onSuccess
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [shopDomain, setShopDomain] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState('');
+  const pollIntervalRef = useRef<NodeJS.Timeout>();
 
-  const handleConnect = () => {
-    // Validate shop domain
-    if (!shopDomain.trim()) {
-      setError('Please enter your shop domain');
-      return;
-    }
-
-    // Clean up shop domain (remove protocol, trailing slashes)
-    let cleanShop = shopDomain.trim()
-      .replace(/^https?:\/\//, '')
-      .replace(/\/$/, '');
-    
-    // Add .myshopify.com if not present
-    if (!cleanShop.includes('.')) {
-      cleanShop = `${cleanShop}.myshopify.com`;
-    }
-
-    // Get the OAuth URL from environment
-    const authBaseUrl = import.meta.env.VITE_AUTH_URL || 'http://localhost:8103';
-    
-    // Build OAuth URL with shop domain
-    const oauthUrl = `${authBaseUrl}/api/v1/oauth/shopify/authorize?conversation_id=${conversationId}&redirect_uri=${encodeURIComponent(window.location.origin + '/chat')}&shop=${cleanShop}`;
-    
-    // Open OAuth flow in new window
-    const width = 600;
-    const height = 700;
-    const left = window.screen.width / 2 - width / 2;
-    const top = window.screen.height / 2 - height / 2;
-    
-    const popup = window.open(
-      oauthUrl,
-      'shopify-oauth',
-      `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,status=no`
-    );
-
-    // Close dialog
-    setIsOpen(false);
-    setShopDomain('');
+  const handleConnect = async () => {
+    setIsConnecting(true);
     setError('');
 
-    // Check if popup was blocked
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      alert('Please allow pop-ups for this site to connect with Shopify');
+    try {
+      // Get the auth service URL from environment
+      const authBaseUrl = import.meta.env.VITE_AUTH_URL || 'http://localhost:8103';
+      
+      // 1. Get custom install link from backend
+      const response = await fetch(`${authBaseUrl}/api/v1/shopify/install`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ conversation_id: conversationId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to get install link');
+      }
+
+      const { install_url, session_id } = await response.json();
+
+      // 2. Open custom install link in popup
+      const width = 600;
+      const height = 700;
+      const left = window.screen.width / 2 - width / 2;
+      const top = window.screen.height / 2 - height / 2;
+      
+      const popup = window.open(
+        install_url,
+        'shopify-install',
+        `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,status=no`
+      );
+
+      // Check if popup was blocked
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+        throw new Error('Please allow pop-ups for this site to connect with Shopify');
+      }
+
+      // 3. Poll for installation status
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          const statusResponse = await fetch(
+            `${authBaseUrl}/api/v1/shopify/status/${session_id}`
+          );
+          
+          if (!statusResponse.ok) {
+            console.error('Failed to check installation status');
+            return;
+          }
+
+          const status = await statusResponse.json();
+
+          if (status.installed) {
+            // Installation complete!
+            clearInterval(pollIntervalRef.current);
+            popup?.close();
+            
+            // Get the session token from Shopify (this would come from App Bridge in production)
+            // For now, we'll simulate it
+            const sessionToken = 'mock-session-token'; // TODO: Get real session token
+            
+            // Validate the session token with backend
+            const verifyResponse = await fetch(`${authBaseUrl}/api/v1/shopify/verify`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                session_token: sessionToken,
+                session_id: session_id,
+              }),
+            });
+
+            if (!verifyResponse.ok) {
+              throw new Error('Failed to verify installation');
+            }
+
+            const verifyData = await verifyResponse.json();
+            
+            setIsConnecting(false);
+            
+            // Call success callback if provided
+            if (onSuccess) {
+              onSuccess({
+                oauth: 'complete',
+                conversation_id: conversationId,
+                is_new: verifyData.is_new,
+                merchant_id: verifyData.merchant_id,
+                shop: verifyData.shop_domain,
+              });
+            }
+            
+            // Redirect to complete OAuth flow (similar to old callback)
+            const redirectParams = new URLSearchParams({
+              oauth: 'complete',
+              conversation_id: conversationId,
+              is_new: String(verifyData.is_new),
+              merchant_id: verifyData.merchant_id,
+              shop: verifyData.shop_domain,
+            });
+            
+            window.location.href = `/chat?${redirectParams.toString()}`;
+          } else if (status.error) {
+            // Installation failed or expired
+            clearInterval(pollIntervalRef.current);
+            popup?.close();
+            throw new Error(status.error);
+          }
+        } catch (pollError) {
+          console.error('Polling error:', pollError);
+        }
+      }, 2000); // Poll every 2 seconds
+
+      // Stop polling after 10 minutes
+      setTimeout(() => {
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          popup?.close();
+          setIsConnecting(false);
+          setError('Installation timed out. Please try again.');
+        }
+      }, 10 * 60 * 1000);
+
+    } catch (err) {
+      console.error('Connection error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to connect to Shopify');
+      setIsConnecting(false);
+      
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
     }
   };
+
+  // Clean up on unmount
+  React.useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
       <Button
-        onClick={() => setIsOpen(true)}
-        disabled={disabled}
+        onClick={handleConnect}
+        disabled={disabled || isConnecting}
         className={`bg-shopify-green hover:bg-shopify-green-dark text-white ${className}`}
         size="lg"
       >
-        {text}
+        {isConnecting ? 'Connecting...' : text}
       </Button>
-
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Connect Your Shopify Store</DialogTitle>
-            <DialogDescription>
-              Enter your Shopify store domain to get started. For example: "my-store" or "my-store.myshopify.com"
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Input
-                placeholder="your-store"
-                value={shopDomain}
-                onChange={(e) => {
-                  setShopDomain(e.target.value);
-                  setError('');
-                }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    handleConnect();
-                  }
-                }}
-                className={error ? 'border-red-500' : ''}
-              />
-              {error && (
-                <p className="text-sm text-red-500">{error}</p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Don't include "https://" or ".myshopify.com" - we'll add it for you
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleConnect}
-              className="bg-shopify-green hover:bg-shopify-green-dark text-white"
-            >
-              Connect to Shopify
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      
+      {error && (
+        <p className="mt-2 text-sm text-red-500">{error}</p>
+      )}
     </>
   );
 };

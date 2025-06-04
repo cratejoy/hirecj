@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.api import health, oauth
+from app.api import health, oauth, shopify_custom
 
 # Configure logging
 logging.basicConfig(
@@ -63,7 +63,9 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router)
-app.include_router(oauth.router, prefix=f"{settings.api_prefix}/oauth")
+# Commenting out standard OAuth flow - replaced with custom app flow
+# app.include_router(oauth.router, prefix=f"{settings.api_prefix}/oauth")
+app.include_router(shopify_custom.router, prefix=f"{settings.api_prefix}/shopify")
 
 # TODO: Add auth router when implemented
 # app.include_router(auth.router, prefix=f"{settings.api_prefix}/auth")
@@ -79,8 +81,8 @@ async def root():
         "endpoints": {
             "health": "/health",
             "docs": "/docs" if settings.debug else None,
-            "auth": f"{settings.api_prefix}/auth",
-            "oauth": f"{settings.api_prefix}/oauth"
+            "shopify_custom": f"{settings.api_prefix}/shopify",
+            # "oauth": f"{settings.api_prefix}/oauth"  # Replaced with custom app flow
         }
     }
 
