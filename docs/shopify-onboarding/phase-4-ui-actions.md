@@ -15,8 +15,8 @@ Implement a simple, extensible pattern for CJ to embed UI elements in conversati
 
 Phase 4 is complete when all sub-phases are complete:
 
-- [ ] **Phase 4.1**: Parser implementation and unit tests passing
-- [ ] **Phase 4.2**: Workflow configuration tested and working
+- [x] **Phase 4.1**: Parser implementation and unit tests passing
+- [x] **Phase 4.2**: Workflow configuration tested and working
 - [ ] **Phase 4.3**: Message processor integration verified
 - [ ] **Phase 4.4**: Platform layer passing UI elements
 - [ ] **Phase 4.5**: Frontend rendering buttons correctly
@@ -355,10 +355,10 @@ print("UI instructions in workflow:", "{{oauth:shopify}}" in cj.workflow_prompt)
 ```
 
 **✅ Phase 4.2 Complete When:**
-- [ ] Workflow loader supports UI component configuration
-- [ ] Shopify onboarding workflow has UI components enabled
-- [ ] Tests verify UI instructions are added to workflow
-- [ ] Manual test confirms CJ sees UI instructions
+- [x] Workflow loader supports UI component configuration
+- [x] Shopify onboarding workflow has UI components enabled
+- [x] Tests verify UI instructions are added to workflow
+- [x] Manual test confirms CJ sees UI instructions
 
 ---
 

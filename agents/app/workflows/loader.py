@@ -30,7 +30,18 @@ class WorkflowLoader:
         if name not in self.workflows:
             available = ", ".join(self.list_workflows())
             raise ValueError(f"Workflow '{name}' not found. Available: {available}")
-        return self.workflows[name]
+        
+        workflow_data = self.workflows[name].copy()  # Don't modify cached version
+        
+        # Check if workflow enables UI components
+        if workflow_data.get('ui_components', {}).get('enabled', False):
+            # Add UI instructions to workflow
+            ui_instructions = self._get_ui_instructions(
+                workflow_data['ui_components']
+            )
+            workflow_data['workflow'] += f"\n\n{ui_instructions}"
+        
+        return workflow_data
 
     def list_workflows(self) -> List[str]:
         """List all available workflow names."""
@@ -45,3 +56,17 @@ class WorkflowLoader:
         """Get the display name for a workflow."""
         workflow = self.get_workflow(name)
         return workflow.get("name", name)
+
+    def _get_ui_instructions(self, ui_config: Dict) -> str:
+        """Generate UI instructions based on workflow config."""
+        instructions = []
+
+        if 'oauth' in ui_config.get('components', []):
+            instructions.append("""
+UI COMPONENT AVAILABLE:
+- When ready to connect Shopify, insert {{oauth:shopify}} where the button should appear
+- Don't say "click the button below" - just include the marker naturally
+- Example: "Let's connect your store: {{oauth:shopify}}"
+""")
+
+        return "\n".join(instructions)
