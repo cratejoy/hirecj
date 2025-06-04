@@ -1,5 +1,6 @@
 """Main FastAPI application for HireCJ - Unified API server."""
 
+import os
 import logging
 from datetime import datetime
 from typing import Optional
@@ -27,6 +28,12 @@ from app.constants import HTTPStatus, WebSocketCloseCodes
 
 # Initialize logging
 setup_logging()
+
+# Set environment variables for litellm if they're not already set
+if settings.openai_api_key and not os.getenv("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+if settings.anthropic_api_key and not os.getenv("ANTHROPIC_API_KEY"):
+    os.environ["ANTHROPIC_API_KEY"] = settings.anthropic_api_key
 
 logger = logging.getLogger(__name__)
 
