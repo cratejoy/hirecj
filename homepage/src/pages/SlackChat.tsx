@@ -205,15 +205,7 @@ const SlackChat = () => {
 
 	// Setup debug interface
 	useEffect(() => {
-		// Only enable debug interface if debug mode is enabled
-		const isDebugMode = process.env.NODE_ENV === 'development' || localStorage.getItem('cj_debug') === 'true';
-		
-		if (!isDebugMode) {
-			(window as any).cj = {
-				help: () => console.log('Enable debug mode: localStorage.setItem("cj_debug", "true")')
-			};
-			return;
-		}
+		// Always enable debug interface
 
 		// Define the debug interface
 		const debugInterface = {
@@ -309,11 +301,9 @@ const SlackChat = () => {
 		// Attach to window
 		(window as any).cj = debugInterface;
 		
-		// Auto-show help in development
-		if (process.env.NODE_ENV === 'development') {
-			console.log('%c🤖 CJ Debug Interface Ready!', 'color: #00D4FF; font-size: 14px; font-weight: bold');
-			console.log('Type cj.help() for available commands');
-		}
+		// Always show help message
+		console.log('%c🤖 CJ Debug Interface Ready!', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+		console.log('Type cj.help() for available commands');
 		
 	}, [chatConfig, messages, isTyping, wsChat]);
 
