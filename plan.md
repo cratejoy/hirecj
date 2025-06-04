@@ -63,30 +63,42 @@
 
 **Why It Failed:** Fundamental mismatch - we need merchants to use HireCJ from hirecj.ai, not from within Shopify admin.
 
-### Phase 3.6: Simplified Redirect Flow 🎯 CURRENT PRIORITY
-**Solution:** Use Shopify's simple redirect flow where they send users back with an id_token after installation.
+### Phase 3.6: ~~Manual Token Entry (Custom Distribution)~~ ❌ ABANDONED
+**Problem:** Discovered that custom distribution apps don't support OAuth - they require manual token generation and entry by merchants. This creates friction in the onboarding process.
+
+**What We Built:**
+- Manual token entry form with beta notice
+- Token validation endpoint
+- Instructions for merchants to generate tokens
+
+**Why It Failed:** Not a technical failure, but a Shopify limitation. Custom distribution apps simply don't support OAuth. To use OAuth, we need a different app type.
+
+### Phase 3.7: OAuth 2.0 Implementation 🎯 CURRENT PRIORITY
+**Solution:** Switch from custom distribution to OAuth-enabled app. Implement standard Shopify OAuth 2.0 authorization code grant flow.
 
 **The Right Flow:**
 ```
-Simple Redirect Flow:
+OAuth Flow:
 ├── User clicks "Connect Shopify" on hirecj.ai
-├── Redirects to Shopify install link
-├── User approves installation
-├── Shopify redirects back to hirecj.ai/api/v1/shopify/connected?id_token=XXX
-├── Backend exchanges token and stores it
-└── Redirect to chat - everything on OUR site!
+├── Enter shop domain (if not saved)
+├── Redirect to https://{shop}/admin/oauth/authorize
+├── User approves permissions
+├── Shopify redirects back with authorization code
+├── Backend exchanges code for access token
+├── Store token in Redis
+└── Redirect to chat - authenticated!
 ```
 
 **Benefits:**
-- No App Bridge needed
-- No embedded context required
-- Everything stays on hirecj.ai
-- Simple redirect handling (~50 lines vs 200+)
-- Works exactly how we need it to
+- Standard OAuth flow that works for any app type
+- No manual token entry required
+- Production-ready authentication
+- Can eventually become a public app
+- Seamless merchant experience
 
-**Implementation Status: NOT STARTED**
+**Implementation Status: PLANNED**
 
-📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.6-simplified-redirect-flow.md)**
+📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.7-oauth-implementation.md)**
 
 ### What We Keep from 3.5:
 - ✅ OAuth code deletion (already done)
