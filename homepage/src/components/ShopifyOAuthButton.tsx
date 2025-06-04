@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
 interface ShopifyOAuthButtonProps {
@@ -18,17 +18,14 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
   const [shopDomain, setShopDomain] = useState('');
   const [showShopInput, setShowShopInput] = useState(false);
 
+  // Clear any stored shop domain on mount
+  useEffect(() => {
+    localStorage.removeItem('shopify_shop_domain');
+  }, []);
+
   const handleConnect = () => {
-    // Check if we have a shop domain in localStorage
-    const savedShop = localStorage.getItem('shopify_shop_domain');
-    
-    if (savedShop) {
-      // Use saved shop domain
-      initiateOAuth(savedShop);
-    } else {
-      // Show input for shop domain
-      setShowShopInput(true);
-    }
+    // Always show input for shop domain
+    setShowShopInput(true);
   };
 
   const initiateOAuth = (shop: string) => {
@@ -38,9 +35,6 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
     if (!shop.endsWith('.myshopify.com')) {
       shop = `${shop}.myshopify.com`;
     }
-    
-    // Save shop domain for future use
-    localStorage.setItem('shopify_shop_domain', shop);
     
     // Store conversation ID for later (OAuth doesn't preserve it)
     sessionStorage.setItem('shopify_oauth_conversation_id', conversationId);
