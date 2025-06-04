@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.api import health, oauth, shopify_custom
+from app.api import health, shopify_custom
 
 # Configure logging
 logging.basicConfig(
@@ -27,13 +27,9 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {'Development' if settings.debug else 'Production'}")
     logger.info(f"API available at http://{settings.app_host}:{settings.app_port}")
     
-    # Log OAuth URLs if in debug mode
-    if settings.debug:
-        settings.log_oauth_urls()
-    
     # Check if ngrok is enabled but no tunnel detected
-    if settings.ngrok_enabled and settings.oauth_redirect_base_url.startswith("http://localhost"):
-        logger.warning("⚠️  Ngrok enabled but no tunnel detected. OAuth callbacks will use localhost.")
+    if settings.ngrok_enabled and settings.public_url.startswith("http://localhost"):
+        logger.warning("⚠️  Ngrok enabled but no tunnel detected. Custom app callbacks will use localhost.")
         logger.warning("💡 Run 'make dev-tunnel' to start with tunnel support.")
     
     yield
@@ -63,8 +59,6 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router)
-# Commenting out standard OAuth flow - replaced with custom app flow
-# app.include_router(oauth.router, prefix=f"{settings.api_prefix}/oauth")
 app.include_router(shopify_custom.router, prefix=f"{settings.api_prefix}/shopify")
 
 # TODO: Add auth router when implemented
@@ -81,8 +75,7 @@ async def root():
         "endpoints": {
             "health": "/health",
             "docs": "/docs" if settings.debug else None,
-            "shopify_custom": f"{settings.api_prefix}/shopify",
-            # "oauth": f"{settings.api_prefix}/oauth"  # Replaced with custom app flow
+            "shopify_custom": f"{settings.api_prefix}/shopify"
         }
     }
 

@@ -52,7 +52,7 @@
 - New vs returning merchant detection already implemented
 - **DISCOVERED:** Custom apps require different installation flow than public apps
 
-### Phase 3.5: Replace OAuth with Custom App Flow ⚠️ NEEDS COMPLETION
+### Phase 3.5: Replace OAuth with Custom App Flow ❌ CRITICAL FAILURE
 **Problem:** We're using Shopify custom apps, which don't support standard OAuth. Current implementation causes "Unauthorized Access" errors.
 
 **Simple Solution: Remove OAuth, Use Custom App Flow Only**
@@ -64,43 +64,53 @@ Custom App Flow:
 └── Exchange for API access token
 ```
 
-**Current Status: FAILURE by North Star Standards**
-- ❌ Shortcuts taken (mocked tokens)
-- ❌ Half-measures (disabled JWT verification)
-- ❌ Compatibility shims (OAuth code still exists)
-- ❌ "Good enough" solution (demo-only quality)
+**Current Audit Status: CRITICAL FAILURE**
+- ✅ OAuth code deleted (Priority 1 complete)
+- ✅ Magic numbers fixed (Priority 2 complete)
+- ❌ Mocked tokens still exist (`mock-session-token`)
+- ❌ JWT verification still disabled (`verify_signature: False`)
+- ❌ In-memory storage (data loss on restart)
+- ❌ Cannot make real Shopify API calls
 
-📄 **[Audit Report →](docs/shopify-onboarding/phase-3.5-audit.md)**
+**Definition of Done Score: 2/6 = 33%**
 
-**Completed (But Improperly):**
-1. **Partially Removed OAuth Code:**
-   - [x] Commented out `/oauth/shopify/*` endpoints ❌ Should be deleted
-   - [x] Removed OAuth state management
-   - [x] Removed shop domain input dialog
+📄 **[Current Audit Report →](docs/shopify-onboarding/PHASE-3.5-AUDIT-CURRENT.md)**
 
-2. **Basic Custom App Flow:**
+**Actually Completed (Properly):**
+1. **Removed ALL OAuth Code:** ✅
+   - [x] Deleted `/oauth/shopify/*` endpoints completely
+   - [x] Deleted OAuth models and providers
+   - [x] Cleaned up all references
+
+2. **Fixed Magic Numbers:** ✅
+   - [x] Created shared constants files
+   - [x] Replaced all hardcoded values
+
+**Still Broken (Needs Completion):**
+3. **Basic Custom App Flow:**
    - [x] Added `SHOPIFY_CUSTOM_INSTALL_LINK` to env config
    - [x] Frontend opens install link directly
    - [x] Backend handles session tokens ❌ But mocked
-   - [x] Polling mechanism ❌ With magic numbers
+   - [x] Polling mechanism ✅ Fixed magic numbers
 
 **Required to Meet North Star Standards:**
 
-### 🔥 Immediate Actions (Do Now)
-1. **Delete ALL OAuth Code**
-   - [ ] Delete `auth/app/api/oauth.py` completely
-   - [ ] Delete `auth/app/providers/` directory
-   - [ ] Remove commented OAuth routes from `main.py`
-   - [ ] Delete any OAuth-related tests
+### ✅ Immediate Actions (COMPLETE)
+1. **Delete ALL OAuth Code** ✅
+   - [x] Delete `auth/app/api/oauth.py` completely
+   - [x] Delete `auth/app/providers/` directory
+   - [x] Remove commented OAuth routes from `main.py`
+   - [x] Delete any OAuth-related tests
 
-2. **Fix Magic Numbers**
-   - [ ] Create `shared/constants.py` with:
+2. **Fix Magic Numbers** ✅
+   - [x] Create `shared/constants.py` with:
      ```python
      SHOPIFY_INSTALL_POLL_INTERVAL_MS = 2000
      SHOPIFY_INSTALL_TIMEOUT_MS = 600000  # 10 minutes
+     SHOPIFY_SESSION_EXPIRE_MINUTES = 30
      ```
-   - [ ] Update frontend to use constants
-   - [ ] Update backend timeouts to use constants
+   - [x] Update frontend to use constants
+   - [x] Update backend timeouts to use constants
 
 ### 📦 Proper Implementation (This Week)
 3. **Real Session Token Handling**

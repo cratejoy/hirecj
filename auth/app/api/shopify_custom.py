@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.config import settings
+from shared.constants import SHOPIFY_SESSION_EXPIRE_MINUTES
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +34,8 @@ class InstallSession(BaseModel):
     access_token: Optional[str] = None
     
     def is_expired(self) -> bool:
-        """Check if session is expired (30 minutes)."""
-        return datetime.utcnow() - self.created_at > timedelta(minutes=30)
+        """Check if session is expired."""
+        return datetime.utcnow() - self.created_at > timedelta(minutes=SHOPIFY_SESSION_EXPIRE_MINUTES)
 
 
 class MerchantSession(BaseModel):

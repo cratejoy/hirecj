@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
+import { SHOPIFY_INSTALL_POLL_INTERVAL, SHOPIFY_INSTALL_TIMEOUT } from '@/constants/shopify';
 
 interface ShopifyOAuthButtonProps {
   conversationId: string;
@@ -133,9 +134,9 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
         } catch (pollError) {
           console.error('Polling error:', pollError);
         }
-      }, 2000); // Poll every 2 seconds
+      }, SHOPIFY_INSTALL_POLL_INTERVAL);
 
-      // Stop polling after 10 minutes
+      // Stop polling after timeout
       setTimeout(() => {
         if (pollIntervalRef.current) {
           clearInterval(pollIntervalRef.current);
@@ -143,7 +144,7 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
           setIsConnecting(false);
           setError('Installation timed out. Please try again.');
         }
-      }, 10 * 60 * 1000);
+      }, SHOPIFY_INSTALL_TIMEOUT);
 
     } catch (err) {
       console.error('Connection error:', err);
