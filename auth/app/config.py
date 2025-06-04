@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     # Frontend URLs (for redirects after auth)
     frontend_url: str = Field(
         "http://localhost:3456",
-        env="FRONTEND_URL"
+        env="HOMEPAGE_URL"  # Use HOMEPAGE_URL which is set by tunnel detector
     )
     frontend_success_path: str = Field(
         "/auth/success",
