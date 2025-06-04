@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.api import health, shopify_custom
+from app.api import health, shopify_oauth_minimal
 
 # Configure logging
 logging.basicConfig(
@@ -59,7 +59,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router)
-app.include_router(shopify_custom.router, prefix=f"{settings.api_prefix}/shopify")
+# Using minimal OAuth router for testing
+app.include_router(shopify_oauth_minimal.router, prefix=f"{settings.api_prefix}/shopify")
 
 # TODO: Add auth router when implemented
 # app.include_router(auth.router, prefix=f"{settings.api_prefix}/auth")
