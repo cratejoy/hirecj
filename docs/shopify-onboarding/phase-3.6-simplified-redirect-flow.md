@@ -1,12 +1,44 @@
 # Phase 3.6: Simplified Custom App Redirect Flow - Detailed Implementation Guide
 
+## 🌟 North Star Principles
+
+1. **Simplify, Simplify, Simplify**: This phase replaces 200+ lines of App Bridge complexity with ~50 lines of redirect handling
+2. **No Cruft**: Remove ALL Phase 3.5 code - no commented App Bridge code, no dual-context handling
+3. **Break It & Fix It Right**: Complete breaking change from embedded app to redirect flow
+4. **Long-term Elegance**: Simple redirect > complex App Bridge for our use case
+5. **Backend-Driven**: Frontend just redirects, backend handles all token logic
+6. **Single Source of Truth**: One auth pattern only - redirect flow
+7. **No Over-Engineering**: No "maybe we'll need embedded later" code
+8. **Thoughtful Logging**: Clear logs for each redirect step
+
+## ✅ DOs and ❌ DON'Ts
+
+### ✅ DO:
+- **DO** implement the simple redirect flow exactly as specified
+- **DO** delete ALL App Bridge related code from Phase 3.5
+- **DO** use Redis/PostgreSQL for token storage (no more in-memory)
+- **DO** handle errors gracefully with clear redirect parameters
+- **DO** test the full flow end-to-end before calling it complete
+- **DO** keep the frontend button simple - just redirect, no polling
+- **DO** exchange tokens server-side only
+
+### ❌ DON'T:
+- **DON'T** keep any App Bridge code "just in case"
+- **DON'T** implement session token polling
+- **DON'T** add embedded app handling
+- **DON'T** use in-memory storage
+- **DON'T** mock any tokens or skip verification
+- **DON'T** add complex state management to frontend
+- **DON'T** try to handle tokens client-side
+- **DON'T** implement "maybe later" features
+
 ## Overview
 
 Replace the complex App Bridge and session token implementation with a simple redirect flow where Shopify sends the merchant back to our site with an id_token after installation. This eliminates the need for embedded app contexts and simplifies the entire authentication flow.
 
 ## Deliverables Checklist
 
-- [ ] Update Shopify app configuration with correct App URL
+- [x] Update Shopify app configuration with correct App URL ✅ (User confirmed this is done)
 - [ ] Create `/api/v1/shopify/connected` endpoint to handle redirect
 - [ ] Simplify `ShopifyOAuthButton` to remove polling and App Bridge
 - [ ] Remove unnecessary App Bridge dependencies and hooks
@@ -22,13 +54,15 @@ Replace the complex App Bridge and session token implementation with a simple re
 
 ## Step-by-Step Implementation
 
-### 1. Update Shopify App Configuration
+### 1. Update Shopify App Configuration ✅ COMPLETE
 
 **Action Required**: In Shopify Partner Dashboard
 
-1. Go to your app's Configuration
-2. Set **App URL** to: `https://amir-auth.hirecj.ai/api/v1/shopify/connected`
-3. Save changes
+1. ~~Go to your app's Configuration~~
+2. ~~Set **App URL** to: `https://amir-auth.hirecj.ai/api/v1/shopify/connected`~~
+3. ~~Save changes~~
+
+**Status**: User has confirmed this step is complete.
 
 ### 2. Create Connected Endpoint
 
