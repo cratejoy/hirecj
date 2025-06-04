@@ -108,6 +108,10 @@ class WebPlatform(Platform):
                 "thread_id": message.thread_id,
                 "metadata": message.metadata or {},
             }
+            
+            # Add UI elements if present in metadata
+            if message.metadata and "ui_elements" in message.metadata:
+                web_message["ui_elements"] = message.metadata["ui_elements"]
 
             # Send JSON message to WebSocket
             await websocket.send_json(web_message)
@@ -431,7 +435,8 @@ class WebPlatform(Platform):
                             message="Begin onboarding introduction",
                             sender="merchant",
                         )
-                        logger.info(f"[SHOPIFY_ONBOARDING] Generated greeting: {response[:100] if response else 'None'}...")
+                        greeting_preview = response["content"][:100] if isinstance(response, dict) and "content" in response else str(response)[:100] if response else 'None'
+                        logger.info(f"[SHOPIFY_ONBOARDING] Generated greeting: {greeting_preview}...")
                         
                         # Don't add the trigger message to conversation history
                         # Remove it so the conversation starts cleanly with CJ's greeting
@@ -457,16 +462,30 @@ class WebPlatform(Platform):
                         response = None
 
                     if response:
-                        # Create response message
-                        response_with_fact_check = {
-                            "content": response,
-                            "factCheckStatus": "available",
-                            "timestamp": datetime.now().isoformat(),
-                        }
-                        websocket_logger.info(
-                            f"[WS_SEND] Sending initial CJ message: content='{response_with_fact_check.get('content', '')[:100]}...' "
-                            f"full_data={response_with_fact_check}"
-                        )
+                        # Handle structured response with UI elements
+                        if isinstance(response, dict) and response.get("type") == "message_with_ui":
+                            response_with_fact_check = {
+                                "content": response["content"],
+                                "factCheckStatus": "available",
+                                "timestamp": datetime.now().isoformat(),
+                                "ui_elements": response.get("ui_elements", [])
+                            }
+                            websocket_logger.info(
+                                f"[WS_SEND] Sending initial CJ message with UI elements: content='{response_with_fact_check.get('content', '')[:100]}...' "
+                                f"ui_elements={len(response_with_fact_check.get('ui_elements', []))} full_data={response_with_fact_check}"
+                            )
+                        else:
+                            # Regular text response
+                            response_with_fact_check = {
+                                "content": response,
+                                "factCheckStatus": "available",
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                            websocket_logger.info(
+                                f"[WS_SEND] Sending initial CJ message: content='{response_with_fact_check.get('content', '')[:100]}...' "
+                                f"full_data={response_with_fact_check}"
+                            )
+                        
                         # Check for suspicious content
                         if (
                             response_with_fact_check.get("content") == "0"
@@ -524,16 +543,31 @@ class WebPlatform(Platform):
                     session=session, message=text, sender="merchant"
                 )
 
-                # Send response with fact-check status
-                response_with_fact_check = {
-                    "content": response,
-                    "factCheckStatus": "available",
-                    "timestamp": datetime.now().isoformat(),
-                }
-                websocket_logger.info(
-                    f"[WS_SEND] Sending CJ message response: content='{response_with_fact_check.get('content', '')[:100]}...' "
-                    f"full_data={response_with_fact_check}"
-                )
+                # Handle structured response with UI elements
+                if isinstance(response, dict) and response.get("type") == "message_with_ui":
+                    # Send response with UI elements
+                    response_with_fact_check = {
+                        "content": response["content"],
+                        "factCheckStatus": "available",
+                        "timestamp": datetime.now().isoformat(),
+                        "ui_elements": response.get("ui_elements", [])
+                    }
+                    websocket_logger.info(
+                        f"[WS_SEND] Sending CJ message with UI elements: content='{response_with_fact_check.get('content', '')[:100]}...' "
+                        f"ui_elements={len(response_with_fact_check.get('ui_elements', []))} full_data={response_with_fact_check}"
+                    )
+                else:
+                    # Regular text response
+                    response_with_fact_check = {
+                        "content": response,
+                        "factCheckStatus": "available",
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    websocket_logger.info(
+                        f"[WS_SEND] Sending CJ message response: content='{response_with_fact_check.get('content', '')[:100]}...' "
+                        f"full_data={response_with_fact_check}"
+                    )
+                
                 # Check for suspicious content
                 if (
                     response_with_fact_check.get("content") == "0"
@@ -719,16 +753,28 @@ class WebPlatform(Platform):
                 
                 # Send CJ's response
                 if response:
-                    response_data = {
-                        "content": response,
-                        "factCheckStatus": "available",
-                        "timestamp": datetime.now().isoformat(),
-                    }
+                    # Handle structured response with UI elements
+                    if isinstance(response, dict) and response.get("type") == "message_with_ui":
+                        response_data = {
+                            "content": response["content"],
+                            "factCheckStatus": "available",
+                            "timestamp": datetime.now().isoformat(),
+                            "ui_elements": response.get("ui_elements", [])
+                        }
+                        logger.info(f"[OAUTH_RESPONSE] Sent CJ response with UI elements after OAuth: {response['content'][:100]}...")
+                    else:
+                        # Regular text response
+                        response_data = {
+                            "content": response,
+                            "factCheckStatus": "available",
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                        logger.info(f"[OAUTH_RESPONSE] Sent CJ response after OAuth: {response[:100]}...")
+                    
                     await websocket.send_json({
                         "type": "cj_message",
                         "data": response_data
                     })
-                    logger.info(f"[OAUTH_RESPONSE] Sent CJ response after OAuth: {response[:100]}...")
                 
                 # Also send confirmation that OAuth was processed
                 await websocket.send_json({
