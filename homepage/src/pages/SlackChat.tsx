@@ -305,6 +305,13 @@ const SlackChat = () => {
 		console.log('%c🤖 CJ Debug Interface Ready!', 'color: #00D4FF; font-size: 14px; font-weight: bold');
 		console.log('Type cj.help() for available commands');
 		
+		// Debug environment variables
+		console.log('%c🔧 Frontend Environment Variables:', 'color: #FF00FF; font-weight: bold');
+		console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+		console.log('VITE_AUTH_URL:', import.meta.env.VITE_AUTH_URL);
+		console.log('VITE_WS_BASE_URL:', import.meta.env.VITE_WS_BASE_URL);
+		console.log('VITE_PUBLIC_URL:', import.meta.env.VITE_PUBLIC_URL);
+		
 	}, [chatConfig, messages, isTyping, wsChat]);
 
 	const handleMessageSend = () => {

@@ -105,6 +105,13 @@ export function useWebSocketChat({
       return import.meta.env.VITE_WS_BASE_URL;
     }
     
+    // If we have an API base URL, convert it to WebSocket URL
+    if (import.meta.env.VITE_API_BASE_URL) {
+      const apiUrl = import.meta.env.VITE_API_BASE_URL;
+      // Convert https:// to wss:// or http:// to ws://
+      return apiUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+    }
+    
     // If we have a public URL (from ngrok), convert it to WebSocket URL
     if (import.meta.env.VITE_PUBLIC_URL) {
       const publicUrl = import.meta.env.VITE_PUBLIC_URL;
