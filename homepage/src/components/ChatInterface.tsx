@@ -30,6 +30,12 @@ interface Message {
 		factCheckAvailable?: boolean;
 		isThinking?: boolean;
 	};
+	ui_elements?: Array<{
+		id: string;
+		type: string;
+		provider: string;
+		placeholder: string;
+	}>;
 }
 
 interface Progress {
@@ -283,6 +289,13 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 										<p className="text-sm italic opacity-75">
 											{message.content}
 										</p>
+									) : message.sender === 'cj' ? (
+										<MessageContent
+											content={message.content}
+											conversationId={conversationId}
+											isThinking={message.metadata?.isThinking}
+											ui_elements={message.ui_elements}
+										/>
 									) : (
 										<div className="text-sm prose prose-sm max-w-none prose-invert">
 											<ReactMarkdown 

@@ -15,6 +15,12 @@ interface Message {
 	sender: 'user' | 'cj';
 	content: string;
 	timestamp: string;
+	ui_elements?: Array<{
+		id: string;
+		type: string;
+		provider: string;
+		placeholder: string;
+	}>;
 }
 
 interface ChatConfig {
@@ -34,7 +40,7 @@ const SlackChat = () => {
 	const [showDailyReport, setShowDailyReport] = useState(true);
 	
 	// Always skip config modal
-	const [showConfigModal] = useState(false);
+	const [showConfigModal, setShowConfigModal] = useState(false);
 	
 	// Update initial chatConfig
 	const [chatConfig, setChatConfig] = useState<ChatConfig>({

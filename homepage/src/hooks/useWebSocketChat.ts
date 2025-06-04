@@ -19,6 +19,12 @@ interface Message {
     factCheckAvailable?: boolean;
     isThinking?: boolean;
   };
+  ui_elements?: Array<{
+    id: string;
+    type: string;
+    provider: string;
+    placeholder: string;
+  }>;
 }
 
 interface Progress {
@@ -29,7 +35,7 @@ interface Progress {
 }
 
 interface WebSocketMessage {
-  type: 'system' | 'cj_thinking' | 'cj_message' | 'error' | 'fact_check_status' | 'oauth_complete';
+  type: 'system' | 'cj_thinking' | 'cj_message' | 'error' | 'fact_check_status' | 'oauth_complete' | 'conversation_started' | 'oauth_processed';
   message?: string;
   text?: string;
   progress?: Progress;
@@ -202,7 +208,7 @@ export function useWebSocketChat({
           break;
           
         case 'cj_message':
-          const messageData = data.data as { content?: string; timestamp?: string; factCheckStatus?: string } | undefined;
+          const messageData = data.data as { content?: string; timestamp?: string; factCheckStatus?: string; ui_elements?: any[] } | undefined;
           console.log('[WebSocket] Parsing cj_message:', { messageData, fullData: data });
           const cjMessage: Message = {
             id: `cj-${Date.now()}`,
@@ -212,7 +218,8 @@ export function useWebSocketChat({
             metadata: {
               ...data.metadata,
               factCheckAvailable: messageData?.factCheckStatus === 'available'
-            }
+            },
+            ui_elements: messageData?.ui_elements
           };
           console.log('[WebSocket] Created cj_message:', cjMessage);
           setState(prev => ({ 
@@ -368,7 +375,9 @@ export function useWebSocketChat({
         data: startData 
       });
       console.log('[WebSocket] Sending start_conversation message:', startMessage);
-      wsRef.current.send(startMessage);
+      if (wsRef.current) {
+        wsRef.current.send(startMessage);
+      }
       
       // Flush any queued messages
       flushMessageQueue();

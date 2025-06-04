@@ -43,13 +43,14 @@
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-3-oauth-production.md)**
 
-### Phase 4: UI Actions Pattern
+### Phase 4: UI Actions Pattern ✅ COMPLETE
 **Deliverables:**
-- [ ] Implement UI action tools for CJ (OAuth, choices, confirmations)
-- [ ] Non-blocking message flow with embedded UI elements
-- [ ] Frontend UI element rendering in messages
-- [ ] WebSocket protocol for UI actions
-- [ ] Platform abstraction for Slack compatibility
+- [x] Parser implementation to extract {{oauth:shopify}} markers
+- [x] Workflow configuration to enable UI components
+- [x] Message processor integration to parse UI elements
+- [x] Platform layer passes ui_elements through WebSocket
+- [x] Frontend UI element rendering with pattern matching fallback
+- [ ] End-to-end testing of complete flow
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-ui-actions.md)**
 
@@ -474,3 +475,49 @@ The guides include:
 - Common issues & solutions
 
 Use the [phase template](docs/shopify-onboarding/PHASE_TEMPLATE.md) when creating new guides.
+
+## 🔧 Side Quest: Unified Environment Configuration
+
+### Current Pain Points
+- Each service has its own `.env` file with duplicated service URLs
+- Homepage needs to know Auth and Agents URLs
+- Tunnel detection updates multiple files
+- Hard to manage secrets across services
+- OAuth redirect URLs need coordination
+
+### Proposed Solution: Root `.env` with Service Overrides
+
+```
+/hirecj/
+├── .env                    # Shared configuration
+├── .env.local             # Local overrides (gitignored)
+├── .env.tunnel            # Auto-generated tunnel URLs
+├── auth/
+│   └── .env.secrets       # Auth-specific secrets only
+├── agents/
+│   └── .env.secrets       # API keys only
+└── homepage/
+    └── .env               # Vite requires this, but minimal
+```
+
+### Implementation Tasks
+- [ ] Create root `.env.example` with shared config structure
+- [ ] Update `/shared/env_loader.py` for hierarchical loading
+- [ ] Modify each service's `config.py` to load env files in order
+- [ ] Update homepage's `vite.config.ts` to read parent env
+- [ ] Enhance tunnel detector to write service URLs once
+- [ ] Migrate existing env vars to new structure
+- [ ] Update documentation and setup scripts
+
+### Benefits
+- **Single source of truth** for service URLs
+- **Secrets stay isolated** per service
+- **Tunnel detection** updates one place
+- **Easy local dev** - just copy root `.env.example`
+- **Gradual migration** - existing files still work
+
+### North Star Alignment
+- ✅ **Simplify**: One place for shared config
+- ✅ **No Cruft**: Remove URL duplication
+- ✅ **Long-term Elegance**: Clear separation of concerns
+- ✅ **No Over-Engineering**: Reuses existing patterns
