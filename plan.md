@@ -33,11 +33,12 @@
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-2-auth-flow.md)**
 
-### Phase 3: OAuth Production Ready ✅ IMPLEMENTED
+### Phase 3: OAuth Production Ready ⚠️ NEEDS CUSTOM APP SUPPORT
 **Deliverables:**
 - [x] Configure real Shopify OAuth credentials
 - [x] Fix ngrok tunnel integration for OAuth callbacks
 - [x] Verify new vs returning merchant detection implementation
+- [ ] Support Shopify custom app installation flow *(NEW REQUIREMENT)*
 - [ ] Test OAuth flow end-to-end with real Shopify (manual testing required)
 - [ ] Test CJ's response to OAuth completion (manual testing required)
 
@@ -49,7 +50,63 @@
 - Tunnel detection working correctly via unified env config
 - Homepage automatically uses correct auth service URL
 - New vs returning merchant detection already implemented
-- Ready for manual end-to-end testing
+- **DISCOVERED:** Custom apps require different installation flow than public apps
+
+### Phase 3.5: Shopify Custom App Support
+**Problem:** Shopify custom apps don't use standard OAuth flow. They require:
+1. Custom install link (provided by Shopify)
+2. Session token authentication after installation
+3. Token exchange for API access
+
+**Elegant Solution: Dual-Mode OAuth Support**
+```
+App Type Detection:
+├── Public App Mode (standard OAuth)
+│   └── Current implementation works
+└── Custom App Mode (new)
+    ├── Use custom install link
+    ├── Handle post-install token exchange
+    └── Session token validation
+
+Configuration:
+- SHOPIFY_APP_TYPE=custom|public (in .env)
+- SHOPIFY_CUSTOM_INSTALL_LINK=https://... (if custom)
+```
+
+**Implementation Plan:**
+1. **Frontend Changes:**
+   - Detect app type from config
+   - For custom apps: open install link in popup
+   - For public apps: use existing OAuth flow
+   - Handle post-install callback differently
+
+2. **Backend Changes:**
+   - Add `/api/v1/shopify/install-custom` endpoint
+   - Implement session token validation
+   - Support token exchange flow
+   - Auto-detect app type based on config
+
+3. **Seamless UX:**
+   - Same "Connect Shopify" button
+   - Backend routes to appropriate flow
+   - Transparent to merchants
+   - CJ responds identically
+
+**Benefits:**
+- ✅ Supports both app types elegantly
+- ✅ No code duplication
+- ✅ Single source of truth for app type
+- ✅ Easy to switch between modes
+- ✅ Future-proof for Shopify changes
+
+**North Star Alignment:**
+- 🌟 **Simplify**: One button, two flows, transparent to user
+- 🌟 **No Cruft**: Reuse existing OAuth infrastructure
+- 🌟 **Long-term Elegance**: Config-driven app type selection
+- 🌟 **Backend-Driven**: Frontend just opens URLs, backend handles complexity
+- 🌟 **Single Source of Truth**: App type in environment config
+
+📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.5-custom-apps.md)** *(TODO)*
 
 ### Phase 4: UI Actions Pattern ✅ COMPLETE
 **Deliverables:**
