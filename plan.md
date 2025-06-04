@@ -52,99 +52,50 @@
 - New vs returning merchant detection already implemented
 - **DISCOVERED:** Custom apps require different installation flow than public apps
 
-### Phase 3.5: Replace OAuth with Custom App Flow ❌ CRITICAL FAILURE
-**Problem:** We're using Shopify custom apps, which don't support standard OAuth. Current implementation causes "Unauthorized Access" errors.
+### Phase 3.5: ~~Complex App Bridge Implementation~~ ❌ ABANDONED
+**Problem:** We implemented a complex App Bridge solution that requires embedded context, but our use case needs everything to work on hirecj.ai directly.
 
-**Simple Solution: Remove OAuth, Use Custom App Flow Only**
+**What We Built (Overly Complex):**
+- App Bridge integration requiring embedded context
+- Session token retrieval from within Shopify admin
+- Complex dual-context handling
+- JWT verification and token exchange (good parts)
+
+**Why It Failed:** Fundamental mismatch - we need merchants to use HireCJ from hirecj.ai, not from within Shopify admin.
+
+### Phase 3.6: Simplified Redirect Flow 🎯 CURRENT PRIORITY
+**Solution:** Use Shopify's simple redirect flow where they send users back with an id_token after installation.
+
+**The Right Flow:**
 ```
-Custom App Flow:
-├── Frontend opens custom install link
-├── Merchant installs app
-├── Backend validates session token
-└── Exchange for API access token
+Simple Redirect Flow:
+├── User clicks "Connect Shopify" on hirecj.ai
+├── Redirects to Shopify install link
+├── User approves installation
+├── Shopify redirects back to hirecj.ai/api/v1/shopify/connected?id_token=XXX
+├── Backend exchanges token and stores it
+└── Redirect to chat - everything on OUR site!
 ```
 
-**Current Audit Status: CRITICAL FAILURE**
-- ✅ OAuth code deleted (Priority 1 complete)
-- ✅ Magic numbers fixed (Priority 2 complete)
-- ❌ Mocked tokens still exist (`mock-session-token`)
-- ❌ JWT verification still disabled (`verify_signature: False`)
-- ❌ In-memory storage (data loss on restart)
-- ❌ Cannot make real Shopify API calls
+**Benefits:**
+- No App Bridge needed
+- No embedded context required
+- Everything stays on hirecj.ai
+- Simple redirect handling (~50 lines vs 200+)
+- Works exactly how we need it to
 
-**Definition of Done Score: 2/6 = 33%**
+**Implementation Status: NOT STARTED**
 
-📄 **[Current Audit Report →](docs/shopify-onboarding/PHASE-3.5-AUDIT-CURRENT.md)**
+📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.6-simplified-redirect-flow.md)**
 
-**Actually Completed (Properly):**
-1. **Removed ALL OAuth Code:** ✅
-   - [x] Deleted `/oauth/shopify/*` endpoints completely
-   - [x] Deleted OAuth models and providers
-   - [x] Cleaned up all references
-
-2. **Fixed Magic Numbers:** ✅
-   - [x] Created shared constants files
-   - [x] Replaced all hardcoded values
-
-**Still Broken (Needs Completion):**
-3. **Basic Custom App Flow:**
-   - [x] Added `SHOPIFY_CUSTOM_INSTALL_LINK` to env config
-   - [x] Frontend opens install link directly
-   - [x] Backend handles session tokens ❌ But mocked
-   - [x] Polling mechanism ✅ Fixed magic numbers
-
-**Required to Meet North Star Standards:**
-
-### ✅ Immediate Actions (COMPLETE)
-1. **Delete ALL OAuth Code** ✅
-   - [x] Delete `auth/app/api/oauth.py` completely
-   - [x] Delete `auth/app/providers/` directory
-   - [x] Remove commented OAuth routes from `main.py`
-   - [x] Delete any OAuth-related tests
-
-2. **Fix Magic Numbers** ✅
-   - [x] Create `shared/constants.py` with:
-     ```python
-     SHOPIFY_INSTALL_POLL_INTERVAL_MS = 2000
-     SHOPIFY_INSTALL_TIMEOUT_MS = 600000  # 10 minutes
-     SHOPIFY_SESSION_EXPIRE_MINUTES = 30
-     ```
-   - [x] Update frontend to use constants
-   - [x] Update backend timeouts to use constants
-
-### 📦 Proper Implementation (This Week)
-3. **Real Session Token Handling**
-   - [ ] Add Shopify App Bridge to frontend
-   - [ ] Implement proper session token retrieval
-   - [ ] Add PyJWT with RS256 support
-   - [ ] Fetch and cache Shopify's public key
-   - [ ] Implement proper JWT verification
-
-4. **Real Token Exchange**
-   - [ ] Research Shopify token exchange API
-   - [ ] Implement actual API call to Shopify
-   - [ ] Handle token storage properly
-   - [ ] Add retry logic with exponential backoff
-
-5. **Proper Storage**
-   - [ ] Add Redis configuration to `.env`
-   - [ ] Replace in-memory dicts with Redis
-   - [ ] Add proper TTLs to sessions
-   - [ ] Handle Redis connection failures gracefully
-
-### ✅ Definition of Done
-- Zero OAuth code remains in codebase
-- No mocked implementations
-- No disabled security checks
-- No magic numbers
-- Proper persistent storage
-- Production-ready code that fully works
-
-**Only when ALL items are complete can this be marked as IMPLEMENTED**
-
-📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.5-custom-app-only.md)**
-📄 **[Testing Guide →](docs/shopify-onboarding/phase-3.5-testing.md)**
-📄 **[Completion Checklist →](docs/shopify-onboarding/phase-3.5-completion.md)** *(TODO)*
+### What We Keep from 3.5:
+- ✅ OAuth code deletion (already done)
+- ✅ Magic number fixes (already done)
+- ✅ JWT verification service (reusable)
+- ✅ Token exchange service (reusable)
+- ❌ App Bridge integration (remove)
+- ❌ Polling mechanism (remove)
+- ❌ Complex context handling (remove)
 
 ### Phase 4: UI Actions Pattern ✅ COMPLETE
 **Deliverables:**

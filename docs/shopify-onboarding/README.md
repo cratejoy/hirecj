@@ -14,6 +14,12 @@ The Shopify onboarding project implements a conversational flow where CJ guides 
 3. **[Phase 3: OAuth Production Setup](phase-3-oauth-production.md)** - Production OAuth configuration
 4. **[Phase 4: UI Actions Pattern](phase-4-ui-actions.md)** - Inline UI elements (OAuth button)
 
+### 🚫 Abandoned
+- **Phase 3.5: App Bridge Implementation** - Too complex, required embedded context we don't need
+
+### 🎯 Current Priority
+- **[Phase 3.6: Simplified Redirect Flow](phase-3.6-simplified-redirect-flow.md)** - Simple redirect-based auth that keeps everything on hirecj.ai
+
 ### 📝 TODO Guides
 5. **[Phase 5: Quick Value Demo](phase-5-quick-value.md)** - Shopify data fetching, insights display
 6. **[Phase 6: Support System Connection](phase-6-support-systems.md)** - Multi-provider OAuth, graceful handling
