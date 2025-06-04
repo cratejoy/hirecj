@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 import os
 from sqlalchemy.dialects.postgresql import insert
 from app.utils.supabase_util import get_db_session
-from app.models.base import Merchant, MerchantIntegration
+from app.dbmodels.base import Merchant, MerchantIntegration
 
 def seed_test_merchant(merchant_name: str):
     """Create a test merchant record using SQLAlchemy."""
@@ -60,7 +60,7 @@ def seed_merchant_integrations(merchant_id: int):
         if freshdesk_key:
             stmt = insert(MerchantIntegration).values(
                 merchant_id=merchant_id,
-                type='freshdesk',
+                platform='freshdesk',
                 api_key=freshdesk_key,
                 config={
                     'domain': os.getenv('FRESHDESK_DOMAIN', 'cratejoy.freshdesk.com')
@@ -69,7 +69,7 @@ def seed_merchant_integrations(merchant_id: int):
             )
             
             stmt = stmt.on_conflict_do_update(
-                index_elements=['merchant_id', 'type'],
+                index_elements=['merchant_id', 'platform'],
                 set_={
                     'api_key': stmt.excluded.api_key,
                     'config': stmt.excluded.config,
@@ -84,7 +84,7 @@ def seed_merchant_integrations(merchant_id: int):
         if shopify_key:
             stmt = insert(MerchantIntegration).values(
                 merchant_id=merchant_id,
-                type='shopify',
+                platform='shopify',
                 api_key=shopify_key,
                 config={
                     'shop_name': os.getenv('SHOPIFY_SHOP_NAME', 'amir-elaguizy'),
@@ -94,7 +94,7 @@ def seed_merchant_integrations(merchant_id: int):
             )
             
             stmt = stmt.on_conflict_do_update(
-                index_elements=['merchant_id', 'type'],
+                index_elements=['merchant_id', 'platform'],
                 set_={
                     'api_key': stmt.excluded.api_key,
                     'config': stmt.excluded.config,

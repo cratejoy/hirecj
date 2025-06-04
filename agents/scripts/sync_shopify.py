@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from app.utils.supabase_util import get_db_session
-from app.models.base import Merchant
+from app.dbmodels.base import Merchant
 from app.lib.shopify_lib import ShopifyETL
 
 

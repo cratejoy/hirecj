@@ -9,6 +9,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     UniqueConstraint,
     Index,
     Text,
@@ -91,7 +92,7 @@ class ShopifyCustomer(Base, TimestampMixin):
 
 
 class FreshdeskTicket(Base, TimestampMixin):
-    """ETL table for Freshdesk ticket records with flexible JSONB storage."""
+    """ETL table for core Freshdesk ticket data (excluding conversations and ratings)."""
 
     __tablename__ = "etl_freshdesk_tickets"
 
@@ -102,10 +103,22 @@ class FreshdeskTicket(Base, TimestampMixin):
         nullable=False,
     )
     freshdesk_ticket_id = Column(String(255), primary_key=True, nullable=False)
-    data = Column(JSONB, nullable=False, default={})  # Flexible ticket data storage
+    data = Column(JSONB, nullable=False, default={})  # Core ticket data only
 
     # Relationships
     merchant = relationship("Merchant", back_populates="freshdesk_tickets")
+    conversations = relationship(
+        "FreshdeskConversation", 
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        uselist=False  # One-to-one relationship
+    )
+    rating = relationship(
+        "FreshdeskRating", 
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        uselist=False  # One-to-one relationship
+    )
 
     # Constraints and indexes
     __table_args__ = (
@@ -122,6 +135,61 @@ class FreshdeskTicket(Base, TimestampMixin):
 
     def __repr__(self):
         return f"<FreshdeskTicket(freshdesk_ticket_id='{self.freshdesk_ticket_id}', merchant_id={self.merchant_id})>"
+
+
+class FreshdeskConversation(Base, TimestampMixin):
+    """ETL table for Freshdesk ticket conversations."""
+
+    __tablename__ = "etl_freshdesk_conversations"
+
+    freshdesk_ticket_id = Column(
+        String(255), 
+        ForeignKey("etl_freshdesk_tickets.freshdesk_ticket_id", ondelete="CASCADE"),
+        primary_key=True, 
+        nullable=False
+    )
+    data = Column(JSONB, nullable=False, default={})  # Array of conversation entries
+
+    # Relationships
+    ticket = relationship("FreshdeskTicket", back_populates="conversations")
+
+    # Constraints and indexes
+    __table_args__ = (
+        Index("idx_freshdesk_conversations_ticket_id", "freshdesk_ticket_id"),
+    )
+
+    def __repr__(self):
+        return f"<FreshdeskConversation(freshdesk_ticket_id='{self.freshdesk_ticket_id}')>"
+
+
+class FreshdeskRating(Base, TimestampMixin):
+    """ETL table for Freshdesk satisfaction ratings (one per ticket max)."""
+
+    __tablename__ = "etl_freshdesk_ratings"
+
+    freshdesk_ticket_id = Column(
+        String(255), 
+        ForeignKey("etl_freshdesk_tickets.freshdesk_ticket_id", ondelete="CASCADE"),
+        primary_key=True, 
+        nullable=False
+    )
+    data = Column(JSONB, nullable=False, default={})  # Rating data
+
+    # Relationships
+    ticket = relationship("FreshdeskTicket", back_populates="rating")
+
+    # Constraints and indexes
+    __table_args__ = (
+        Index("idx_freshdesk_ratings_ticket_id", "freshdesk_ticket_id"),
+        Index(
+            "idx_freshdesk_ratings_rating", 
+            data["rating"].astext,
+            postgresql_where=data["rating"].astext.isnot(None)
+        ),
+    )
+
+    def __repr__(self):
+        return f"<FreshdeskRating(freshdesk_ticket_id='{self.freshdesk_ticket_id}')>"
 
 
 class SyncMetadata(Base, TimestampMixin):
@@ -164,9 +232,9 @@ class MerchantIntegration(Base, TimestampMixin):
     merchant_id = Column(
         Integer, ForeignKey("merchants.id", ondelete="CASCADE"), nullable=False
     )
-    type = Column(
+    platform = Column(
         String(50), nullable=False
-    )  # Integration type (freshdesk, shopify) - now a string
+    )  # Integration platform (freshdesk, shopify)
     api_key = Column(Text, nullable=False)  # Encrypted in application layer
     config = Column(
         JSONB, nullable=False, default={}
@@ -178,14 +246,14 @@ class MerchantIntegration(Base, TimestampMixin):
 
     # Constraints and indexes
     __table_args__ = (
-        UniqueConstraint("merchant_id", "type", name="uq_merchant_integration_type"),
+        UniqueConstraint("merchant_id", "platform", name="uq_merchant_integration_platform"),
         Index("idx_merchant_integrations_merchant_id", "merchant_id"),
-        Index("idx_merchant_integrations_type", "type"),
+        Index("idx_merchant_integrations_platform", "platform"),
         Index("idx_merchant_integrations_is_active", "is_active"),
     )
 
     def __repr__(self):
-        return f"<MerchantIntegration(merchant_id={self.merchant_id}, type='{self.type}', is_active={self.is_active})>"
+        return f"<MerchantIntegration(merchant_id={self.merchant_id}, platform='{self.platform}', is_active={self.is_active})>"
 
 
 class DailyTicketSummary(Base, TimestampMixin):

@@ -6,19 +6,24 @@ import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
-def run_command(cmd, description):
+def run_command(cmd, description, ignore_errors=False):
     """Run a command and handle errors."""
     print(f"\n📌 {description}...")
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
     
     if result.returncode != 0:
-        print(f"❌ Failed: {description}")
-        print(f"Error: {result.stderr}")
-        sys.exit(1)
-    
-    print(f"✅ {description} completed")
-    if result.stdout:
-        print(result.stdout)
+        if ignore_errors:
+            print(f"⚠️  {description} had warnings but continuing...")
+            if result.stderr:
+                print(f"   Details: {result.stderr.strip()}")
+        else:
+            print(f"❌ Failed: {description}")
+            print(f"Error: {result.stderr}")
+            sys.exit(1)
+    else:
+        print(f"✅ {description} completed")
+        if result.stdout:
+            print(result.stdout)
 
 def fill_database():
     """Run migrations, seed data, and sync recent records."""
@@ -38,7 +43,7 @@ def fill_database():
     print("STEP 1: Running migrations")
     print("="*60)
     
-    migrations_dir = scripts_dir / "migrations"
+    migrations_dir = base_dir / "app" / "migrations"
     migrations = [
         "001_create_all_tables.sql"  # This already creates tables with the new schema
     ]
@@ -48,7 +53,8 @@ def fill_database():
         if migration_path.exists():
             run_command(
                 f"cd {base_dir} && source venv/bin/activate && python scripts/run_migration.py {migration_path}",
-                f"Migration: {migration}"
+                f"Migration: {migration}",
+                ignore_errors=True  # Ignore if migration already exists
             )
     
     # Step 2: Seed test merchant
@@ -75,13 +81,10 @@ def fill_database():
     print("\n" + "="*60)
     print("STEP 4: Syncing Freshdesk tickets with conversations")
     print("="*60)
-    print("📌 Using smart sync strategy:")
-    print("   - Fetching all tickets from last 90 days")
-    print("   - Fetching conversations only for tickets from last 30 days")
     print("⚠️  Note: This fetches conversations individually and may take time")
     
     run_command(
-        f"cd {base_dir} && source venv/bin/activate && python scripts/sync_freshdesk.py --days 90 --conversation-days 30",
+        f"cd {base_dir} && source venv/bin/activate && python scripts/sync_freshdesk.py --days 7 --max-pages 2",
         "Smart sync of Freshdesk tickets"
     )
     
@@ -93,7 +96,7 @@ def fill_database():
     # Get counts using Python to avoid shell issues
     summary_cmd = f"""cd {base_dir} && source venv/bin/activate && python -c "
 from app.utils.supabase_util import get_db_session
-from app.models.base import Merchant, ShopifyCustomer, FreshdeskTicket
+from app.dbmodels.base import Merchant, ShopifyCustomer, FreshdeskTicket
 from sqlalchemy import text
 with get_db_session() as session:
     print(f'Merchants: {{session.query(Merchant).count()}}')

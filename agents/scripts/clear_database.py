@@ -28,22 +28,33 @@ def clear_database():
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             try:
+                # Drop all views first
+                print("Dropping views...")
+                cur.execute("""
+                    DROP VIEW IF EXISTS ticket_analytics CASCADE;
+                    DROP MATERIALIZED VIEW IF EXISTS daily_ticket_metrics CASCADE;
+                """)
+                
                 # Drop all tables (CASCADE will drop dependent objects)
                 print("Dropping tables...")
                 cur.execute("""
-                    DROP TABLE IF EXISTS merchant_integrations CASCADE;
-                    DROP TABLE IF EXISTS sync_metadata CASCADE;
+                    DROP TABLE IF EXISTS daily_ticket_summaries CASCADE;
+                    DROP TABLE IF EXISTS etl_freshdesk_ratings CASCADE;
+                    DROP TABLE IF EXISTS etl_freshdesk_conversations CASCADE;
                     DROP TABLE IF EXISTS etl_freshdesk_tickets CASCADE;
                     DROP TABLE IF EXISTS etl_shopify_customers CASCADE;
+                    DROP TABLE IF EXISTS merchant_integrations CASCADE;
+                    DROP TABLE IF EXISTS sync_metadata CASCADE;
                     DROP TABLE IF EXISTS support_tickets CASCADE;
                     DROP TABLE IF EXISTS customers CASCADE;
                     DROP TABLE IF EXISTS merchants CASCADE;
                 """)
                 
-                # Drop the trigger function
+                # Drop all functions
                 print("Dropping functions...")
                 cur.execute("""
                     DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
+                    DROP FUNCTION IF EXISTS refresh_daily_metrics() CASCADE;
                 """)
                 
                 # Drop enum types

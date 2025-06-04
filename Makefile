@@ -30,6 +30,13 @@ help:
 	@echo "  make fill-db      - Fill database with migrations and test data"
 	@echo "  make reset-db     - Clear and refill agents database"
 	@echo "  make migrate-agents - Run agents database migrations"
+	@echo ""
+	@echo "Freshdesk sync commands:"
+	@echo "  make sync-freshdesk - Sync all Freshdesk data (tickets, conversations, ratings)"
+	@echo "  make sync-tickets   - Sync only Freshdesk tickets"
+	@echo "  make sync-conversations - Sync only ticket conversations"
+	@echo "  make sync-ratings   - Sync only satisfaction ratings"
+	@echo "  make test-freshdesk-sync - Test the sync functionality"
 
 # Install all dependencies
 install:
@@ -307,6 +314,27 @@ reset-db: clear-db fill-db
 migrate-agents:
 	@echo "🔄 Running agents database migrations..."
 	cd agents && . venv/bin/activate && python scripts/run_migration.py
+
+# Sync Freshdesk data
+sync-freshdesk:
+	@echo "🔄 Syncing Freshdesk data (all components)..."
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py
+
+sync-tickets:
+	@echo "🎫 Syncing Freshdesk tickets only..."
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py --tickets-only
+
+sync-conversations:
+	@echo "💬 Syncing Freshdesk conversations only..."
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py --conversations-only
+
+sync-ratings:
+	@echo "⭐ Syncing Freshdesk ratings only..."
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py --ratings-only
+
+test-freshdesk-sync:
+	@echo "🧪 Testing Freshdesk sync functionality..."
+	cd agents && . venv/bin/activate && python scripts/test_freshdesk_sync.py
 
 # Utilities
 clean:
