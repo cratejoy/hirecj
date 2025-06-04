@@ -417,7 +417,7 @@ class WebPlatform(Platform):
                     if workflow == "daily_briefing":
                         response = await self.message_processor.process_message(
                             session=session,
-                            message="Provide daily briefing",
+                            message="Provide daily briefing using the get_support_dashboard tool to fetch current metrics",
                             sender="merchant",
                         )
                     elif workflow == "shopify_onboarding":

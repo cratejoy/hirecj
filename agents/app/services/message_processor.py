@@ -12,6 +12,7 @@ from app.services.session_manager import Session
 from app.services.fact_extractor import FactExtractor
 from app.services.merchant_memory import MerchantMemoryService
 from app.logging_config import get_logger
+from app.config import settings
 
 logger = get_logger(__name__)
 
@@ -120,7 +121,7 @@ class MessageProcessor:
             data_agent=session.data_agent,
             merchant_memory=session.merchant_memory,
             oauth_metadata=oauth_metadata,
-            verbose=False,
+            verbose=settings.enable_verbose_logging,
         )
 
         # Create task
@@ -137,7 +138,7 @@ class MessageProcessor:
         )
 
         # Create crew and execute
-        crew = Crew(agents=[cj_agent], tasks=[task], verbose=False)
+        crew = Crew(agents=[cj_agent], tasks=[task], verbose=settings.enable_verbose_logging)
 
         await self._report_progress(session.id, "thinking", {"status": "generating"})
 

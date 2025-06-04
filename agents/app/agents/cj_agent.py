@@ -158,6 +158,9 @@ class CJAgent:
 
                 tools = create_universe_tools(self.data_agent)
                 logger.info(f"[CJ_AGENT] Loaded {len(tools)} universe tools")
+                # Log tool names for visibility
+                tool_names = [tool.name for tool in tools]
+                logger.info(f"[CJ_AGENT] Available tools: {', '.join(tool_names)}")
             except Exception as e:
                 logger.warning(f"[CJ_AGENT] Could not load universe tools: {e}")
         # No longer support deprecated data agents
@@ -240,6 +243,9 @@ class CJAgent:
         logger.info(f"[CJ_AGENT] - Workflow: {self.workflow_name or 'chat'}")
         logger.info(f"[CJ_AGENT] - Version: {self.cj_version}")
         logger.info(f"[CJ_AGENT] - Tools: {len(self.tools)} available")
+        if self.tools:
+            tool_names = [tool.name for tool in self.tools]
+            logger.info(f"[CJ_AGENT] - Tool names: {', '.join(tool_names)}")
         logger.info(
             f"[CJ_AGENT] - Caching: {'enabled' if self.enable_caching and self.provider == 'anthropic' else 'disabled'}"
         )
@@ -278,7 +284,14 @@ UNIVERSE DATA CONTEXT:
 - Business MRR: ${self.data_agent.base_metrics.get('mrr', 0):,}
 - CSAT: {self.data_agent.base_metrics.get('csat_score', 0)}/5
 
-You have structured tools available to access detailed universe data. Use them to answer specific questions.
+IMPORTANT: You have tools available to access detailed universe data:
+- get_support_dashboard: Use this to get current support queue metrics for daily briefings
+- search_support_tickets: Use this to find specific tickets or issues
+- get_customer_profile: Use this to get details about specific customers
+- get_trending_issues: Use this to identify patterns and trending problems
+- get_business_timeline: Use this to understand recent business events
+
+For daily briefings and workflow tasks, ALWAYS use these tools to get fresh, accurate data rather than relying on context alone.
 """
             return info
         except Exception as e:

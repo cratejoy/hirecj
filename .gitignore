@@ -161,3 +161,5 @@ celerybeat.pid
 third-party/LightRAG/.git/
 third-party/*/venv/
 third-party/*/node_modules/
+
+.ngrok.yml

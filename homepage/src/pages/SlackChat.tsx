@@ -41,7 +41,7 @@ const SlackChat = () => {
 		scenarioId: null, // No demo scenario
 		merchantId: null, // Will be set after OAuth
 		conversationId: uuidv4(),
-		workflow: 'shopify_onboarding' // Always start with onboarding
+		workflow: 'daily_briefing' // Always start with onboarding
 	});
 	
 
