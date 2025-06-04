@@ -11,6 +11,17 @@ Implement a simple, extensible pattern for CJ to embed UI elements in conversati
 - **Single Source of Truth**: One pattern for UI elements
 - **Long-term Elegance**: Easy to extend when needed
 
+## ✅ Implementation Checklist
+
+Phase 4 is complete when all sub-phases are complete:
+
+- [ ] **Phase 4.1**: Parser implementation and unit tests passing
+- [ ] **Phase 4.2**: Workflow configuration tested and working
+- [ ] **Phase 4.3**: Message processor integration verified
+- [ ] **Phase 4.4**: Platform layer passing UI elements
+- [ ] **Phase 4.5**: Frontend rendering buttons correctly
+- [ ] **End-to-End**: Complete flow tested manually
+
 ## 🔬 Research & Evolution
 
 Based on research in [`notes/interactive_ui_elements.md`](../../../notes/interactive_ui_elements.md), we explored several approaches:
@@ -757,19 +768,6 @@ Here's how the OAuth button flows through all phases:
 2. Chainlit Documentation, "Actions and Callbacks," chainlit.io
 3. OpenAI Developer Community, "GPT function calling and showing results in UI," 2024
 4. Dharmesh Shah, "Beyond Chat: Blending UI for an AI World," May 2025
-
----
-
-## ✅ Final Success Criteria
-
-Phase 4 is complete when all sub-phases are complete:
-
-- [ ] **Phase 4.1**: Parser implementation and unit tests passing
-- [ ] **Phase 4.2**: Workflow configuration tested and working
-- [ ] **Phase 4.3**: Message processor integration verified
-- [ ] **Phase 4.4**: Platform layer passing UI elements
-- [ ] **Phase 4.5**: Frontend rendering buttons correctly
-- [ ] **End-to-End**: Complete flow tested manually
 
 ---
 
