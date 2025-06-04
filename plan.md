@@ -1,5 +1,28 @@
 # Shopify Login & Onboarding Plan
 
+## 📊 Current Status Summary
+
+### ✅ Completed Phases
+1. **Phase 1: Foundation** - Onboarding workflow, CJ agent, OAuth button component
+2. **Phase 2: Auth Flow Integration** - OAuth callbacks, shop domain identifier, context updates
+3. **Phase 3.7: OAuth 2.0 Implementation** - Full OAuth flow with HMAC verification, token storage
+4. **Phase 4: UI Actions Pattern** - Parser, workflow config, WebSocket integration
+
+### 🎯 Current Priority
+**Phase 5: Quick Value Demo** - Show immediate insights after Shopify connection
+
+### 📅 Upcoming Phases
+- Phase 6: Support System Connection
+- Phase 7: Notification & Polish
+- Phase 8: Testing & Refinement
+
+### 🚀 Next Steps
+1. Test the OAuth flow end-to-end with the auth service running
+2. Begin Phase 5 implementation for quick value demonstration
+3. Ensure CJ provides immediate value post-OAuth connection
+
+---
+
 ## 🌟 North Star Principles
 
 1. **Simplify, Simplify, Simplify**: Every decision should make the code simpler, not more complex
@@ -73,7 +96,7 @@
 
 **Why It Failed:** Not a technical failure, but a Shopify limitation. Custom distribution apps simply don't support OAuth. To use OAuth, we need a different app type.
 
-### Phase 3.7: OAuth 2.0 Implementation 🎯 CURRENT PRIORITY
+### Phase 3.7: OAuth 2.0 Implementation ✅ COMPLETE
 **Solution:** Switch from custom distribution to OAuth-enabled app. Implement standard Shopify OAuth 2.0 authorization code grant flow.
 
 **The Right Flow:**
@@ -89,14 +112,21 @@ OAuth Flow:
 └── Redirect to chat - authenticated!
 ```
 
+**What We Built:**
+- ✅ HMAC verification utility for secure OAuth callbacks
+- ✅ Full OAuth endpoints with proper security (nonce validation)
+- ✅ Token exchange and storage in Redis
+- ✅ Updated frontend button to always collect shop domain
+- ✅ Fixed async/sync issues in auth service
+- ✅ Removed shop domain persistence (always ask)
+- ✅ Proper error handling and logging
+
 **Benefits:**
 - Standard OAuth flow that works for any app type
 - No manual token entry required
 - Production-ready authentication
 - Can eventually become a public app
 - Seamless merchant experience
-
-**Implementation Status: PLANNED**
 
 📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.7-oauth-implementation.md)**
 
@@ -120,12 +150,25 @@ OAuth Flow:
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-ui-actions.md)**
 
-### Phase 5: Quick Value Demo
+### Phase 5: Quick Value Demo 🎯 CURRENT PRIORITY
+**Goal:** Show immediate value after Shopify connection by providing quick insights about their store.
+
 **Deliverables:**
 - [ ] Quick insights service for Shopify data
 - [ ] Store snapshot queries (products, orders, customers)
 - [ ] Progressive data loading mechanism
 - [ ] Conversation UI showing real-time insights
+- [ ] CJ's value-driven responses post-OAuth
+
+**The Experience:**
+```
+After OAuth:
+├── "Great! Taking a quick look at your store..."
+├── Progressive loading of insights
+├── Show key metrics (products, recent orders, etc.)
+├── Natural transition to support system connection
+└── Build trust through immediate value
+```
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-quick-value.md)** *(TODO)*
 
