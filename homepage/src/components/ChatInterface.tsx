@@ -83,7 +83,7 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 			const fetchAnnotations = async () => {
 				setIsLoadingAnnotations(true);
 				try {
-					const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || '';
+					const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 					const response = await fetch(`${BACKEND_URL}/api/v1/conversations/${conversationId}`);
 
 					if (response.ok) {
@@ -390,7 +390,7 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 																onClick={async () => {
 																	if (messageIndex !== undefined) {
 																		try {
-																			const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || '';
+																			const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 																			const response = await fetch(
 																				`${BACKEND_URL}/api/v1/conversations/${conversationId}/annotations/${messageIndex}`,
 																				{ method: 'DELETE' }
@@ -538,7 +538,7 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 											throw new Error('Message index not available');
 										}
 
-										const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || '';
+										const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 										const response = await fetch(
 											`${BACKEND_URL}/api/v1/conversations/${conversationId}/annotations/${annotationModal.messageIndex}`,
 											{
