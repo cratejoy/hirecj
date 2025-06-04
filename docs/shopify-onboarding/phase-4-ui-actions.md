@@ -69,11 +69,15 @@ Frontend: Renders text with OAuth button at placeholder location
 4. **Simple Parsing**: Just find and replace markers
 5. **LLM Friendly**: Clear, unambiguous syntax
 
-## 📋 Implementation Steps
+## 📋 Phased Implementation Approach
 
-### 1. Create Simple UI Component Parser
+We'll implement UI Actions in phases, testing each step before moving to the next. This ensures each component works correctly before integration.
 
-Create a parser for OAuth button markers (designed to be extended later):
+### Phase 4.1: Parser Implementation & Testing
+
+**Goal**: Create and test the UI component parser in isolation
+
+#### Step 1: Create the Parser
 
 ```python
 # agents/app/services/ui_components.py
@@ -143,10 +147,91 @@ class UIComponentParser:
     # def parse_choices(self, content: str) -> Tuple[str, List[Dict]]:
     #     """Parse {{choices:option1,option2,option3}} markers."""
     #     pass
+```
 
-### 2. Workflow-Specific UI Enablement
+#### Step 2: Test the Parser
 
-Enable UI components at the workflow level to control what's available:
+Create unit tests to verify the parser works correctly:
+
+```python
+# tests/test_ui_components.py
+import pytest
+from app.services.ui_components import UIComponentParser
+
+def test_single_oauth_marker():
+    """Test parsing a single OAuth marker."""
+    parser = UIComponentParser()
+    content = "Let's connect your store: {{oauth:shopify}}"
+    
+    clean_content, components = parser.parse_oauth_buttons(content)
+    
+    # Verify content has placeholder
+    assert clean_content == "Let's connect your store: __OAUTH_BUTTON_1__"
+    
+    # Verify component extracted
+    assert len(components) == 1
+    assert components[0]['type'] == 'oauth_button'
+    assert components[0]['provider'] == 'shopify'
+    assert components[0]['placeholder'] == '__OAUTH_BUTTON_1__'
+
+def test_multiple_oauth_markers():
+    """Test parsing multiple OAuth markers."""
+    parser = UIComponentParser()
+    content = "First: {{oauth:shopify}} and second: {{oauth:shopify}}"
+    
+    clean_content, components = parser.parse_oauth_buttons(content)
+    
+    # Verify both placeholders
+    assert "__OAUTH_BUTTON_1__" in clean_content
+    assert "__OAUTH_BUTTON_2__" in clean_content
+    assert len(components) == 2
+
+def test_no_markers():
+    """Test content without markers passes through unchanged."""
+    parser = UIComponentParser()
+    content = "This is regular content with no markers"
+    
+    clean_content, components = parser.parse_oauth_buttons(content)
+    
+    assert clean_content == content
+    assert len(components) == 0
+
+def test_case_insensitive():
+    """Test marker parsing is case insensitive."""
+    parser = UIComponentParser()
+    content = "Connect: {{OAUTH:SHOPIFY}}"
+    
+    clean_content, components = parser.parse_oauth_buttons(content)
+    
+    assert "__OAUTH_BUTTON_1__" in clean_content
+    assert len(components) == 1
+```
+
+#### Step 3: Run Tests
+
+```bash
+# Run the parser tests
+pytest tests/test_ui_components.py -v
+
+# Expected output:
+# test_ui_components.py::test_single_oauth_marker PASSED
+# test_ui_components.py::test_multiple_oauth_markers PASSED
+# test_ui_components.py::test_no_markers PASSED
+# test_ui_components.py::test_case_insensitive PASSED
+```
+
+**✅ Phase 4.1 Complete When:**
+- [ ] Parser implementation complete
+- [ ] All unit tests passing
+- [ ] Parser handles edge cases (empty content, no markers, multiple markers)
+
+---
+
+### Phase 4.2: Workflow Configuration
+
+**Goal**: Update workflow loader to support UI components and test it works
+
+#### Step 1: Update Workflow Loader
 
 ```python
 # agents/app/workflows/loader.py (update existing)
@@ -185,9 +270,7 @@ UI COMPONENT AVAILABLE:
         return "\n".join(instructions)
 ```
 
-### 3. Update Shopify Onboarding Workflow
-
-Add UI component configuration to the workflow:
+#### Step 2: Update Shopify Onboarding Workflow
 
 ```yaml
 # agents/prompts/workflows/shopify_onboarding.yaml
@@ -222,9 +305,57 @@ workflow: |
      Once connected, I'll be able to show you insights about your customers."
 ```
 
-### 4. Minimal Middleware Integration
+#### Step 3: Test Workflow Loading
 
-Update the message processor to parse UI components:
+```python
+# tests/test_workflow_ui_components.py
+def test_workflow_loads_ui_instructions():
+    """Test that UI instructions are added to workflow."""
+    loader = WorkflowLoader()
+    workflow_data = loader.get_workflow("shopify_onboarding")
+    
+    # Verify UI instructions were added
+    assert "UI COMPONENT AVAILABLE" in workflow_data['workflow']
+    assert "{{oauth:shopify}}" in workflow_data['workflow']
+
+def test_workflow_without_ui_components():
+    """Test workflows without UI components aren't modified."""
+    loader = WorkflowLoader()
+    # Assuming we have a workflow without UI components
+    workflow_data = loader.get_workflow("basic_workflow")
+    
+    # Should not contain UI instructions
+    assert "UI COMPONENT AVAILABLE" not in workflow_data['workflow']
+```
+
+#### Step 4: Manual Test with CJ
+
+Test that CJ receives and uses the UI instructions:
+
+```python
+# Quick test script to verify CJ sees UI instructions
+from app.agents.cj_agent import CJAgent
+
+# Create CJ with shopify_onboarding workflow
+cj = CJAgent(workflow_name="shopify_onboarding")
+
+# Check that the workflow includes UI instructions
+print("UI instructions in workflow:", "{{oauth:shopify}}" in cj.workflow_prompt)
+```
+
+**✅ Phase 4.2 Complete When:**
+- [ ] Workflow loader supports UI component configuration
+- [ ] Shopify onboarding workflow has UI components enabled
+- [ ] Tests verify UI instructions are added to workflow
+- [ ] Manual test confirms CJ sees UI instructions
+
+---
+
+### Phase 4.3: Message Processor Integration
+
+**Goal**: Integrate the parser into message processing and verify it extracts UI elements
+
+#### Step 1: Update Message Processor
 
 ```python
 # agents/app/services/message_processor.py
@@ -253,9 +384,183 @@ async def _get_cj_response(self, session, message: str, is_system: bool = False)
     return response
 ```
 
-### 5. Frontend OAuth Button Component
+#### Step 2: Test Message Processing
 
-Update the frontend to handle messages with UI elements:
+```python
+# tests/test_message_processor_ui.py
+import pytest
+from unittest.mock import Mock, patch
+
+async def test_message_processor_parses_ui_elements():
+    """Test that message processor extracts UI elements from CJ response."""
+    processor = MessageProcessor()
+    
+    # Mock session with shopify_onboarding workflow
+    mock_session = Mock()
+    mock_session.conversation.workflow = "shopify_onboarding"
+    
+    # Mock CJ response with marker
+    with patch.object(processor, '_create_crew') as mock_crew:
+        mock_result = Mock()
+        mock_result.output = "Let's connect: {{oauth:shopify}}"
+        mock_crew.return_value.kickoff.return_value = mock_result
+        
+        response = await processor._get_cj_response(mock_session, "test message")
+        
+    # Verify response structure
+    assert response['type'] == 'message_with_ui'
+    assert '__OAUTH_BUTTON_1__' in response['content']
+    assert len(response['ui_elements']) == 1
+    assert response['ui_elements'][0]['type'] == 'oauth_button'
+
+async def test_message_processor_no_ui_for_other_workflows():
+    """Test that other workflows don't get UI parsing."""
+    processor = MessageProcessor()
+    
+    # Mock session with different workflow
+    mock_session = Mock()
+    mock_session.conversation.workflow = "other_workflow"
+    
+    # Mock CJ response with marker (should be ignored)
+    with patch.object(processor, '_create_crew') as mock_crew:
+        mock_result = Mock()
+        mock_result.output = "Text with {{oauth:shopify}}"
+        mock_crew.return_value.kickoff.return_value = mock_result
+        
+        response = await processor._get_cj_response(mock_session, "test message")
+        
+    # Should return raw response
+    assert isinstance(response, str)
+    assert "{{oauth:shopify}}" in response
+```
+
+#### Step 3: Integration Test
+
+Test the full flow from message to parsed response:
+
+```bash
+# Run integration test
+python -m pytest tests/test_message_processor_ui.py -v
+
+# Manual test with actual conversation
+# Start a conversation and verify CJ's response includes markers
+```
+
+**✅ Phase 4.3 Complete When:**
+- [ ] Message processor integrates UIComponentParser
+- [ ] Only shopify_onboarding workflow gets UI parsing
+- [ ] Tests verify UI elements are extracted correctly
+- [ ] Integration test shows full flow working
+
+---
+
+### Phase 4.4: Platform Layer Updates
+
+**Goal**: Update platform layer to pass UI elements through WebSocket
+
+#### Step 1: Update Web Platform
+
+```python
+# agents/app/platforms/web_platform.py
+
+async def _handle_cj_response(self, session, response_data):
+    """Handle CJ's response, which may include UI elements."""
+    
+    # Check if this is a structured response with UI elements
+    if isinstance(response_data, dict) and response_data.get("type") == "message_with_ui":
+        # Send message with embedded UI elements
+        await self.send_message(OutgoingMessage(
+            conversation_id=session.id,
+            sender="cj",
+            content=response_data["content"],
+            ui_elements=response_data.get("ui_elements", [])
+        ))
+    else:
+        # Regular text response
+        await self.send_message(OutgoingMessage(
+            conversation_id=session.id,
+            sender="cj",
+            content=str(response_data)
+        ))
+
+async def send_message(self, message: OutgoingMessage) -> bool:
+    """Enhanced to handle UI elements."""
+    
+    websocket_data = {
+        "type": "message",
+        "data": {
+            "id": message.message_id,
+            "sender": message.sender,
+            "content": message.content,
+            "timestamp": message.timestamp,
+            "metadata": message.metadata
+        }
+    }
+    
+    # Add UI elements if present
+    if hasattr(message, 'ui_elements') and message.ui_elements:
+        websocket_data["data"]["ui_elements"] = message.ui_elements
+    
+    await self.websocket.send_json(websocket_data)
+    return True
+```
+
+#### Step 2: Test WebSocket Message Format
+
+```python
+# tests/test_web_platform_ui.py
+async def test_websocket_includes_ui_elements():
+    """Test that UI elements are included in WebSocket messages."""
+    platform = WebPlatform()
+    mock_websocket = Mock()
+    platform.websocket = mock_websocket
+    
+    # Create message with UI elements
+    message = OutgoingMessage(
+        conversation_id="test-123",
+        sender="cj",
+        content="Connect here: __OAUTH_BUTTON_1__",
+        ui_elements=[{
+            'id': 'oauth_1',
+            'type': 'oauth_button',
+            'provider': 'shopify',
+            'placeholder': '__OAUTH_BUTTON_1__'
+        }]
+    )
+    
+    await platform.send_message(message)
+    
+    # Verify WebSocket data
+    sent_data = mock_websocket.send_json.call_args[0][0]
+    assert sent_data['data']['ui_elements'] is not None
+    assert len(sent_data['data']['ui_elements']) == 1
+    assert sent_data['data']['ui_elements'][0]['type'] == 'oauth_button'
+```
+
+#### Step 3: Manual WebSocket Test
+
+```javascript
+// Test in browser console
+ws = new WebSocket('ws://localhost:8001/ws/...');
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.log('UI Elements:', data.data?.ui_elements);
+};
+```
+
+**✅ Phase 4.4 Complete When:**
+- [ ] Platform layer handles structured responses with UI elements
+- [ ] WebSocket messages include ui_elements field
+- [ ] Tests verify UI elements are passed through
+- [ ] Manual test shows UI elements in WebSocket messages
+
+---
+
+### Phase 4.5: Frontend Implementation
+
+**Goal**: Implement frontend rendering of OAuth buttons at placeholder locations
+
+#### Step 1: Create MessageContent Component
 
 ```typescript
 // homepage/src/components/MessageContent.tsx
@@ -307,60 +612,110 @@ export const MessageContent: React.FC<MessageProps> = ({ message }) => {
 };
 ```
 
-### 6. Platform Message Handling
+#### Step 2: Frontend Unit Tests
 
-Update the platform layer to handle UI elements:
+```typescript
+// homepage/src/components/__tests__/MessageContent.test.tsx
+import { render, screen } from '@testing-library/react';
+import { MessageContent } from '../MessageContent';
 
-```python
-# agents/app/platforms/web_platform.py
+describe('MessageContent', () => {
+  it('renders OAuth button at placeholder location', () => {
+    const message = {
+      content: 'Connect your store: __OAUTH_BUTTON_1__',
+      ui_elements: [{
+        id: 'oauth_1',
+        type: 'oauth_button',
+        provider: 'shopify',
+        placeholder: '__OAUTH_BUTTON_1__'
+      }],
+      conversationId: 'test-123'
+    };
 
-async def _handle_cj_response(self, session, response_data):
-    """Handle CJ's response, which may include UI elements."""
-    
-    # Check if this is a structured response with UI elements
-    if isinstance(response_data, dict) and response_data.get("type") == "message_with_ui":
-        # Send message with embedded UI elements
-        await self.send_message(OutgoingMessage(
-            conversation_id=session.id,
-            sender="cj",
-            content=response_data["content"],
-            ui_elements=response_data.get("ui_elements", [])
-        ))
-    else:
-        # Regular text response
-        await self.send_message(OutgoingMessage(
-            conversation_id=session.id,
-            sender="cj",
-            content=str(response_data)
-        ))
+    render(<MessageContent message={message} />);
 
-async def send_message(self, message: OutgoingMessage) -> bool:
-    """Enhanced to handle UI elements."""
+    // Check text is rendered
+    expect(screen.getByText(/Connect your store:/)).toBeInTheDocument();
     
-    websocket_data = {
-        "type": "message",
-        "data": {
-            "id": message.message_id,
-            "sender": message.sender,
-            "content": message.content,
-            "timestamp": message.timestamp,
-            "metadata": message.metadata
-        }
-    }
-    
-    # Add UI elements if present
-    if hasattr(message, 'ui_elements') and message.ui_elements:
-        websocket_data["data"]["ui_elements"] = message.ui_elements
-    
-    await self.websocket.send_json(websocket_data)
-    return True
+    // Check button is rendered
+    expect(screen.getByRole('button')).toBeInTheDocument();
+  });
+
+  it('handles messages without UI elements', () => {
+    const message = {
+      content: 'Regular message without UI elements',
+      conversationId: 'test-123'
+    };
+
+    render(<MessageContent message={message} />);
+
+    expect(screen.getByText(/Regular message/)).toBeInTheDocument();
+  });
+
+  it('renders multiple buttons in correct positions', () => {
+    const message = {
+      content: 'First: __OAUTH_BUTTON_1__ Second: __OAUTH_BUTTON_2__',
+      ui_elements: [
+        { id: 'oauth_1', type: 'oauth_button', provider: 'shopify', placeholder: '__OAUTH_BUTTON_1__' },
+        { id: 'oauth_2', type: 'oauth_button', provider: 'shopify', placeholder: '__OAUTH_BUTTON_2__' }
+      ],
+      conversationId: 'test-123'
+    };
+
+    render(<MessageContent message={message} />);
+
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(2);
+  });
+});
 ```
 
-### 7. Future Extension Pattern
+#### Step 3: Run Frontend Tests
 
-When we need more UI components, we:
+```bash
+# Run component tests
+npm test MessageContent
 
-1. **Add new pattern to UIComponentParser:**
+# Run in watch mode for development
+npm test -- --watch
+```
+
+#### Step 4: End-to-End Test
+
+Test the complete flow from CJ to rendered button:
+
+1. Start new conversation
+2. Progress to Shopify connection point
+3. Verify CJ inserts `{{oauth:shopify}}` marker
+4. Verify button appears in correct position
+5. Click button and verify OAuth flow starts
+
+**✅ Phase 4.5 Complete When:**
+- [ ] MessageContent component splits content by placeholders
+- [ ] OAuth buttons render at placeholder locations
+- [ ] Unit tests verify component behavior
+- [ ] End-to-end test shows complete flow working
+
+---
+
+## 🎉 Phase 4 Implementation Complete!
+
+With all phases complete, you now have:
+- ✅ Parser that extracts UI markers from CJ's responses
+- ✅ Workflow configuration to enable UI components
+- ✅ Message processor integration
+- ✅ Platform layer passing UI elements through WebSocket
+- ✅ Frontend rendering buttons at exact marker locations
+
+---
+
+## 🚀 Future Extensions
+
+When we need more UI components, follow the same phased approach:
+
+### Adding Choice Buttons
+
+1. **Phase 1: Update Parser**
 ```python
 CHOICES_PATTERN = re.compile(r'{{choices:(.*?)}}')
 ```
@@ -374,150 +729,27 @@ ui_components:
     - choices
 ```
 
-3. **Add parsing logic and frontend component**
+3. **Phase 3: Add parsing logic**
+4. **Phase 4: Update frontend component**
+5. **Phase 5: Test end-to-end**
 
-### 8. Real-World Example Flow
-
-Here's exactly how the OAuth button flows through the system:
-
-#### Step 1: CJ Writes Response with Marker
-```
-CJ writes: "Let me help you connect your Shopify store so I can analyze your support patterns.
-
-{{oauth:shopify}}
-
-Once connected, I'll be able to see your customer data and support history."
-```
-
-#### Step 2: Parser Processes the Response
-```python
-# UIComponentParser finds the marker
-content = "Let me help you connect your Shopify store... {{oauth:shopify}} Once connected..."
-
-clean_content, ui_components = parser.parse_oauth_buttons(content)
-
-# Result:
-clean_content = "Let me help you connect your Shopify store... __OAUTH_BUTTON_1__ Once connected..."
-
-ui_components = [{
-    'id': 'oauth_1',
-    'type': 'oauth_button',
-    'provider': 'shopify',
-    'placeholder': '__OAUTH_BUTTON_1__'
-}]
-```
-
-#### Step 3: WebSocket Message
-```json
-{
-    "type": "message",
-    "data": {
-        "sender": "cj",
-        "content": "Let me help you connect your Shopify store... __OAUTH_BUTTON_1__ Once connected...",
-        "ui_elements": [{
-            "id": "oauth_1",
-            "type": "oauth_button",
-            "provider": "shopify",
-            "placeholder": "__OAUTH_BUTTON_1__"
-        }]
-    }
-}
-```
-
-#### Step 4: Frontend Renders
-The frontend:
-1. Splits content by placeholder
-2. Renders text parts with Markdown
-3. Inserts OAuth button at placeholder location
-4. Result: Text flows naturally with button exactly where CJ placed it
-
-### 9. Testing Strategy
-
-### Unit Tests
-```python
-# tests/test_ui_components.py
-def test_oauth_marker_parsing():
-    parser = UIComponentParser()
-    content = "Connect your store: {{oauth:shopify}}"
-    
-    clean_content, components = parser.parse_oauth_buttons(content)
-    
-    assert "__OAUTH_BUTTON_1__" in clean_content
-    assert len(components) == 1
-    assert components[0]['type'] == 'oauth_button'
-    assert components[0]['provider'] == 'shopify'
-
-def test_multiple_markers():
-    parser = UIComponentParser()
-    content = "First: {{oauth:shopify}} and second: {{oauth:shopify}}"
-    
-    clean_content, components = parser.parse_oauth_buttons(content)
-    
-    assert "__OAUTH_BUTTON_1__" in clean_content
-    assert "__OAUTH_BUTTON_2__" in clean_content
-    assert len(components) == 2
-```
-
-### Integration Tests
-1. Test CJ includes markers in appropriate workflow
-2. Test message processor parses markers correctly
-3. Test WebSocket sends ui_elements with messages
-4. Test frontend renders buttons at placeholder locations
-
-### Manual Testing Flow
-1. Start new conversation
-2. Progress naturally to Shopify connection point
-3. Verify CJ inserts {{oauth:shopify}} marker
-4. Verify button appears where marker was placed
-5. Complete OAuth flow
-6. Verify CJ continues conversation appropriately
-
-### 10. Platform Adaptations
-
-For platforms like Slack, we can convert markers to platform-specific formats:
-
-```python
-# Future enhancement: platform-specific rendering
-if platform == "slack":
-    # Convert UI elements to Slack Block Kit
-    blocks = convert_to_slack_blocks(ui_elements)
-```
-
-## 🏗️ Implementation Summary
-
-### What We're Building:
-- **Simple {{oauth:shopify}} marker** that CJ can use
-- **Workflow-specific enablement** (only shopify_onboarding for now)
-- **Basic parser** that replaces markers with placeholders
-- **Frontend** that renders OAuth button where markers were
-
-### What We're NOT Building (Yet):
-- Generic component system
-- Complex XML parsing
-- Component registry
-- Multiple UI element types
-- Base prompt modifications
-
-### Benefits:
-- **Dead simple to implement**: Just string replacement
-- **Solves immediate need**: OAuth button works
-- **Easy to extend when needed**: Add new patterns as we go
-- **No over-engineering**: Built exactly what we need
-- **Workflow authors control what's available**: Per-workflow enablement
-
-## 🚀 Future Enhancements
-
-When we need more UI components:
-
-1. **Choice Buttons**: `{{choices:option1,option2,option3}}`
-2. **Confirmation Dialogs**: `{{confirm:question}}`
-3. **Progress Indicators**: `{{progress:50}}`
-4. **Rich Media**: `{{image:url}}`, `{{chart:data}}`
-
-Each follows the same pattern:
+Each new UI element follows the same pattern:
 - Simple marker syntax
 - Parser extracts and replaces
 - Frontend renders at location
+
+---
+
+## 🔄 Example: Complete Flow
+
+Here's how the OAuth button flows through all phases:
+
+1. **CJ writes**: `"Connect your store: {{oauth:shopify}}"`
+2. **Parser extracts**: `"Connect your store: __OAUTH_BUTTON_1__"` + UI element data
+3. **WebSocket sends**: Message with content and ui_elements array
+4. **Frontend renders**: Text with OAuth button at placeholder location
+
+---
 
 ## 📚 References
 
@@ -526,23 +758,27 @@ Each follows the same pattern:
 3. OpenAI Developer Community, "GPT function calling and showing results in UI," 2024
 4. Dharmesh Shah, "Beyond Chat: Blending UI for an AI World," May 2025
 
-## ✅ Success Criteria
+---
 
-Phase 4 is complete when:
-- [ ] UIComponentParser implemented for OAuth buttons
-- [ ] Workflow loader adds UI instructions
-- [ ] Shopify onboarding workflow uses {{oauth:shopify}}
-- [ ] Message processor parses markers
-- [ ] Frontend renders OAuth button at marker location
-- [ ] CJ naturally incorporates markers in conversation
-- [ ] No blocking or deadlock issues
+## ✅ Final Success Criteria
 
-## 🔑 Key Principles
+Phase 4 is complete when all sub-phases are complete:
+
+- [ ] **Phase 4.1**: Parser implementation and unit tests passing
+- [ ] **Phase 4.2**: Workflow configuration tested and working
+- [ ] **Phase 4.3**: Message processor integration verified
+- [ ] **Phase 4.4**: Platform layer passing UI elements
+- [ ] **Phase 4.5**: Frontend rendering buttons correctly
+- [ ] **End-to-End**: Complete flow tested manually
+
+---
+
+## 🔑 Key Implementation Principles
 
 1. **Start Simple**: Just OAuth button marker
-2. **Precise Placement**: UI appears exactly where CJ puts it
-3. **Natural Writing**: Like using markdown
-4. **Easy Extension**: Add new markers as needed
+2. **Test Each Phase**: Verify before moving to next
+3. **Precise Placement**: UI appears exactly where CJ puts it
+4. **Natural Writing**: Like using markdown
 5. **No Over-Engineering**: Build what we need now
 
-This scaled-back approach follows our North Star: simplify, simplify, simplify. We build exactly what we need for OAuth buttons, but in a way that's trivial to extend when we need more UI elements.
+This phased approach ensures each component works correctly before integration, reducing debugging time and ensuring a solid foundation for future UI elements.
