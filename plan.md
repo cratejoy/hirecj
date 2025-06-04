@@ -52,59 +52,49 @@
 - New vs returning merchant detection already implemented
 - **DISCOVERED:** Custom apps require different installation flow than public apps
 
-### Phase 3.5: Shopify Custom App Support
-**Problem:** Shopify custom apps don't use standard OAuth flow. They require:
-1. Custom install link (provided by Shopify)
-2. Session token authentication after installation
-3. Token exchange for API access
+### Phase 3.5: Replace OAuth with Custom App Flow
+**Problem:** We're using Shopify custom apps, which don't support standard OAuth. Current implementation causes "Unauthorized Access" errors.
 
-**Elegant Solution: Dual-Mode OAuth Support**
+**Simple Solution: Remove OAuth, Use Custom App Flow Only**
 ```
-App Type Detection:
-├── Public App Mode (standard OAuth)
-│   └── Current implementation works
-└── Custom App Mode (new)
-    ├── Use custom install link
-    ├── Handle post-install token exchange
-    └── Session token validation
-
-Configuration:
-- SHOPIFY_APP_TYPE=custom|public (in .env)
-- SHOPIFY_CUSTOM_INSTALL_LINK=https://... (if custom)
+Custom App Flow:
+├── Frontend opens custom install link
+├── Merchant installs app
+├── Backend validates session token
+└── Exchange for API access token
 ```
 
 **Implementation Plan:**
-1. **Frontend Changes:**
-   - Detect app type from config
-   - For custom apps: open install link in popup
-   - For public apps: use existing OAuth flow
-   - Handle post-install callback differently
+1. **Remove Standard OAuth Code:**
+   - Delete `/oauth/shopify/authorize` endpoint
+   - Remove OAuth state management
+   - Simplify callback handling
 
-2. **Backend Changes:**
-   - Add `/api/v1/shopify/install-custom` endpoint
-   - Implement session token validation
-   - Support token exchange flow
-   - Auto-detect app type based on config
+2. **Implement Custom App Flow:**
+   - Add `SHOPIFY_CUSTOM_INSTALL_LINK` to env
+   - Frontend opens install link directly
+   - Backend handles session tokens only
+   - No redirect_uri complexity
 
-3. **Seamless UX:**
-   - Same "Connect Shopify" button
-   - Backend routes to appropriate flow
-   - Transparent to merchants
-   - CJ responds identically
+3. **Simplified UX:**
+   - "Connect Shopify" opens install link
+   - After install, validate session
+   - Store access token
+   - Continue conversation
 
 **Benefits:**
-- ✅ Supports both app types elegantly
-- ✅ No code duplication
-- ✅ Single source of truth for app type
-- ✅ Easy to switch between modes
-- ✅ Future-proof for Shopify changes
+- ✅ Removes broken OAuth code
+- ✅ Single, working flow
+- ✅ Less complexity
+- ✅ No mode switching needed
+- ✅ Exactly what Shopify custom apps need
 
 **North Star Alignment:**
-- 🌟 **Simplify**: One button, two flows, transparent to user
-- 🌟 **No Cruft**: Reuse existing OAuth infrastructure
-- 🌟 **Long-term Elegance**: Config-driven app type selection
-- 🌟 **Backend-Driven**: Frontend just opens URLs, backend handles complexity
-- 🌟 **Single Source of Truth**: App type in environment config
+- 🌟 **Simplify**: One flow that actually works
+- 🌟 **No Cruft**: Delete unused OAuth code
+- 🌟 **Break It & Fix It Right**: Replace broken flow entirely
+- 🌟 **Backend-Driven**: Simple session token validation
+- 🌟 **Single Source of Truth**: Only custom app flow exists
 
 📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.5-custom-apps.md)** *(TODO)*
 
