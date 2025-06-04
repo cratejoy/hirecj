@@ -96,25 +96,26 @@ def fill_database():
     # Get counts using Python to avoid shell issues
     summary_cmd = f"""cd {base_dir} && source venv/bin/activate && python -c "
 from app.utils.supabase_util import get_db_session
-from app.dbmodels.base import Merchant, ShopifyCustomer, FreshdeskTicket
+from app.dbmodels.base import Merchant, ShopifyCustomer, FreshdeskTicket, FreshdeskConversation, FreshdeskRating
 from sqlalchemy import text
 with get_db_session() as session:
     print(f'Merchants: {{session.query(Merchant).count()}}')
     print(f'Shopify Customers: {{session.query(ShopifyCustomer).count()}}')
     print(f'Freshdesk Tickets: {{session.query(FreshdeskTicket).count()}}')
+    print(f'  - Conversations: {{session.query(FreshdeskConversation).count()}}')
+    print(f'  - Ratings: {{session.query(FreshdeskRating).count()}}')
     
-    # Check conversation coverage
+    # Check conversation coverage using the separate table
     result = session.execute(text('''
         SELECT 
-            COUNT(*) as with_conversations,
+            COUNT(DISTINCT c.freshdesk_ticket_id) as with_conversations,
             (SELECT COUNT(*) FROM etl_freshdesk_tickets) as total
-        FROM etl_freshdesk_tickets 
-        WHERE data ? 'conversations'
+        FROM etl_freshdesk_conversations c
     '''))
     row = result.fetchone()
     if row[1] > 0:
         coverage = (row[0] / row[1]) * 100
-        print(f'  - With conversations: {{row[0]}}/{{row[1]}} ({{coverage:.1f}}%)')
+        print(f'  - Tickets with conversations: {{row[0]}}/{{row[1]}} ({{coverage:.1f}}%)')
 "
 """
     
