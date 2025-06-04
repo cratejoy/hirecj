@@ -24,6 +24,19 @@ help:
 	@echo "  make test-agents  - Test agents service"
 	@echo "  make deploy-auth  - Deploy auth to Heroku"
 	@echo "  make deploy-agents - Deploy agents to Heroku"
+	@echo ""
+	@echo "Database commands (agents service):"
+	@echo "  make clear-db     - Clear all data from agents database"
+	@echo "  make fill-db      - Fill database with migrations and test data"
+	@echo "  make reset-db     - Clear and refill agents database"
+	@echo "  make migrate-agents - Run agents database migrations"
+	@echo ""
+	@echo "Freshdesk sync commands:"
+	@echo "  make sync-freshdesk - Sync all Freshdesk data (tickets, conversations, ratings)"
+	@echo "  make sync-tickets   - Sync only Freshdesk tickets"
+	@echo "  make sync-conversations - Sync only ticket conversations"
+	@echo "  make sync-ratings   - Sync only satisfaction ratings"
+	@echo "  make test-freshdesk-sync - Test the sync functionality"
 
 # Install all dependencies
 install:
@@ -84,8 +97,12 @@ dev-auth:
 	cd auth && . venv/bin/activate && python -m app.main
 
 dev-agents:
-	@echo "🤖 Starting agents service..."
-	cd agents && . venv/bin/activate && python -m app.main
+	@echo "🤖 Starting agents service with file watcher..."
+	cd agents && . venv/bin/activate && python scripts/dev_watcher.py
+
+dev-agents-debug:
+	@echo "🤖 Starting agents service with file watcher (DEBUG mode)..."
+	cd agents && . venv/bin/activate && python scripts/dev_watcher.py --debug
 
 dev-homepage:
 	@echo "🌐 Starting homepage..."
@@ -278,6 +295,46 @@ db-reset:
 	@echo "⚠️  Resetting database..."
 	@echo "Please manually reset your local PostgreSQL database"
 	make db-migrate
+
+# HireCJ Data Database Management (agents service)
+clear-db:
+	@echo "⚠️  WARNING: This will delete all data from the agents database!"
+	@echo "Press Ctrl+C to cancel, or wait 3 seconds to continue..."
+	@sleep 3
+	cd agents && . venv/bin/activate && python scripts/clear_database.py --force
+
+fill-db:
+	@echo "🚀 Filling agents database with fresh data..."
+	cd agents && . venv/bin/activate && python scripts/fill_database.py
+
+reset-db: clear-db fill-db
+	@echo "✨ Agents database reset complete!"
+
+# Run migrations for agents database
+migrate-agents:
+	@echo "🔄 Running agents database migrations..."
+	cd agents && . venv/bin/activate && python scripts/run_migration.py
+
+# Sync Freshdesk data
+sync-freshdesk:
+	@echo "🔄 Syncing Freshdesk data (all components)..."
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py
+
+sync-tickets:
+	@echo "🎫 Syncing Freshdesk tickets only..."
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py --tickets-only
+
+sync-conversations:
+	@echo "💬 Syncing Freshdesk conversations only..."
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py --conversations-only
+
+sync-ratings:
+	@echo "⭐ Syncing Freshdesk ratings only..."
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py --ratings-only
+
+test-freshdesk-sync:
+	@echo "🧪 Testing Freshdesk sync functionality..."
+	cd agents && . venv/bin/activate && python scripts/test_freshdesk_sync.py
 
 # Utilities
 clean:

@@ -55,7 +55,7 @@ class CJAgent:
         self.scenario_context = kwargs.pop("scenario_context", "")
         self.verbose = kwargs.pop("verbose", True)
         self.oauth_metadata = kwargs.pop("oauth_metadata", None)
-        
+
         # Log memory status
         if self.merchant_memory:
             fact_count = len(self.merchant_memory.facts) if hasattr(self.merchant_memory, 'facts') else 0
@@ -103,7 +103,7 @@ class CJAgent:
         if self.workflow_name and self.workflow_data:
             context["workflow_name"] = self.workflow_name.upper().replace("_", " ")
             context["workflow_details"] = self.workflow_data.get("workflow", "")
-            
+
             # Add onboarding-specific context if available
             if self.workflow_name == "shopify_onboarding":
                 onboarding_context = self._extract_onboarding_context()
@@ -151,11 +151,11 @@ class CJAgent:
         if self.workflow_name == "support_daily":
             try:
                 from app.agents.database_tools import create_database_tools
-                
+
                 db_tools = create_database_tools(merchant_name=self.merchant_name)
                 tools.extend(db_tools)
                 logger.info(f"[CJ_AGENT] Loaded {len(db_tools)} database tools for support_daily workflow")
-                
+
                 # Log tool names for visibility
                 db_tool_names = [tool.name for tool in db_tools]
                 logger.info(f"[CJ_AGENT] Database tools: {', '.join(db_tool_names)}")
@@ -186,39 +186,38 @@ class CJAgent:
                 "Please use UniverseDataAgent instead."
             )
 
-        logger.info(f"[CJ_AGENT] Total tools available: {len(tools)}")
         return tools
 
     def _extract_onboarding_context(self) -> str:
         """Extract onboarding-specific context from conversation state."""
         context_parts = []
-        
+
         if not self.conversation_state or not self.conversation_state.context_window:
             context_parts.append("Phase: New conversation - start with warm greeting")
         else:
             # Simple phase tracking based on conversation length
             message_count = len(self.conversation_state.context_window)
-            
+
             if message_count <= 2:
                 context_parts.append("Phase: Initial greeting - focus on making merchant comfortable")
             elif message_count <= 4:
                 context_parts.append("Phase: Early conversation - naturally explore their needs")
             else:
                 context_parts.append("Phase: Established conversation - guide based on merchant responses")
-        
+
         # Check for OAuth status in session (passed through kwargs or state)
         oauth_metadata = getattr(self, 'oauth_metadata', None)
         if oauth_metadata and oauth_metadata.get('authenticated'):
             is_new = oauth_metadata.get('is_new_merchant', True)
             shop_domain = oauth_metadata.get('shop_domain', 'their store')
-            
+
             if is_new:
                 context_parts.append(f"OAuth Status: NEW merchant authenticated from {shop_domain} - they just connected their Shopify store for the first time!")
             else:
                 context_parts.append(f"OAuth Status: RETURNING merchant authenticated from {shop_domain} - they've used HireCJ before")
         else:
             context_parts.append("OAuth Status: Not yet authenticated - guide them to connect their Shopify store when appropriate")
-        
+
         return "\n".join(context_parts)
 
     def _create_agent(self, **kwargs) -> Agent:
@@ -237,7 +236,7 @@ class CJAgent:
         if self.data_agent is not None:
             universe_info = self._get_universe_info()
             backstory += universe_info
-            
+
         # Add merchant memory facts if available
         if self.merchant_memory and hasattr(self.merchant_memory, 'get_recent_facts'):
             facts = self.merchant_memory.get_recent_facts(20)  # Get up to 20 most recent facts
@@ -301,14 +300,7 @@ UNIVERSE DATA CONTEXT:
 - Business MRR: ${self.data_agent.base_metrics.get('mrr', 0):,}
 - CSAT: {self.data_agent.base_metrics.get('csat_score', 0)}/5
 
-IMPORTANT: You have tools available to access detailed universe data:
-- get_support_dashboard: Use this to get current support queue metrics for daily briefings
-- search_support_tickets: Use this to find specific tickets or issues
-- get_customer_profile: Use this to get details about specific customers
-- get_trending_issues: Use this to identify patterns and trending problems
-- get_business_timeline: Use this to understand recent business events
-
-For daily briefings and workflow tasks, ALWAYS use these tools to get fresh, accurate data rather than relying on context alone.
+You have structured tools available to access detailed universe data. Use them to answer specific questions.
 """
             return info
         except Exception as e:

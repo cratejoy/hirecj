@@ -9,6 +9,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     UniqueConstraint,
     Index,
     Text,
@@ -91,7 +92,7 @@ class ShopifyCustomer(Base, TimestampMixin):
 
 
 class FreshdeskTicket(Base, TimestampMixin):
-    """ETL table for Freshdesk ticket records with flexible JSONB storage."""
+    """ETL table for core Freshdesk ticket data (excluding conversations and ratings)."""
 
     __tablename__ = "etl_freshdesk_tickets"
 
@@ -102,10 +103,50 @@ class FreshdeskTicket(Base, TimestampMixin):
         nullable=False,
     )
     freshdesk_ticket_id = Column(String(255), primary_key=True, nullable=False)
-    data = Column(JSONB, nullable=False, default={})  # Flexible ticket data storage
+    data = Column(JSONB, nullable=False, default={})  # Core ticket data only
+    """
+    Example data content:
+    {
+        "freshdesk_id": "385450",                           # Internal reference
+        "subject": "New Vendor",                            # Ticket title
+        "description": "Hi, I'm interested in...",          # Initial message (text)
+        "status": 5,                                        # Status codes: 2=Open, 3=Pending, 4=Resolved, 5=Closed
+        "priority": 1,                                      # Priority: 1=Low, 2=Medium, 3=High, 4=Urgent
+        "type": "Question",                                 # Ticket type (Question, Problem, etc.)
+        "tags": ["vendor", "new"],                          # Tags array
+        "created_at": "2025-06-04T14:22:45Z",              # When ticket was created
+        "updated_at": "2025-06-04T16:20:30Z",              # Last update time
+        "due_by": "2025-06-09T14:22:45Z",                 # SLA due date
+        "fr_due_by": "2025-06-05T14:22:45Z",              # First response due
+        "is_escalated": false,                              # Escalation status
+        "custom_fields": {                                  # Merchant-specific fields
+            "cf_shopify_customer_id": "12345678901"        # Shopify customer reference
+        },
+        "requester_id": 43028420064,                       # Freshdesk contact ID
+        "requester": {                                      # Contact details
+            "id": 43028420064,
+            "email": "customer@example.com",
+            "name": "John Doe",
+            "phone": "+1234567890"
+        },
+        "_raw_data": {...}                                  # Complete API response
+    }
+    """
 
     # Relationships
     merchant = relationship("Merchant", back_populates="freshdesk_tickets")
+    conversations = relationship(
+        "FreshdeskConversation", 
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        uselist=False  # One-to-one relationship
+    )
+    rating = relationship(
+        "FreshdeskRating", 
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        uselist=False  # One-to-one relationship
+    )
 
     # Constraints and indexes
     __table_args__ = (
@@ -122,6 +163,118 @@ class FreshdeskTicket(Base, TimestampMixin):
 
     def __repr__(self):
         return f"<FreshdeskTicket(freshdesk_ticket_id='{self.freshdesk_ticket_id}', merchant_id={self.merchant_id})>"
+
+
+class FreshdeskConversation(Base, TimestampMixin):
+    """ETL table for Freshdesk ticket conversations."""
+
+    __tablename__ = "etl_freshdesk_conversations"
+
+    freshdesk_ticket_id = Column(
+        String(255), 
+        ForeignKey("etl_freshdesk_tickets.freshdesk_ticket_id", ondelete="CASCADE"),
+        primary_key=True, 
+        nullable=False
+    )
+    data = Column(JSONB, nullable=False, default={})  # Array of conversation entries
+    """
+    Example data content (array of conversation entries):
+    [
+        {
+            "id": 43254879837,                              # Conversation ID
+            "user_id": 43028420064,                         # Who sent this message
+            "body": "<div>Hi, I need help with...</div>",   # HTML message content
+            "body_text": "Hi, I need help with...",         # Plain text version
+            "incoming": true,                                # true=customer, false=agent
+            "private": false,                                # Internal note flag
+            "created_at": "2025-06-04T14:22:45Z",          # When message was sent
+            "updated_at": "2025-06-04T14:22:45Z",          # Last update
+            "support_email": "support@company.com",          # Email used
+            "to_emails": ["customer@example.com"],           # Recipients
+            "from_email": "customer@example.com",            # Sender
+            "cc_emails": [],                                 # CC recipients
+            "bcc_emails": []                                 # BCC recipients
+        },
+        {
+            "id": 43254900123,
+            "user_id": 43251782297,                         # Agent's user ID
+            "body": "<div>Thank you for reaching out...</div>",
+            "body_text": "Thank you for reaching out...",
+            "incoming": false,                               # Agent response
+            "private": false,
+            "created_at": "2025-06-04T14:35:12Z",
+            "updated_at": "2025-06-04T14:35:12Z",
+            "support_email": "support@company.com",
+            "to_emails": ["customer@example.com"],
+            "from_email": "agent@company.com",
+            "cc_emails": [],
+            "bcc_emails": []
+        }
+    ]
+    """
+
+    # Relationships
+    ticket = relationship("FreshdeskTicket", back_populates="conversations")
+
+    # Constraints and indexes
+    __table_args__ = (
+        Index("idx_freshdesk_conversations_ticket_id", "freshdesk_ticket_id"),
+    )
+
+    def __repr__(self):
+        return f"<FreshdeskConversation(freshdesk_ticket_id='{self.freshdesk_ticket_id}')>"
+
+
+class FreshdeskRating(Base, TimestampMixin):
+    """ETL table for Freshdesk satisfaction ratings (one per ticket max)."""
+
+    __tablename__ = "etl_freshdesk_ratings"
+
+    freshdesk_ticket_id = Column(
+        String(255), 
+        ForeignKey("etl_freshdesk_tickets.freshdesk_ticket_id", ondelete="CASCADE"),
+        primary_key=True, 
+        nullable=False
+    )
+    data = Column(JSONB, nullable=False, default={})  # Rating data
+    """
+    Example data content:
+    {
+        "id": 43006810853,                                  # Rating ID
+        "ratings": {
+            "default_question": 103                         # Rating value: 103=Happy, -103=Unhappy
+        },
+        "user_id": 43028420064,                            # Customer who rated
+        "agent_id": 43028290928,                           # Agent who handled ticket
+        "feedback": "Great support, very helpful!",         # Optional text feedback
+        "group_id": 43000596433,                           # Support group ID
+        "survey_id": 43000089898,                          # Survey template ID
+        "ticket_id": 385450,                               # Associated ticket ID
+        "created_at": "2025-06-04T16:20:30Z",             # When rating was submitted
+        "updated_at": "2025-06-04T16:20:30Z"              # Last update
+    }
+    
+    Note: CSAT Score calculation:
+    - Rating value 103 = Happy/Positive (😊)
+    - Rating value -103 = Unhappy/Negative (😞)
+    - CSAT % = (Count of 103 ratings / Total ratings) × 100
+    """
+
+    # Relationships
+    ticket = relationship("FreshdeskTicket", back_populates="rating")
+
+    # Constraints and indexes
+    __table_args__ = (
+        Index("idx_freshdesk_ratings_ticket_id", "freshdesk_ticket_id"),
+        Index(
+            "idx_freshdesk_ratings_rating", 
+            data["rating"].astext,
+            postgresql_where=data["rating"].astext.isnot(None)
+        ),
+    )
+
+    def __repr__(self):
+        return f"<FreshdeskRating(freshdesk_ticket_id='{self.freshdesk_ticket_id}')>"
 
 
 class SyncMetadata(Base, TimestampMixin):
@@ -164,9 +317,9 @@ class MerchantIntegration(Base, TimestampMixin):
     merchant_id = Column(
         Integer, ForeignKey("merchants.id", ondelete="CASCADE"), nullable=False
     )
-    type = Column(
+    platform = Column(
         String(50), nullable=False
-    )  # Integration type (freshdesk, shopify) - now a string
+    )  # Integration platform (freshdesk, shopify)
     api_key = Column(Text, nullable=False)  # Encrypted in application layer
     config = Column(
         JSONB, nullable=False, default={}
@@ -178,14 +331,14 @@ class MerchantIntegration(Base, TimestampMixin):
 
     # Constraints and indexes
     __table_args__ = (
-        UniqueConstraint("merchant_id", "type", name="uq_merchant_integration_type"),
+        UniqueConstraint("merchant_id", "platform", name="uq_merchant_integration_platform"),
         Index("idx_merchant_integrations_merchant_id", "merchant_id"),
-        Index("idx_merchant_integrations_type", "type"),
+        Index("idx_merchant_integrations_platform", "platform"),
         Index("idx_merchant_integrations_is_active", "is_active"),
     )
 
     def __repr__(self):
-        return f"<MerchantIntegration(merchant_id={self.merchant_id}, type='{self.type}', is_active={self.is_active})>"
+        return f"<MerchantIntegration(merchant_id={self.merchant_id}, platform='{self.platform}', is_active={self.is_active})>"
 
 
 class DailyTicketSummary(Base, TimestampMixin):
