@@ -96,6 +96,12 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = Field("INFO", env="LOG_LEVEL")
     
+    # Redis Configuration
+    redis_url: str = Field(
+        "redis://localhost:6379/0",
+        env="REDIS_URL"
+    )
+    
     # CORS Configuration
     allowed_origins: list[str] = Field(
         default_factory=list,

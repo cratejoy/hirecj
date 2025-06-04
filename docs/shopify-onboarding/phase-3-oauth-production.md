@@ -1,5 +1,7 @@
 # Phase 3: OAuth Production Ready - Implementation Guide
 
+> **⚠️ CRITICAL UPDATE**: This guide is for PUBLIC Shopify apps only. If you have a custom distribution app (created through Partners dashboard with a custom install link), OAuth WILL NOT WORK. See [Phase 3.6: Custom Distribution Flow](phase-3.6-custom-distribution-flow.md) for the correct implementation.
+
 ## 🎯 Phase Objectives
 
 Make Shopify OAuth work end-to-end with real credentials and ngrok tunnels. No data loading yet - just get authentication working reliably.

@@ -16,9 +16,10 @@ The Shopify onboarding project implements a conversational flow where CJ guides 
 
 ### 🚫 Abandoned
 - **Phase 3.5: App Bridge Implementation** - Too complex, required embedded context we don't need
+- **Phase 3.6: OAuth-based Redirect Flow** - Discovered custom distribution apps don't use OAuth
 
-### 🎯 Current Priority
-- **[Phase 3.6: Simplified Redirect Flow](phase-3.6-simplified-redirect-flow.md)** - Simple redirect-based auth that keeps everything on hirecj.ai
+### 🎯 Current Implementation
+- **[Phase 3.6: Custom Distribution Flow](phase-3.6-custom-distribution-flow.md)** - Manual token entry for beta (required by Shopify for custom distribution apps)
 
 ### 📝 TODO Guides
 5. **[Phase 5: Quick Value Demo](phase-5-quick-value.md)** - Shopify data fetching, insights display
