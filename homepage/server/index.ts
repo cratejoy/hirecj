@@ -41,11 +41,7 @@ app.use(requestLogger);
   }
 
   const port = process.env.PORT || 3456;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  server.listen(port, () => {
     logger.info(`Server started on port ${port}`);
   });
 })();

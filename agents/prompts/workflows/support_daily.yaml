@@ -1,0 +1,54 @@
+name: "Support Daily Review"
+description: "Simple workflow to show the most recent open support ticket"
+
+# Simple workflow - just fetch and display one ticket
+
+data_requirements:
+  - view: "support_tickets"
+    refresh: "on_start"
+
+available_tools:
+  - get_recent_ticket
+  - get_recent_ticket_from_db
+  - get_support_dashboard_from_db
+  - search_tickets_in_db
+
+workflow: |
+  # Support Daily Review - Enhanced Version with Database Support
+
+  ## Goal
+  Show the merchant the most recent open support ticket from the live database
+
+  ## Workflow Steps
+
+  ### 1. Greeting
+  Simple greeting to start the day
+
+  ### 2. Fetch Recent Ticket
+  Use the `get_recent_ticket_from_db` tool to fetch the most recent open ticket from the database
+  
+  ### 3. Display Results
+  Show the raw JSON data of the ticket
+
+  ### 4. Offer Help
+  Ask if they need help with this ticket or want to see anything else
+
+  ## Additional Tools Available
+  - `get_support_dashboard_from_db`: Get overview of all tickets
+  - `search_tickets_in_db`: Search for specific tickets by keyword
+  - `get_recent_ticket`: Fallback to universe data if database is unavailable
+
+  ## Example Flow
+
+  ```
+  Morning! Let me pull up the most recent open support ticket from your database.
+
+  [Uses get_recent_ticket_from_db tool]
+
+  Here's the most recent open ticket:
+  [Displays JSON data]
+
+  Need me to help with this one or want to see something else? I can also show you the full support dashboard or search for specific tickets.
+  ```
+
+  > **Note:** This workflow now pulls live data from the Supabase database for real-time ticket information.

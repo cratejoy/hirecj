@@ -412,12 +412,12 @@ class WebPlatform(Platform):
                 self.message_processor.on_progress(progress_callback)
 
                 # If workflow starts with CJ, generate initial message
-                if workflow in ["daily_briefing", "weekly_review", "ad_hoc_support", "shopify_onboarding"]:
+                if workflow in ["daily_briefing", "weekly_review", "ad_hoc_support", "shopify_onboarding", "support_daily"]:
                     # Get initial message based on workflow
                     if workflow == "daily_briefing":
                         response = await self.message_processor.process_message(
                             session=session,
-                            message="Provide daily briefing",
+                            message="Provide daily briefing using the get_support_dashboard tool to fetch current metrics",
                             sender="merchant",
                         )
                     elif workflow == "shopify_onboarding":
@@ -441,6 +441,12 @@ class WebPlatform(Platform):
                             # Also remove from context window
                             if session.conversation.state.context_window and len(session.conversation.state.context_window) > 1:
                                 session.conversation.state.context_window.pop(-2)
+                    elif workflow == "support_daily":
+                        response = await self.message_processor.process_message(
+                            session=session,
+                            message="Show me the most recent open support ticket using the get_recent_ticket_from_db tool",
+                            sender="merchant",
+                        )
                     elif workflow == "ad_hoc_support":
                         response = (
                             "Hey boss, what's up? 👋 Need help with anything today?"

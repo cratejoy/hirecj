@@ -44,7 +44,7 @@ interface UseWebSocketChatProps {
   conversationId: string;
   merchantId: string;
   scenario: string;
-  workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding';
+  workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | 'support_daily';
   onError?: (error: string) => void;
 }
 
@@ -135,10 +135,10 @@ export function useWebSocketChat({
         return null;
       }
       
-      // For onboarding workflow, we don't need merchant/scenario
-      if (workflow === 'shopify_onboarding') {
-        const key = `${conversationId}-onboarding-${workflow}`;
-        wsLogger.info('Connection key for onboarding', { key });
+      // For onboarding and support_daily workflows, we don't need merchant/scenario
+      if (workflow === 'shopify_onboarding' || workflow === 'support_daily') {
+        const key = `${conversationId}-${workflow}`;
+        wsLogger.info('Connection key for ${workflow}', { key });
         return key;
       }
       
@@ -353,8 +353,8 @@ export function useWebSocketChat({
       // Send start_conversation message
       const startData = {
         conversation_id: conversationId,
-        merchant_id: merchantId || (workflow === 'shopify_onboarding' ? 'onboarding_user' : null),
-        scenario: scenario || (workflow === 'shopify_onboarding' ? 'onboarding' : null),
+        merchant_id: merchantId || ((workflow === 'shopify_onboarding' || workflow === 'support_daily') ? 'onboarding_user' : null),
+        scenario: scenario || ((workflow === 'shopify_onboarding' || workflow === 'support_daily') ? 'onboarding' : null),
         workflow: workflow,
       };
       

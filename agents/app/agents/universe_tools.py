@@ -1,9 +1,12 @@
 """Universe-based support tools for CJ agent."""
 
+import logging
 from typing import List, Any
 from pydantic import BaseModel, Field
 from crewai.tools import tool
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class SearchInput(BaseModel):
@@ -26,6 +29,7 @@ def create_universe_tools(data_agent: Any) -> List:
     @tool
     def get_support_dashboard() -> str:
         """Get current support queue status and key metrics from universe data."""
+        logger.info("[TOOL CALL] get_support_dashboard() - Fetching support dashboard data")
         data = data_agent.get_support_dashboard()
 
         queue = data["queue_status"]
@@ -53,6 +57,7 @@ Top Issue Categories:
 
 Universe Context: Day {data['current_day']}/90 of scenario timeline"""
 
+        logger.info(f"[TOOL RESULT] get_support_dashboard() - Returned dashboard with {queue['total']} total tickets")
         return output
 
     @tool
@@ -62,6 +67,7 @@ Universe Context: Day {data['current_day']}/90 of scenario timeline"""
         Args:
             query: Search term (e.g., 'shipping delays', 'refund requests', 'product name')
         """
+        logger.info(f"[TOOL CALL] search_support_tickets(query='{query}') - Searching for tickets")
         results = data_agent.search_tickets(query)
 
         if results["total_results"] == 0:
@@ -94,6 +100,7 @@ Recent Tickets:
             output += f"Neutral: {sentiment_breakdown['neutral']} | "
             output += f"Frustrated: {sentiment_breakdown['frustrated']}"
 
+        logger.info(f"[TOOL RESULT] search_support_tickets(query='{query}') - Found {results['total_results']} matching tickets")
         return output
 
     @tool
@@ -103,9 +110,11 @@ Recent Tickets:
         Args:
             customer_id: Customer ID (e.g., 'cust_001', 'cust_123')
         """
+        logger.info(f"[TOOL CALL] get_customer_profile(customer_id='{customer_id}') - Fetching customer details")
         data = data_agent.get_customer_details(customer_id)
 
         if "error" in data:
+            logger.warning(f"[TOOL ERROR] get_customer_profile(customer_id='{customer_id}') - {data['error']}")
             return f"❌ {data['error']}"
 
         customer = data["customer"]
@@ -130,11 +139,13 @@ Recent Support History ({len(tickets)} tickets):"""
 • #{ticket['ticket_id']} - {ticket['subject']} ({ticket['status']})
   {ticket['category']} | Created: {ticket['created_at'][:10]}"""
 
+        logger.info(f"[TOOL RESULT] get_customer_profile(customer_id='{customer_id}') - Returned profile for {customer['name']} with {len(tickets)} tickets")
         return output
 
     @tool
     def get_trending_issues() -> str:
         """Get current trending support issues and category breakdown."""
+        logger.info("[TOOL CALL] get_trending_issues() - Fetching trending issues")
         dashboard = data_agent.get_support_dashboard()
         trending = dashboard["trending_issues"]
 
@@ -159,14 +170,17 @@ Recent Support History ({len(tickets)} tickets):"""
                         output += f" (Common: {', '.join(common_issues[:2])})"
                     output += "\n"
 
+        logger.info(f"[TOOL RESULT] get_trending_issues() - Returned {len(trending)} trending categories")
         return output
 
     @tool
     def get_business_timeline() -> str:
         """Get recent business events and timeline context that might affect support."""
+        logger.info("[TOOL CALL] get_business_timeline() - Fetching business timeline")
         timeline = data_agent.get_timeline_context()
 
         if not timeline:
+            logger.info("[TOOL RESULT] get_business_timeline() - No timeline events available")
             return "📅 No recent timeline events available."
 
         output = "📅 Recent Business Timeline:\n\n"
@@ -199,7 +213,34 @@ Recent Support History ({len(tickets)} tickets):"""
             if event.get("details"):
                 output += f"   Details: {event['details']}\n"
 
+        logger.info(f"[TOOL RESULT] get_business_timeline() - Returned {len(relevant_events)} relevant events")
         return output
+
+    @tool
+    def get_recent_ticket() -> str:
+        """Get the most recent open support ticket as raw JSON data."""
+        logger.info("[TOOL CALL] get_recent_ticket() - Fetching most recent open ticket")
+        
+        # Get all tickets from universe data
+        tickets = data_agent.universe.get("support_tickets", [])
+        
+        # Filter for open tickets only
+        open_tickets = [t for t in tickets if t.get("status", "").lower() in ["open", "in_progress", "pending"]]
+        
+        if not open_tickets:
+            logger.info("[TOOL RESULT] get_recent_ticket() - No open tickets found")
+            return "No open tickets found in the system."
+        
+        # Sort by created_at to get most recent (assuming ISO format dates sort correctly)
+        sorted_tickets = sorted(open_tickets, key=lambda t: t.get("created_at", ""), reverse=True)
+        most_recent = sorted_tickets[0]
+        
+        # Return as formatted JSON
+        import json
+        result = json.dumps(most_recent, indent=2)
+        
+        logger.info(f"[TOOL RESULT] get_recent_ticket() - Returned ticket {most_recent.get('ticket_id', 'unknown')}")
+        return f"Most recent open ticket:\n```json\n{result}\n```"
 
     # Return the tools created with @tool decorator
     tools = [
@@ -208,6 +249,7 @@ Recent Support History ({len(tickets)} tickets):"""
         get_customer_profile,
         get_trending_issues,
         get_business_timeline,
+        get_recent_ticket,
     ]
 
     return tools
