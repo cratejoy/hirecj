@@ -84,8 +84,12 @@ dev-auth:
 	cd auth && . venv/bin/activate && python -m app.main
 
 dev-agents:
-	@echo "🤖 Starting agents service..."
-	cd agents && . venv/bin/activate && python -m app.main
+	@echo "🤖 Starting agents service with file watcher..."
+	cd agents && . venv/bin/activate && python scripts/dev_watcher.py
+
+dev-agents-debug:
+	@echo "🤖 Starting agents service with file watcher (DEBUG mode)..."
+	cd agents && . venv/bin/activate && python scripts/dev_watcher.py --debug
 
 dev-homepage:
 	@echo "🌐 Starting homepage..."
