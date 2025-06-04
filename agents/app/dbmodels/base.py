@@ -104,6 +104,34 @@ class FreshdeskTicket(Base, TimestampMixin):
     )
     freshdesk_ticket_id = Column(String(255), primary_key=True, nullable=False)
     data = Column(JSONB, nullable=False, default={})  # Core ticket data only
+    """
+    Example data content:
+    {
+        "freshdesk_id": "385450",                           # Internal reference
+        "subject": "New Vendor",                            # Ticket title
+        "description": "Hi, I'm interested in...",          # Initial message (text)
+        "status": 5,                                        # Status codes: 2=Open, 3=Pending, 4=Resolved, 5=Closed
+        "priority": 1,                                      # Priority: 1=Low, 2=Medium, 3=High, 4=Urgent
+        "type": "Question",                                 # Ticket type (Question, Problem, etc.)
+        "tags": ["vendor", "new"],                          # Tags array
+        "created_at": "2025-06-04T14:22:45Z",              # When ticket was created
+        "updated_at": "2025-06-04T16:20:30Z",              # Last update time
+        "due_by": "2025-06-09T14:22:45Z",                 # SLA due date
+        "fr_due_by": "2025-06-05T14:22:45Z",              # First response due
+        "is_escalated": false,                              # Escalation status
+        "custom_fields": {                                  # Merchant-specific fields
+            "cf_shopify_customer_id": "12345678901"        # Shopify customer reference
+        },
+        "requester_id": 43028420064,                       # Freshdesk contact ID
+        "requester": {                                      # Contact details
+            "id": 43028420064,
+            "email": "customer@example.com",
+            "name": "John Doe",
+            "phone": "+1234567890"
+        },
+        "_raw_data": {...}                                  # Complete API response
+    }
+    """
 
     # Relationships
     merchant = relationship("Merchant", back_populates="freshdesk_tickets")
@@ -149,6 +177,41 @@ class FreshdeskConversation(Base, TimestampMixin):
         nullable=False
     )
     data = Column(JSONB, nullable=False, default={})  # Array of conversation entries
+    """
+    Example data content (array of conversation entries):
+    [
+        {
+            "id": 43254879837,                              # Conversation ID
+            "user_id": 43028420064,                         # Who sent this message
+            "body": "<div>Hi, I need help with...</div>",   # HTML message content
+            "body_text": "Hi, I need help with...",         # Plain text version
+            "incoming": true,                                # true=customer, false=agent
+            "private": false,                                # Internal note flag
+            "created_at": "2025-06-04T14:22:45Z",          # When message was sent
+            "updated_at": "2025-06-04T14:22:45Z",          # Last update
+            "support_email": "support@company.com",          # Email used
+            "to_emails": ["customer@example.com"],           # Recipients
+            "from_email": "customer@example.com",            # Sender
+            "cc_emails": [],                                 # CC recipients
+            "bcc_emails": []                                 # BCC recipients
+        },
+        {
+            "id": 43254900123,
+            "user_id": 43251782297,                         # Agent's user ID
+            "body": "<div>Thank you for reaching out...</div>",
+            "body_text": "Thank you for reaching out...",
+            "incoming": false,                               # Agent response
+            "private": false,
+            "created_at": "2025-06-04T14:35:12Z",
+            "updated_at": "2025-06-04T14:35:12Z",
+            "support_email": "support@company.com",
+            "to_emails": ["customer@example.com"],
+            "from_email": "agent@company.com",
+            "cc_emails": [],
+            "bcc_emails": []
+        }
+    ]
+    """
 
     # Relationships
     ticket = relationship("FreshdeskTicket", back_populates="conversations")
@@ -174,6 +237,28 @@ class FreshdeskRating(Base, TimestampMixin):
         nullable=False
     )
     data = Column(JSONB, nullable=False, default={})  # Rating data
+    """
+    Example data content:
+    {
+        "id": 43006810853,                                  # Rating ID
+        "ratings": {
+            "default_question": 103                         # Rating value: 103=Happy, -103=Unhappy
+        },
+        "user_id": 43028420064,                            # Customer who rated
+        "agent_id": 43028290928,                           # Agent who handled ticket
+        "feedback": "Great support, very helpful!",         # Optional text feedback
+        "group_id": 43000596433,                           # Support group ID
+        "survey_id": 43000089898,                          # Survey template ID
+        "ticket_id": 385450,                               # Associated ticket ID
+        "created_at": "2025-06-04T16:20:30Z",             # When rating was submitted
+        "updated_at": "2025-06-04T16:20:30Z"              # Last update
+    }
+    
+    Note: CSAT Score calculation:
+    - Rating value 103 = Happy/Positive (😊)
+    - Rating value -103 = Unhappy/Negative (😞)
+    - CSAT % = (Count of 103 ratings / Total ratings) × 100
+    """
 
     # Relationships
     ticket = relationship("FreshdeskTicket", back_populates="rating")
