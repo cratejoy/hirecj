@@ -804,50 +804,71 @@ class WebPlatform(Platform):
                 
                 debug_data = {}
                 
-                if debug_type == "snapshot" or debug_type == "session":
-                    # Session information
-                    debug_data["session"] = {
-                        "id": session.id,
-                        "merchant": session.merchant_name,
-                        "workflow": session.workflow_name,
-                        "scenario": session.scenario_name,
-                        "connected_at": session.conversation.start_time.isoformat() if hasattr(session.conversation, 'start_time') else None,
-                        "message_count": len(session.conversation.messages),
-                        "context_window_size": len(session.conversation.state.context_window) if hasattr(session.conversation.state, 'context_window') else 0,
-                    }
-                
-                if debug_type == "snapshot" or debug_type == "state":
-                    # CJ state information
-                    debug_data["state"] = {
-                        "model": session.model_config.model if hasattr(session, 'model_config') else "unknown",
-                        "temperature": session.model_config.temperature if hasattr(session, 'model_config') else 0.0,
-                        "tools_available": len(session.tools) if hasattr(session, 'tools') else 0,
-                        "memory_facts": len(session.merchant_memory.facts) if session.merchant_memory else 0,
-                    }
-                
-                if debug_type == "snapshot" or debug_type == "metrics":
-                    # Metrics if available
-                    if hasattr(session, 'metrics'):
-                        debug_data["metrics"] = session.metrics
-                
-                if debug_type == "prompts":
-                    # Recent prompts (last 5)
-                    recent_prompts = []
-                    for msg in session.conversation.messages[-10:]:  # Check last 10 messages
-                        if msg.sender.lower() == "system" or "prompt" in msg.content.lower():
-                            recent_prompts.append({
-                                "timestamp": msg.timestamp.isoformat() if hasattr(msg.timestamp, 'isoformat') else str(msg.timestamp),
-                                "content": msg.content[:500]  # First 500 chars
-                            })
-                    debug_data["prompts"] = recent_prompts[-5:]  # Last 5 prompts
-                
-                # Send debug response
-                await websocket.send_json({
-                    "type": "debug_response",
-                    "data": debug_data
-                })
-                
-                logger.info(f"[DEBUG_REQUEST] Sent debug info for {conversation_id}: type={debug_type}")
+                try:
+                    if debug_type == "snapshot" or debug_type == "session":
+                        # Session information
+                        debug_data["session"] = {
+                            "id": getattr(session, 'id', conversation_id),
+                            "merchant": getattr(session, 'merchant_name', 'unknown'),
+                            "workflow": getattr(session, 'workflow_name', 'unknown'),
+                            "scenario": getattr(session, 'scenario_name', 'unknown'),
+                            "connected_at": None,  # Sessions don't track start time
+                            "message_count": len(session.conversation.messages) if hasattr(session, 'conversation') else 0,
+                            "context_window_size": 0,  # Not tracked in sessions
+                        }
+                        
+                        # Add OAuth metadata if available
+                        if hasattr(session, 'oauth_metadata'):
+                            debug_data["session"]["oauth_metadata"] = session.oauth_metadata
+                    
+                    if debug_type == "snapshot" or debug_type == "state":
+                        # CJ state information
+                        debug_data["state"] = {
+                            "model": "claude-3.5-sonnet",  # Default model
+                            "temperature": 0.3,  # Default temperature from config
+                            "tools_available": 0,  # Tools not exposed in session
+                            "memory_facts": 0,  # Memory not directly accessible
+                        }
+                        
+                        # Check if session has merchant memory
+                        if hasattr(session, 'merchant_memory') and session.merchant_memory:
+                            if hasattr(session.merchant_memory, 'facts'):
+                                debug_data["state"]["memory_facts"] = len(session.merchant_memory.facts)
+                    
+                    if debug_type == "snapshot" or debug_type == "metrics":
+                        # Metrics if available
+                        debug_data["metrics"] = getattr(session, 'metrics', {})
+                    
+                    if debug_type == "prompts":
+                        # Recent prompts (last 5)
+                        recent_prompts = []
+                        if hasattr(session, 'conversation') and hasattr(session.conversation, 'messages'):
+                            for msg in session.conversation.messages[-10:]:  # Check last 10 messages
+                                if hasattr(msg, 'sender') and hasattr(msg, 'content'):
+                                    if msg.sender.lower() == "system" or "prompt" in msg.content.lower():
+                                        recent_prompts.append({
+                                            "timestamp": getattr(msg, 'timestamp', 'unknown'),
+                                            "content": msg.content[:500]  # First 500 chars
+                                        })
+                        debug_data["prompts"] = recent_prompts[-5:]  # Last 5 prompts
+                    
+                    # Send debug response
+                    await websocket.send_json({
+                        "type": "debug_response",
+                        "data": debug_data
+                    })
+                    
+                    logger.info(f"[DEBUG_REQUEST] Sent debug info for {conversation_id}: type={debug_type}")
+                    
+                except Exception as e:
+                    logger.error(f"[DEBUG_ERROR] Failed to generate debug info: {str(e)}")
+                    await websocket.send_json({
+                        "type": "debug_response",
+                        "data": {
+                            "error": f"Failed to generate debug info: {str(e)}",
+                            "conversation_id": conversation_id
+                        }
+                    })
 
             else:
                 logger.warning(f"Unknown message type from web client: {message_type}")
