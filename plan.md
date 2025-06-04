@@ -631,3 +631,72 @@ Use the [phase template](docs/shopify-onboarding/PHASE_TEMPLATE.md) when creatin
 - ✅ **No Cruft**: Remove URL duplication
 - ✅ **Long-term Elegance**: Clear separation of concerns
 - ✅ **No Over-Engineering**: Reuses existing patterns
+
+## 🔍 Console Debug System
+
+### Overview
+An elegant console-based debug system that exposes CJ's internal state through simple JavaScript commands, providing real-time visibility without any UI complexity.
+
+### Design: `window.cj` API
+
+```javascript
+// Browser console commands:
+cj.debug()        // Show current state snapshot
+cj.session()      // Session & auth info
+cj.prompts()      // Last 5 prompts sent to CJ
+cj.context()      // Current conversation context
+cj.events()       // Start live event stream
+cj.stop()         // Stop event stream
+cj.help()         // Show all available commands
+```
+
+### Console Output Format
+
+```javascript
+// Example cj.debug() output:
+🤖 CJ Debug Snapshot
+├── 📊 Session
+│   ├── ID: abc-123-def-456
+│   ├── Status: ✅ Authenticated
+│   ├── Merchant: cratejoy.myshopify.com
+│   └── Connected: 5 minutes ago
+├── 🧠 CJ State
+│   ├── Workflow: shopify_onboarding
+│   ├── Model: claude-3-opus (temp: 0.2)
+│   ├── Tools: [shopify_api, memory_store, fact_checker]
+│   └── Memory Facts: 12
+└── 💬 Recent Activity
+    ├── 14:23:45 oauth_complete     New merchant
+    ├── 14:23:46 workflow_change    ad_hoc_support
+    └── 14:23:47 tool_use          shopify_api.get_orders
+```
+
+### Implementation Components
+
+1. **Frontend (SlackChat.tsx)**:
+   - Expose `window.cj` debug interface
+   - Handle debug WebSocket messages
+   - Format console output beautifully
+
+2. **WebSocket Handler (web_platform.py)**:
+   - Add `debug_request` message handler
+   - Return formatted debug data
+   - Stream live events when requested
+
+3. **Production Safety**:
+   - Only enable in development by default
+   - Allow production access via localStorage flag
+   - No sensitive data in console by default
+
+### Benefits
+- **Zero UI complexity** - Just console commands
+- **Developer-native** - Uses familiar browser console
+- **Easy to extend** - Add new commands as needed
+- **No bundle impact** - It's just console logs
+- **Fast to implement** - Minimal code changes
+
+### North Star Alignment
+- ✅ **Simplify**: Console commands instead of UI
+- ✅ **No Cruft**: Minimal implementation
+- ✅ **Long-term Elegance**: Clean API design
+- ✅ **No Over-Engineering**: Just what's needed for debugging

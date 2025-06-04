@@ -275,6 +275,7 @@ class WebPlatform(Platform):
                 "ping",
                 "session_update",
                 "oauth_complete",
+                "debug_request",
             ]
             if message_type not in valid_types:
                 logger.warning(
@@ -785,6 +786,68 @@ class WebPlatform(Platform):
                         "is_new": is_new
                     }
                 })
+
+            elif message_type == "debug_request":
+                # Handle debug information requests
+                debug_type = data.get("data", {}).get("type", "snapshot")
+                session = self.session_manager.get_session(conversation_id)
+                
+                if not session:
+                    await websocket.send_json({
+                        "type": "debug_response",
+                        "data": {
+                            "error": "No active session",
+                            "conversation_id": conversation_id
+                        }
+                    })
+                    return
+                
+                debug_data = {}
+                
+                if debug_type == "snapshot" or debug_type == "session":
+                    # Session information
+                    debug_data["session"] = {
+                        "id": session.id,
+                        "merchant": session.merchant_name,
+                        "workflow": session.workflow_name,
+                        "scenario": session.scenario_name,
+                        "connected_at": session.conversation.start_time.isoformat() if hasattr(session.conversation, 'start_time') else None,
+                        "message_count": len(session.conversation.messages),
+                        "context_window_size": len(session.conversation.state.context_window) if hasattr(session.conversation.state, 'context_window') else 0,
+                    }
+                
+                if debug_type == "snapshot" or debug_type == "state":
+                    # CJ state information
+                    debug_data["state"] = {
+                        "model": session.model_config.model if hasattr(session, 'model_config') else "unknown",
+                        "temperature": session.model_config.temperature if hasattr(session, 'model_config') else 0.0,
+                        "tools_available": len(session.tools) if hasattr(session, 'tools') else 0,
+                        "memory_facts": len(session.merchant_memory.facts) if session.merchant_memory else 0,
+                    }
+                
+                if debug_type == "snapshot" or debug_type == "metrics":
+                    # Metrics if available
+                    if hasattr(session, 'metrics'):
+                        debug_data["metrics"] = session.metrics
+                
+                if debug_type == "prompts":
+                    # Recent prompts (last 5)
+                    recent_prompts = []
+                    for msg in session.conversation.messages[-10:]:  # Check last 10 messages
+                        if msg.sender.lower() == "system" or "prompt" in msg.content.lower():
+                            recent_prompts.append({
+                                "timestamp": msg.timestamp.isoformat() if hasattr(msg.timestamp, 'isoformat') else str(msg.timestamp),
+                                "content": msg.content[:500]  # First 500 chars
+                            })
+                    debug_data["prompts"] = recent_prompts[-5:]  # Last 5 prompts
+                
+                # Send debug response
+                await websocket.send_json({
+                    "type": "debug_response",
+                    "data": debug_data
+                })
+                
+                logger.info(f"[DEBUG_REQUEST] Sent debug info for {conversation_id}: type={debug_type}")
 
             else:
                 logger.warning(f"Unknown message type from web client: {message_type}")

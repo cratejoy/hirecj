@@ -203,6 +203,120 @@ const SlackChat = () => {
 		};
 	}, [isRealChat, wsChat]);
 
+	// Setup debug interface
+	useEffect(() => {
+		// Only enable debug interface if debug mode is enabled
+		const isDebugMode = process.env.NODE_ENV === 'development' || localStorage.getItem('cj_debug') === 'true';
+		
+		if (!isDebugMode) {
+			(window as any).cj = {
+				help: () => console.log('Enable debug mode: localStorage.setItem("cj_debug", "true")')
+			};
+			return;
+		}
+
+		// Define the debug interface
+		const debugInterface = {
+			debug: () => {
+				console.group('%c🤖 CJ Debug Snapshot', 'color: #00D4FF; font-size: 16px; font-weight: bold');
+				
+				console.group('📊 Session');
+				console.log('Conversation ID:', chatConfig.conversationId);
+				console.log('Status:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
+				console.log('Merchant:', chatConfig.merchantId || 'Not authenticated');
+				console.log('Workflow:', chatConfig.workflow);
+				console.log('Scenario:', chatConfig.scenarioId || 'None');
+				console.groupEnd();
+				
+				console.group('💬 Conversation');
+				console.log('Messages:', messages.length);
+				console.log('Is Typing:', isTyping);
+				console.log('Connection State:', wsChat.connectionState);
+				console.groupEnd();
+				
+				console.groupEnd();
+				
+				// Request detailed state from backend
+				if (wsChat.isConnected) {
+					wsChat.sendSpecialMessage({
+						type: 'debug_request',
+						data: { type: 'snapshot' }
+					});
+				}
+			},
+			
+			session: () => {
+				if (wsChat.isConnected) {
+					wsChat.sendSpecialMessage({
+						type: 'debug_request',
+						data: { type: 'session' }
+					});
+				} else {
+					console.log('%c❌ Not connected to CJ', 'color: red');
+				}
+			},
+			
+			prompts: () => {
+				if (wsChat.isConnected) {
+					wsChat.sendSpecialMessage({
+						type: 'debug_request',
+						data: { type: 'prompts' }
+					});
+				} else {
+					console.log('%c❌ Not connected to CJ', 'color: red');
+				}
+			},
+			
+			context: () => {
+				console.group('%c📝 Conversation Context', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+				console.log('Total Messages:', messages.length);
+				
+				if (messages.length > 0) {
+					console.group('Recent Messages');
+					messages.slice(-5).forEach((msg, idx) => {
+						console.log(`[${idx + 1}] ${msg.sender}:`, msg.content.substring(0, 100) + '...');
+					});
+					console.groupEnd();
+				}
+				
+				console.groupEnd();
+			},
+			
+			events: () => {
+				console.log('%c📡 Live events started...', 'color: #00D4FF');
+				console.log('(Events will appear as they occur)');
+				// Note: events will be logged by the WebSocket handler
+			},
+			
+			stop: () => {
+				console.log('%c📡 Live events stopped', 'color: #00D4FF');
+			},
+			
+			help: () => {
+				console.log('%c🤖 CJ Debug Commands:', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+				console.table({
+					'cj.debug()': 'Full state snapshot',
+					'cj.session()': 'Session & auth details',
+					'cj.prompts()': 'Recent prompts to CJ',
+					'cj.context()': 'Conversation context',
+					'cj.events()': 'Start live event stream',
+					'cj.stop()': 'Stop event stream',
+					'cj.help()': 'Show this help'
+				});
+			}
+		};
+		
+		// Attach to window
+		(window as any).cj = debugInterface;
+		
+		// Auto-show help in development
+		if (process.env.NODE_ENV === 'development') {
+			console.log('%c🤖 CJ Debug Interface Ready!', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+			console.log('Type cj.help() for available commands');
+		}
+		
+	}, [chatConfig, messages, isTyping, wsChat]);
+
 	const handleMessageSend = () => {
 		if (inputValue.trim()) {
 			console.log('[UI] User submitting message:', inputValue.trim());

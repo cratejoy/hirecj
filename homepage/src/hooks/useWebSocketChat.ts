@@ -256,6 +256,52 @@ export function useWebSocketChat({
         case 'conversation_started':
           wsLogger.info('Conversation started', data.data);
           break;
+        
+        case 'debug_response':
+          // Format and log debug response
+          const debugData = data.data;
+          console.group('%c🔍 CJ Backend Debug Response', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+          
+          if (debugData.session) {
+            console.group('📊 Session Details');
+            console.log('Session ID:', debugData.session.id);
+            console.log('Merchant:', debugData.session.merchant);
+            console.log('Workflow:', debugData.session.workflow);
+            console.log('Connected At:', debugData.session.connected_at);
+            console.groupEnd();
+          }
+          
+          if (debugData.state) {
+            console.group('🧠 CJ State');
+            console.log('Model:', debugData.state.model);
+            console.log('Temperature:', debugData.state.temperature);
+            console.log('Tools Available:', debugData.state.tools_available);
+            console.log('Memory Facts:', debugData.state.memory_facts);
+            console.groupEnd();
+          }
+          
+          if (debugData.metrics) {
+            console.group('📈 Metrics');
+            console.table(debugData.metrics);
+            console.groupEnd();
+          }
+          
+          if (debugData.prompts) {
+            console.group('📝 Recent Prompts');
+            debugData.prompts.forEach((prompt: any, idx: number) => {
+              console.log(`[${idx + 1}] ${prompt.timestamp}:`, prompt.content?.substring(0, 200) + '...');
+            });
+            console.groupEnd();
+          }
+          
+          console.groupEnd();
+          break;
+          
+        case 'debug_event':
+          // Live event streaming
+          const event = data.data;
+          console.log(`%c[${event.timestamp || new Date().toISOString()}]`, 'color: gray', event.type, event.data || '');
+          break;
           
         default:
           wsLogger.warn('Unknown message type', { type: data.type, data });
@@ -578,6 +624,7 @@ export function useWebSocketChat({
     sendFactCheck,
     sendSpecialMessage,
     isConnected: state.connectionState === 'connected',
+    connectionState: state.connectionState,
     isTyping: state.isTyping,
     progress: state.progress,
     clearMessages,
