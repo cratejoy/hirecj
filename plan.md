@@ -52,7 +52,7 @@
 - New vs returning merchant detection already implemented
 - **DISCOVERED:** Custom apps require different installation flow than public apps
 
-### Phase 3.5: Replace OAuth with Custom App Flow ✅ IMPLEMENTED
+### Phase 3.5: Replace OAuth with Custom App Flow ⚠️ NEEDS COMPLETION
 **Problem:** We're using Shopify custom apps, which don't support standard OAuth. Current implementation causes "Unauthorized Access" errors.
 
 **Simple Solution: Remove OAuth, Use Custom App Flow Only**
@@ -64,38 +64,77 @@ Custom App Flow:
 └── Exchange for API access token
 ```
 
-**Implementation Complete:**
-1. **Removed Standard OAuth Code:**
-   - [x] Commented out `/oauth/shopify/*` endpoints
+**Current Status: FAILURE by North Star Standards**
+- ❌ Shortcuts taken (mocked tokens)
+- ❌ Half-measures (disabled JWT verification)
+- ❌ Compatibility shims (OAuth code still exists)
+- ❌ "Good enough" solution (demo-only quality)
+
+📄 **[Audit Report →](docs/shopify-onboarding/phase-3.5-audit.md)**
+
+**Completed (But Improperly):**
+1. **Partially Removed OAuth Code:**
+   - [x] Commented out `/oauth/shopify/*` endpoints ❌ Should be deleted
    - [x] Removed OAuth state management
    - [x] Removed shop domain input dialog
 
-2. **Implemented Custom App Flow:**
+2. **Basic Custom App Flow:**
    - [x] Added `SHOPIFY_CUSTOM_INSTALL_LINK` to env config
    - [x] Frontend opens install link directly
-   - [x] Backend handles session tokens
-   - [x] Polling mechanism for installation status
+   - [x] Backend handles session tokens ❌ But mocked
+   - [x] Polling mechanism ❌ With magic numbers
 
-3. **Simplified UX:**
-   - [x] "Connect Shopify" opens install link
-   - [x] Auto-detects installation completion
-   - [x] Validates and stores access token
-   - [x] Seamless redirect back to conversation
+**Required to Meet North Star Standards:**
 
-**What's Left:**
-- [ ] Implement real session token validation (currently mocked)
-- [ ] Add Shopify JWT signature verification
-- [ ] Implement actual token exchange API
+### 🔥 Immediate Actions (Do Now)
+1. **Delete ALL OAuth Code**
+   - [ ] Delete `auth/app/api/oauth.py` completely
+   - [ ] Delete `auth/app/providers/` directory
+   - [ ] Remove commented OAuth routes from `main.py`
+   - [ ] Delete any OAuth-related tests
 
-**Benefits Achieved:**
-- ✅ Removed broken OAuth code
-- ✅ Single, working flow
-- ✅ Much simpler implementation
-- ✅ No shop domain input needed
-- ✅ Works with Shopify custom apps
+2. **Fix Magic Numbers**
+   - [ ] Create `shared/constants.py` with:
+     ```python
+     SHOPIFY_INSTALL_POLL_INTERVAL_MS = 2000
+     SHOPIFY_INSTALL_TIMEOUT_MS = 600000  # 10 minutes
+     ```
+   - [ ] Update frontend to use constants
+   - [ ] Update backend timeouts to use constants
+
+### 📦 Proper Implementation (This Week)
+3. **Real Session Token Handling**
+   - [ ] Add Shopify App Bridge to frontend
+   - [ ] Implement proper session token retrieval
+   - [ ] Add PyJWT with RS256 support
+   - [ ] Fetch and cache Shopify's public key
+   - [ ] Implement proper JWT verification
+
+4. **Real Token Exchange**
+   - [ ] Research Shopify token exchange API
+   - [ ] Implement actual API call to Shopify
+   - [ ] Handle token storage properly
+   - [ ] Add retry logic with exponential backoff
+
+5. **Proper Storage**
+   - [ ] Add Redis configuration to `.env`
+   - [ ] Replace in-memory dicts with Redis
+   - [ ] Add proper TTLs to sessions
+   - [ ] Handle Redis connection failures gracefully
+
+### ✅ Definition of Done
+- Zero OAuth code remains in codebase
+- No mocked implementations
+- No disabled security checks
+- No magic numbers
+- Proper persistent storage
+- Production-ready code that fully works
+
+**Only when ALL items are complete can this be marked as IMPLEMENTED**
 
 📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.5-custom-app-only.md)**
 📄 **[Testing Guide →](docs/shopify-onboarding/phase-3.5-testing.md)**
+📄 **[Completion Checklist →](docs/shopify-onboarding/phase-3.5-completion.md)** *(TODO)*
 
 ### Phase 4: UI Actions Pattern ✅ COMPLETE
 **Deliverables:**
