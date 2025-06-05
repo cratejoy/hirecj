@@ -3,15 +3,19 @@
 import logging
 import json
 from typing import List, Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field
 from crewai.tools import tool
-from sqlalchemy import desc, and_
+from sqlalchemy import desc, and_, func
 from app.utils.supabase_util import get_db_session
-from app.dbmodels.base import FreshdeskTicket, Merchant
+from app.dbmodels.base import FreshdeskTicket, FreshdeskRating, Merchant
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Constants for Freshdesk rating values
+RATING_HAPPY = 103
+RATING_UNHAPPY = -103
 
 
 def create_database_tools(merchant_name: str = None) -> List:
@@ -112,8 +116,16 @@ def create_database_tools(merchant_name: str = None) -> List:
                 category_counts = {}
                 
                 for ticket in all_tickets:
-                    # Get status
-                    status = ticket.data.get('status', '').lower()
+                    # Get status (can be string or int)
+                    status = ticket.data.get('status', '')
+                    if isinstance(status, str):
+                        status = status.lower()
+                    elif isinstance(status, int):
+                        # Map Freshdesk status codes to string values
+                        # 2=Open, 3=Pending, 4=Resolved, 5=Closed
+                        status_map = {2: 'open', 3: 'pending', 4: 'resolved', 5: 'closed'}
+                        status = status_map.get(status, 'open')
+                    
                     if status in status_counts:
                         status_counts[status] += 1
                     elif status in ['completed', 'done']:
@@ -220,11 +232,111 @@ Recent Tickets:"""
             logger.error(f"[TOOL ERROR] search_tickets_in_db() - Error: {str(e)}")
             return f"Error searching tickets in database: {str(e)}"
 
+    @tool
+    def calculate_csat_score(days: int = 30) -> str:
+        """Calculate Customer Satisfaction (CSAT) score for a specific time range.
+        
+        Args:
+            days: Number of days to look back (default: 30). Use 0 for all time.
+        
+        Returns the CSAT score as a percentage of happy ratings (103) vs total ratings.
+        Only considers the most recent rating per unique user within the time range.
+        """
+        # Handle both direct calls and CrewAI calls
+        if isinstance(days, dict):
+            days = days.get('days', 30)
+        
+        logger.info(f"[TOOL CALL] calculate_csat_score(days={days}) - Calculating CSAT score")
+        
+        try:
+            with get_db_session() as session:
+                # Build base query joining ratings with tickets
+                query = session.query(FreshdeskRating).join(
+                    FreshdeskTicket,
+                    FreshdeskRating.freshdesk_ticket_id == FreshdeskTicket.freshdesk_ticket_id
+                )
+                
+                # Filter by merchant if provided
+                if merchant_name:
+                    merchant = session.query(Merchant).filter_by(name=merchant_name).first()
+                    if merchant:
+                        query = query.filter(FreshdeskTicket.merchant_id == merchant.id)
+                        merchant_info = f" for {merchant_name}"
+                    else:
+                        merchant_info = " (merchant not found)"
+                else:
+                    # For now, hardcode to merchant_id=1 for debugging
+                    query = query.filter(FreshdeskTicket.merchant_id == 1)
+                    merchant_info = " (Merchant ID: 1)"
+                
+                # Apply time filter if specified
+                if days > 0:
+                    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+                    # Filter based on created_at timestamp
+                    query = query.filter(FreshdeskRating.created_at >= cutoff_date)
+                    time_range = f"last {days} days"
+                else:
+                    time_range = "all time"
+                
+                # Get all ratings in the time range
+                all_ratings = query.all()
+                logger.info(f"[TOOL DEBUG] Found {len(all_ratings)} total ratings in {time_range}")
+                
+                # Group by user to get most recent rating per user
+                user_ratings = {}
+                for rating in all_ratings:
+                    # Extract user_id from the JSONB data
+                    user_id = rating.data.get('user_id')
+                    if not user_id:
+                        continue
+                        
+                    # Get the rating value and timestamp
+                    rating_value = rating.data.get('ratings', {}).get('default_question')
+                    created_at = rating.data.get('created_at', rating.created_at.isoformat() if rating.created_at else None)
+                    
+                    # Keep only the most recent rating per user
+                    if user_id not in user_ratings or created_at > user_ratings[user_id]['created_at']:
+                        user_ratings[user_id] = {
+                            'rating': rating_value,
+                            'created_at': created_at,
+                            'ticket_id': rating.freshdesk_ticket_id
+                        }
+                
+                # Calculate CSAT from unique user ratings
+                total_unique_ratings = len(user_ratings)
+                happy_ratings = sum(1 for r in user_ratings.values() if r['rating'] == RATING_HAPPY)
+                unhappy_ratings = sum(1 for r in user_ratings.values() if r['rating'] == RATING_UNHAPPY)
+                
+                if total_unique_ratings == 0:
+                    return f"📊 CSAT Score{merchant_info}: No ratings found in {time_range}"
+                
+                csat_percentage = (happy_ratings / total_unique_ratings) * 100
+                
+                output = f"""📊 CSAT Score{merchant_info} ({time_range}):
+
+**{csat_percentage:.1f}%** Customer Satisfaction
+
+Rating Breakdown:
+• Total unique customers who rated: {total_unique_ratings}
+• Happy ratings (😊): {happy_ratings} ({(happy_ratings/total_unique_ratings)*100:.1f}%)
+• Unhappy ratings (😞): {unhappy_ratings} ({(unhappy_ratings/total_unique_ratings)*100:.1f}%)
+
+Note: Each customer's most recent rating is counted (no duplicates).
+Data Source: Live database query from etl_freshdesk_ratings"""
+                
+                logger.info(f"[TOOL RESULT] calculate_csat_score() - CSAT: {csat_percentage:.1f}% from {total_unique_ratings} unique ratings")
+                return output
+                
+        except Exception as e:
+            logger.error(f"[TOOL ERROR] calculate_csat_score() - Error: {str(e)}")
+            return f"Error calculating CSAT score: {str(e)}"
+
     # Return the tools created with @tool decorator
     tools = [
         get_recent_ticket_from_db,
         get_support_dashboard_from_db,
         search_tickets_in_db,
+        calculate_csat_score,
     ]
 
     return tools
