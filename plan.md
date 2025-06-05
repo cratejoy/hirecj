@@ -139,7 +139,27 @@ OAuth Flow:
 - ❌ Polling mechanism (remove)
 - ❌ Complex context handling (remove)
 
-### Phase 4: UI Actions Pattern ✅ COMPLETE
+### Phase 4.0: True Environment Centralization 🚨 CRITICAL FOUNDATION
+**Goal:** Implement TRUE single .env file management with zero exceptions. Fix the broken multi-file pattern.
+
+**Deliverables:**
+- [ ] Audit and consolidate ALL environment variables across services
+- [ ] Create master .env.example with every variable needed
+- [ ] Rewrite env_loader.py to enforce single source (no fallbacks)
+- [ ] Create distribute_env.py script for automatic distribution
+- [ ] Update all services to use centralized pattern
+- [ ] Remove ALL bypass paths (load_dotenv, direct access)
+- [ ] Update Makefile and documentation
+
+**Why This Must Happen First:**
+- Current system forces developers to manage 10+ .env files
+- Utility files bypass centralized config
+- No enforcement of single source pattern
+- This blocks clean implementation of all future phases
+
+📄 **[Implementation Plan →](docs/phase-4.0-env-centralization.md)**
+
+### Phase 4.1: UI Actions Pattern ✅ COMPLETE
 **Deliverables:**
 - [x] Parser implementation to extract {{oauth:shopify}} markers
 - [x] Workflow configuration to enable UI components
