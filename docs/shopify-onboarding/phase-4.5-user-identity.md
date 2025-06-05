@@ -90,6 +90,303 @@ CREATE INDEX idx_events_type ON events(event_type);
 CREATE INDEX idx_events_created_at ON events(created_at);
 ```
 
+## 🚀 PostgreSQL Integration
+
+### Local Development Setup (Native, No Docker)
+
+Our development system uses native PostgreSQL on port **5435** to avoid conflicts with default PostgreSQL installations.
+
+#### Step 1: Install PostgreSQL Locally
+
+```bash
+# macOS (using Homebrew)
+brew install postgresql@15
+brew services start postgresql@15
+
+# Linux (Ubuntu/Debian)
+sudo apt-get update
+sudo apt-get install postgresql-15 postgresql-contrib
+
+# Start PostgreSQL on custom port
+postgres -D /usr/local/var/postgres -p 5435 &
+```
+
+#### Step 2: Create Development Database
+
+```bash
+# Create database and user
+createdb -p 5435 hirecj_identity
+createuser -p 5435 -s hirecj
+
+# Set password (optional for local dev)
+psql -p 5435 -d hirecj_identity -c "ALTER USER hirecj PASSWORD 'hirecj_dev_password';"
+```
+
+#### Step 3: Configure Environment
+
+```bash
+# agents/.env.local
+IDENTITY_DATABASE_URL=postgresql://hirecj:hirecj_dev_password@localhost:5435/hirecj_identity
+
+# For development without password
+IDENTITY_DATABASE_URL=postgresql://hirecj@localhost:5435/hirecj_identity
+```
+
+### Heroku Production Setup
+
+Heroku provides PostgreSQL as an add-on with automatic configuration.
+
+#### Step 1: Add PostgreSQL to Heroku
+
+```bash
+# Add Heroku Postgres (mini plan for identity data)
+heroku addons:create heroku-postgresql:mini --app your-app-name
+
+# This creates DATABASE_URL environment variable
+# We'll use a separate database for identity
+heroku addons:create heroku-postgresql:mini --as IDENTITY_DATABASE --app your-app-name
+```
+
+#### Step 2: Configure Production Environment
+
+```bash
+# Heroku automatically provides:
+# DATABASE_URL=postgres://user:pass@host:port/dbname
+# IDENTITY_DATABASE_URL=postgres://user:pass@host:port/dbname
+
+# Our config automatically handles postgres:// → postgresql:// conversion
+```
+
+### Database Configuration Class
+
+Update the agents service configuration to support identity database:
+
+```python
+# agents/app/config.py
+
+class Settings(BaseSettings):
+    """Enhanced with identity database support."""
+    
+    # Existing configuration...
+    
+    # Identity Database (Phase 4.5)
+    identity_database_url: str = Field(
+        default="postgresql://hirecj:hirecj_dev_password@localhost:5435/hirecj_identity",
+        description="PostgreSQL URL for user identity data"
+    )
+    
+    @field_validator('identity_database_url')
+    def validate_identity_database_url(cls, v):
+        """Handle Heroku's postgres:// URLs."""
+        if v and v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql://", 1)
+        return v
+    
+    # Connection pool settings for identity DB
+    identity_db_pool_size: int = Field(default=5, ge=1, le=20)
+    identity_db_max_overflow: int = Field(default=10, ge=0, le=20)
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_ignore_empty=True,
+        extra="ignore"
+    )
+```
+
+### Database Connection Manager
+
+Create a connection manager for the identity database:
+
+```python
+# agents/app/services/identity_db.py
+"""Identity database connection management."""
+
+from contextlib import contextmanager
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
+from app.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Create engine with appropriate pooling
+if "localhost" in settings.identity_database_url:
+    # Local development: use connection pooling
+    engine = create_engine(
+        settings.identity_database_url,
+        pool_size=settings.identity_db_pool_size,
+        max_overflow=settings.identity_db_max_overflow,
+        pool_pre_ping=True
+    )
+else:
+    # Production/Heroku: use NullPool for serverless compatibility
+    engine = create_engine(
+        settings.identity_database_url,
+        poolclass=NullPool,
+        connect_args={
+            "sslmode": "require",
+            "connect_timeout": 30
+        }
+    )
+
+SessionLocal = sessionmaker(bind=engine)
+
+@contextmanager
+def get_db():
+    """Get database session with automatic cleanup."""
+    db = SessionLocal()
+    try:
+        yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+def test_connection():
+    """Test database connectivity."""
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            logger.info("Identity database connection successful")
+            return True
+    except Exception as e:
+        logger.error(f"Identity database connection failed: {e}")
+        return False
+```
+
+### Migration Strategy
+
+We'll use the same pattern as the agents service - SQL migration scripts:
+
+```bash
+# Directory structure
+agents/
+  app/
+    migrations/
+      001_create_all_tables.sql         # Existing ETL tables
+      002_create_daily_ticket_summaries.sql.old  # Old migration
+      003_user_identity.sql             # Our new migration (Phase 4.5)
+  scripts/
+      run_migration.py                  # Enhanced migration runner
+```
+
+Note: We use migration number `003` to follow the existing sequence in the agents service.
+
+Enhanced migration runner:
+
+```python
+# agents/scripts/run_migration.py
+"""Run SQL migrations for identity database."""
+
+import sys
+import psycopg2
+from app.config import settings
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def run_migration(migration_file: str, database_url: str = None):
+    """Run a SQL migration file."""
+    db_url = database_url or settings.identity_database_url
+    
+    try:
+        # Connect to database
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
+        
+        # Read migration file
+        with open(migration_file, 'r') as f:
+            sql = f.read()
+        
+        # Execute migration
+        cur.execute(sql)
+        conn.commit()
+        
+        logger.info(f"Migration {migration_file} completed successfully")
+        
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+        if conn:
+            conn.rollback()
+        raise
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        migration_file = sys.argv[1]
+        database_url = sys.argv[2] if len(sys.argv) > 2 else None
+        run_migration(migration_file, database_url)
+    else:
+        # Run all identity migrations
+        run_migration("app/migrations/003_user_identity.sql")
+```
+
+### Environment Variable Hierarchy
+
+Our setup respects the following precedence (via shared/env_loader.py):
+
+1. **Environment variables** (highest priority)
+2. **.env.tunnel** (for ngrok development)
+3. **.env.local** (local overrides)
+4. **Service .env** (service defaults)
+5. **Config defaults** (lowest priority)
+
+### Testing Database Connectivity
+
+```python
+# agents/tests/test_identity_db.py
+"""Test identity database setup."""
+
+import pytest
+from app.services.identity_db import test_connection, get_db
+from sqlalchemy import text
+
+def test_database_connection():
+    """Test we can connect to identity database."""
+    assert test_connection() is True
+
+def test_database_tables():
+    """Test our tables exist."""
+    with get_db() as db:
+        # Check users table
+        result = db.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'users'
+            )
+        """))
+        assert result.scalar() is True
+        
+        # Check conversations table
+        result = db.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'conversations'
+            )
+        """))
+        assert result.scalar() is True
+```
+
+### Deployment Commands
+
+```bash
+# Local Development
+make dev                    # Starts all services
+python scripts/run_migration.py app/migrations/003_user_identity.sql
+
+# Heroku Production
+heroku run python scripts/run_migration.py app/migrations/003_user_identity.sql --app your-app
+heroku config:set IDENTITY_DATABASE_URL=$IDENTITY_DATABASE_URL --app your-app
+```
+
 ## 📋 Phased Implementation Approach
 
 ### Phase 4.5.1: Database Setup
@@ -99,7 +396,7 @@ CREATE INDEX idx_events_created_at ON events(created_at);
 #### Step 1: Create Migration File
 
 ```sql
--- database/migrations/001_user_identity.sql
+-- agents/app/migrations/003_user_identity.sql
 BEGIN;
 
 -- Users table
@@ -152,11 +449,15 @@ COMMIT;
 #### Step 2: Run Migration
 
 ```bash
-# Connect to database
-psql -U hirecj -d hirecj_dev -h localhost -p 5435
+# Using the migration script
+cd agents
+python scripts/run_migration.py app/migrations/003_user_identity.sql
+
+# Or manually via psql
+psql -U hirecj -d hirecj_identity -h localhost -p 5435
 
 # Run migration
-\i database/migrations/001_user_identity.sql
+\i app/migrations/003_user_identity.sql
 
 # Verify tables
 \dt
@@ -339,24 +640,30 @@ async def handle_oauth_callback(...):
 import json
 from datetime import datetime
 from typing import Dict, Any
-import asyncpg
-from app.config import settings
+from sqlalchemy import text
+from app.services.identity_db import get_db
+import logging
 
-async def log_user_event(
+logger = logging.getLogger(__name__)
+
+def log_user_event(
     user_id: str, 
     event_type: str, 
     event_data: Dict[str, Any]
 ) -> None:
     """Log user event to PostgreSQL."""
     try:
-        conn = await asyncpg.connect(settings.database_url)
-        
-        await conn.execute("""
-            INSERT INTO events (user_id, event_type, event_data, created_at)
-            VALUES ($1, $2, $3, $4)
-        """, user_id, event_type, json.dumps(event_data), datetime.utcnow())
-        
-        await conn.close()
+        with get_db() as db:
+            db.execute(text("""
+                INSERT INTO events (user_id, event_type, event_data, created_at)
+                VALUES (:user_id, :event_type, :event_data, :created_at)
+            """), {
+                "user_id": user_id,
+                "event_type": event_type,
+                "event_data": json.dumps(event_data),
+                "created_at": datetime.utcnow()
+            })
+            db.commit()
     except Exception as e:
         logger.error(f"Failed to log event: {e}")
         # Don't fail the request over logging
@@ -420,27 +727,28 @@ class ConversationArchiver:
                 logger.warning(f"No user_id found for conversation {conversation_id}")
                 return False
             
-            # Connect to PostgreSQL
-            conn = await asyncpg.connect(settings.database_url)
+            # Use identity database connection
+            from app.services.identity_db import get_db
+            from sqlalchemy import text
             
-            # Insert conversation
-            await conn.execute("""
-                INSERT INTO conversations 
-                (id, user_id, merchant_id, workflow_name, started_at, ended_at, messages, metadata)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                ON CONFLICT (id) DO NOTHING
-            """,
-                conversation_id,
-                user_id,
-                conv_data.get("merchant_id"),
-                conv_data.get("workflow_name", "unknown"),
-                conv_data.get("started_at"),
-                conv_data.get("ended_at", datetime.utcnow()),
-                json.dumps(conv_data.get("messages", [])),
-                json.dumps(conv_data.get("metadata", {}))
-            )
-            
-            await conn.close()
+            with get_db() as db:
+                # Insert conversation
+                db.execute(text("""
+                    INSERT INTO conversations 
+                    (id, user_id, merchant_id, workflow_name, started_at, ended_at, messages, metadata)
+                    VALUES (:id, :user_id, :merchant_id, :workflow, :started_at, :ended_at, :messages, :metadata)
+                    ON CONFLICT (id) DO NOTHING
+                """), {
+                    "id": conversation_id,
+                    "user_id": user_id,
+                    "merchant_id": conv_data.get("merchant_id"),
+                    "workflow": conv_data.get("workflow_name", "unknown"),
+                    "started_at": conv_data.get("started_at"),
+                    "ended_at": conv_data.get("ended_at", datetime.utcnow()),
+                    "messages": json.dumps(conv_data.get("messages", [])),
+                    "metadata": json.dumps(conv_data.get("metadata", {}))
+                })
+                db.commit()
             
             # Mark as archived in Redis
             self.redis.hset(f"conversation:{conversation_id}", "archived", "true")
@@ -611,11 +919,13 @@ async def test_archive_conversation():
 """User history and profile endpoints."""
 
 from fastapi import APIRouter, HTTPException, Depends
-from typing import List, Optional
-import asyncpg
-from app.config import settings
+from typing import List, Optional, Dict, Any
+from sqlalchemy import text
+from app.services.identity_db import get_db
 from app.auth import get_current_user
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/{user_id}/conversations")
@@ -624,52 +934,50 @@ async def get_user_conversations(
     limit: int = 20,
     offset: int = 0,
     current_user: dict = Depends(get_current_user)
-):
+) -> Dict[str, Any]:
     """Get user's conversation history."""
     # Verify user can access this data
     if current_user["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
     try:
-        conn = await asyncpg.connect(settings.database_url)
-        
-        # Get conversations
-        rows = await conn.fetch("""
-            SELECT 
-                id, workflow_name, started_at, ended_at,
-                jsonb_array_length(messages) as message_count,
-                metadata
-            FROM conversations
-            WHERE user_id = $1
-            ORDER BY started_at DESC
-            LIMIT $2 OFFSET $3
-        """, user_id, limit, offset)
-        
-        conversations = []
-        for row in rows:
-            conversations.append({
-                "id": str(row["id"]),
-                "workflow": row["workflow_name"],
-                "started_at": row["started_at"].isoformat(),
-                "ended_at": row["ended_at"].isoformat() if row["ended_at"] else None,
-                "message_count": row["message_count"],
-                "metadata": row["metadata"]
-            })
-        
-        # Get total count
-        count_row = await conn.fetchrow(
-            "SELECT COUNT(*) as total FROM conversations WHERE user_id = $1",
-            user_id
-        )
-        
-        await conn.close()
-        
-        return {
-            "conversations": conversations,
-            "total": count_row["total"],
-            "limit": limit,
-            "offset": offset
-        }
+        with get_db() as db:
+            # Get conversations
+            result = db.execute(text("""
+                SELECT 
+                    id, workflow_name, started_at, ended_at,
+                    jsonb_array_length(messages) as message_count,
+                    metadata
+                FROM conversations
+                WHERE user_id = :user_id
+                ORDER BY started_at DESC
+                LIMIT :limit OFFSET :offset
+            """), {"user_id": user_id, "limit": limit, "offset": offset})
+            
+            conversations = []
+            for row in result:
+                conversations.append({
+                    "id": str(row.id),
+                    "workflow": row.workflow_name,
+                    "started_at": row.started_at.isoformat(),
+                    "ended_at": row.ended_at.isoformat() if row.ended_at else None,
+                    "message_count": row.message_count,
+                    "metadata": row.metadata
+                })
+            
+            # Get total count
+            count_result = db.execute(
+                text("SELECT COUNT(*) as total FROM conversations WHERE user_id = :user_id"),
+                {"user_id": user_id}
+            )
+            total = count_result.scalar()
+            
+            return {
+                "conversations": conversations,
+                "total": total,
+                "limit": limit,
+                "offset": offset
+            }
         
     except Exception as e:
         logger.error(f"Failed to get user conversations: {e}")
@@ -680,33 +988,31 @@ async def get_conversation_detail(
     user_id: str,
     conversation_id: str,
     current_user: dict = Depends(get_current_user)
-):
+) -> Dict[str, Any]:
     """Get full conversation details."""
     # Verify access
     if current_user["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
     try:
-        conn = await asyncpg.connect(settings.database_url)
-        
-        row = await conn.fetchrow("""
-            SELECT * FROM conversations
-            WHERE id = $1 AND user_id = $2
-        """, conversation_id, user_id)
-        
-        if not row:
-            raise HTTPException(status_code=404, detail="Conversation not found")
-        
-        await conn.close()
-        
-        return {
-            "id": str(row["id"]),
-            "workflow": row["workflow_name"],
-            "started_at": row["started_at"].isoformat(),
-            "ended_at": row["ended_at"].isoformat() if row["ended_at"] else None,
-            "messages": row["messages"],  # Already JSON
-            "metadata": row["metadata"]
-        }
+        with get_db() as db:
+            result = db.execute(text("""
+                SELECT * FROM conversations
+                WHERE id = :conv_id AND user_id = :user_id
+            """), {"conv_id": conversation_id, "user_id": user_id})
+            
+            row = result.first()
+            if not row:
+                raise HTTPException(status_code=404, detail="Conversation not found")
+            
+            return {
+                "id": str(row.id),
+                "workflow": row.workflow_name,
+                "started_at": row.started_at.isoformat(),
+                "ended_at": row.ended_at.isoformat() if row.ended_at else None,
+                "messages": row.messages,  # Already JSON
+                "metadata": row.metadata
+            }
         
     except HTTPException:
         raise
@@ -718,47 +1024,47 @@ async def get_conversation_detail(
 async def get_user_profile(
     user_id: str,
     current_user: dict = Depends(get_current_user)
-):
+) -> Dict[str, Any]:
     """Get user profile information."""
     if current_user["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
     
     try:
-        conn = await asyncpg.connect(settings.database_url)
-        
-        # Get user data
-        user = await conn.fetchrow("""
-            SELECT * FROM users WHERE id = $1
-        """, user_id)
-        
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        
-        # Get conversation stats
-        stats = await conn.fetchrow("""
-            SELECT 
-                COUNT(*) as total_conversations,
-                MIN(started_at) as first_conversation,
-                MAX(started_at) as last_conversation
-            FROM conversations
-            WHERE user_id = $1
-        """, user_id)
-        
-        await conn.close()
-        
-        return {
-            "user_id": user["id"],
-            "shop_domain": user["shop_domain"],
-            "email": user["email"],
-            "name": user["name"],
-            "created_at": user["created_at"].isoformat(),
-            "last_seen": user["last_seen"].isoformat(),
-            "stats": {
-                "total_conversations": stats["total_conversations"],
-                "first_conversation": stats["first_conversation"].isoformat() if stats["first_conversation"] else None,
-                "last_conversation": stats["last_conversation"].isoformat() if stats["last_conversation"] else None
+        with get_db() as db:
+            # Get user data
+            user_result = db.execute(
+                text("SELECT * FROM users WHERE id = :user_id"),
+                {"user_id": user_id}
+            )
+            user = user_result.first()
+            
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            # Get conversation stats
+            stats_result = db.execute(text("""
+                SELECT 
+                    COUNT(*) as total_conversations,
+                    MIN(started_at) as first_conversation,
+                    MAX(started_at) as last_conversation
+                FROM conversations
+                WHERE user_id = :user_id
+            """), {"user_id": user_id})
+            stats = stats_result.first()
+            
+            return {
+                "user_id": user.id,
+                "shop_domain": user.shop_domain,
+                "email": user.email,
+                "name": user.name,
+                "created_at": user.created_at.isoformat(),
+                "last_seen": user.last_seen.isoformat(),
+                "stats": {
+                    "total_conversations": stats.total_conversations,
+                    "first_conversation": stats.first_conversation.isoformat() if stats.first_conversation else None,
+                    "last_conversation": stats.last_conversation.isoformat() if stats.last_conversation else None
+                }
             }
-        }
         
     except HTTPException:
         raise
@@ -1068,3 +1374,43 @@ WHERE created_at < NOW() - INTERVAL '90 days';
 4. **Team Accounts**: Multiple users per shop (future enhancement)
 
 This minimal implementation provides a solid foundation for user identity without over-engineering, perfectly aligned with our North Star principles.
+
+---
+
+## 🔧 PostgreSQL Integration Summary
+
+### Development Environment
+
+1. **Native PostgreSQL** on port 5435 (avoids conflicts)
+2. **Single identity database**: `hirecj_identity`
+3. **Environment configuration**: `IDENTITY_DATABASE_URL` in `.env.local`
+4. **Connection pooling**: Optimized for local development
+
+### Production Environment (Heroku)
+
+1. **Heroku Postgres add-on**: Automatic provisioning
+2. **Environment variable**: `IDENTITY_DATABASE_URL`
+3. **Automatic SSL**: Required for production connections
+4. **NullPool**: Serverless-friendly connection management
+
+### Key Design Decisions
+
+1. **Separate Database**: Identity data isolated from other services
+2. **SQLAlchemy ORM**: Consistent with existing patterns
+3. **Migration Strategy**: Sequential SQL scripts (003_user_identity.sql)
+4. **Connection Management**: Context managers for safety
+5. **Environment Flexibility**: Works seamlessly in both environments
+
+### Quick Start Commands
+
+```bash
+# Local Development
+createdb -p 5435 hirecj_identity
+cd agents && python scripts/run_migration.py app/migrations/003_user_identity.sql
+
+# Heroku Production
+heroku addons:create heroku-postgresql:mini --as IDENTITY_DATABASE --app your-app
+heroku run python scripts/run_migration.py app/migrations/003_user_identity.sql --app your-app
+```
+
+This elegant integration maintains simplicity while providing robust identity persistence across environments.
