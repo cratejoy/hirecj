@@ -90,101 +90,97 @@ CREATE INDEX idx_events_type ON events(event_type);
 CREATE INDEX idx_events_created_at ON events(created_at);
 ```
 
-## 🚀 PostgreSQL Integration
+## 🚀 Supabase Integration
 
-### Local Development Setup (Native, No Docker)
+### Development Setup with Supabase
 
-Our development system uses native PostgreSQL on port **5435** to avoid conflicts with default PostgreSQL installations.
+We use Supabase for identity data storage, maintaining separation from production ETL data while leveraging the same infrastructure.
 
-#### Step 1: Install PostgreSQL Locally
+#### Step 1: Create Dev Supabase Project
 
-```bash
-# macOS (using Homebrew)
-brew install postgresql@15
-brew services start postgresql@15
+1. **Dev Project Created**: `hire-cj-dev-amir` (us-east-1 region)
+2. Get the anon key from: Supabase Dashboard > Settings > API > Project API keys > anon (public)
+3. Keep this completely separate from production ETL data
 
-# Linux (Ubuntu/Debian)
-sudo apt-get update
-sudo apt-get install postgresql-15 postgresql-contrib
-
-# Start PostgreSQL on custom port
-postgres -D /usr/local/var/postgres -p 5435 &
-```
-
-#### Step 2: Create Development Database
-
-```bash
-# Create database and user
-createdb -p 5435 hirecj_identity
-createuser -p 5435 -s hirecj
-
-# Set password (optional for local dev)
-psql -p 5435 -d hirecj_identity -c "ALTER USER hirecj PASSWORD 'hirecj_dev_password';"
-```
-
-#### Step 3: Configure Environment
+#### Step 2: Configure Environment
 
 ```bash
 # agents/.env.local
-IDENTITY_DATABASE_URL=postgresql://hirecj:hirecj_dev_password@localhost:5435/hirecj_identity
 
-# For development without password
-IDENTITY_DATABASE_URL=postgresql://hirecj@localhost:5435/hirecj_identity
+# Production ETL data (existing - DO NOT CHANGE)
+SUPABASE_CONNECTION_STRING=postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres
+
+# Dev identity data (new - Phase 4.5)
+IDENTITY_SUPABASE_URL=postgresql://postgres:hCqzUNjCg4QKvHyD@db.hire-cj-dev-amir.supabase.co:5432/postgres
+IDENTITY_SUPABASE_ANON_KEY=eyJ... # Get from Supabase project settings > API
 ```
 
-### Heroku Production Setup
+#### Step 3: Run Migration in Supabase
 
-Heroku provides PostgreSQL as an add-on with automatic configuration.
+1. Go to [hire-cj-dev-amir Supabase Dashboard](https://supabase.com/dashboard/project/hire-cj-dev-amir)
+2. Navigate to SQL Editor
+3. Run the migration script (see Phase 4.5.1 below)
 
-#### Step 1: Add PostgreSQL to Heroku
+**Important Security Notes**:
+- Keep identity data completely separate from production ETL/ticket data!
+- Never commit the actual password to git (use .env.local which is gitignored)
+- The connection string above is for your dev environment only
 
-```bash
-# Add Heroku Postgres (mini plan for identity data)
-heroku addons:create heroku-postgresql:mini --app your-app-name
+### Production Setup
 
-# This creates DATABASE_URL environment variable
-# We'll use a separate database for identity
-heroku addons:create heroku-postgresql:mini --as IDENTITY_DATABASE --app your-app-name
-```
+For production, create a separate Supabase project for identity data.
+
+#### Step 1: Create Production Supabase Project
+
+1. Create another Supabase project: `hirecj-identity-prod`
+2. Keep it separate from ETL/ticket data
+3. Run the same migration script
 
 #### Step 2: Configure Production Environment
 
 ```bash
-# Heroku automatically provides:
-# DATABASE_URL=postgres://user:pass@host:port/dbname
-# IDENTITY_DATABASE_URL=postgres://user:pass@host:port/dbname
+# Set Heroku environment variables
+heroku config:set IDENTITY_SUPABASE_URL=postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres --app your-app
+heroku config:set IDENTITY_SUPABASE_ANON_KEY=eyJ... --app your-app
 
-# Our config automatically handles postgres:// → postgresql:// conversion
+# Verify separation from ETL data
+heroku config:get SUPABASE_CONNECTION_STRING --app your-app  # Different project!
+heroku config:get IDENTITY_SUPABASE_URL --app your-app      # Identity project
 ```
 
 ### Database Configuration Class
 
-Update the agents service configuration to support identity database:
+Update the agents service configuration to support Supabase identity database:
 
 ```python
 # agents/app/config.py
 
 class Settings(BaseSettings):
-    """Enhanced with identity database support."""
+    """Enhanced with Supabase identity support."""
     
-    # Existing configuration...
-    
-    # Identity Database (Phase 4.5)
-    identity_database_url: str = Field(
-        default="postgresql://hirecj:hirecj_dev_password@localhost:5435/hirecj_identity",
-        description="PostgreSQL URL for user identity data"
+    # Existing ETL/ticket data configuration
+    supabase_connection_string: str = Field(
+        default="",
+        description="Production Supabase for ETL/ticket data"
     )
     
-    @field_validator('identity_database_url')
-    def validate_identity_database_url(cls, v):
-        """Handle Heroku's postgres:// URLs."""
+    # Identity Database (Phase 4.5) - Now using Supabase!
+    identity_supabase_url: str = Field(
+        default="",
+        description="Separate Supabase project for user identity data"
+    )
+    
+    identity_supabase_anon_key: str = Field(
+        default="",
+        description="Supabase anon key for future client features"
+    )
+    
+    @field_validator('identity_supabase_url', 'supabase_connection_string')
+    def validate_supabase_urls(cls, v):
+        """Ensure PostgreSQL protocol for SQLAlchemy."""
         if v and v.startswith("postgres://"):
             return v.replace("postgres://", "postgresql://", 1)
         return v
-    
-    # Connection pool settings for identity DB
-    identity_db_pool_size: int = Field(default=5, ge=1, le=20)
-    identity_db_max_overflow: int = Field(default=10, ge=0, le=20)
     
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -195,11 +191,11 @@ class Settings(BaseSettings):
 
 ### Database Connection Manager
 
-Create a connection manager for the identity database:
+Leverage existing Supabase patterns for the identity database:
 
 ```python
 # agents/app/services/identity_db.py
-"""Identity database connection management."""
+"""Identity database using Supabase."""
 
 from contextlib import contextmanager
 from sqlalchemy import create_engine, text
@@ -210,28 +206,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Create engine with appropriate pooling
-if "localhost" in settings.identity_database_url:
-    # Local development: use connection pooling
-    engine = create_engine(
-        settings.identity_database_url,
-        pool_size=settings.identity_db_pool_size,
-        max_overflow=settings.identity_db_max_overflow,
-        pool_pre_ping=True
-    )
-else:
-    # Production/Heroku: use NullPool for serverless compatibility
-    engine = create_engine(
-        settings.identity_database_url,
-        poolclass=NullPool,
-        connect_args={
-            "sslmode": "require",
-            "connect_timeout": 30
-        }
-    )
+# Supabase always uses NullPool for serverless compatibility
+engine = create_engine(
+    settings.identity_supabase_url,
+    poolclass=NullPool,  # Supabase best practice
+    connect_args={
+        "sslmode": "require",
+        "connect_timeout": 30
+    }
+)
 
 SessionLocal = sessionmaker(bind=engine)
 
+# Reuse the existing Supabase pattern
 @contextmanager
 def get_db():
     """Get database session with automatic cleanup."""
@@ -246,87 +233,51 @@ def get_db():
         db.close()
 
 def test_connection():
-    """Test database connectivity."""
+    """Test Supabase connectivity."""
     try:
         with engine.connect() as conn:
             result = conn.execute(text("SELECT 1"))
-            logger.info("Identity database connection successful")
+            logger.info("Identity Supabase connection successful")
             return True
     except Exception as e:
-        logger.error(f"Identity database connection failed: {e}")
+        logger.error(f"Identity Supabase connection failed: {e}")
         return False
+
+# Optional: Direct connection for migrations
+def get_connection_string():
+    """Get connection string for psycopg2 operations."""
+    return settings.identity_supabase_url
 ```
 
 ### Migration Strategy
 
-We'll use the same pattern as the agents service - SQL migration scripts:
+For Supabase, we run migrations directly in the SQL Editor rather than using local scripts:
 
 ```bash
-# Directory structure
+# Directory structure (for reference)
 agents/
   app/
     migrations/
-      001_create_all_tables.sql         # Existing ETL tables
+      001_create_all_tables.sql         # ETL tables (production Supabase)
       002_create_daily_ticket_summaries.sql.old  # Old migration
-      003_user_identity.sql             # Our new migration (Phase 4.5)
-  scripts/
-      run_migration.py                  # Enhanced migration runner
+      003_user_identity_supabase.sql    # Identity tables (dev Supabase)
 ```
 
-Note: We use migration number `003` to follow the existing sequence in the agents service.
+**Important**: Run migrations in the correct Supabase project!
+- ETL migrations (001, 002) → Production Supabase
+- Identity migrations (003) → Identity Supabase
 
-Enhanced migration runner:
+For automated migrations, you can use Supabase CLI:
 
-```python
-# agents/scripts/run_migration.py
-"""Run SQL migrations for identity database."""
+```bash
+# Install Supabase CLI
+brew install supabase/tap/supabase
 
-import sys
-import psycopg2
-from app.config import settings
-import logging
+# Link to your identity project
+supabase link --project-ref hire-cj-dev-amir
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-def run_migration(migration_file: str, database_url: str = None):
-    """Run a SQL migration file."""
-    db_url = database_url or settings.identity_database_url
-    
-    try:
-        # Connect to database
-        conn = psycopg2.connect(db_url)
-        cur = conn.cursor()
-        
-        # Read migration file
-        with open(migration_file, 'r') as f:
-            sql = f.read()
-        
-        # Execute migration
-        cur.execute(sql)
-        conn.commit()
-        
-        logger.info(f"Migration {migration_file} completed successfully")
-        
-    except Exception as e:
-        logger.error(f"Migration failed: {e}")
-        if conn:
-            conn.rollback()
-        raise
-    finally:
-        if cur:
-            cur.close()
-        if conn:
-            conn.close()
-
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        migration_file = sys.argv[1]
-        database_url = sys.argv[2] if len(sys.argv) > 2 else None
-        run_migration(migration_file, database_url)
-    else:
-        # Run all identity migrations
-        run_migration("app/migrations/003_user_identity.sql")
+# Run migration
+supabase db push --file agents/app/migrations/003_user_identity_supabase.sql
 ```
 
 ### Environment Variable Hierarchy
@@ -343,24 +294,36 @@ Our setup respects the following precedence (via shared/env_loader.py):
 
 ```python
 # agents/tests/test_identity_db.py
-"""Test identity database setup."""
+"""Test identity Supabase setup."""
 
 import pytest
 from app.services.identity_db import test_connection, get_db
 from sqlalchemy import text
 
-def test_database_connection():
-    """Test we can connect to identity database."""
+def test_supabase_connection():
+    """Test we can connect to identity Supabase."""
     assert test_connection() is True
 
+def test_identity_schema_exists():
+    """Test identity schema was created."""
+    with get_db() as db:
+        result = db.execute(text("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.schemata 
+                WHERE schema_name = 'identity'
+            )
+        """))
+        assert result.scalar() is True
+
 def test_database_tables():
-    """Test our tables exist."""
+    """Test our tables exist in identity schema."""
     with get_db() as db:
         # Check users table
         result = db.execute(text("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
-                WHERE table_name = 'users'
+                WHERE table_schema = 'identity' 
+                AND table_name = 'users'
             )
         """))
         assert result.scalar() is True
@@ -369,7 +332,8 @@ def test_database_tables():
         result = db.execute(text("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
-                WHERE table_name = 'conversations'
+                WHERE table_schema = 'identity' 
+                AND table_name = 'conversations'
             )
         """))
         assert result.scalar() is True
@@ -380,11 +344,12 @@ def test_database_tables():
 ```bash
 # Local Development
 make dev                    # Starts all services
-python scripts/run_migration.py app/migrations/003_user_identity.sql
+# Run migration in Supabase SQL Editor (no local command needed)
 
-# Heroku Production
-heroku run python scripts/run_migration.py app/migrations/003_user_identity.sql --app your-app
-heroku config:set IDENTITY_DATABASE_URL=$IDENTITY_DATABASE_URL --app your-app
+# Production
+heroku config:set IDENTITY_SUPABASE_URL=$IDENTITY_SUPABASE_URL --app your-app
+heroku config:set IDENTITY_SUPABASE_ANON_KEY=$IDENTITY_SUPABASE_ANON_KEY --app your-app
+# Run migration in production Supabase SQL Editor
 ```
 
 ## 📋 Phased Implementation Approach
@@ -395,13 +360,21 @@ heroku config:set IDENTITY_DATABASE_URL=$IDENTITY_DATABASE_URL --app your-app
 
 #### Step 1: Create Migration File
 
+Run this in your Supabase SQL Editor:
+
 ```sql
--- agents/app/migrations/003_user_identity.sql
-BEGIN;
+-- agents/app/migrations/003_user_identity_supabase.sql
+-- Run this in the IDENTITY Supabase project, NOT production ETL!
+
+-- Enable UUID extension (usually already enabled in Supabase)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Create identity schema for organization
+CREATE SCHEMA IF NOT EXISTS identity;
 
 -- Users table
-CREATE TABLE IF NOT EXISTS users (
-    id VARCHAR(50) PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS identity.users (
+    id VARCHAR(50) PRIMARY KEY,  -- usr_xxx format
     shop_domain VARCHAR(255) UNIQUE NOT NULL,
     shopify_id VARCHAR(100),
     email VARCHAR(255),
@@ -411,69 +384,80 @@ CREATE TABLE IF NOT EXISTS users (
     metadata JSONB DEFAULT '{}'::jsonb
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_shop_domain ON users(shop_domain);
-CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+CREATE INDEX IF NOT EXISTS idx_users_shop_domain ON identity.users(shop_domain);
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON identity.users(created_at);
 
 -- Conversations archive
-CREATE TABLE IF NOT EXISTS conversations (
-    id UUID PRIMARY KEY,
-    user_id VARCHAR(50) REFERENCES users(id),
-    merchant_id VARCHAR(100),
+CREATE TABLE IF NOT EXISTS identity.conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id VARCHAR(50) REFERENCES identity.users(id),
+    merchant_id VARCHAR(100),  -- Keep for compatibility
     workflow_name VARCHAR(100),
     started_at TIMESTAMPTZ,
     ended_at TIMESTAMPTZ,
-    messages JSONB NOT NULL,
+    messages JSONB NOT NULL,  -- Full conversation history
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
-CREATE INDEX IF NOT EXISTS idx_conversations_started_at ON conversations(started_at);
+CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON identity.conversations(user_id);
+CREATE INDEX IF NOT EXISTS idx_conversations_started_at ON identity.conversations(started_at);
 
--- Events table
-CREATE TABLE IF NOT EXISTS events (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id VARCHAR(50) REFERENCES users(id),
+-- Events table for analytics
+CREATE TABLE IF NOT EXISTS identity.events (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id VARCHAR(50) REFERENCES identity.users(id),
     event_type VARCHAR(100) NOT NULL,
     event_data JSONB NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_events_user_id ON events(user_id);
-CREATE INDEX IF NOT EXISTS idx_events_type ON events(event_type);
-CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(created_at);
+CREATE INDEX IF NOT EXISTS idx_events_user_id ON identity.events(user_id);
+CREATE INDEX IF NOT EXISTS idx_events_type ON identity.events(event_type);
+CREATE INDEX IF NOT EXISTS idx_events_created_at ON identity.events(created_at);
 
-COMMIT;
+-- Grant permissions (Supabase specific)
+GRANT USAGE ON SCHEMA identity TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA identity TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA identity TO anon, authenticated;
+
+-- Future: Enable Row Level Security when needed
+-- ALTER TABLE identity.users ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE identity.conversations ENABLE ROW LEVEL SECURITY;
+-- ALTER TABLE identity.events ENABLE ROW LEVEL SECURITY;
 ```
 
 #### Step 2: Run Migration
 
 ```bash
-# Using the migration script
-cd agents
-python scripts/run_migration.py app/migrations/003_user_identity.sql
+# Option 1: Use Supabase SQL Editor (Recommended)
+# 1. Go to your identity Supabase project dashboard
+# 2. Navigate to SQL Editor
+# 3. Paste the migration SQL above
+# 4. Click "Run"
 
-# Or manually via psql
-psql -U hirecj -d hirecj_identity -h localhost -p 5435
+# Option 2: Use Supabase CLI (requires supabase link first)
+supabase db push --file agents/app/migrations/003_user_identity_supabase.sql
 
-# Run migration
-\i app/migrations/003_user_identity.sql
-
-# Verify tables
-\dt
+# Verify tables were created
+# In SQL Editor, run:
+SELECT table_schema, table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'identity';
 ```
 
 #### Step 3: Test Queries
 
+Run these in Supabase SQL Editor to verify setup:
+
 ```sql
 -- Test user creation
-INSERT INTO users (id, shop_domain, email, name) 
+INSERT INTO identity.users (id, shop_domain, email, name) 
 VALUES ('usr_test123', 'test.myshopify.com', 'test@example.com', 'Test User');
 
 -- Test conversation archive
-INSERT INTO conversations (id, user_id, workflow_name, started_at, messages)
+INSERT INTO identity.conversations (user_id, workflow_name, started_at, messages)
 VALUES (
-    gen_random_uuid(),
     'usr_test123',
     'shopify_onboarding',
     NOW(),
@@ -481,13 +465,18 @@ VALUES (
 );
 
 -- Test event logging
-INSERT INTO events (user_id, event_type, event_data)
+INSERT INTO identity.events (user_id, event_type, event_data)
 VALUES ('usr_test123', 'oauth_complete', '{"shop": "test.myshopify.com"}'::jsonb);
 
 -- Verify data
-SELECT * FROM users;
-SELECT * FROM conversations WHERE user_id = 'usr_test123';
-SELECT * FROM events WHERE user_id = 'usr_test123';
+SELECT * FROM identity.users;
+SELECT * FROM identity.conversations WHERE user_id = 'usr_test123';
+SELECT * FROM identity.events WHERE user_id = 'usr_test123';
+
+-- Clean up test data
+DELETE FROM identity.events WHERE user_id = 'usr_test123';
+DELETE FROM identity.conversations WHERE user_id = 'usr_test123';
+DELETE FROM identity.users WHERE id = 'usr_test123';
 ```
 
 **✅ Phase 4.5.1 Complete When:**
@@ -655,7 +644,7 @@ def log_user_event(
     try:
         with get_db() as db:
             db.execute(text("""
-                INSERT INTO events (user_id, event_type, event_data, created_at)
+                INSERT INTO identity.events (user_id, event_type, event_data, created_at)
                 VALUES (:user_id, :event_type, :event_data, :created_at)
             """), {
                 "user_id": user_id,
@@ -734,7 +723,7 @@ class ConversationArchiver:
             with get_db() as db:
                 # Insert conversation
                 db.execute(text("""
-                    INSERT INTO conversations 
+                    INSERT INTO identity.conversations 
                     (id, user_id, merchant_id, workflow_name, started_at, ended_at, messages, metadata)
                     VALUES (:id, :user_id, :merchant_id, :workflow, :started_at, :ended_at, :messages, :metadata)
                     ON CONFLICT (id) DO NOTHING
@@ -948,7 +937,7 @@ async def get_user_conversations(
                     id, workflow_name, started_at, ended_at,
                     jsonb_array_length(messages) as message_count,
                     metadata
-                FROM conversations
+                FROM identity.conversations
                 WHERE user_id = :user_id
                 ORDER BY started_at DESC
                 LIMIT :limit OFFSET :offset
@@ -967,7 +956,7 @@ async def get_user_conversations(
             
             # Get total count
             count_result = db.execute(
-                text("SELECT COUNT(*) as total FROM conversations WHERE user_id = :user_id"),
+                text("SELECT COUNT(*) as total FROM identity.conversations WHERE user_id = :user_id"),
                 {"user_id": user_id}
             )
             total = count_result.scalar()
@@ -997,7 +986,7 @@ async def get_conversation_detail(
     try:
         with get_db() as db:
             result = db.execute(text("""
-                SELECT * FROM conversations
+                SELECT * FROM identity.conversations
                 WHERE id = :conv_id AND user_id = :user_id
             """), {"conv_id": conversation_id, "user_id": user_id})
             
@@ -1033,7 +1022,7 @@ async def get_user_profile(
         with get_db() as db:
             # Get user data
             user_result = db.execute(
-                text("SELECT * FROM users WHERE id = :user_id"),
+                text("SELECT * FROM identity.users WHERE id = :user_id"),
                 {"user_id": user_id}
             )
             user = user_result.first()
@@ -1047,7 +1036,7 @@ async def get_user_profile(
                     COUNT(*) as total_conversations,
                     MIN(started_at) as first_conversation,
                     MAX(started_at) as last_conversation
-                FROM conversations
+                FROM identity.conversations
                 WHERE user_id = :user_id
             """), {"user_id": user_id})
             stats = stats_result.first()
@@ -1276,13 +1265,13 @@ With all phases complete, you now have:
 
 ```bash
 # Check user creation
-psql -c "SELECT * FROM users ORDER BY created_at DESC LIMIT 5;"
+psql -c "SELECT * FROM identity.users ORDER BY created_at DESC LIMIT 5;"
 
 # Check conversations
-psql -c "SELECT id, user_id, workflow_name, started_at FROM conversations ORDER BY started_at DESC LIMIT 5;"
+psql -c "SELECT id, user_id, workflow_name, started_at FROM identity.conversations ORDER BY started_at DESC LIMIT 5;"
 
 # Check events
-psql -c "SELECT user_id, event_type, created_at FROM events ORDER BY created_at DESC LIMIT 10;"
+psql -c "SELECT user_id, event_type, created_at FROM identity.events ORDER BY created_at DESC LIMIT 10;"
 
 # Test API
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/users/$USER_ID/conversations
@@ -1325,18 +1314,18 @@ With user identity in place, Phase 5 (Quick Value Demo) can now:
 
 ```sql
 -- Weekly: Clean up orphaned conversations
-DELETE FROM conversations 
+DELETE FROM identity.conversations 
 WHERE user_id IS NULL 
 AND created_at < NOW() - INTERVAL '7 days';
 
 -- Monthly: Analyze tables for query optimization
-ANALYZE users;
-ANALYZE conversations;
-ANALYZE events;
+ANALYZE identity.users;
+ANALYZE identity.conversations;
+ANALYZE identity.events;
 
 -- Quarterly: Review and archive old events
-INSERT INTO events_archive 
-SELECT * FROM events 
+INSERT INTO identity.events_archive 
+SELECT * FROM identity.events 
 WHERE created_at < NOW() - INTERVAL '90 days';
 ```
 
@@ -1377,40 +1366,57 @@ This minimal implementation provides a solid foundation for user identity withou
 
 ---
 
-## 🔧 PostgreSQL Integration Summary
+## 🔧 Supabase Integration Summary
 
 ### Development Environment
 
-1. **Native PostgreSQL** on port 5435 (avoids conflicts)
-2. **Single identity database**: `hirecj_identity`
-3. **Environment configuration**: `IDENTITY_DATABASE_URL` in `.env.local`
-4. **Connection pooling**: Optimized for local development
+1. **Supabase Project**: Dedicated `hirecj-identity-dev` project
+2. **Zero Local Setup**: No PostgreSQL installation required
+3. **Environment configuration**: `IDENTITY_SUPABASE_URL` in `.env.local`
+4. **Schema Organization**: `identity` schema for clean separation
 
-### Production Environment (Heroku)
+### Production Environment
 
-1. **Heroku Postgres add-on**: Automatic provisioning
-2. **Environment variable**: `IDENTITY_DATABASE_URL`
-3. **Automatic SSL**: Required for production connections
-4. **NullPool**: Serverless-friendly connection management
+1. **Separate Supabase Project**: `hirecj-identity-prod`
+2. **Environment variables**: Set via Heroku config
+3. **Built-in SSL**: Automatic secure connections
+4. **Scalability**: Supabase handles all infrastructure
 
 ### Key Design Decisions
 
-1. **Separate Database**: Identity data isolated from other services
+1. **Separate Projects**: ETL data and identity data in different Supabase projects
 2. **SQLAlchemy ORM**: Consistent with existing patterns
-3. **Migration Strategy**: Sequential SQL scripts (003_user_identity.sql)
-4. **Connection Management**: Context managers for safety
-5. **Environment Flexibility**: Works seamlessly in both environments
+3. **Migration Strategy**: Supabase SQL Editor or CLI
+4. **Connection Management**: NullPool for serverless compatibility
+5. **Future-Ready**: Can leverage Supabase Auth, Realtime, Row Level Security
 
 ### Quick Start Commands
 
 ```bash
-# Local Development
-createdb -p 5435 hirecj_identity
-cd agents && python scripts/run_migration.py app/migrations/003_user_identity.sql
+# Development Setup
+# 1. Your Supabase project: hire-cj-dev-amir (us-east-1)
+# 2. Add credentials to .env.local:
+echo "IDENTITY_SUPABASE_URL=postgresql://postgres:hCqzUNjCg4QKvHyD@db.hire-cj-dev-amir.supabase.co:5432/postgres" >> agents/.env.local
 
-# Heroku Production
-heroku addons:create heroku-postgresql:mini --as IDENTITY_DATABASE --app your-app
-heroku run python scripts/run_migration.py app/migrations/003_user_identity.sql --app your-app
+# 3. Run migration in SQL Editor
+# 4. Test connection:
+cd agents
+python -c "from app.services.identity_db import test_connection; print(test_connection())"
+
+# Production Setup
+heroku config:set IDENTITY_SUPABASE_URL=postgresql://... --app your-app
+heroku config:set IDENTITY_SUPABASE_ANON_KEY=eyJ... --app your-app
 ```
 
-This elegant integration maintains simplicity while providing robust identity persistence across environments.
+### Architecture Diagram
+
+```
+Production Supabase              Dev Supabase (Identity)
+├── ETL/Ticket Data             ├── User Identity Data
+│   ├── merchants               │   ├── identity.users
+│   ├── etl_shopify_*          │   ├── identity.conversations
+│   └── etl_freshdesk_*        │   └── identity.events
+└── SUPABASE_CONNECTION_STRING  └── IDENTITY_SUPABASE_URL
+```
+
+This elegant integration leverages Supabase's managed infrastructure while maintaining clean separation between production ETL data and user identity data.
