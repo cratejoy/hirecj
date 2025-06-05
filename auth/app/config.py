@@ -1,12 +1,17 @@
 """Configuration settings for the HireCJ auth service."""
 
 import os
+import sys
 import logging
 from typing import Optional
 from pathlib import Path
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Add parent directories to path to import shared modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from shared.env_loader import load_env_for_service
 
 logger = logging.getLogger(__name__)
 
@@ -14,14 +19,23 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
     
+    model_config = SettingsConfigDict(
+        env_ignore_empty=True  # Ignore empty string values from env
+    )
+    
     # Server Configuration
     app_host: str = Field("0.0.0.0", env="APP_HOST")
-    app_port: int = Field(8103, env="APP_PORT")
+    app_port: int = Field(8103, env="AUTH_SERVICE_PORT")  # Use service-specific port
+    
+    # Service URLs (from shared config)
+    auth_service_url: str = Field("http://localhost:8103", env="AUTH_SERVICE_URL")
+    agents_service_url: str = Field("http://localhost:8000", env="AGENTS_SERVICE_URL")
+    homepage_url: str = Field("http://localhost:3456", env="HOMEPAGE_URL")
     
     # Database Configuration
     database_url: str = Field(
         "postgresql://hirecj:hirecj_dev_password@localhost:5435/hirecj_auth",
-        env="DATABASE_URL"
+        env="AUTH_DATABASE_URL"
     )
     
     # Security Configuration
@@ -44,6 +58,7 @@ class Settings(BaseSettings):
         "read_products,read_orders,read_customers",
         env="SHOPIFY_SCOPES"
     )
+    shopify_custom_install_link: Optional[str] = Field(None, env="SHOPIFY_CUSTOM_INSTALL_LINK")
     
     # OAuth Configuration - Data Providers
     klaviyo_client_id: Optional[str] = Field(None, env="KLAVIYO_CLIENT_ID")
@@ -57,7 +72,7 @@ class Settings(BaseSettings):
     
     # OAuth Redirect Configuration
     oauth_redirect_base_url: str = Field(
-        "http://localhost:8003",
+        "",  # Will be auto-detected or use env var
         env="OAUTH_REDIRECT_BASE_URL"
     )
     
@@ -67,7 +82,7 @@ class Settings(BaseSettings):
     # Frontend URLs (for redirects after auth)
     frontend_url: str = Field(
         "http://localhost:3456",
-        env="FRONTEND_URL"
+        env="HOMEPAGE_URL"  # Use HOMEPAGE_URL which is set by tunnel detector
     )
     frontend_success_path: str = Field(
         "/auth/success",
@@ -85,6 +100,12 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = Field("INFO", env="LOG_LEVEL")
     
+    # Redis Configuration
+    redis_url: str = Field(
+        "redis://localhost:6379/0",
+        env="REDIS_URL"
+    )
+    
     # CORS Configuration
     allowed_origins: list[str] = Field(
         default_factory=list,
@@ -95,21 +116,24 @@ class Settings(BaseSettings):
     ngrok_enabled: bool = Field(False, env="NGROK_ENABLED")
     ngrok_domain: Optional[str] = Field(None, env="NGROK_DOMAIN")
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"  # Ignore extra fields from .env files
+    model_config = SettingsConfigDict(
+        env_file=load_env_for_service("auth"),
+        env_file_encoding="utf-8",
+        extra="ignore",  # Ignore extra fields from .env files
+        env_ignore_empty=True,  # Don't let empty strings override values
+    )
     
-    @field_validator("oauth_redirect_base_url", mode="before")
+    @field_validator("oauth_redirect_base_url", mode="after")
     @classmethod
-    def detect_tunnel_url(cls, v: Optional[str], values) -> str:
+    def detect_tunnel_url(cls, v: Optional[str], info) -> str:
         """Automatically detect and use ngrok tunnel URL if available."""
         # If explicitly set, use that
         if v:
             return v
         
-        # Check for tunnel URL from .env.tunnel (created by tunnel detector)
-        tunnel_env_path = Path(".env.tunnel")
+        # Check for tunnel URL from root .env.tunnel (created by tunnel detector)
+        root_dir = Path(__file__).parent.parent.parent  # Go up to monorepo root
+        tunnel_env_path = root_dir / ".env.tunnel"
         if tunnel_env_path.exists():
             try:
                 with open(tunnel_env_path) as f:
@@ -128,8 +152,9 @@ class Settings(BaseSettings):
             except Exception as e:
                 logger.warning(f"Failed to read tunnel URL: {e}")
         
-        # Default to localhost
-        default_url = f"http://localhost:{values.get('app_port', 8003)}"
+        # Default to localhost with the configured app_port
+        app_port = info.data.get('app_port', 8103)
+        default_url = f"http://localhost:{app_port}"
         logger.info(f"Using default redirect URL: {default_url}")
         return default_url
     
@@ -192,13 +217,16 @@ class Settings(BaseSettings):
             logger.info(f"  Base URL: {self.oauth_redirect_base_url}")
             for provider in ["shopify", "google", "klaviyo", "freshdesk"]:
                 logger.info(f"  {provider.title()}: {self.get_oauth_callback_url(provider)}")
+    
+    def __init__(self, **kwargs):
+        """Initialize settings and ensure proper frontend URL."""
+        super().__init__(**kwargs)
+        
+        # If homepage_url is set and looks like a tunnel URL, use it for frontend_url
+        if self.homepage_url and ("ngrok" in self.homepage_url or "hirecj.ai" in self.homepage_url):
+            self.frontend_url = self.homepage_url
+            logger.info(f"🔧 Using homepage_url for frontend_url: {self.frontend_url}")
 
 
-# Create global settings instance
+# Create global settings instance with hierarchical loading
 settings = Settings()
-
-# Load additional env files if they exist
-env_files = [".env", ".env.local", ".env.tunnel"]
-for env_file in env_files:
-    if Path(env_file).exists():
-        settings = Settings(_env_file=env_file)

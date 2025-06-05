@@ -1,5 +1,28 @@
 # Shopify Login & Onboarding Plan
 
+## 📊 Current Status Summary
+
+### ✅ Completed Phases
+1. **Phase 1: Foundation** - Onboarding workflow, CJ agent, OAuth button component
+2. **Phase 2: Auth Flow Integration** - OAuth callbacks, shop domain identifier, context updates
+3. **Phase 3.7: OAuth 2.0 Implementation** - Full OAuth flow with HMAC verification, token storage
+4. **Phase 4: UI Actions Pattern** - Parser, workflow config, WebSocket integration
+
+### 🎯 Current Priority
+**Phase 5: Quick Value Demo** - Show immediate insights after Shopify connection
+
+### 📅 Upcoming Phases
+- Phase 6: Support System Connection
+- Phase 7: Notification & Polish
+- Phase 8: Testing & Refinement
+
+### 🚀 Next Steps
+1. Test the OAuth flow end-to-end with the auth service running
+2. Begin Phase 5 implementation for quick value demonstration
+3. Ensure CJ provides immediate value post-OAuth connection
+
+---
+
 ## 🌟 North Star Principles
 
 1. **Simplify, Simplify, Simplify**: Every decision should make the code simpler, not more complex
@@ -33,41 +56,181 @@
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-2-auth-flow.md)**
 
-### Phase 3: Quick Value Demo
+### Phase 3: OAuth Production Ready ⚠️ NEEDS CUSTOM APP SUPPORT
+**Deliverables:**
+- [x] Configure real Shopify OAuth credentials
+- [x] Fix ngrok tunnel integration for OAuth callbacks
+- [x] Verify new vs returning merchant detection implementation
+- [ ] Support Shopify custom app installation flow *(NEW REQUIREMENT)*
+- [ ] Test OAuth flow end-to-end with real Shopify (manual testing required)
+- [ ] Test CJ's response to OAuth completion (manual testing required)
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-3-oauth-production.md)**
+📄 **[Testing Guide →](docs/shopify-onboarding/phase-3-testing.md)**
+
+**Implementation Summary:**
+- OAuth credentials configured in auth/.env.secrets
+- Tunnel detection working correctly via unified env config
+- Homepage automatically uses correct auth service URL
+- New vs returning merchant detection already implemented
+- **DISCOVERED:** Custom apps require different installation flow than public apps
+
+### Phase 3.5: ~~Complex App Bridge Implementation~~ ❌ ABANDONED
+**Problem:** We implemented a complex App Bridge solution that requires embedded context, but our use case needs everything to work on hirecj.ai directly.
+
+**What We Built (Overly Complex):**
+- App Bridge integration requiring embedded context
+- Session token retrieval from within Shopify admin
+- Complex dual-context handling
+- JWT verification and token exchange (good parts)
+
+**Why It Failed:** Fundamental mismatch - we need merchants to use HireCJ from hirecj.ai, not from within Shopify admin.
+
+### Phase 3.6: ~~Manual Token Entry (Custom Distribution)~~ ❌ ABANDONED
+**Problem:** Discovered that custom distribution apps don't support OAuth - they require manual token generation and entry by merchants. This creates friction in the onboarding process.
+
+**What We Built:**
+- Manual token entry form with beta notice
+- Token validation endpoint
+- Instructions for merchants to generate tokens
+
+**Why It Failed:** Not a technical failure, but a Shopify limitation. Custom distribution apps simply don't support OAuth. To use OAuth, we need a different app type.
+
+### Phase 3.7: OAuth 2.0 Implementation ✅ COMPLETE
+**Solution:** Switch from custom distribution to OAuth-enabled app. Implement standard Shopify OAuth 2.0 authorization code grant flow.
+
+**The Right Flow:**
+```
+OAuth Flow:
+├── User clicks "Connect Shopify" on hirecj.ai
+├── Enter shop domain (if not saved)
+├── Redirect to https://{shop}/admin/oauth/authorize
+├── User approves permissions
+├── Shopify redirects back with authorization code
+├── Backend exchanges code for access token
+├── Store token in Redis
+└── Redirect to chat - authenticated!
+```
+
+**What We Built:**
+- ✅ HMAC verification utility for secure OAuth callbacks
+- ✅ Full OAuth endpoints with proper security (nonce validation)
+- ✅ Token exchange and storage in Redis
+- ✅ Updated frontend button to always collect shop domain
+- ✅ Fixed async/sync issues in auth service
+- ✅ Removed shop domain persistence (always ask)
+- ✅ Proper error handling and logging
+
+**Benefits:**
+- Standard OAuth flow that works for any app type
+- No manual token entry required
+- Production-ready authentication
+- Can eventually become a public app
+- Seamless merchant experience
+
+📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.7-oauth-implementation.md)**
+
+### What We Keep from 3.5:
+- ✅ OAuth code deletion (already done)
+- ✅ Magic number fixes (already done)
+- ✅ JWT verification service (reusable)
+- ✅ Token exchange service (reusable)
+- ❌ App Bridge integration (remove)
+- ❌ Polling mechanism (remove)
+- ❌ Complex context handling (remove)
+
+### Phase 4: UI Actions Pattern ✅ COMPLETE
+**Deliverables:**
+- [x] Parser implementation to extract {{oauth:shopify}} markers
+- [x] Workflow configuration to enable UI components
+- [x] Message processor integration to parse UI elements
+- [x] Platform layer passes ui_elements through WebSocket
+- [x] Frontend UI element rendering with pattern matching fallback
+- [ ] End-to-end testing of complete flow
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-ui-actions.md)**
+
+---
+
+## Development Environment Updates
+
+### Recent Environment Changes (Phase 3.7 - Phase 5)
+
+**New Required Environment Variables:**
+- `SHOPIFY_CLIENT_ID` - Required for Shopify OAuth
+- `SHOPIFY_CLIENT_SECRET` - Required for Shopify OAuth
+
+**Tunnel Configuration Updates:**
+- Auth service now uses `HOMEPAGE_URL` from `.env.tunnel` for OAuth redirects
+- Added `env_ignore_empty=True` to Pydantic configs to prevent empty string overrides
+- Fixed `.env.tunnel` loading order (now has highest precedence)
+
+**CORS Configuration:**
+- Both `frontend_url` and `homepage_url` are now added to allowed origins
+- Automatic detection of hirecj.ai domains for CORS
+
+**Debug System:**
+- Browser console now has `window.cj` debug commands (enabled by default)
+- Commands: `cj.debug()`, `cj.session()`, `cj.prompts()`, `cj.context()`
+- Backend debug_request handler provides session and state information
+
+**OAuth Flow Requirements:**
+- Must use tunnels for OAuth (localhost redirects won't work)
+- Shopify app must be configured with proper redirect URLs
+- JSON serialization fix for datetime objects in merchant storage
+
+📄 **[Full Environment Setup Guide →](README_ENV_SETUP.md)**
+
+---
+
+### Phase 5: Quick Value Demo 🎯 CURRENT PRIORITY
+**Goal:** Show immediate value after Shopify connection by providing quick insights about their store.
+
 **Deliverables:**
 - [ ] Quick insights service for Shopify data
 - [ ] Store snapshot queries (products, orders, customers)
 - [ ] Progressive data loading mechanism
 - [ ] Conversation UI showing real-time insights
+- [ ] CJ's value-driven responses post-OAuth
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-3-quick-value.md)** *(TODO)*
+**The Experience:**
+```
+After OAuth:
+├── "Great! Taking a quick look at your store..."
+├── Progressive loading of insights
+├── Show key metrics (products, recent orders, etc.)
+├── Natural transition to support system connection
+└── Build trust through immediate value
+```
 
-### Phase 4: Support System Connection
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-quick-value.md)** *(TODO)*
+
+### Phase 6: Support System Connection
 **Deliverables:**
 - [ ] Support system provider detection logic
 - [ ] Interest list for unsupported systems
 - [ ] OAuth flows for supported systems
 - [ ] Graceful handling of unsupported providers
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-support-systems.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-6-support-systems.md)** *(TODO)*
 
-### Phase 5: Notification & Polish
+### Phase 7: Notification & Polish
 **Deliverables:**
 - [ ] Email notification capture and sending
 - [ ] Browser notification implementation
 - [ ] Beta messaging throughout experience
 - [ ] Error handling and edge cases
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-notifications.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-7-notifications.md)** *(TODO)*
 
-### Phase 6: Testing & Refinement
+### Phase 8: Testing & Refinement
 **Deliverables:**
 - [ ] End-to-end flow testing suite
 - [ ] Performance optimization
 - [ ] Security review
 - [ ] Documentation and deployment guide
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-6-testing.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-8-testing.md)** *(TODO)*
 
 ## 🏛️ System Architecture Overview
 
@@ -454,3 +617,119 @@ The guides include:
 - Common issues & solutions
 
 Use the [phase template](docs/shopify-onboarding/PHASE_TEMPLATE.md) when creating new guides.
+
+## 🔧 Side Quest: Unified Environment Configuration
+
+### Current Pain Points
+- Each service has its own `.env` file with duplicated service URLs
+- Homepage needs to know Auth and Agents URLs
+- Tunnel detection updates multiple files
+- Hard to manage secrets across services
+- OAuth redirect URLs need coordination
+
+### Proposed Solution: Root `.env` with Service Overrides
+
+```
+/hirecj/
+├── .env                    # Shared configuration
+├── .env.local             # Local overrides (gitignored)
+├── .env.tunnel            # Auto-generated tunnel URLs
+├── auth/
+│   └── .env.secrets       # Auth-specific secrets only
+├── agents/
+│   └── .env.secrets       # API keys only
+└── homepage/
+    └── .env               # Vite requires this, but minimal
+```
+
+### Implementation Tasks ✅ COMPLETE
+- [x] Create root `.env.example` with shared config structure
+- [x] Update `/shared/env_loader.py` for hierarchical loading
+- [x] Modify each service's `config.py` to load env files in order
+- [x] Update homepage's `vite.config.ts` to read parent env
+- [x] Enhance tunnel detector to write service URLs once
+- [x] Migrate existing env vars to new structure
+- [x] Update documentation and setup scripts
+- [x] Create verification script to test configuration
+
+### Benefits
+- **Single source of truth** for service URLs
+- **Secrets stay isolated** per service
+- **Tunnel detection** updates one place
+- **Easy local dev** - just copy root `.env.example`
+- **Gradual migration** - existing files still work
+
+### North Star Alignment
+- ✅ **Simplify**: One place for shared config
+- ✅ **No Cruft**: Remove URL duplication
+- ✅ **Long-term Elegance**: Clear separation of concerns
+- ✅ **No Over-Engineering**: Reuses existing patterns
+
+## 🔍 Console Debug System
+
+### Overview
+An elegant console-based debug system that exposes CJ's internal state through simple JavaScript commands, providing real-time visibility without any UI complexity.
+
+### Design: `window.cj` API
+
+```javascript
+// Browser console commands:
+cj.debug()        // Show current state snapshot
+cj.session()      // Session & auth info
+cj.prompts()      // Last 5 prompts sent to CJ
+cj.context()      // Current conversation context
+cj.events()       // Start live event stream
+cj.stop()         // Stop event stream
+cj.help()         // Show all available commands
+```
+
+### Console Output Format
+
+```javascript
+// Example cj.debug() output:
+🤖 CJ Debug Snapshot
+├── 📊 Session
+│   ├── ID: abc-123-def-456
+│   ├── Status: ✅ Authenticated
+│   ├── Merchant: cratejoy.myshopify.com
+│   └── Connected: 5 minutes ago
+├── 🧠 CJ State
+│   ├── Workflow: shopify_onboarding
+│   ├── Model: claude-3-opus (temp: 0.2)
+│   ├── Tools: [shopify_api, memory_store, fact_checker]
+│   └── Memory Facts: 12
+└── 💬 Recent Activity
+    ├── 14:23:45 oauth_complete     New merchant
+    ├── 14:23:46 workflow_change    ad_hoc_support
+    └── 14:23:47 tool_use          shopify_api.get_orders
+```
+
+### Implementation Components
+
+1. **Frontend (SlackChat.tsx)**:
+   - Expose `window.cj` debug interface
+   - Handle debug WebSocket messages
+   - Format console output beautifully
+
+2. **WebSocket Handler (web_platform.py)**:
+   - Add `debug_request` message handler
+   - Return formatted debug data
+   - Stream live events when requested
+
+3. **Production Safety**:
+   - Only enable in development by default
+   - Allow production access via localStorage flag
+   - No sensitive data in console by default
+
+### Benefits
+- **Zero UI complexity** - Just console commands
+- **Developer-native** - Uses familiar browser console
+- **Easy to extend** - Add new commands as needed
+- **No bundle impact** - It's just console logs
+- **Fast to implement** - Minimal code changes
+
+### North Star Alignment
+- ✅ **Simplify**: Console commands instead of UI
+- ✅ **No Cruft**: Minimal implementation
+- ✅ **Long-term Elegance**: Clean API design
+- ✅ **No Over-Engineering**: Just what's needed for debugging

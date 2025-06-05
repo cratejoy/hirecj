@@ -15,6 +15,12 @@ interface Message {
 	sender: 'user' | 'cj';
 	content: string;
 	timestamp: string;
+	ui_elements?: Array<{
+		id: string;
+		type: string;
+		provider: string;
+		placeholder: string;
+	}>;
 }
 
 interface ChatConfig {
@@ -34,7 +40,7 @@ const SlackChat = () => {
 	const [showDailyReport, setShowDailyReport] = useState(true);
 	
 	// Always skip config modal
-	const [showConfigModal] = useState(false);
+	const [showConfigModal, setShowConfigModal] = useState(false);
 	
 	// Update initial chatConfig
 	const [chatConfig, setChatConfig] = useState<ChatConfig>({
@@ -158,9 +164,39 @@ const SlackChat = () => {
 	
 	const handleOAuthError = useCallback((error: string) => {
 		console.error('[SlackChat] OAuth error:', error);
+		
+		// Map error codes to user-friendly messages
+		let title = "Authentication Failed";
+		let description = "Unable to connect to Shopify. Please try again.";
+		
+		switch (error) {
+			case 'internal_error':
+				description = "An unexpected error occurred. Please try again or contact support if the issue persists.";
+				break;
+			case 'shopify_not_configured':
+				title = "Shopify Integration Not Available";
+				description = "The Shopify integration is not properly configured. Please contact support.";
+				break;
+			case 'invalid_hmac':
+			case 'invalid_state':
+			case 'state_verification_failed':
+				description = "Security verification failed. Please try connecting again.";
+				break;
+			case 'missing_code':
+				description = "Authorization was cancelled or incomplete. Please try again.";
+				break;
+			case 'token_exchange_failed':
+				description = "Failed to complete authentication with Shopify. Please try again.";
+				break;
+			default:
+				if (error) {
+					description = error;
+				}
+		}
+		
 		toast({
-			title: "Authentication Failed",
-			description: error || "Unable to connect to Shopify. Please try again.",
+			title,
+			description,
 			variant: "destructive"
 		});
 	}, [toast]);
@@ -196,6 +232,117 @@ const SlackChat = () => {
 			window.removeEventListener('beforeunload', handleBeforeUnload);
 		};
 	}, [isRealChat, wsChat]);
+
+	// Setup debug interface
+	useEffect(() => {
+		// Always enable debug interface
+
+		// Define the debug interface
+		const debugInterface = {
+			debug: () => {
+				console.group('%c🤖 CJ Debug Snapshot', 'color: #00D4FF; font-size: 16px; font-weight: bold');
+				
+				console.group('📊 Session');
+				console.log('Conversation ID:', chatConfig.conversationId);
+				console.log('Status:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
+				console.log('Merchant:', chatConfig.merchantId || 'Not authenticated');
+				console.log('Workflow:', chatConfig.workflow);
+				console.log('Scenario:', chatConfig.scenarioId || 'None');
+				console.groupEnd();
+				
+				console.group('💬 Conversation');
+				console.log('Messages:', messages.length);
+				console.log('Is Typing:', isTyping);
+				console.log('Connection State:', wsChat.connectionState);
+				console.groupEnd();
+				
+				console.groupEnd();
+				
+				// Request detailed state from backend
+				if (wsChat.isConnected) {
+					wsChat.sendSpecialMessage({
+						type: 'debug_request',
+						data: { type: 'snapshot' }
+					});
+				}
+			},
+			
+			session: () => {
+				if (wsChat.isConnected) {
+					wsChat.sendSpecialMessage({
+						type: 'debug_request',
+						data: { type: 'session' }
+					});
+				} else {
+					console.log('%c❌ Not connected to CJ', 'color: red');
+				}
+			},
+			
+			prompts: () => {
+				if (wsChat.isConnected) {
+					wsChat.sendSpecialMessage({
+						type: 'debug_request',
+						data: { type: 'prompts' }
+					});
+				} else {
+					console.log('%c❌ Not connected to CJ', 'color: red');
+				}
+			},
+			
+			context: () => {
+				console.group('%c📝 Conversation Context', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+				console.log('Total Messages:', messages.length);
+				
+				if (messages.length > 0) {
+					console.group('Recent Messages');
+					messages.slice(-5).forEach((msg, idx) => {
+						console.log(`[${idx + 1}] ${msg.sender}:`, msg.content.substring(0, 100) + '...');
+					});
+					console.groupEnd();
+				}
+				
+				console.groupEnd();
+			},
+			
+			events: () => {
+				console.log('%c📡 Live events started...', 'color: #00D4FF');
+				console.log('(Events will appear as they occur)');
+				// Note: events will be logged by the WebSocket handler
+			},
+			
+			stop: () => {
+				console.log('%c📡 Live events stopped', 'color: #00D4FF');
+			},
+			
+			help: () => {
+				console.log('%c🤖 CJ Debug Commands:', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+				console.table({
+					'cj.debug()': 'Full state snapshot',
+					'cj.session()': 'Session & auth details',
+					'cj.prompts()': 'Recent prompts to CJ',
+					'cj.context()': 'Conversation context',
+					'cj.events()': 'Start live event stream',
+					'cj.stop()': 'Stop event stream',
+					'cj.help()': 'Show this help'
+				});
+			}
+		};
+		
+		// Attach to window
+		(window as any).cj = debugInterface;
+		
+		// Always show help message
+		console.log('%c🤖 CJ Debug Interface Ready!', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+		console.log('Type cj.help() for available commands');
+		
+		// Debug environment variables
+		console.log('%c🔧 Frontend Environment Variables:', 'color: #FF00FF; font-weight: bold');
+		console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+		console.log('VITE_AUTH_URL:', import.meta.env.VITE_AUTH_URL);
+		console.log('VITE_WS_BASE_URL:', import.meta.env.VITE_WS_BASE_URL);
+		console.log('VITE_PUBLIC_URL:', import.meta.env.VITE_PUBLIC_URL);
+		
+	}, [chatConfig, messages, isTyping, wsChat]);
 
 	const handleMessageSend = () => {
 		if (inputValue.trim()) {

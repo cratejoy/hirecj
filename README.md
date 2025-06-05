@@ -53,7 +53,16 @@ make dev
 
 # Run tests across all components
 make test-all
+
+# Start with ngrok tunnels (recommended for OAuth testing)
+make dev-tunnels-tmux
 ```
+
+### Important Development Notes
+
+- **Environment Setup**: See [Environment Configuration Setup](README_ENV_SETUP.md)
+- **Tunnel Setup**: See [Ngrok Setup Guide](NGROK_SETUP.md) for HTTPS development
+- **Recent Changes**: See [Development Environment Changes](docs/DEV_ENVIRONMENT_CHANGES.md) for OAuth and debug features
 
 ## License
 

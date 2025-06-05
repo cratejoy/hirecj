@@ -1,5 +1,6 @@
 """Main FastAPI application for HireCJ - Unified API server."""
 
+import os
 import logging
 from datetime import datetime
 from typing import Optional
@@ -28,6 +29,12 @@ from app.constants import HTTPStatus, WebSocketCloseCodes
 # Initialize logging
 setup_logging()
 
+# Set environment variables for litellm if they're not already set
+if settings.openai_api_key and not os.getenv("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+if settings.anthropic_api_key and not os.getenv("ANTHROPIC_API_KEY"):
+    os.environ["ANTHROPIC_API_KEY"] = settings.anthropic_api_key
+
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
@@ -40,6 +47,7 @@ app = FastAPI(
 # Build allowed origins from configuration
 allowed_origins = [
     settings.frontend_url,
+    settings.homepage_url,  # Add homepage_url which is set by tunnel detector
     settings.auth_url,
     # Always allow localhost for development
     "http://localhost:3456",
@@ -59,8 +67,22 @@ if "hirecj.ai" in settings.frontend_url:
         "https://amir-auth.hirecj.ai",
     ])
 
+# Also check homepage_url which is set by tunnel detector
+if settings.homepage_url and "hirecj.ai" in settings.homepage_url:
+    allowed_origins.extend([
+        "https://amir.hirecj.ai",
+        "https://amir-auth.hirecj.ai",
+    ])
+
 # Remove duplicates and empty strings
 allowed_origins = list(set(filter(None, allowed_origins)))
+
+# Log CORS configuration for debugging
+logger.info("🔧 CORS Configuration:")
+logger.info(f"  Frontend URL: {settings.frontend_url}")
+logger.info(f"  Homepage URL: {settings.homepage_url}")
+logger.info(f"  Public URL: {settings.public_url}")
+logger.info(f"  Allowed origins: {allowed_origins}")
 
 # Add CORS middleware
 app.add_middleware(
@@ -150,6 +172,16 @@ async def root():
             "health": "/health",
             "api_docs": "/docs",
         },
+    }
+
+
+@app.get("/api/v1/test-cors")
+async def test_cors():
+    """Test endpoint to verify CORS is working"""
+    return {
+        "status": "ok",
+        "message": "CORS is working correctly",
+        "timestamp": datetime.now().isoformat()
     }
 
 

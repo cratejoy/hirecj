@@ -108,6 +108,10 @@ class WebPlatform(Platform):
                 "thread_id": message.thread_id,
                 "metadata": message.metadata or {},
             }
+            
+            # Add UI elements if present in metadata
+            if message.metadata and "ui_elements" in message.metadata:
+                web_message["ui_elements"] = message.metadata["ui_elements"]
 
             # Send JSON message to WebSocket
             await websocket.send_json(web_message)
@@ -271,6 +275,7 @@ class WebPlatform(Platform):
                 "ping",
                 "session_update",
                 "oauth_complete",
+                "debug_request",
             ]
             if message_type not in valid_types:
                 logger.warning(
@@ -431,7 +436,8 @@ class WebPlatform(Platform):
                             message="Begin onboarding introduction",
                             sender="merchant",
                         )
-                        logger.info(f"[SHOPIFY_ONBOARDING] Generated greeting: {response[:100] if response else 'None'}...")
+                        greeting_preview = response["content"][:100] if isinstance(response, dict) and "content" in response else str(response)[:100] if response else 'None'
+                        logger.info(f"[SHOPIFY_ONBOARDING] Generated greeting: {greeting_preview}...")
                         
                         # Don't add the trigger message to conversation history
                         # Remove it so the conversation starts cleanly with CJ's greeting
@@ -463,16 +469,30 @@ class WebPlatform(Platform):
                         response = None
 
                     if response:
-                        # Create response message
-                        response_with_fact_check = {
-                            "content": response,
-                            "factCheckStatus": "available",
-                            "timestamp": datetime.now().isoformat(),
-                        }
-                        websocket_logger.info(
-                            f"[WS_SEND] Sending initial CJ message: content='{response_with_fact_check.get('content', '')[:100]}...' "
-                            f"full_data={response_with_fact_check}"
-                        )
+                        # Handle structured response with UI elements
+                        if isinstance(response, dict) and response.get("type") == "message_with_ui":
+                            response_with_fact_check = {
+                                "content": response["content"],
+                                "factCheckStatus": "available",
+                                "timestamp": datetime.now().isoformat(),
+                                "ui_elements": response.get("ui_elements", [])
+                            }
+                            websocket_logger.info(
+                                f"[WS_SEND] Sending initial CJ message with UI elements: content='{response_with_fact_check.get('content', '')[:100]}...' "
+                                f"ui_elements={len(response_with_fact_check.get('ui_elements', []))} full_data={response_with_fact_check}"
+                            )
+                        else:
+                            # Regular text response
+                            response_with_fact_check = {
+                                "content": response,
+                                "factCheckStatus": "available",
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                            websocket_logger.info(
+                                f"[WS_SEND] Sending initial CJ message: content='{response_with_fact_check.get('content', '')[:100]}...' "
+                                f"full_data={response_with_fact_check}"
+                            )
+                        
                         # Check for suspicious content
                         if (
                             response_with_fact_check.get("content") == "0"
@@ -530,16 +550,31 @@ class WebPlatform(Platform):
                     session=session, message=text, sender="merchant"
                 )
 
-                # Send response with fact-check status
-                response_with_fact_check = {
-                    "content": response,
-                    "factCheckStatus": "available",
-                    "timestamp": datetime.now().isoformat(),
-                }
-                websocket_logger.info(
-                    f"[WS_SEND] Sending CJ message response: content='{response_with_fact_check.get('content', '')[:100]}...' "
-                    f"full_data={response_with_fact_check}"
-                )
+                # Handle structured response with UI elements
+                if isinstance(response, dict) and response.get("type") == "message_with_ui":
+                    # Send response with UI elements
+                    response_with_fact_check = {
+                        "content": response["content"],
+                        "factCheckStatus": "available",
+                        "timestamp": datetime.now().isoformat(),
+                        "ui_elements": response.get("ui_elements", [])
+                    }
+                    websocket_logger.info(
+                        f"[WS_SEND] Sending CJ message with UI elements: content='{response_with_fact_check.get('content', '')[:100]}...' "
+                        f"ui_elements={len(response_with_fact_check.get('ui_elements', []))} full_data={response_with_fact_check}"
+                    )
+                else:
+                    # Regular text response
+                    response_with_fact_check = {
+                        "content": response,
+                        "factCheckStatus": "available",
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    websocket_logger.info(
+                        f"[WS_SEND] Sending CJ message response: content='{response_with_fact_check.get('content', '')[:100]}...' "
+                        f"full_data={response_with_fact_check}"
+                    )
+                
                 # Check for suspicious content
                 if (
                     response_with_fact_check.get("content") == "0"
@@ -725,16 +760,28 @@ class WebPlatform(Platform):
                 
                 # Send CJ's response
                 if response:
-                    response_data = {
-                        "content": response,
-                        "factCheckStatus": "available",
-                        "timestamp": datetime.now().isoformat(),
-                    }
+                    # Handle structured response with UI elements
+                    if isinstance(response, dict) and response.get("type") == "message_with_ui":
+                        response_data = {
+                            "content": response["content"],
+                            "factCheckStatus": "available",
+                            "timestamp": datetime.now().isoformat(),
+                            "ui_elements": response.get("ui_elements", [])
+                        }
+                        logger.info(f"[OAUTH_RESPONSE] Sent CJ response with UI elements after OAuth: {response['content'][:100]}...")
+                    else:
+                        # Regular text response
+                        response_data = {
+                            "content": response,
+                            "factCheckStatus": "available",
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                        logger.info(f"[OAUTH_RESPONSE] Sent CJ response after OAuth: {response[:100]}...")
+                    
                     await websocket.send_json({
                         "type": "cj_message",
                         "data": response_data
                     })
-                    logger.info(f"[OAUTH_RESPONSE] Sent CJ response after OAuth: {response[:100]}...")
                 
                 # Also send confirmation that OAuth was processed
                 await websocket.send_json({
@@ -745,6 +792,89 @@ class WebPlatform(Platform):
                         "is_new": is_new
                     }
                 })
+
+            elif message_type == "debug_request":
+                # Handle debug information requests
+                debug_type = data.get("data", {}).get("type", "snapshot")
+                session = self.session_manager.get_session(conversation_id)
+                
+                if not session:
+                    await websocket.send_json({
+                        "type": "debug_response",
+                        "data": {
+                            "error": "No active session",
+                            "conversation_id": conversation_id
+                        }
+                    })
+                    return
+                
+                debug_data = {}
+                
+                try:
+                    if debug_type == "snapshot" or debug_type == "session":
+                        # Session information
+                        debug_data["session"] = {
+                            "id": getattr(session, 'id', conversation_id),
+                            "merchant": getattr(session, 'merchant_name', 'unknown'),
+                            "workflow": getattr(session, 'workflow_name', 'unknown'),
+                            "scenario": getattr(session, 'scenario_name', 'unknown'),
+                            "connected_at": None,  # Sessions don't track start time
+                            "message_count": len(session.conversation.messages) if hasattr(session, 'conversation') else 0,
+                            "context_window_size": 0,  # Not tracked in sessions
+                        }
+                        
+                        # Add OAuth metadata if available
+                        if hasattr(session, 'oauth_metadata'):
+                            debug_data["session"]["oauth_metadata"] = session.oauth_metadata
+                    
+                    if debug_type == "snapshot" or debug_type == "state":
+                        # CJ state information
+                        debug_data["state"] = {
+                            "model": "claude-3.5-sonnet",  # Default model
+                            "temperature": 0.3,  # Default temperature from config
+                            "tools_available": 0,  # Tools not exposed in session
+                            "memory_facts": 0,  # Memory not directly accessible
+                        }
+                        
+                        # Check if session has merchant memory
+                        if hasattr(session, 'merchant_memory') and session.merchant_memory:
+                            if hasattr(session.merchant_memory, 'facts'):
+                                debug_data["state"]["memory_facts"] = len(session.merchant_memory.facts)
+                    
+                    if debug_type == "snapshot" or debug_type == "metrics":
+                        # Metrics if available
+                        debug_data["metrics"] = getattr(session, 'metrics', {})
+                    
+                    if debug_type == "prompts":
+                        # Recent prompts (last 5)
+                        recent_prompts = []
+                        if hasattr(session, 'conversation') and hasattr(session.conversation, 'messages'):
+                            for msg in session.conversation.messages[-10:]:  # Check last 10 messages
+                                if hasattr(msg, 'sender') and hasattr(msg, 'content'):
+                                    if msg.sender.lower() == "system" or "prompt" in msg.content.lower():
+                                        recent_prompts.append({
+                                            "timestamp": getattr(msg, 'timestamp', 'unknown'),
+                                            "content": msg.content[:500]  # First 500 chars
+                                        })
+                        debug_data["prompts"] = recent_prompts[-5:]  # Last 5 prompts
+                    
+                    # Send debug response
+                    await websocket.send_json({
+                        "type": "debug_response",
+                        "data": debug_data
+                    })
+                    
+                    logger.info(f"[DEBUG_REQUEST] Sent debug info for {conversation_id}: type={debug_type}")
+                    
+                except Exception as e:
+                    logger.error(f"[DEBUG_ERROR] Failed to generate debug info: {str(e)}")
+                    await websocket.send_json({
+                        "type": "debug_response",
+                        "data": {
+                            "error": f"Failed to generate debug info: {str(e)}",
+                            "conversation_id": conversation_id
+                        }
+                    })
 
             else:
                 logger.warning(f"Unknown message type from web client: {message_type}")

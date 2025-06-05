@@ -11,12 +11,21 @@ The Shopify onboarding project implements a conversational flow where CJ guides 
 ### ✅ Completed Guides
 1. **[Phase 1: Foundation](phase-1-foundation.md)** - Workflow definition, OAuth button, frontend setup
 2. **[Phase 2: Auth Flow Integration](phase-2-auth-flow.md)** - OAuth callbacks, merchant detection, security
+3. **[Phase 3: OAuth Production Setup](phase-3-oauth-production.md)** - Production OAuth configuration
+4. **[Phase 4: UI Actions Pattern](phase-4-ui-actions.md)** - Inline UI elements (OAuth button)
+
+### 🚫 Abandoned
+- **Phase 3.5: App Bridge Implementation** - Too complex, required embedded context we don't need
+- **Phase 3.6: Manual Token Entry** - Custom distribution apps don't support OAuth, creates friction
+
+### 🎯 Current Implementation
+- **[Phase 3.7: OAuth 2.0 Implementation](phase-3.7-oauth-implementation.md)** - Standard OAuth flow for seamless authentication
 
 ### 📝 TODO Guides
-3. **[Phase 3: Quick Value Demo](phase-3-quick-value.md)** - Shopify data fetching, insights display
-4. **[Phase 4: Support System Connection](phase-4-support-systems.md)** - Multi-provider OAuth, graceful handling
-5. **[Phase 5: Notification & Polish](phase-5-notifications.md)** - Email/browser notifications, error handling
-6. **[Phase 6: Testing & Refinement](phase-6-testing.md)** - E2E tests, performance, security review
+5. **[Phase 5: Quick Value Demo](phase-5-quick-value.md)** - Shopify data fetching, insights display
+6. **[Phase 6: Support System Connection](phase-6-support-systems.md)** - Multi-provider OAuth, graceful handling
+7. **[Phase 7: Notification & Polish](phase-7-notifications.md)** - Email/browser notifications, error handling
+8. **[Phase 8: Testing & Refinement](phase-8-testing.md)** - E2E tests, performance, security review
 
 ## How to Use These Guides
 

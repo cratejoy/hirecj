@@ -19,6 +19,16 @@ export const useOAuthCallback = (
   const handleCallback = useCallback(() => {
     const params = new URLSearchParams(window.location.search);
     
+    // Handle error parameter even without oauth=complete
+    const error = params.get('error');
+    if (error) {
+      console.error('[OAuth] Error in URL:', error);
+      onError(error);
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+    
     if (params.get('oauth') === 'complete') {
       const callbackData: OAuthCallbackParams = {
         oauth: 'complete',

@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.api import health, oauth
+from app.api import health, shopify_oauth
 
 # Configure logging
 logging.basicConfig(
@@ -27,13 +27,20 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {'Development' if settings.debug else 'Production'}")
     logger.info(f"API available at http://{settings.app_host}:{settings.app_port}")
     
-    # Log OAuth URLs if in debug mode
+    # Log configured URLs for debugging
+    logger.info("🔧 Configured URLs:")
+    logger.info(f"  Frontend URL: {settings.frontend_url}")
+    logger.info(f"  Homepage URL: {settings.homepage_url}")
+    logger.info(f"  OAuth Redirect Base: {settings.oauth_redirect_base_url}")
+    logger.info(f"  Auth Service URL: {settings.auth_service_url}")
+    
+    # Log OAuth callback URLs
     if settings.debug:
         settings.log_oauth_urls()
     
     # Check if ngrok is enabled but no tunnel detected
-    if settings.ngrok_enabled and settings.oauth_redirect_base_url.startswith("http://localhost"):
-        logger.warning("⚠️  Ngrok enabled but no tunnel detected. OAuth callbacks will use localhost.")
+    if settings.ngrok_enabled and settings.public_url.startswith("http://localhost"):
+        logger.warning("⚠️  Ngrok enabled but no tunnel detected. Custom app callbacks will use localhost.")
         logger.warning("💡 Run 'make dev-tunnel' to start with tunnel support.")
     
     yield
@@ -63,7 +70,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router)
-app.include_router(oauth.router, prefix=f"{settings.api_prefix}/oauth")
+# Full OAuth implementation with HMAC verification and token exchange
+app.include_router(shopify_oauth.router, prefix=f"{settings.api_prefix}/shopify")
 
 # TODO: Add auth router when implemented
 # app.include_router(auth.router, prefix=f"{settings.api_prefix}/auth")
@@ -79,8 +87,7 @@ async def root():
         "endpoints": {
             "health": "/health",
             "docs": "/docs" if settings.debug else None,
-            "auth": f"{settings.api_prefix}/auth",
-            "oauth": f"{settings.api_prefix}/oauth"
+            "shopify_custom": f"{settings.api_prefix}/shopify"
         }
     }
 
