@@ -80,13 +80,25 @@ const SlackChat = () => {
 		return DEFAULT_WORKFLOW;
 	}, [searchString]);
 	
-	// Initialize chatConfig with URL workflow
-	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => ({
-		scenarioId: null,
-		merchantId: null,
-		conversationId: uuidv4(),
-		workflow: getWorkflowFromUrl()
-	}));
+	// Initialize chatConfig with URL workflow and saved merchant
+	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => {
+		// Check if we have a saved merchant from previous OAuth
+		const savedShop = localStorage.getItem('last_shop_domain');
+		let merchantId = null;
+		
+		if (savedShop) {
+			// Convert shop domain to merchant ID format
+			merchantId = `merchant_${savedShop.replace('.myshopify.com', '').replace('.', '_')}`;
+			console.log('[SlackChat] Restored merchant from localStorage:', merchantId);
+		}
+		
+		return {
+			scenarioId: null,
+			merchantId: merchantId,
+			conversationId: uuidv4(),
+			workflow: getWorkflowFromUrl()
+		};
+	});
 	
 	// Update URL when workflow changes
 	useEffect(() => {
@@ -179,6 +191,14 @@ const SlackChat = () => {
 	const handleOAuthSuccess = useCallback((params: any) => {
 		console.log('[SlackChat] OAuth success:', params);
 		
+		// Debug: Log what we received
+		console.log('[SlackChat] OAuth params received:', {
+			merchant_id: params.merchant_id,
+			shop: params.shop,
+			is_new: params.is_new,
+			current_merchantId: chatConfig.merchantId
+		});
+		
 		// Store shop domain for future visits (optional UX enhancement)
 		if (params.shop) {
 			localStorage.setItem('last_shop_domain', params.shop);
@@ -186,10 +206,13 @@ const SlackChat = () => {
 		
 		// Update chat config with merchant ID
 		if (params.merchant_id) {
+			console.log('[SlackChat] Updating merchantId from', chatConfig.merchantId, 'to', params.merchant_id);
 			setChatConfig(prev => ({
 				...prev,
 				merchantId: params.merchant_id
 			}));
+		} else {
+			console.warn('[SlackChat] No merchant_id in OAuth params!');
 		}
 		
 		// Send OAuth complete to WebSocket
@@ -210,7 +233,7 @@ const SlackChat = () => {
 			description: params.is_new === 'true' ? "Welcome! Let me take a look at your store..." : "Welcome back! Good to see you again.",
 			duration: 5000,
 		});
-	}, [wsChat, setChatConfig, toast]);
+	}, [wsChat, setChatConfig, toast, chatConfig]);
 	
 	const handleOAuthError = useCallback((error: string) => {
 		console.error('[SlackChat] OAuth error:', error);
