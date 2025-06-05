@@ -6,20 +6,22 @@
 1. **Phase 1: Foundation** - Onboarding workflow, CJ agent, OAuth button component
 2. **Phase 2: Auth Flow Integration** - OAuth callbacks, shop domain identifier, context updates
 3. **Phase 3.7: OAuth 2.0 Implementation** - Full OAuth flow with HMAC verification, token storage
-4. **Phase 4: UI Actions Pattern** - Parser, workflow config, WebSocket integration
+4. **Phase 4.0: True Environment Centralization** - Single .env pattern with automatic distribution
+5. **Phase 4.1: UI Actions Pattern** - Parser, workflow config, WebSocket integration
 
 ### 🎯 Current Priority
-**Phase 5: Quick Value Demo** - Show immediate insights after Shopify connection
+**Phase 4.5: User Identity & Persistence** - Add minimal user identity system before Quick Value Demo
 
 ### 📅 Upcoming Phases
+- Phase 5: Quick Value Demo
 - Phase 6: Support System Connection
 - Phase 7: Notification & Polish
 - Phase 8: Testing & Refinement
 
 ### 🚀 Next Steps
-1. Test the OAuth flow end-to-end with the auth service running
-2. Begin Phase 5 implementation for quick value demonstration
-3. Ensure CJ provides immediate value post-OAuth connection
+1. Implement user identity system with Shopify OAuth as authentication
+2. Add conversation persistence from Redis to PostgreSQL
+3. Enable personalized experiences across sessions
 
 ---
 
@@ -139,25 +141,26 @@ OAuth Flow:
 - ❌ Polling mechanism (remove)
 - ❌ Complex context handling (remove)
 
-### Phase 4.0: True Environment Centralization 🚨 CRITICAL FOUNDATION
+### Phase 4.0: True Environment Centralization ✅ COMPLETE
 **Goal:** Implement TRUE single .env file management with zero exceptions. Fix the broken multi-file pattern.
 
 **Deliverables:**
-- [ ] Audit and consolidate ALL environment variables across services
-- [ ] Create master .env.example with every variable needed
-- [ ] Rewrite env_loader.py to enforce single source (no fallbacks)
-- [ ] Create distribute_env.py script for automatic distribution
-- [ ] Update all services to use centralized pattern
-- [ ] Remove ALL bypass paths (load_dotenv, direct access)
-- [ ] Update Makefile and documentation
+- [x] Audit and consolidate ALL environment variables across services
+- [x] Create master .env.example with every variable needed
+- [x] Rewrite env_loader.py to enforce single source (no fallbacks)
+- [x] Create distribute_env.py script for automatic distribution
+- [x] Update all services to use centralized pattern
+- [x] Remove ALL bypass paths (load_dotenv, direct access)
+- [x] Update Makefile and documentation
 
-**Why This Must Happen First:**
-- Current system forces developers to manage 10+ .env files
-- Utility files bypass centralized config
-- No enforcement of single source pattern
-- This blocks clean implementation of all future phases
+**Achieved:**
+- Developers now manage exactly ONE .env file
+- Automatic distribution to services via `make dev`
+- No service can bypass the centralized pattern
+- Startup validation catches missing resources early
+- Git hooks prevent accidental service .env commits
 
-📄 **[Implementation Plan →](docs/phase-4.0-env-centralization.md)**
+📄 **[Implementation Complete →](docs/phase-4.0-env-centralization.md)**
 
 ### Phase 4.1: UI Actions Pattern ✅ COMPLETE
 **Deliverables:**
