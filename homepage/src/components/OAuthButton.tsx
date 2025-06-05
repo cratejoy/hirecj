@@ -20,8 +20,14 @@ export const OAuthButton: React.FC<OAuthButtonProps> = ({
     // Get the OAuth URL from environment or use default
     const authBaseUrl = import.meta.env.VITE_AUTH_URL || 'http://localhost:8103';
     
-    // Build OAuth URL with conversation ID in state
-    const oauthUrl = `${authBaseUrl}/api/v1/oauth/${provider}/authorize?conversation_id=${conversationId}&redirect_uri=${encodeURIComponent(window.location.origin + '/chat')}`;
+    // Build OAuth URL - use the correct endpoint for Shopify
+    const oauthUrl = `${authBaseUrl}/api/v1/shopify/install?conversation_id=${conversationId}`;
+    
+    // Log OAuth details for debugging
+    console.log('🛍️ Shopify OAuth Debug:');
+    console.log('  Auth Base URL:', authBaseUrl);
+    console.log('  OAuth URL:', oauthUrl);
+    console.log('  Expected Redirect URI:', `${authBaseUrl}/api/v1/shopify/callback`);
     
     // Open OAuth flow in new window
     const width = 600;
