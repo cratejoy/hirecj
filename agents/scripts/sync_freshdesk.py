@@ -12,7 +12,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from app.utils.supabase_util import get_db_session
 from app.dbmodels.base import Merchant, FreshdeskTicket, FreshdeskConversation, FreshdeskRating
-from app.lib.freshdesk_lib import FreshdeskETL
+from app.lib.freshdesk_sync_lib import FreshdeskETL
 
 
 def main():
