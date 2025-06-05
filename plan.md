@@ -150,6 +150,33 @@ OAuth Flow:
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-ui-actions.md)**
 
+### Phase 4.5: User Identity & Persistence 🆕 NEXT PRIORITY
+**Goal:** Add minimal user identity system and conversation persistence without complex schemas.
+
+**Why Now:** Phase 5 (Quick Value Demo) needs persistent user identity to show "your store" insights across sessions.
+
+**Deliverables:**
+- [ ] Internal user IDs (usr_xxx format) linked to Shopify shops
+- [ ] Conversation archival from Redis to PostgreSQL
+- [ ] User conversation history API
+- [ ] Automatic Redis → PostgreSQL sync before TTL expiry
+- [ ] Event logging for analytics (OAuth, conversations, etc.)
+
+**The Architecture:**
+```
+Shopify OAuth → Our User ID → Linked Conversations → Archived History
+     ↓              ↓                 ↓                    ↓
+  (Auth)      (Identity)         (Redis)            (PostgreSQL)
+```
+
+**Benefits:**
+- ✅ **Preserves History**: Conversations never lost after 24h Redis TTL
+- ✅ **Enables Personalization**: "Welcome back! Last time we discussed..."
+- ✅ **Simple Schema**: Just 3 tables with JSONB for flexibility
+- ✅ **Future Ready**: Foundation for user preferences, analytics, etc.
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.5-user-identity.md)**
+
 ---
 
 ## Development Environment Updates
