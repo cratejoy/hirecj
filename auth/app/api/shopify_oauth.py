@@ -102,6 +102,17 @@ async def initiate_oauth(
     
     # Build authorization URL
     redirect_uri = f"{settings.oauth_redirect_base_url}/api/v1/shopify/callback"
+    
+    # Log exact redirect URI for debugging
+    logger.info(f"[OAUTH_INSTALL] Building auth with redirect_uri: '{redirect_uri}'")
+    logger.info(f"[OAUTH_INSTALL] Redirect URI length: {len(redirect_uri)} chars")
+    logger.info(f"[OAUTH_INSTALL] Redirect URI encoded: {redirect_uri.encode('utf-8').hex()}")
+    
+    # Sanity check the expected redirect URI
+    expected_uri = "https://amir-auth.hirecj.ai/api/v1/shopify/callback"
+    if redirect_uri != expected_uri:
+        logger.warning(f"[OAUTH_INSTALL] MISMATCH! Expected: '{expected_uri}', Got: '{redirect_uri}'")
+    
     auth_url = shopify_auth.build_auth_url(shop, state, redirect_uri)
     
     logger.info(f"[OAUTH_INSTALL] Redirecting shop {shop} to authorization")
@@ -242,6 +253,9 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[str]:
     
     token_url = f"https://{shop}/admin/oauth/access_token"
     
+    # Build the same redirect URI that was used in the authorization request
+    redirect_uri = f"{settings.oauth_redirect_base_url}/api/v1/shopify/callback"
+    
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -249,7 +263,8 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[str]:
                 data={
                     "client_id": settings.shopify_client_id,
                     "client_secret": settings.shopify_client_secret,
-                    "code": code
+                    "code": code,
+                    "redirect_uri": redirect_uri  # Include redirect_uri to match auth request
                 },
                 timeout=10.0
             )

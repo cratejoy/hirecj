@@ -96,8 +96,19 @@ class ShopifyAuth:
             'state': state
         }
         
+        # Log the exact parameters being used
+        logger.info(f"[SHOPIFY_AUTH] Building auth URL with:")
+        logger.info(f"  shop: {shop}")
+        logger.info(f"  client_id: {settings.shopify_client_id}")
+        logger.info(f"  redirect_uri: {redirect_uri}")
+        logger.info(f"  scopes: {settings.shopify_scopes}")
+        
         query_string = urlencode(params)
-        return f"https://{shop}/admin/oauth/authorize?{query_string}"
+        auth_url = f"https://{shop}/admin/oauth/authorize?{query_string}"
+        
+        logger.info(f"[SHOPIFY_AUTH] Full auth URL: {auth_url}")
+        
+        return auth_url
 
 # Singleton instance
 shopify_auth = ShopifyAuth()
