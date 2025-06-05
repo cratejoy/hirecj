@@ -46,6 +46,17 @@ async def initiate_oauth(
         )
     
     logger.info(f"[OAUTH_INSTALL] Initiating OAuth for shop: {shop}")
+    logger.info(f"[OAUTH_INSTALL] Frontend URL configured as: {settings.frontend_url}")
+    logger.info(f"[OAUTH_INSTALL] OAuth redirect base: {settings.oauth_redirect_base_url}")
+    
+    # Check if Shopify credentials are configured
+    if not settings.shopify_client_id or not settings.shopify_client_secret:
+        logger.error("[OAUTH_INSTALL] Shopify credentials not configured!")
+        logger.error(f"[OAUTH_INSTALL] Will redirect to: {settings.frontend_url}/chat?error=shopify_not_configured")
+        return RedirectResponse(
+            url=f"{settings.frontend_url}/chat?error=shopify_not_configured",
+            status_code=302
+        )
     
     # Validate shop domain
     if not shopify_auth.validate_shop_domain(shop):
@@ -193,7 +204,10 @@ async def handle_oauth_callback(
         return RedirectResponse(url=redirect_url, status_code=302)
         
     except Exception as e:
+        import traceback
         logger.error(f"[OAUTH_CALLBACK] Unexpected error: {e}")
+        logger.error(f"[OAUTH_CALLBACK] Traceback: {traceback.format_exc()}")
+        logger.error(f"[OAUTH_CALLBACK] Will redirect to: {settings.frontend_url}/chat?error=internal_error")
         return RedirectResponse(
             url=f"{settings.frontend_url}/chat?error=internal_error",
             status_code=302
@@ -211,6 +225,13 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[str]:
     Returns:
         Access token if successful, None otherwise
     """
+    # Check if Shopify credentials are configured
+    if not settings.shopify_client_id or not settings.shopify_client_secret:
+        logger.error("[TOKEN_EXCHANGE] Shopify credentials not configured!")
+        logger.error(f"[TOKEN_EXCHANGE] Client ID present: {bool(settings.shopify_client_id)}")
+        logger.error(f"[TOKEN_EXCHANGE] Client Secret present: {bool(settings.shopify_client_secret)}")
+        return None
+    
     token_url = f"https://{shop}/admin/oauth/access_token"
     
     try:

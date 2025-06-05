@@ -34,6 +34,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"  OAuth Redirect Base: {settings.oauth_redirect_base_url}")
     logger.info(f"  Auth Service URL: {settings.auth_service_url}")
     
+    # Log OAuth callback URLs
+    if settings.debug:
+        settings.log_oauth_urls()
+    
     # Check if ngrok is enabled but no tunnel detected
     if settings.ngrok_enabled and settings.public_url.startswith("http://localhost"):
         logger.warning("⚠️  Ngrok enabled but no tunnel detected. Custom app callbacks will use localhost.")
