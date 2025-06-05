@@ -164,9 +164,39 @@ const SlackChat = () => {
 	
 	const handleOAuthError = useCallback((error: string) => {
 		console.error('[SlackChat] OAuth error:', error);
+		
+		// Map error codes to user-friendly messages
+		let title = "Authentication Failed";
+		let description = "Unable to connect to Shopify. Please try again.";
+		
+		switch (error) {
+			case 'internal_error':
+				description = "An unexpected error occurred. Please try again or contact support if the issue persists.";
+				break;
+			case 'shopify_not_configured':
+				title = "Shopify Integration Not Available";
+				description = "The Shopify integration is not properly configured. Please contact support.";
+				break;
+			case 'invalid_hmac':
+			case 'invalid_state':
+			case 'state_verification_failed':
+				description = "Security verification failed. Please try connecting again.";
+				break;
+			case 'missing_code':
+				description = "Authorization was cancelled or incomplete. Please try again.";
+				break;
+			case 'token_exchange_failed':
+				description = "Failed to complete authentication with Shopify. Please try again.";
+				break;
+			default:
+				if (error) {
+					description = error;
+				}
+		}
+		
 		toast({
-			title: "Authentication Failed",
-			description: error || "Unable to connect to Shopify. Please try again.",
+			title,
+			description,
 			variant: "destructive"
 		});
 	}, [toast]);
