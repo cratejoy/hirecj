@@ -150,6 +150,39 @@ OAuth Flow:
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-ui-actions.md)**
 
+---
+
+## Development Environment Updates
+
+### Recent Environment Changes (Phase 3.7 - Phase 5)
+
+**New Required Environment Variables:**
+- `SHOPIFY_CLIENT_ID` - Required for Shopify OAuth
+- `SHOPIFY_CLIENT_SECRET` - Required for Shopify OAuth
+
+**Tunnel Configuration Updates:**
+- Auth service now uses `HOMEPAGE_URL` from `.env.tunnel` for OAuth redirects
+- Added `env_ignore_empty=True` to Pydantic configs to prevent empty string overrides
+- Fixed `.env.tunnel` loading order (now has highest precedence)
+
+**CORS Configuration:**
+- Both `frontend_url` and `homepage_url` are now added to allowed origins
+- Automatic detection of hirecj.ai domains for CORS
+
+**Debug System:**
+- Browser console now has `window.cj` debug commands (enabled by default)
+- Commands: `cj.debug()`, `cj.session()`, `cj.prompts()`, `cj.context()`
+- Backend debug_request handler provides session and state information
+
+**OAuth Flow Requirements:**
+- Must use tunnels for OAuth (localhost redirects won't work)
+- Shopify app must be configured with proper redirect URLs
+- JSON serialization fix for datetime objects in merchant storage
+
+📄 **[Full Environment Setup Guide →](README_ENV_SETUP.md)**
+
+---
+
 ### Phase 5: Quick Value Demo 🎯 CURRENT PRIORITY
 **Goal:** Show immediate value after Shopify connection by providing quick insights about their store.
 
