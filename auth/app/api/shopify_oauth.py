@@ -26,6 +26,25 @@ STATE_TTL = 600  # 10 minutes
 SHOPIFY_API_VERSION = "2025-01"
 
 
+@router.get("/debug-config")
+async def debug_oauth_config():
+    """Debug endpoint to check OAuth configuration."""
+    redirect_uri = f"{settings.oauth_redirect_base_url}/api/v1/shopify/callback"
+    
+    return {
+        "oauth_redirect_base_url": settings.oauth_redirect_base_url,
+        "computed_redirect_uri": redirect_uri,
+        "redirect_uri_length": len(redirect_uri),
+        "client_id": settings.shopify_client_id,
+        "scopes": settings.shopify_scopes,
+        "shopify_config_instructions": {
+            "app_url": f"{settings.oauth_redirect_base_url}/api/v1/shopify/install",
+            "allowed_redirect_url": redirect_uri,
+            "note": "Copy the 'allowed_redirect_url' value exactly into your Shopify app settings"
+        }
+    }
+
+
 @router.get("/install")
 async def initiate_oauth(
     shop: Optional[str] = Query(None, description="Shop domain"),

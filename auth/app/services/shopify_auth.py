@@ -106,10 +106,25 @@ class ShopifyAuth:
         logger.info(f"  redirect_uri: {redirect_uri}")
         logger.info(f"  scopes: {settings.shopify_scopes}")
         
+        # Debug: Check for any special characters
+        logger.info(f"[SHOPIFY_AUTH] Redirect URI analysis:")
+        logger.info(f"  Length: {len(redirect_uri)}")
+        logger.info(f"  Starts with: {redirect_uri[:50]}")
+        logger.info(f"  Ends with: {redirect_uri[-50:]}")
+        logger.info(f"  Contains spaces: {' ' in redirect_uri}")
+        logger.info(f"  URL encoded: {urlencode({'redirect_uri': redirect_uri})}")
+        
         query_string = urlencode(params)
         auth_url = f"https://{shop}/admin/oauth/authorize?{query_string}"
         
         logger.info(f"[SHOPIFY_AUTH] Full auth URL: {auth_url}")
+        
+        # Extract just the redirect_uri param from the final URL for verification
+        import urllib.parse
+        parsed = urllib.parse.urlparse(auth_url)
+        query_params = urllib.parse.parse_qs(parsed.query)
+        final_redirect_uri = query_params.get('redirect_uri', [''])[0]
+        logger.info(f"[SHOPIFY_AUTH] Final redirect_uri in URL: '{final_redirect_uri}'")
         
         return auth_url
 
