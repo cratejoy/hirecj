@@ -2,7 +2,8 @@
 
 import logging
 import json
-from typing import List, Any
+from typing import List, Any, Optional
+from datetime import datetime
 from crewai.tools import tool
 from app.utils.supabase_util import get_db_session
 from app.lib.freshdesk_insight_lib import FreshdeskInsights
@@ -103,24 +104,40 @@ Recent Tickets:"""
             return f"Error searching tickets in database: {str(e)}"
 
     @tool
-    def calculate_csat_score(days: int = 30) -> str:
+    def calculate_csat_score(days: Optional[int] = None, 
+                            start_date: Optional[str] = None, 
+                            end_date: Optional[str] = None) -> str:
         """Calculate Customer Satisfaction (CSAT) score for a specific time range.
         
         Args:
-            days: Number of days to look back (default: 30). Use 0 for all time.
+            days: Number of days to look back (only used if start_date and end_date are not provided)
+            start_date: Start date in YYYY-MM-DD format (inclusive)
+            end_date: End date in YYYY-MM-DD format (inclusive)
         
         Returns the CSAT score as a percentage of happy ratings (103) vs total ratings.
         Only considers the most recent rating per unique user within the time range.
         """
         # Handle both direct calls and CrewAI calls
         if isinstance(days, dict):
-            days = days.get('days', 30)
+            # Extract from dictionary if CrewAI passes args as dict
+            args_dict = days  # Save the original dict
+            days = args_dict.get('days')
+            start_date = args_dict.get('start_date')
+            end_date = args_dict.get('end_date')
         
-        logger.info(f"[TOOL CALL] calculate_csat_score(days={days}) - Calculating CSAT score")
+        # Parse date strings if provided
+        parsed_start = None
+        parsed_end = None
+        if start_date:
+            parsed_start = datetime.fromisoformat(start_date)
+        if end_date:
+            parsed_end = datetime.fromisoformat(end_date)
+        
+        logger.info(f"[TOOL CALL] calculate_csat_score(days={days}, start_date={start_date}, end_date={end_date}) - Calculating CSAT score")
         
         try:
             with get_db_session() as session:
-                data = FreshdeskInsights.calculate_csat(session, days, merchant_name)
+                data = FreshdeskInsights.calculate_csat(session, days, parsed_start, parsed_end, merchant_name)
                 
                 if not data['has_data']:
                     return f"📊 CSAT Score ({data['merchant_info']}): No ratings found in {data['time_range']}"
