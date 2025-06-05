@@ -55,8 +55,8 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
 
   if (showShopInput) {
     return (
-      <div className="space-y-2">
-        <div className="text-sm text-gray-600">
+      <div className="space-y-3 p-4 bg-gray-800 rounded-lg border border-gray-700">
+        <div className="text-sm text-gray-300 font-medium">
           Enter your Shopify store domain:
         </div>
         <input
@@ -64,7 +64,7 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
           placeholder="yourstore or yourstore.myshopify.com"
           value={shopDomain}
           onChange={(e) => setShopDomain(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-shopify-green text-gray-900 bg-white placeholder-gray-500"
+          className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-shopify-green focus:border-transparent text-white placeholder-gray-500 transition-all"
           onKeyPress={(e) => {
             if (e.key === 'Enter') {
               handleShopSubmit();
@@ -73,22 +73,22 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
           autoFocus
         />
         <div className="flex gap-2">
-          <Button
+          <button
             onClick={handleShopSubmit}
             disabled={!shopDomain || isConnecting}
-            className={`bg-shopify-green hover:bg-shopify-green-dark text-white ${className}`}
+            className="flex-1 bg-shopify-green hover:bg-shopify-green-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
           >
             {isConnecting ? 'Redirecting...' : 'Connect'}
-          </Button>
-          <Button
-            variant="outline"
+          </button>
+          <button
             onClick={() => {
               setShowShopInput(false);
               setShopDomain('');
             }}
+            className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium rounded-lg transition-colors"
           >
             Cancel
-          </Button>
+          </button>
         </div>
       </div>
     );
