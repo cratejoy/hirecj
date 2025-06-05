@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 from app.config import settings
 from app.services.merchant_storage import merchant_storage
 from app.services.shopify_auth import shopify_auth
+from shared.user_identity import get_or_create_user
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,25 @@ STATE_TTL = 600  # 10 minutes
 
 # Constants
 SHOPIFY_API_VERSION = "2025-01"
+
+
+@router.get("/debug-config")
+async def debug_oauth_config():
+    """Debug endpoint to check OAuth configuration."""
+    redirect_uri = f"{settings.oauth_redirect_base_url}/api/v1/shopify/callback"
+    
+    return {
+        "oauth_redirect_base_url": settings.oauth_redirect_base_url,
+        "computed_redirect_uri": redirect_uri,
+        "redirect_uri_length": len(redirect_uri),
+        "client_id": settings.shopify_client_id,
+        "scopes": settings.shopify_scopes,
+        "shopify_config_instructions": {
+            "app_url": f"{settings.oauth_redirect_base_url}/api/v1/shopify/install",
+            "allowed_redirect_url": redirect_uri,
+            "note": "Copy the 'allowed_redirect_url' value exactly into your Shopify app settings"
+        }
+    }
 
 
 @router.get("/install")
@@ -101,6 +121,17 @@ async def initiate_oauth(
     
     # Build authorization URL
     redirect_uri = f"{settings.oauth_redirect_base_url}/api/v1/shopify/callback"
+    
+    # Log exact redirect URI for debugging
+    logger.info(f"[OAUTH_INSTALL] Building auth with redirect_uri: '{redirect_uri}'")
+    logger.info(f"[OAUTH_INSTALL] Redirect URI length: {len(redirect_uri)} chars")
+    logger.info(f"[OAUTH_INSTALL] Redirect URI encoded: {redirect_uri.encode('utf-8').hex()}")
+    
+    # Sanity check the expected redirect URI
+    expected_uri = "https://amir-auth.hirecj.ai/api/v1/shopify/callback"
+    if redirect_uri != expected_uri:
+        logger.warning(f"[OAUTH_INSTALL] MISMATCH! Expected: '{expected_uri}', Got: '{redirect_uri}'")
+    
     auth_url = shopify_auth.build_auth_url(shop, state, redirect_uri)
     
     logger.info(f"[OAUTH_INSTALL] Redirecting shop {shop} to authorization")
@@ -189,6 +220,13 @@ async def handle_oauth_callback(
         if is_new:
             merchant_id = merchant_id[4:]  # Remove "new_" prefix
         
+        # Create or get user identity
+        try:
+            user_id, user_is_new = get_or_create_user(shop)
+            logger.info(f"[OAUTH_CALLBACK] User identity: {user_id}, is_new: {user_is_new}")
+        except Exception as e:
+            logger.error(f"[OAUTH_CALLBACK] Failed to get/create user identity: {e}")
+        
         logger.info(f"[OAUTH_CALLBACK] Successfully authenticated shop: {shop}, is_new: {is_new}")
         
         # Redirect to frontend with success
@@ -234,6 +272,9 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[str]:
     
     token_url = f"https://{shop}/admin/oauth/access_token"
     
+    # Build the same redirect URI that was used in the authorization request
+    redirect_uri = f"{settings.oauth_redirect_base_url}/api/v1/shopify/callback"
+    
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -241,7 +282,8 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[str]:
                 data={
                     "client_id": settings.shopify_client_id,
                     "client_secret": settings.shopify_client_secret,
-                    "code": code
+                    "code": code,
+                    "redirect_uri": redirect_uri  # Include redirect_uri to match auth request
                 },
                 timeout=10.0
             )

@@ -7,6 +7,7 @@ interface OAuthCallbackParams {
   is_new: string;
   merchant_id?: string;
   shop?: string;
+  user_id?: string;
   error?: string;
 }
 

@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # API Configuration
     openai_api_key: Optional[str] = Field(None, env="OPENAI_API_KEY")
     anthropic_api_key: Optional[str] = Field(None, env="ANTHROPIC_API_KEY")
+    
+    # Database Configuration
+    supabase_connection_string: Optional[str] = Field(None, env="SUPABASE_CONNECTION_STRING")
 
     # Public URL Configuration
     public_url: str = Field("", env="PUBLIC_URL")

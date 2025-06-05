@@ -71,8 +71,8 @@ class Settings(BaseSettings):
     freshdesk_client_secret: Optional[str] = Field(None, env="FRESHDESK_CLIENT_SECRET")
     
     # OAuth Redirect Configuration
+    # Single source of truth - must be explicitly set, no magic fallbacks
     oauth_redirect_base_url: str = Field(
-        "",  # Will be auto-detected or use env var
         env="OAUTH_REDIRECT_BASE_URL"
     )
     
@@ -125,38 +125,17 @@ class Settings(BaseSettings):
     
     @field_validator("oauth_redirect_base_url", mode="after")
     @classmethod
-    def detect_tunnel_url(cls, v: Optional[str], info) -> str:
-        """Automatically detect and use ngrok tunnel URL if available."""
-        # If explicitly set, use that
-        if v:
-            return v
+    def validate_oauth_redirect_url(cls, v: Optional[str], info) -> str:
+        """Validate OAuth redirect base URL is set."""
+        if not v:
+            raise ValueError(
+                "OAUTH_REDIRECT_BASE_URL must be set. "
+                "Use 'https://amir-auth.hirecj.ai' for production or appropriate tunnel URL for development."
+            )
         
-        # Check for tunnel URL from root .env.tunnel (created by tunnel detector)
-        root_dir = Path(__file__).parent.parent.parent  # Go up to monorepo root
-        tunnel_env_path = root_dir / ".env.tunnel"
-        if tunnel_env_path.exists():
-            try:
-                with open(tunnel_env_path) as f:
-                    for line in f:
-                        # Also check OAUTH_REDIRECT_BASE_URL for auth service
-                        if line.startswith("OAUTH_REDIRECT_BASE_URL="):
-                            tunnel_url = line.split("=", 1)[1].strip()
-                            if tunnel_url:
-                                logger.info(f"📡 Using detected tunnel URL: {tunnel_url}")
-                                return tunnel_url
-                        elif line.startswith("PUBLIC_URL="):
-                            tunnel_url = line.split("=", 1)[1].strip()
-                            if tunnel_url:
-                                logger.info(f"📡 Using detected tunnel URL: {tunnel_url}")
-                                return tunnel_url
-            except Exception as e:
-                logger.warning(f"Failed to read tunnel URL: {e}")
-        
-        # Default to localhost with the configured app_port
-        app_port = info.data.get('app_port', 8103)
-        default_url = f"http://localhost:{app_port}"
-        logger.info(f"Using default redirect URL: {default_url}")
-        return default_url
+        # Log what we're using for clarity
+        logger.info(f"🔐 OAuth redirect base URL: {v}")
+        return v
     
     @field_validator("allowed_origins", mode="before")
     @classmethod

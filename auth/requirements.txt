@@ -11,6 +11,7 @@ asyncpg==0.29.0
 sqlalchemy==2.0.25
 alembic==1.13.1
 redis==5.0.1
+psycopg2-binary>=2.9.0
 
 # For development
 pytest==7.4.4

@@ -43,6 +43,13 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
     const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
     const installUrl = `${authUrl}/api/v1/shopify/install?shop=${encodeURIComponent(shop)}`;
     
+    // Log OAuth details for debugging
+    console.log('🛍️ Shopify OAuth Debug (ShopifyOAuthButton):');
+    console.log('  Auth URL:', authUrl);
+    console.log('  Install URL:', installUrl);
+    console.log('  Expected Redirect URI:', `${authUrl}/api/v1/shopify/callback`);
+    console.log('  Shop Domain:', shop);
+    
     // Redirect to start OAuth flow
     window.location.href = installUrl;
   };

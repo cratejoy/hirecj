@@ -79,6 +79,17 @@ make dev-tunnels-tmux
 - **Tunnel Setup**: See [Ngrok Setup Guide](NGROK_SETUP.md) for HTTPS development
 - **Recent Changes**: See [Development Environment Changes](docs/DEV_ENVIRONMENT_CHANGES.md) for OAuth and debug features
 
+### Database Setup (Phase 4.5+)
+
+For user identity and persistence features, run the database migration:
+
+```bash
+# Ensure IDENTITY_DATABASE_URL is set in your .env
+psql $IDENTITY_DATABASE_URL -f agents/app/migrations/003_user_identity.sql
+```
+
+See [Migration Guide](./agents/app/migrations/README.md) for detailed instructions.
+
 ## License
 
 Copyright © 2025 Cratejoy, Inc. All rights reserved.

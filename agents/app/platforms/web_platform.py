@@ -24,10 +24,10 @@ from app.services.session_manager import SessionManager
 from app.services.message_processor import MessageProcessor
 from app.services.conversation_storage import ConversationStorage
 from app.services.fact_extractor import FactExtractor
-from app.services.merchant_memory import MerchantMemoryService
 from app.constants import WebSocketCloseCodes
 from app.config import settings
 from app.models import Message
+from shared.user_identity import generate_user_id
 
 logger = get_logger(__name__)
 websocket_logger = get_logger("websocket")
@@ -208,20 +208,17 @@ class WebPlatform(Platform):
             if conversation_id in self.session_manager._sessions:
                 session = self.session_manager._sessions[conversation_id]
                 
-                # Only extract facts if conversation has messages
-                if session.merchant_memory and session.conversation.messages:
+                # Only extract facts if conversation has messages and user_id
+                if session.user_id and session.conversation.messages:
                     try:
                         logger.info(f"[FACT_EXTRACTION] Processing conversation {conversation_id} on disconnect")
                         fact_extractor = FactExtractor()
                         new_facts = await fact_extractor.extract_and_add_facts(
                             session.conversation, 
-                            session.merchant_memory
+                            session.user_id
                         )
                         
                         if new_facts:
-                            # Save updated memory
-                            memory_service = MerchantMemoryService()
-                            memory_service.save_memory(session.merchant_memory)
                             logger.info(f"[FACT_EXTRACTION] Extracted {len(new_facts)} facts on disconnect")
                         else:
                             logger.info(f"[FACT_EXTRACTION] No new facts extracted on disconnect")
@@ -325,10 +322,15 @@ class WebPlatform(Platform):
                     )
                     # Create conversation session
                     try:
+                        # Get user_id from the WebSocket session
+                        ws_session = self.sessions.get(conversation_id, {})
+                        user_id = ws_session.get("user_id", "anonymous")
+                        
                         session = self.session_manager.create_session(
                             merchant_name=merchant,
                             scenario_name=scenario,
                             workflow_name=workflow,
+                            user_id=user_id if user_id != "anonymous" else None,
                         )
                         # Store the session with the conversation_id
                         self.session_manager._sessions[conversation_id] = session
@@ -730,6 +732,19 @@ class WebPlatform(Platform):
                     if hasattr(session.conversation, 'merchant_name'):
                         session.conversation.merchant_name = merchant_id
                 
+                # Generate user_id from shop_domain
+                if shop_domain:
+                    user_id = generate_user_id(shop_domain)
+                    logger.info(f"[OAUTH_UPDATE] Generated user_id {user_id} from shop {shop_domain}")
+                    
+                    # Update WebSocket session
+                    if conversation_id in self.sessions:
+                        self.sessions[conversation_id]["user_id"] = user_id
+                    
+                    # Update SessionManager session
+                    session.user_id = user_id
+                    logger.info(f"[OAUTH_UPDATE] Updated session with user_id: {user_id}")
+                
                 # Store OAuth metadata in session for context
                 if not hasattr(session, 'oauth_metadata'):
                     session.oauth_metadata = {}
@@ -837,9 +852,11 @@ class WebPlatform(Platform):
                         }
                         
                         # Check if session has merchant memory
-                        if hasattr(session, 'merchant_memory') and session.merchant_memory:
-                            if hasattr(session.merchant_memory, 'facts'):
-                                debug_data["state"]["memory_facts"] = len(session.merchant_memory.facts)
+                        if session.user_id:
+                            # Get fact count from database
+                            from shared.user_identity import get_user_facts
+                            user_facts = get_user_facts(session.user_id)
+                            debug_data["state"]["memory_facts"] = len(user_facts)
                     
                     if debug_type == "snapshot" or debug_type == "metrics":
                         # Metrics if available

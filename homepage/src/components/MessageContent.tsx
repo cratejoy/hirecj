@@ -98,6 +98,13 @@ export const MessageContent: React.FC<MessageContentProps> = ({
   ui_elements.forEach(elem => {
     elementMap.set(elem.placeholder, elem);
   });
+  
+  // Debug log UI elements if they contain OAuth buttons
+  if (ui_elements.some(elem => elem.type === 'oauth_button')) {
+    console.log('🛍️ MessageContent - OAuth button detected');
+    console.log('  UI Elements:', ui_elements);
+    console.log('  Conversation ID:', conversationId);
+  }
 
   return (
     <div className="space-y-3">
