@@ -19,6 +19,10 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     """Application settings with environment variable support."""
     
+    model_config = SettingsConfigDict(
+        env_ignore_empty=True  # Ignore empty string values from env
+    )
+    
     # Server Configuration
     app_host: str = Field("0.0.0.0", env="APP_HOST")
     app_port: int = Field(8103, env="AUTH_SERVICE_PORT")  # Use service-specific port
@@ -213,6 +217,15 @@ class Settings(BaseSettings):
             logger.info(f"  Base URL: {self.oauth_redirect_base_url}")
             for provider in ["shopify", "google", "klaviyo", "freshdesk"]:
                 logger.info(f"  {provider.title()}: {self.get_oauth_callback_url(provider)}")
+    
+    def __init__(self, **kwargs):
+        """Initialize settings and ensure proper frontend URL."""
+        super().__init__(**kwargs)
+        
+        # If homepage_url is set and looks like a tunnel URL, use it for frontend_url
+        if self.homepage_url and ("ngrok" in self.homepage_url or "hirecj.ai" in self.homepage_url):
+            self.frontend_url = self.homepage_url
+            logger.info(f"🔧 Using homepage_url for frontend_url: {self.frontend_url}")
 
 
 # Create global settings instance with hierarchical loading

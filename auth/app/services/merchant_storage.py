@@ -58,9 +58,7 @@ class MerchantStorage:
             data = self.redis_client.get(key)
             if data:
                 merchant = json.loads(data)
-                # Convert ISO string back to datetime
-                if "created_at" in merchant and isinstance(merchant["created_at"], str):
-                    merchant["created_at"] = datetime.fromisoformat(merchant["created_at"])
+                # Keep datetime as ISO string for consistency
                 logger.debug(f"[MERCHANT_STORAGE] Retrieved merchant: {shop_domain}")
                 return merchant
             return None
