@@ -381,8 +381,25 @@ const SlackChat = () => {
 		// Attach to window
 		(window as any).cj = debugInterface;
 		
-		// Always show help message
+		// Always show help message with current session info
 		console.log('%c🤖 CJ Debug Interface Ready!', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+		
+		// Show current merchant/session status
+		console.group('%c📊 Current Session', 'color: #00D4FF; font-size: 12px');
+		console.log('Merchant:', chatConfig.merchantId || 'None');
+		console.log('Workflow:', chatConfig.workflow || 'None');
+		console.log('Scenario:', chatConfig.scenarioId || 'None');
+		console.log('Conversation:', chatConfig.conversationId);
+		console.log('WebSocket:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
+		
+		// Show Shopify connection status if applicable
+		if (chatConfig.merchantId && chatConfig.merchantId !== 'onboarding_user') {
+			console.log('Shopify:', chatConfig.merchantId.startsWith('merchant_') ? '✅ Connected' : '❓ Unknown');
+		} else {
+			console.log('Shopify:', '⏳ Not connected yet');
+		}
+		console.groupEnd();
+		
 		console.log('Type cj.help() for available commands');
 		
 		// Debug environment variables
