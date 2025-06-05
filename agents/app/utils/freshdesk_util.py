@@ -5,17 +5,17 @@ import time
 from typing import Dict, Any, Optional, List, Tuple
 import requests
 from urllib.parse import urlencode
-from dotenv import load_dotenv
 
-load_dotenv()
+# Use centralized config - no direct load_dotenv!
+from shared.env_loader import get_env
 
 
 class FreshdeskAPI:
     """Low-level Freshdesk API client."""
     
     def __init__(self):
-        self.api_key = os.getenv("FRESHDESK_API_KEY")
-        self.domain = os.getenv("FRESHDESK_DOMAIN")
+        self.api_key = get_env("FRESHDESK_API_KEY")
+        self.domain = get_env("FRESHDESK_DOMAIN")
         
         if not self.api_key or not self.domain:
             raise ValueError("FRESHDESK_API_KEY and FRESHDESK_DOMAIN must be set")

@@ -42,17 +42,31 @@ Each component has its own setup instructions:
 
 ## Development
 
-For local development across all components:
+### Quick Start
+
+```bash
+# 1. Set up your environment (ONE file to configure!)
+make env-setup
+# Edit .env with your configuration
+
+# 2. Install dependencies
+make install
+
+# 3. Start development (auto-distributes env vars)
+make dev
+```
+
+### All Development Commands
 
 ```bash
 # Install dependencies for all components
-make install-all
+make install
 
 # Start all services in development mode
 make dev
 
 # Run tests across all components
-make test-all
+make test
 
 # Start with ngrok tunnels (recommended for OAuth testing)
 make dev-tunnels-tmux
@@ -60,7 +74,8 @@ make dev-tunnels-tmux
 
 ### Important Development Notes
 
-- **Environment Setup**: See [Environment Configuration Setup](README_ENV_SETUP.md)
+- **🔑 Environment Setup**: See [Single .env Guide](SINGLE_ENV_GUIDE.md) - You only manage ONE .env file!
+- **Legacy Docs**: [Environment Configuration Setup](README_ENV_SETUP.md) (being phased out)
 - **Tunnel Setup**: See [Ngrok Setup Guide](NGROK_SETUP.md) for HTTPS development
 - **Recent Changes**: See [Development Environment Changes](docs/DEV_ENVIRONMENT_CHANGES.md) for OAuth and debug features
 

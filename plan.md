@@ -139,7 +139,27 @@ OAuth Flow:
 - ❌ Polling mechanism (remove)
 - ❌ Complex context handling (remove)
 
-### Phase 4: UI Actions Pattern ✅ COMPLETE
+### Phase 4.0: True Environment Centralization 🚨 CRITICAL FOUNDATION
+**Goal:** Implement TRUE single .env file management with zero exceptions. Fix the broken multi-file pattern.
+
+**Deliverables:**
+- [ ] Audit and consolidate ALL environment variables across services
+- [ ] Create master .env.example with every variable needed
+- [ ] Rewrite env_loader.py to enforce single source (no fallbacks)
+- [ ] Create distribute_env.py script for automatic distribution
+- [ ] Update all services to use centralized pattern
+- [ ] Remove ALL bypass paths (load_dotenv, direct access)
+- [ ] Update Makefile and documentation
+
+**Why This Must Happen First:**
+- Current system forces developers to manage 10+ .env files
+- Utility files bypass centralized config
+- No enforcement of single source pattern
+- This blocks clean implementation of all future phases
+
+📄 **[Implementation Plan →](docs/phase-4.0-env-centralization.md)**
+
+### Phase 4.1: UI Actions Pattern ✅ COMPLETE
 **Deliverables:**
 - [x] Parser implementation to extract {{oauth:shopify}} markers
 - [x] Workflow configuration to enable UI components
@@ -149,6 +169,33 @@ OAuth Flow:
 - [ ] End-to-end testing of complete flow
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-ui-actions.md)**
+
+### Phase 4.5: User Identity & Persistence 🆕 NEXT PRIORITY
+**Goal:** Add minimal user identity system and conversation persistence without complex schemas.
+
+**Why Now:** Phase 5 (Quick Value Demo) needs persistent user identity to show "your store" insights across sessions.
+
+**Deliverables:**
+- [ ] Internal user IDs (usr_xxx format) linked to Shopify shops
+- [ ] Conversation archival from Redis to PostgreSQL
+- [ ] User conversation history API
+- [ ] Automatic Redis → PostgreSQL sync before TTL expiry
+- [ ] Event logging for analytics (OAuth, conversations, etc.)
+
+**The Architecture:**
+```
+Shopify OAuth → Our User ID → Linked Conversations → Archived History
+     ↓              ↓                 ↓                    ↓
+  (Auth)      (Identity)         (Redis)            (PostgreSQL)
+```
+
+**Benefits:**
+- ✅ **Preserves History**: Conversations never lost after 24h Redis TTL
+- ✅ **Enables Personalization**: "Welcome back! Last time we discussed..."
+- ✅ **Simple Schema**: Just 3 tables with JSONB for flexibility
+- ✅ **Future Ready**: Foundation for user preferences, analytics, etc.
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.5-user-identity.md)**
 
 ---
 
@@ -618,52 +665,62 @@ The guides include:
 
 Use the [phase template](docs/shopify-onboarding/PHASE_TEMPLATE.md) when creating new guides.
 
-## 🔧 Side Quest: Unified Environment Configuration
+## 🔧 Side Quest: Unified Environment Configuration ✅ COMPLETE
 
-### Current Pain Points
-- Each service has its own `.env` file with duplicated service URLs
-- Homepage needs to know Auth and Agents URLs
-- Tunnel detection updates multiple files
-- Hard to manage secrets across services
-- OAuth redirect URLs need coordination
+### Previous Pain Points (NOW RESOLVED)
+- ~~Each service has its own `.env` file with duplicated service URLs~~
+- ~~Homepage needs to know Auth and Agents URLs~~
+- ~~Tunnel detection updates multiple files~~
+- ~~Hard to manage secrets across services~~
+- ~~OAuth redirect URLs need coordination~~
 
-### Proposed Solution: Root `.env` with Service Overrides
+### Implemented Solution: Single Root `.env` with Service Secrets
 
 ```
 /hirecj/
-├── .env                    # Shared configuration
-├── .env.local             # Local overrides (gitignored)
-├── .env.tunnel            # Auto-generated tunnel URLs
+├── .env                    # Main configuration file (developers edit this)
+├── .env.local             # Local overrides (optional, gitignored)
+├── .env.tunnel            # Auto-generated tunnel URLs (gitignored)
 ├── auth/
-│   └── .env.secrets       # Auth-specific secrets only
+│   ├── .env               # Service overrides (minimal, mostly empty)
+│   └── .env.secrets       # Auth-specific secrets (gitignored)
 ├── agents/
-│   └── .env.secrets       # API keys only
+│   ├── .env               # Service overrides (minimal, mostly empty)
+│   └── .env.secrets       # API keys (gitignored)
 └── homepage/
-    └── .env               # Vite requires this, but minimal
+    └── (no .env needed)   # Vite reads from root .env via config
 ```
 
-### Implementation Tasks ✅ COMPLETE
-- [x] Create root `.env.example` with shared config structure
-- [x] Update `/shared/env_loader.py` for hierarchical loading
-- [x] Modify each service's `config.py` to load env files in order
-- [x] Update homepage's `vite.config.ts` to read parent env
-- [x] Enhance tunnel detector to write service URLs once
-- [x] Migrate existing env vars to new structure
-- [x] Update documentation and setup scripts
-- [x] Create verification script to test configuration
+### Developer Experience ✅
+1. **Initial Setup (One-time)**:
+   ```bash
+   cp .env.example .env
+   cp auth/.env.secrets.example auth/.env.secrets
+   cp agents/.env.secrets.example agents/.env.secrets
+   ```
 
-### Benefits
-- **Single source of truth** for service URLs
-- **Secrets stay isolated** per service
-- **Tunnel detection** updates one place
-- **Easy local dev** - just copy root `.env.example`
-- **Gradual migration** - existing files still work
+2. **That's it!** Services automatically load configuration in this order:
+   - Root `.env` (shared config)
+   - Root `.env.local` (local overrides if exists)
+   - Root `.env.tunnel` (auto-generated tunnel URLs)
+   - Service `.env.secrets` (sensitive data)
+   - Service `.env` (service-specific overrides - rarely needed)
 
-### North Star Alignment
-- ✅ **Simplify**: One place for shared config
-- ✅ **No Cruft**: Remove URL duplication
-- ✅ **Long-term Elegance**: Clear separation of concerns
-- ✅ **No Over-Engineering**: Reuses existing patterns
+### Verification
+```bash
+python scripts/verify_env_config.py
+```
+
+### Benefits Achieved
+- ✅ **Single `.env` file** for all shared configuration
+- ✅ **Secrets isolated** in service-specific `.env.secrets` files
+- ✅ **Tunnel detection** updates only `.env.tunnel`
+- ✅ **Simple setup** - just copy 3 files and go
+- ✅ **No duplication** - service URLs defined once
+
+### Documentation
+- 📄 **[Environment Setup Guide →](README_ENV_SETUP.md)**
+- 📄 **[Dev Environment Changes →](docs/DEV_ENVIRONMENT_CHANGES.md)**
 
 ## 🔍 Console Debug System
 
