@@ -5,10 +5,13 @@ import hashlib
 import secrets
 import base64
 import re
+import logging
 from typing import Dict, Optional
 from urllib.parse import urlencode
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 class ShopifyAuth:
     """Handle Shopify OAuth operations."""
