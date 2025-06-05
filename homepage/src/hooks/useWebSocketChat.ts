@@ -310,46 +310,6 @@ export function useWebSocketChat({
           console.log(`%c[${event.timestamp || new Date().toISOString()}]`, 'color: gray', event.type, event.data || '');
           break;
           
-        case 'debug_response':
-          // Handle debug response from backend
-          const debugData = data.data;
-          console.group('%c🤖 CJ Debug Response', 'color: #00D4FF; font-size: 16px; font-weight: bold');
-          
-          if (debugData.error) {
-            console.error('Debug error:', debugData.error);
-          } else {
-            if (debugData.session) {
-              console.group('📊 Session Details');
-              console.table(debugData.session);
-              console.groupEnd();
-            }
-            
-            if (debugData.state) {
-              console.group('⚙️ CJ State');
-              console.table(debugData.state);
-              console.groupEnd();
-            }
-            
-            if (debugData.metrics) {
-              console.group('📈 Metrics');
-              console.log(debugData.metrics);
-              console.groupEnd();
-            }
-            
-            if (debugData.prompts) {
-              console.group('📝 Recent Prompts');
-              debugData.prompts.forEach((prompt: any, index: number) => {
-                console.log(`${index + 1}. [${prompt.timestamp}]`);
-                console.log(prompt.content);
-                console.log('---');
-              });
-              console.groupEnd();
-            }
-          }
-          
-          console.groupEnd();
-          break;
-          
         default:
           wsLogger.warn('Unknown message type', { type: data.type, data });
       }
