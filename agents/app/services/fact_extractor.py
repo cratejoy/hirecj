@@ -9,7 +9,7 @@ from typing import List, Optional, Dict
 import json
 import litellm
 from app.models import Conversation, Message
-from app.services.merchant_memory import MerchantMemory
+from shared.user_identity import get_user_facts, append_fact
 from app.prompts.loader import PromptLoader
 from app.logging_config import get_logger
 from app.config import settings
@@ -33,14 +33,14 @@ class FactExtractor:
     async def extract_and_add_facts(
         self, 
         conversation: Conversation, 
-        memory: MerchantMemory,
+        user_id: str,
         last_n_messages: Optional[int] = None
     ) -> List[str]:
-        """Extract new facts from conversation and add to memory.
+        """Extract new facts from conversation and add to user's facts.
         
         Args:
             conversation: The completed conversation to analyze
-            memory: The merchant's existing memory
+            user_id: The user ID to add facts to
             last_n_messages: Only analyze the last N messages (for incremental extraction)
             
         Returns:
@@ -48,7 +48,8 @@ class FactExtractor:
         """
         try:
             # Get existing facts to avoid duplicates
-            existing_facts = memory.get_all_facts()
+            user_facts = get_user_facts(user_id)
+            existing_facts = [f['fact'] for f in user_facts]
             
             # Debug logging
             logger.info(f"[FACT_EXTRACTOR] ====== FACT EXTRACTION CALLED ======")
@@ -81,9 +82,9 @@ class FactExtractor:
             # Extract facts using LLM
             new_facts = await self._extract_facts_with_llm(prompts)
             
-            # Add new facts to memory
+            # Add new facts to user's facts
             for fact in new_facts:
-                memory.add_fact(fact, conversation.id)
+                append_fact(user_id, fact, f"conversation_{conversation.id}")
                 
             if new_facts:
                 logger.info(f"[FACT_EXTRACTOR] === NEW FACTS EXTRACTED ===")

@@ -42,7 +42,7 @@ SERVICE_VARS = {
             "INTERCOM_CLIENT_ID", "INTERCOM_CLIENT_SECRET",
             
             # URLs for OAuth callbacks
-            "FRONTEND_URL", "BACKEND_URL", "HOMEPAGE_URL",
+            "FRONTEND_URL", "BACKEND_URL", "HOMEPAGE_URL", "OAUTH_REDIRECT_BASE_URL",
             
             # Service URLs for API calls
             "AGENTS_SERVICE_URL", "DATABASE_SERVICE_URL",

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { motion } from 'framer-motion';
 import { useChat } from '@/hooks/useChat';
 import { useWebSocketChat } from '@/hooks/useWebSocketChat';
@@ -30,8 +30,19 @@ interface ChatConfig {
 	workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | 'support_daily' | null;
 }
 
+const VALID_WORKFLOWS = ['ad_hoc_support', 'daily_briefing', 'shopify_onboarding', 'support_daily'] as const;
+const DEFAULT_WORKFLOW = 'support_daily';
+
+const WORKFLOW_NAMES: Record<typeof VALID_WORKFLOWS[number], string> = {
+	'support_daily': '📋 Support Daily',
+	'ad_hoc_support': '💬 Ad Hoc Support',
+	'daily_briefing': '📊 Daily Briefing',
+	'shopify_onboarding': '🛍️ Shopify Onboarding'
+};
+
 const SlackChat = () => {
-	const [, setLocation] = useLocation();
+	const [location, setLocation] = useLocation();
+	const searchString = useSearch();
 	const { toast } = useToast();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -42,13 +53,43 @@ const SlackChat = () => {
 	// Always skip config modal
 	const [showConfigModal, setShowConfigModal] = useState(false);
 	
-	// Update initial chatConfig
-	const [chatConfig, setChatConfig] = useState<ChatConfig>({
-		scenarioId: null, // No demo scenario
-		merchantId: null, // Will be set after OAuth
+	// Parse workflow from URL params
+	const getWorkflowFromUrl = useCallback(() => {
+		const params = new URLSearchParams(searchString);
+		const urlWorkflow = params.get('workflow');
+		
+		if (urlWorkflow && VALID_WORKFLOWS.includes(urlWorkflow as any)) {
+			return urlWorkflow as typeof VALID_WORKFLOWS[number];
+		}
+		
+		// Check localStorage for last used workflow
+		const savedWorkflow = localStorage.getItem('lastWorkflow');
+		if (savedWorkflow && VALID_WORKFLOWS.includes(savedWorkflow as any)) {
+			return savedWorkflow as typeof VALID_WORKFLOWS[number];
+		}
+		
+		return DEFAULT_WORKFLOW;
+	}, [searchString]);
+	
+	// Initialize chatConfig with URL workflow
+	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => ({
+		scenarioId: null,
+		merchantId: null,
 		conversationId: uuidv4(),
-		workflow: 'support_daily' // Always start with onboarding
-	});
+		workflow: getWorkflowFromUrl()
+	}));
+	
+	// Update URL when workflow changes
+	useEffect(() => {
+		if (chatConfig.workflow) {
+			const params = new URLSearchParams(searchString);
+			if (params.get('workflow') !== chatConfig.workflow) {
+				params.set('workflow', chatConfig.workflow);
+				setLocation(`${location}?${params.toString()}`, { replace: true });
+			}
+			localStorage.setItem('lastWorkflow', chatConfig.workflow);
+		}
+	}, [chatConfig.workflow, location, searchString, setLocation]);
 	
 
 	const isRealChat = useMemo(() =>
@@ -409,6 +450,34 @@ const SlackChat = () => {
 					</button>
 
 					<div className="text-lg sm:text-xl font-bold">HireCJ</div>
+					
+					{/* Workflow Switcher */}
+					<div className="ml-6 flex items-center gap-2">
+						<span className="text-sm text-gray-300">Workflow:</span>
+						<select
+							value={chatConfig.workflow || DEFAULT_WORKFLOW}
+							onChange={(e) => {
+								const newWorkflow = e.target.value as typeof VALID_WORKFLOWS[number];
+								// End current conversation if connected
+								if (wsChat.isConnected) {
+									wsChat.endConversation();
+								}
+								// Start new conversation with new workflow
+								setChatConfig(prev => ({ 
+									...prev, 
+									workflow: newWorkflow,
+									conversationId: uuidv4() // New conversation for new workflow
+								}));
+							}}
+							className="bg-gray-700 text-white text-sm px-3 py-1 rounded border border-gray-600 focus:border-blue-400 focus:outline-none hover:bg-gray-600 transition-colors"
+						>
+							{VALID_WORKFLOWS.map(workflow => (
+								<option key={workflow} value={workflow}>
+									{WORKFLOW_NAMES[workflow]}
+								</option>
+							))}
+						</select>
+					</div>
 					{chatConfig.scenarioId && chatConfig.merchantId && (
 						<span className="ml-2 sm:ml-4 text-xs sm:text-sm text-gray-300 truncate max-w-[200px] sm:max-w-none">
 							{chatConfig.merchantId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - {chatConfig.scenarioId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}

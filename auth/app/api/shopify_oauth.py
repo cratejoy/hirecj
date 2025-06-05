@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 from app.config import settings
 from app.services.merchant_storage import merchant_storage
 from app.services.shopify_auth import shopify_auth
+from shared.user_identity import get_or_create_user
 
 logger = logging.getLogger(__name__)
 
@@ -188,6 +189,13 @@ async def handle_oauth_callback(
         is_new = merchant_id.startswith("new_")
         if is_new:
             merchant_id = merchant_id[4:]  # Remove "new_" prefix
+        
+        # Create or get user identity
+        try:
+            user_id, user_is_new = get_or_create_user(shop)
+            logger.info(f"[OAUTH_CALLBACK] User identity: {user_id}, is_new: {user_is_new}")
+        except Exception as e:
+            logger.error(f"[OAUTH_CALLBACK] Failed to get/create user identity: {e}")
         
         logger.info(f"[OAUTH_CALLBACK] Successfully authenticated shop: {shop}, is_new: {is_new}")
         

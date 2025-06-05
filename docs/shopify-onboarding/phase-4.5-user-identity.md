@@ -11,18 +11,195 @@ Implement a minimal user identity system that preserves conversation history wit
 - **Single Source of Truth**: usr_xxx ID links everything
 - **No Over-Engineering**: Only what Phase 5 needs for "your store" insights
 
-## ✅ Implementation Checklist
+## ✅ Master Implementation Checklist
 
-Phase 4.5 is complete when all sub-phases are complete:
+### ✅ Phase 4.5.0: Create User Identity Library (COMPLETE)
+- [x] Created `shared/user_identity/` directory structure
+- [x] Implemented models.py with SQLAlchemy models (renamed metadata→meta)
+- [x] Implemented connection.py with Supabase connection
+- [x] Implemented operations.py with core functions
+- [x] Implemented queries.py with read operations
+- [x] Implemented archival.py with conversation archival
+- [x] Created migration SQL (001_initial.sql)
+- [x] Wrote comprehensive unit tests
+- [x] Updated shared/__init__.py to export user_identity
 
-- [ ] **Phase 4.5.1**: Database schema creation and migration
-- [ ] **Phase 4.5.2**: User ID generation in auth service
-- [ ] **Phase 4.5.3**: Conversation archival service
-- [ ] **Phase 4.5.4**: User history API endpoints
-- [ ] **Phase 4.5.5**: Frontend session updates
-- [ ] **End-to-End**: Complete flow tested manually
+⚠️ **Note**: Supabase connection requires correct database password. Project URL is `txaitislqznncadkaffa.supabase.co` but the password needs to be obtained from Supabase dashboard.
+
+### 🔧 Phase 4.5.1: Database Infrastructure (Day 1)
+- [ ] **1.1 Environment Setup**
+  - [ ] Verify Supabase dev credentials in .env (hire-cj-dev-amir)
+  - [ ] Test connection string: `IDENTITY_SUPABASE_URL`
+  - [ ] Get anon key from Supabase dashboard
+  - [ ] Update .env with credentials
+  - [ ] Run `make env-distribute` to propagate
+
+- [ ] **1.2 Schema Creation**
+  - [ ] Open Supabase SQL Editor for hire-cj-dev-amir
+  - [ ] Run migration script (003_user_identity_supabase.sql)
+  - [ ] Verify tables created: users, conversations, events
+  - [ ] Test basic CRUD operations
+  - [ ] Clean up test data
+
+- [ ] **1.3 Database Service Integration**
+  - [ ] Create `agents/app/services/identity_db.py`
+  - [ ] Implement connection manager with NullPool
+  - [ ] Add test_connection() function
+  - [ ] Create pytest tests for database connectivity
+  - [ ] Verify connection from agents service
+
+### 👤 Phase 4.5.2: User Identity System (Day 1-2)
+- [ ] **2.1 User ID Generation**
+  - [ ] Update `auth/app/services/merchant_storage.py`
+  - [ ] Implement generate_user_id() method (usr_xxx format)
+  - [ ] Add get_or_create_user() method
+  - [ ] Update create_merchant() to include user_id
+  - [ ] Write tests for consistent ID generation
+
+- [ ] **2.2 OAuth Integration**
+  - [ ] Update OAuth callback in `auth/app/api/shopify_oauth.py`
+  - [ ] Modify store_merchant_token() to return (merchant_id, user_id)
+  - [ ] Include user_id in OAuth redirect params
+  - [ ] Test OAuth flow end-to-end
+
+- [ ] **2.3 Event Logging**
+  - [ ] Create `auth/app/services/event_logger.py`
+  - [ ] Implement log_user_event() function
+  - [ ] Add event logging to OAuth flow
+  - [ ] Test event insertion to Supabase
+
+### 💾 Phase 4.5.3: Conversation Archival (Day 2)
+- [ ] **3.1 Archival Service Setup**
+  - [ ] Create `agents/app/services/conversation_archival.py`
+  - [ ] Implement ConversationArchiver class
+  - [ ] Add Redis scanning for conversations near TTL
+  - [ ] Implement archive_conversation() method
+
+- [ ] **3.2 Data Extraction**
+  - [ ] Implement _get_conversation_data() from Redis
+  - [ ] Handle message collection and sorting
+  - [ ] Extract user_id from session/merchant data
+  - [ ] Test data extraction logic
+
+- [ ] **3.3 Background Service**
+  - [ ] Implement run_archival_loop()
+  - [ ] Add to main.py startup event
+  - [ ] Configure 30-minute check interval
+  - [ ] Test archival with mock data
+  - [ ] Monitor logs for archival activity
+
+### 🔌 Phase 4.5.4: History API (Day 2-3)
+- [ ] **4.1 API Router Setup**
+  - [ ] Create `agents/app/api/users.py`
+  - [ ] Add router to main app
+  - [ ] Implement authentication dependencies
+  - [ ] Test basic route registration
+
+- [ ] **4.2 Conversation Endpoints**
+  - [ ] Implement GET /users/{user_id}/conversations
+  - [ ] Add pagination support (limit/offset)
+  - [ ] Implement GET /users/{user_id}/conversations/{id}
+  - [ ] Add authorization checks
+  - [ ] Test with curl/Postman
+
+- [ ] **4.3 Profile Endpoint**
+  - [ ] Implement GET /users/{user_id}/profile
+  - [ ] Include conversation statistics
+  - [ ] Test profile retrieval
+  - [ ] Document API in code
+
+### 🎨 Phase 4.5.5: Frontend Integration (Day 3)
+- [ ] **5.1 WebSocket Updates**
+  - [ ] Update SlackChat component to handle user_id
+  - [ ] Modify OAuth callback handling
+  - [ ] Store user_id in localStorage
+  - [ ] Include user_id in WebSocket messages
+
+- [ ] **5.2 Session Management**
+  - [ ] Update session_manager.py to store user_id
+  - [ ] Modify create_session() method
+  - [ ] Store user_id in Redis session
+  - [ ] Test session creation with user_id
+
+- [ ] **5.3 UI Components**
+  - [ ] Add ConversationHistory component
+  - [ ] Show history link for authenticated users
+  - [ ] Test UI updates
+  - [ ] Verify user_id propagation
+
+### ✅ Phase 4.5.6: End-to-End Testing (Day 3-4)
+- [ ] **6.1 New User Flow**
+  - [ ] Start fresh conversation
+  - [ ] Complete Shopify OAuth
+  - [ ] Verify user created in database
+  - [ ] Check event logs
+  - [ ] Verify conversation linked to user
+
+- [ ] **6.2 Returning User Flow**
+  - [ ] Start new conversation with same shop
+  - [ ] Verify same user_id returned
+  - [ ] Check conversation history accessible
+  - [ ] Test profile endpoint
+
+- [ ] **6.3 Archival Flow**
+  - [ ] Create test conversation
+  - [ ] Trigger archival (reduce TTL for testing)
+  - [ ] Verify in Supabase database
+  - [ ] Test retrieval via API
+
+- [ ] **6.4 Production Readiness**
+  - [ ] Document Supabase setup for production
+  - [ ] Create production migration checklist
+  - [ ] Update deployment documentation
+  - [ ] Plan monitoring strategy
+
+## ⏱️ Estimated Timeline: 3-4 Days
+
+**Day 1**: Database setup (4.5.1) + Start user identity (4.5.2)
+**Day 2**: Complete user identity + Archival service (4.5.3)
+**Day 3**: API endpoints (4.5.4) + Frontend (4.5.5)
+**Day 4**: End-to-end testing + Production prep
+
+## 🚨 Critical Path Items
+
+1. **Supabase Connection** - Blocks everything if not working
+2. **User ID Generation** - Must be consistent and reliable
+3. **OAuth Flow** - Must not break existing functionality
+4. **Archival Service** - Must run reliably in background
+
+## 📝 Success Criteria
+
+Phase 4.5 is complete when:
+- [ ] All checklist items above are complete
+- [ ] Manual end-to-end test passes
+- [ ] No regression in existing OAuth flow
+- [ ] Archival service running without errors
+- [ ] API endpoints return correct data
+- [ ] Frontend shows user history link
 
 ## 🏗️ Architecture Overview
+
+### Revised Architecture: Shared Python Library
+
+After review, we decided to implement user identity as a shared Python library instead of service-specific integration. This provides:
+
+1. **Direct Database Access**: No HTTP overhead
+2. **Type Safety**: Python types instead of JSON APIs
+3. **Reusability**: Both auth and agents services can import the same code
+4. **Simpler Testing**: Mock the library, not HTTP calls
+
+### Library Structure
+
+```
+shared/user_identity/
+├── __init__.py       # Public API exports
+├── models.py         # SQLAlchemy models
+├── operations.py     # Core operations (create user, log events)
+├── queries.py        # Read operations (get profile, history)
+├── archival.py       # Conversation archival logic
+├── connection.py     # Database connection management
+└── migrations/       # SQL schema migrations
+```
 
 ### Identity Flow
 
@@ -30,6 +207,9 @@ Phase 4.5 is complete when all sub-phases are complete:
 Shopify OAuth → User Creation → Session Enhancement → Conversation Archive
       ↓              ↓                ↓                      ↓
  (Shop Domain)   (usr_xxx ID)    (Redis Session)      (PostgreSQL)
+      ↓              ↓                ↓                      ↓
+   auth service   user_identity    agents service    user_identity
+                     library                            library
 ```
 
 ### Why This Design?
@@ -39,6 +219,7 @@ Shopify OAuth → User Creation → Session Enhancement → Conversation Archive
 3. **Flexible Storage**: JSONB allows evolution without migrations
 4. **Automatic Archival**: Conversations preserved before Redis TTL
 5. **Simple Queries**: User history by ID, no complex joins
+6. **Shared Library**: Single implementation used by multiple services
 
 ## 📊 Database Schema
 
@@ -148,106 +329,49 @@ heroku config:get SUPABASE_CONNECTION_STRING --app your-app  # Different project
 heroku config:get IDENTITY_SUPABASE_URL --app your-app      # Identity project
 ```
 
-### Database Configuration Class
+### Using the Shared User Identity Library
 
-Update the agents service configuration to support Supabase identity database:
-
-```python
-# agents/app/config.py
-
-class Settings(BaseSettings):
-    """Enhanced with Supabase identity support."""
-    
-    # Existing ETL/ticket data configuration
-    supabase_connection_string: str = Field(
-        default="",
-        description="Production Supabase for ETL/ticket data"
-    )
-    
-    # Identity Database (Phase 4.5) - Now using Supabase!
-    identity_supabase_url: str = Field(
-        default="",
-        description="Separate Supabase project for user identity data"
-    )
-    
-    identity_supabase_anon_key: str = Field(
-        default="",
-        description="Supabase anon key for future client features"
-    )
-    
-    @field_validator('identity_supabase_url', 'supabase_connection_string')
-    def validate_supabase_urls(cls, v):
-        """Ensure PostgreSQL protocol for SQLAlchemy."""
-        if v and v.startswith("postgres://"):
-            return v.replace("postgres://", "postgresql://", 1)
-        return v
-    
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_ignore_empty=True,
-        extra="ignore"
-    )
-```
-
-### Database Connection Manager
-
-Leverage existing Supabase patterns for the identity database:
+The user identity functionality is implemented as a shared library that can be imported by any service:
 
 ```python
-# agents/app/services/identity_db.py
-"""Identity database using Supabase."""
+# Example usage in auth service
+from shared.user_identity import get_or_create_user, log_user_event
 
-from contextlib import contextmanager
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import NullPool
-from app.config import settings
-import logging
-
-logger = logging.getLogger(__name__)
-
-# Supabase always uses NullPool for serverless compatibility
-engine = create_engine(
-    settings.identity_supabase_url,
-    poolclass=NullPool,  # Supabase best practice
-    connect_args={
-        "sslmode": "require",
-        "connect_timeout": 30
-    }
+# During OAuth callback
+user_id, is_new = get_or_create_user(
+    shop_domain,
+    email=shop_info.get("email"),
+    name=shop_info.get("shop_owner")
 )
 
-SessionLocal = sessionmaker(bind=engine)
-
-# Reuse the existing Supabase pattern
-@contextmanager
-def get_db():
-    """Get database session with automatic cleanup."""
-    db = SessionLocal()
-    try:
-        yield db
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
-
-def test_connection():
-    """Test Supabase connectivity."""
-    try:
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT 1"))
-            logger.info("Identity Supabase connection successful")
-            return True
-    except Exception as e:
-        logger.error(f"Identity Supabase connection failed: {e}")
-        return False
-
-# Optional: Direct connection for migrations
-def get_connection_string():
-    """Get connection string for psycopg2 operations."""
-    return settings.identity_supabase_url
+log_user_event(user_id, "oauth_complete", {
+    "shop": shop_domain,
+    "first_time": is_new
+})
 ```
+
+```python
+# Example usage in agents service
+from shared.user_identity import archive_conversation, get_user_profile
+
+# Archive conversation before Redis TTL
+archive_conversation(conversation_id, redis_client, user_id)
+
+# Get user history
+profile = get_user_profile(user_id)
+```
+
+### Library Configuration
+
+The shared library reads database configuration from environment variables:
+
+```python
+# The library expects these in .env:
+IDENTITY_SUPABASE_URL=postgresql://postgres:[password]@db.[project].supabase.co:5432/postgres
+IDENTITY_SUPABASE_ANON_KEY=eyJ... # For future client features
+```
+
+No service-specific configuration is needed - the library handles all database connections internally.
 
 ### Migration Strategy
 
@@ -489,94 +613,46 @@ DELETE FROM identity.users WHERE id = 'usr_test123';
 
 ### Phase 4.5.2: User ID Generation
 
-**Goal**: Update auth service to create/retrieve user IDs during OAuth
+**Goal**: Integrate the shared library into auth service for user creation during OAuth
 
-#### Step 1: Update Merchant Storage
-
-```python
-# auth/app/services/merchant_storage.py
-
-import hashlib
-from typing import Optional, Dict, Any, Tuple
-
-class MerchantStorage:
-    """Enhanced with user ID generation."""
-    
-    def generate_user_id(self, shop_domain: str) -> str:
-        """Generate consistent user ID from shop domain."""
-        # Use first 8 chars of SHA256 for readable IDs
-        hash_obj = hashlib.sha256(shop_domain.encode())
-        short_hash = hash_obj.hexdigest()[:8]
-        return f"usr_{short_hash}"
-    
-    def get_or_create_user(self, shop_domain: str) -> Tuple[str, bool]:
-        """Get existing user ID or create new one.
-        
-        Returns:
-            Tuple of (user_id, is_new)
-        """
-        # Check if merchant exists
-        merchant = self.get_merchant(shop_domain)
-        
-        if merchant and merchant.get("user_id"):
-            return merchant["user_id"], False
-        
-        # Generate new user ID
-        user_id = self.generate_user_id(shop_domain)
-        
-        # Update or create merchant with user ID
-        if merchant:
-            merchant["user_id"] = user_id
-            self.update_merchant(shop_domain, merchant)
-        else:
-            # Will be created later with full data
-            pass
-            
-        return user_id, True
-    
-    def create_merchant(self, merchant_data: Dict[str, Any]) -> None:
-        """Enhanced to include user_id."""
-        shop_domain = merchant_data["shop_domain"]
-        
-        # Ensure user_id is set
-        if "user_id" not in merchant_data:
-            merchant_data["user_id"] = self.generate_user_id(shop_domain)
-        
-        # ... rest of existing create_merchant logic ...
-        super().create_merchant(merchant_data)
-```
-
-#### Step 2: Update OAuth Callback
+#### Step 1: Update OAuth Callback to Use Library
 
 ```python
 # auth/app/api/shopify_oauth.py
 
+from shared.user_identity import get_or_create_user, log_user_event
+
 def store_merchant_token(shop: str, access_token: str) -> Tuple[str, str]:
     """
-    Store merchant token and return user info.
+    Store merchant token and create/get user.
     
     Returns:
         Tuple of (merchant_id, user_id)
     """
-    # Get or create user ID
-    user_id, is_new = merchant_storage.get_or_create_user(shop)
+    # Get shop info from Shopify API (optional)
+    shop_info = get_shop_info(access_token)  # If you have this
     
-    # Check if merchant exists
+    # Use the library to get or create user
+    user_id, is_new = get_or_create_user(
+        shop,
+        email=shop_info.get("email") if shop_info else None,
+        name=shop_info.get("shop_owner") if shop_info else None
+    )
+    
+    # Check if merchant exists in Redis
     merchant = merchant_storage.get_merchant(shop)
     
     if merchant is None:
-        # Create new merchant with user ID
+        # Create new merchant
         merchant_id = f"merchant_{shop.replace('.myshopify.com', '')}"
         merchant_storage.create_merchant({
             "merchant_id": merchant_id,
-            "user_id": user_id,
             "shop_domain": shop,
             "access_token": access_token,
             "created_at": datetime.utcnow().isoformat()
         })
         
-        # Log event
-        log_user_event(user_id, "user_created", {"shop": shop})
+        # Log event using library
         log_user_event(user_id, "oauth_complete", {"shop": shop, "first_time": True})
         
         logger.info(f"[STORE_TOKEN] Created new merchant: {shop}, user: {user_id}")
@@ -586,7 +662,7 @@ def store_merchant_token(shop: str, access_token: str) -> Tuple[str, str]:
         merchant_storage.update_token(shop, access_token)
         merchant_id = merchant.get("merchant_id", f"merchant_{shop.replace('.myshopify.com', '')}")
         
-        # Log event
+        # Log event using library
         log_user_event(user_id, "oauth_complete", {"shop": shop, "first_time": False})
         
         logger.info(f"[STORE_TOKEN] Updated existing merchant: {shop}, user: {user_id}")
@@ -668,9 +744,9 @@ def log_user_event(
 
 ### Phase 4.5.3: Conversation Archival
 
-**Goal**: Archive conversations from Redis to PostgreSQL before TTL
+**Goal**: Integrate the shared library's archival service into agents
 
-#### Step 1: Create Archival Service
+#### Step 1: Create Archival Service Wrapper
 
 ```python
 # agents/app/services/conversation_archival.py
