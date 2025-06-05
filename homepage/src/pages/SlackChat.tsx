@@ -53,6 +53,15 @@ const SlackChat = () => {
 	// Always skip config modal
 	const [showConfigModal, setShowConfigModal] = useState(false);
 	
+	// Log OAuth configuration on startup
+	useEffect(() => {
+		const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
+		console.log('🛍️ Shopify OAuth Configuration (on page load):');
+		console.log('  Auth Service URL:', authUrl);
+		console.log('  Expected Redirect URI:', `${authUrl}/api/v1/shopify/callback`);
+		console.log('  Frontend URL:', window.location.origin);
+	}, []);
+	
 	// Parse workflow from URL params
 	const getWorkflowFromUrl = useCallback(() => {
 		const params = new URLSearchParams(searchString);
