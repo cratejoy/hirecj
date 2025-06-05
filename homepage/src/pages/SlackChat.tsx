@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { useChat } from '@/hooks/useChat';
 import { useWebSocketChat } from '@/hooks/useWebSocketChat';
 import { useOAuthCallback } from '@/hooks/useOAuthCallback';
+import { useUserSession } from '@/hooks/useUserSession';
 import DemoScriptFlow from '@/components/DemoScriptFlow';
 import { ConfigurationModal } from '@/components/ConfigurationModal';
 import { ChatInterface } from '@/components/ChatInterface';
@@ -50,6 +51,9 @@ const SlackChat = () => {
 	const [emailModalOpen, setEmailModalOpen] = useState(false);
 	const [showDailyReport, setShowDailyReport] = useState(true);
 	
+	// Use the user session hook for persistent user state
+	const userSession = useUserSession();
+	
 	// Always skip config modal
 	const [showConfigModal, setShowConfigModal] = useState(false);
 	
@@ -80,25 +84,13 @@ const SlackChat = () => {
 		return DEFAULT_WORKFLOW;
 	}, [searchString]);
 	
-	// Initialize chatConfig with URL workflow and saved merchant
-	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => {
-		// Check if we have a saved merchant from previous OAuth
-		const savedShop = localStorage.getItem('last_shop_domain');
-		let merchantId = null;
-		
-		if (savedShop) {
-			// Convert shop domain to merchant ID format
-			merchantId = `merchant_${savedShop.replace('.myshopify.com', '').replace('.', '_')}`;
-			console.log('[SlackChat] Restored merchant from localStorage:', merchantId);
-		}
-		
-		return {
-			scenarioId: null,
-			merchantId: merchantId,
-			conversationId: uuidv4(),
-			workflow: getWorkflowFromUrl()
-		};
-	});
+	// Initialize chatConfig with URL workflow (merchant now in userSession)
+	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => ({
+		scenarioId: null,
+		merchantId: userSession.merchantId, // Get from user session
+		conversationId: uuidv4(),
+		workflow: getWorkflowFromUrl()
+	}));
 	
 	// Update URL when workflow changes
 	useEffect(() => {
@@ -111,6 +103,14 @@ const SlackChat = () => {
 			localStorage.setItem('lastWorkflow', chatConfig.workflow);
 		}
 	}, [chatConfig.workflow, location, searchString, setLocation]);
+	
+	// Sync userSession.merchantId to chatConfig when it changes
+	useEffect(() => {
+		setChatConfig(prev => ({
+			...prev,
+			merchantId: userSession.merchantId
+		}));
+	}, [userSession.merchantId]);
 	
 
 	const isRealChat = useMemo(() =>
@@ -199,20 +199,12 @@ const SlackChat = () => {
 			current_merchantId: chatConfig.merchantId
 		});
 		
-		// Store shop domain for future visits (optional UX enhancement)
-		if (params.shop) {
-			localStorage.setItem('last_shop_domain', params.shop);
-		}
-		
-		// Update chat config with merchant ID
-		if (params.merchant_id) {
-			console.log('[SlackChat] Updating merchantId from', chatConfig.merchantId, 'to', params.merchant_id);
-			setChatConfig(prev => ({
-				...prev,
-				merchantId: params.merchant_id
-			}));
+		// Update user session with OAuth data
+		if (params.merchant_id && params.shop) {
+			console.log('[SlackChat] Updating user session:', params.merchant_id, params.shop);
+			userSession.setMerchant(params.merchant_id, params.shop);
 		} else {
-			console.warn('[SlackChat] No merchant_id in OAuth params!');
+			console.warn('[SlackChat] Missing merchant_id or shop in OAuth params!');
 		}
 		
 		// Send OAuth complete to WebSocket
@@ -233,7 +225,7 @@ const SlackChat = () => {
 			description: params.is_new === 'true' ? "Welcome! Let me take a look at your store..." : "Welcome back! Good to see you again.",
 			duration: 5000,
 		});
-	}, [wsChat, setChatConfig, toast, chatConfig]);
+	}, [wsChat, toast, userSession]);
 	
 	const handleOAuthError = useCallback((error: string) => {
 		console.error('[SlackChat] OAuth error:', error);
@@ -407,20 +399,19 @@ const SlackChat = () => {
 		// Always show help message with current session info
 		console.log('%c🤖 CJ Debug Interface Ready!', 'color: #00D4FF; font-size: 14px; font-weight: bold');
 		
-		// Show current merchant/session status
-		console.group('%c📊 Current Session', 'color: #00D4FF; font-size: 12px');
-		console.log('Merchant:', chatConfig.merchantId || 'None');
+		// Show persistent user data
+		console.group('%c👤 User Session (Persistent)', 'color: #4CAF50; font-size: 12px');
+		console.log('Merchant ID:', userSession.merchantId || 'None');
+		console.log('Shop Domain:', userSession.shopDomain || 'None');
+		console.log('Connected:', userSession.isConnected ? '✅ Yes' : '❌ No');
+		console.groupEnd();
+		
+		// Show ephemeral conversation data
+		console.group('%c💬 Conversation (Ephemeral)', 'color: #2196F3; font-size: 12px');
+		console.log('Conversation ID:', chatConfig.conversationId);
 		console.log('Workflow:', chatConfig.workflow || 'None');
 		console.log('Scenario:', chatConfig.scenarioId || 'None');
-		console.log('Conversation:', chatConfig.conversationId);
 		console.log('WebSocket:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
-		
-		// Show Shopify connection status if applicable
-		if (chatConfig.merchantId && chatConfig.merchantId !== 'onboarding_user') {
-			console.log('Shopify:', chatConfig.merchantId.startsWith('merchant_') ? '✅ Connected' : '❓ Unknown');
-		} else {
-			console.log('Shopify:', '⏳ Not connected yet');
-		}
 		console.groupEnd();
 		
 		console.log('Type cj.help() for available commands');
@@ -432,7 +423,7 @@ const SlackChat = () => {
 		console.log('VITE_WS_BASE_URL:', import.meta.env.VITE_WS_BASE_URL);
 		console.log('VITE_PUBLIC_URL:', import.meta.env.VITE_PUBLIC_URL);
 		
-	}, [chatConfig, messages, isTyping, wsChat]);
+	}, [chatConfig, messages, isTyping, wsChat, userSession]);
 
 	const handleMessageSend = () => {
 		if (inputValue.trim()) {
