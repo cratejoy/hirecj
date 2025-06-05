@@ -6,52 +6,63 @@
 # Default target
 help:
 	@echo "HireCJ Development Commands:"
-	@echo "  make install      - Install all dependencies"
-	@echo "  make dev          - Start all services locally"
-	@echo "  make test         - Run all tests"
-	@echo "  make deploy-all   - Deploy all services to Heroku"
 	@echo ""
-	@echo "Tunnel commands (for HTTPS development):"
+	@echo "🔑 Environment Management (Single .env pattern):"
+	@echo "  make env-setup    - Create .env from template (ONE file to manage!)"
+	@echo "  make env-distribute - Distribute variables to services (auto-run by dev)"
+	@echo "  make env-verify   - Verify single .env pattern is working"
+	@echo "  make env-cleanup  - Remove old service .env files"
+	@echo ""
+	@echo "🚀 Development:"
+	@echo "  make install      - Install all dependencies"
+	@echo "  make dev          - Start all services locally (auto-distributes env)"
+	@echo "  make dev-all      - Start all services with tmux"
+	@echo "  make test         - Run all tests"
+	@echo ""
+	@echo "🌐 Tunnel commands (for HTTPS development):"
 	@echo "  make dev-tunnels-tmux - Start everything with tunnels (recommended)"
 	@echo "  make tunnels      - Start ngrok tunnels"
 	@echo "  make detect-tunnels - Auto-detect tunnel URLs"
 	@echo ""
-	@echo "Service-specific commands:"
+	@echo "📦 Service-specific commands:"
 	@echo "  make dev-auth     - Start auth service only"
 	@echo "  make dev-agents   - Start agents service only"
 	@echo "  make dev-homepage - Start homepage service only"
 	@echo "  make test-auth    - Test auth service"
 	@echo "  make test-agents  - Test agents service"
+	@echo ""
+	@echo "🚢 Deployment:"
+	@echo "  make deploy-all   - Deploy all services to Heroku"
 	@echo "  make deploy-auth  - Deploy auth to Heroku"
 	@echo "  make deploy-agents - Deploy agents to Heroku"
 	@echo ""
-	@echo "Database commands (agents service):"
+	@echo "🗄️ Database commands (agents service):"
 	@echo "  make clear-db     - Clear all data from agents database"
 	@echo "  make fill-db      - Fill database with migrations and test data"
 	@echo "  make reset-db     - Clear and refill agents database"
 	@echo "  make migrate-agents - Run agents database migrations"
 	@echo ""
-	@echo "Freshdesk sync commands:"
-	@echo "  make sync-freshdesk - Sync all Freshdesk data (tickets, conversations, ratings)"
+	@echo "🔄 Freshdesk sync commands:"
+	@echo "  make sync-freshdesk - Sync all Freshdesk data"
 	@echo "  make sync-tickets   - Sync only Freshdesk tickets"
-	@echo "  make sync-conversations - Sync only ticket conversations"
-	@echo "  make sync-ratings   - Sync only satisfaction ratings"
 	@echo "  make test-freshdesk-sync - Test the sync functionality"
 
 # Install all dependencies
 install:
 	@echo "📦 Installing all dependencies..."
 	cd auth && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
-	cd agents && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
+	cd agents && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt
 	cd database && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
 	cd knowledge && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
 	cd homepage && npm install
 	@echo "✅ All dependencies installed!"
 
 # Development commands
-dev:
+dev: env-distribute
 	@echo "🚀 Starting development environment..."
 	@echo "Prerequisites: PostgreSQL and Redis must be running locally"
+	@echo ""
+	@echo "✅ Environment variables distributed to services"
 	@echo ""
 	@echo "Start services in separate terminals:"
 	@echo "  Terminal 1: make dev-agents"
@@ -60,7 +71,7 @@ dev:
 	@echo ""
 	@echo "Or use: make dev-all (requires tmux)"
 
-dev-all:
+dev-all: env-distribute
 	@echo "🚀 Starting all services with tmux..."
 	@command -v tmux >/dev/null 2>&1 || { echo "tmux is required but not installed. Install with: brew install tmux"; exit 1; }
 	@if tmux has-session -t hirecj-dev 2>/dev/null; then \
@@ -79,9 +90,11 @@ dev-all:
 		echo "Already in tmux. Use 'tmux switch -t hirecj-dev' to switch to the new session"; \
 	fi
 
-dev-services:
+dev-services: env-distribute
 	@echo "🚀 Starting all services..."
 	@echo "This will start services in separate processes"
+	@echo ""
+	@echo "✅ Environment variables distributed to services"
 	@echo ""
 	@echo "Starting agents on port 8000..."
 	@cd agents && . venv/bin/activate && python -m app.main &
@@ -92,23 +105,23 @@ dev-services:
 	@echo "Press Ctrl+C to stop all services."
 	@wait
 
-dev-auth:
+dev-auth: env-distribute
 	@echo "🔐 Starting auth service..."
 	cd auth && . venv/bin/activate && python -m app.main
 
-dev-agents:
+dev-agents: env-distribute
 	@echo "🤖 Starting agents service with file watcher..."
 	cd agents && . venv/bin/activate && python scripts/dev_watcher.py
 
-dev-agents-debug:
+dev-agents-debug: env-distribute
 	@echo "🤖 Starting agents service with file watcher (DEBUG mode)..."
 	cd agents && . venv/bin/activate && python scripts/dev_watcher.py --debug
 
-dev-homepage:
+dev-homepage: env-distribute
 	@echo "🌐 Starting homepage..."
 	cd homepage && npm run dev
 
-dev-database:
+dev-database: env-distribute
 	@echo "💾 Starting database service..."
 	cd database && . venv/bin/activate && python -m app.main
 
@@ -149,12 +162,11 @@ stop-tunnels:
 # Tunnel management
 tunnels:
 	@echo "🌐 Starting ngrok tunnels..."
-	@if [ ! -f .env.ngrok ]; then \
-		echo "❌ Error: .env.ngrok file not found"; \
+	@if ! grep -q "NGROK_AUTHTOKEN=" .env 2>/dev/null || [ -z "$$(grep NGROK_AUTHTOKEN= .env | cut -d= -f2)" ]; then \
+		echo "❌ Error: NGROK_AUTHTOKEN not found in .env"; \
 		echo ""; \
-		echo "Please create .env.ngrok from the template:"; \
-		echo "  cp .env.ngrok.example .env.ngrok"; \
-		echo "  # Edit .env.ngrok and add your authtoken"; \
+		echo "Please add your ngrok authtoken to .env:"; \
+		echo "  NGROK_AUTHTOKEN=your-token-here"; \
 		echo ""; \
 		echo "Get your token from: https://dashboard.ngrok.com/get-started/your-authtoken"; \
 		exit 1; \
@@ -165,7 +177,7 @@ tunnels:
 	fi
 	@echo "Starting ngrok (this will block - use Ctrl+C to stop)..."
 	@echo ""
-	@bash -c 'source .env.ngrok && ngrok start --all --config ngrok.yml --authtoken $$NGROK_AUTHTOKEN'
+	@bash -c 'source .env && ngrok start --all --config ngrok.yml --authtoken $$NGROK_AUTHTOKEN'
 
 # Detect tunnels (run in separate terminal)
 detect-tunnels:
@@ -183,7 +195,7 @@ dev-tunnels:
 	@echo "Or use tmux: make dev-tunnels-tmux"
 
 # All-in-one with tmux
-dev-tunnels-tmux:
+dev-tunnels-tmux: env-distribute
 	@command -v tmux >/dev/null 2>&1 || { echo "tmux required: brew install tmux"; exit 1; }
 	@if tmux has-session -t hirecj-tunnels 2>/dev/null; then \
 		echo "❌ Error: hirecj-tunnels session is already running!"; \
@@ -195,12 +207,11 @@ dev-tunnels-tmux:
 		echo "Then run this command again."; \
 		exit 1; \
 	fi
-	@if [ ! -f .env.ngrok ]; then \
-		echo "❌ Error: .env.ngrok file not found"; \
+	@if ! grep -q "NGROK_AUTHTOKEN=" .env 2>/dev/null || [ -z "$$(grep NGROK_AUTHTOKEN= .env | cut -d= -f2)" ]; then \
+		echo "❌ Error: NGROK_AUTHTOKEN not found in .env"; \
 		echo ""; \
-		echo "Please create .env.ngrok from the template:"; \
-		echo "  cp .env.ngrok.example .env.ngrok"; \
-		echo "  # Edit .env.ngrok and add your authtoken"; \
+		echo "Please add your ngrok authtoken to .env:"; \
+		echo "  NGROK_AUTHTOKEN=your-token-here"; \
 		echo ""; \
 		echo "Get your token from: https://dashboard.ngrok.com/get-started/your-authtoken"; \
 		exit 1; \
@@ -345,17 +356,30 @@ clean:
 	find . -type f -name "*.pyc" -delete
 	find . -type f -name ".DS_Store" -delete
 
-# Environment setup
+# Environment setup - Phase 4.0: Single .env pattern
 env-setup:
-	@echo "📝 Setting up environment files..."
-	cp .env.example .env
-	cp auth/.env.example auth/.env
-	cp agents/.env.example agents/.env
-	cp homepage/.env.example homepage/.env
-	cp database/.env.example database/.env
-	@if [ ! -f .env.ngrok ]; then \
-		cp .env.ngrok.example .env.ngrok; \
+	@echo "📝 Setting up THE environment file..."
+	@if [ ! -f .env ]; then \
+		cp .env.master.example .env; \
+		echo "✅ Created .env from .env.master.example"; \
+		echo "📝 Edit .env with your configuration"; \
 		echo ""; \
-		echo "⚠️  Created .env.ngrok - Please add your ngrok authtoken"; \
+		echo "⚠️  IMPORTANT: You only need to edit this ONE file!"; \
+	else \
+		echo "✅ .env already exists"; \
 	fi
-	@echo "✅ Environment files created. Please update them with your values."
+
+# Clean up old environment files
+env-cleanup:
+	@echo "🧹 Cleaning old environment files..."
+	@./scripts/cleanup_old_env.sh
+
+# Distribute environment variables to services
+env-distribute:
+	@echo "📦 Distributing environment variables to services..."
+	@python scripts/distribute_env.py
+
+# Verify single env pattern
+env-verify:
+	@echo "🔍 Verifying single .env pattern..."
+	@python scripts/verify_single_env.py

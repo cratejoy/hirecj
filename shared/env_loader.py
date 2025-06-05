@@ -1,127 +1,144 @@
 """
-Hierarchical Environment Configuration Loader
+Centralized environment loader - SINGLE SOURCE OF TRUTH
 
-Provides a consistent way to load environment variables across all services
-in the monorepo, following the hierarchy (later files override earlier):
-1. Root .env (shared configuration)
-2. Service .env.secrets (sensitive data)
-3. Service .env (service-specific overrides)
-4. Root .env.local (local overrides)
-5. Root .env.tunnel (auto-generated tunnel URLs - highest priority)
+This module ensures ALL environment variables come from ONE place:
+the root .env file. No fallbacks, no service overrides, no hidden loading.
+
+Phase 4.0: True Environment Centralization
 """
 
-from pathlib import Path
-from typing import List, Optional
 import os
+from pathlib import Path
+from typing import Dict, Optional, Set
 import sys
 
+# CRITICAL: Only ONE source
+ROOT_ENV_FILE = Path(__file__).parent.parent / ".env"
 
-def get_monorepo_root() -> Path:
-    """Get the monorepo root directory."""
-    # This file is in /shared, so parent is the monorepo root
-    return Path(__file__).parent.parent
-
-
-def get_env_files(service_name: Optional[str] = None) -> List[Path]:
-    """
-    Get ordered list of env files to load for a service.
+class SingleEnvLoader:
+    """Loads environment variables from exactly ONE file."""
     
-    Args:
-        service_name: Name of the service (auth, agents, homepage, database).
-                     If None, only returns root env files.
+    def __init__(self):
+        self._loaded = False
+        self._env_vars: Dict[str, str] = {}
+        self._tunnel_vars: Dict[str, str] = {}
     
-    Returns:
-        List of Path objects to env files in load order.
-    """
-    root = get_monorepo_root()
-    env_files = []
-    
-    # Load order (later files override earlier ones in Pydantic):
-    # 1. Root .env - base shared configuration
-    if (root / ".env").exists():
-        env_files.append(root / ".env")
-    
-    # 2. Service-specific files
-    if service_name:
-        service_dir = root / service_name
-        service_files = [
-            service_dir / ".env.secrets",  # Service secrets
-            service_dir / ".env",          # Service overrides
-        ]
+    def load(self) -> None:
+        """Load environment variables from the single .env file."""
+        if self._loaded:
+            return
+            
+        if not ROOT_ENV_FILE.exists():
+            print(f"ERROR: {ROOT_ENV_FILE} not found.")
+            print("Run 'cp .env.master.example .env' and configure your environment.")
+            sys.exit(1)
         
-        for file in service_files:
-            if file.exists():
-                env_files.append(file)
+        # Parse .env file
+        self._load_file(ROOT_ENV_FILE, self._env_vars)
+        
+        # Load tunnel vars if they exist (auto-generated, read-only)
+        tunnel_file = ROOT_ENV_FILE.parent / ".env.tunnel"
+        if tunnel_file.exists():
+            self._load_file(tunnel_file, self._tunnel_vars)
+            print(f"✅ Loaded tunnel configuration from {tunnel_file}")
+        
+        # Apply to os.environ (tunnel vars override base vars)
+        for key, value in self._env_vars.items():
+            os.environ[key] = value
+        for key, value in self._tunnel_vars.items():
+            os.environ[key] = value
+        
+        self._loaded = True
+        total_vars = len(self._env_vars) + len(self._tunnel_vars)
+        print(f"✅ Loaded {total_vars} variables from {ROOT_ENV_FILE}")
     
-    # 3. Local overrides (higher priority)
-    if (root / ".env.local").exists():
-        env_files.append(root / ".env.local")
+    def _load_file(self, filepath: Path, target_dict: Dict[str, str]) -> None:
+        """Parse an env file into the target dictionary."""
+        with open(filepath) as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                
+                # Skip empty lines and comments
+                if not line or line.startswith('#'):
+                    continue
+                
+                # Parse KEY=VALUE
+                if '=' not in line:
+                    print(f"WARNING: Invalid line {line_num} in {filepath}: {line}")
+                    continue
+                
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                
+                # Remove quotes if present
+                if (value.startswith('"') and value.endswith('"')) or \
+                   (value.startswith("'") and value.endswith("'")):
+                    value = value[1:-1]
+                
+                target_dict[key] = value
     
-    # 4. Tunnel URLs (highest priority - loaded last)
-    if (root / ".env.tunnel").exists():
-        env_files.append(root / ".env.tunnel")
+    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        """Get an environment variable."""
+        if not self._loaded:
+            self.load()
+        
+        # Tunnel vars take precedence
+        if key in self._tunnel_vars:
+            return self._tunnel_vars[key]
+        
+        return self._env_vars.get(key, default)
     
-    return env_files
+    def require(self, key: str) -> str:
+        """Get a required environment variable or exit."""
+        value = self.get(key)
+        if value is None:
+            print(f"ERROR: Required environment variable '{key}' not found")
+            print(f"Add it to {ROOT_ENV_FILE} and try again.")
+            sys.exit(1)
+        return value
+    
+    def get_service_vars(self, service_name: str) -> Dict[str, str]:
+        """Get all variables for a specific service (for distribution)."""
+        if not self._loaded:
+            self.load()
+        
+        # Combine base and tunnel vars
+        all_vars = {}
+        all_vars.update(self._env_vars)
+        all_vars.update(self._tunnel_vars)
+        
+        return all_vars
 
+# Global singleton
+env_loader = SingleEnvLoader()
 
-def get_pydantic_env_files(service_name: str) -> List[str]:
+# ============================================
+# LEGACY COMPATIBILITY FUNCTIONS
+# ============================================
+# These maintain API compatibility during migration
+
+def load_env_for_service(service_name: str) -> None:
     """
-    Get env file paths formatted for Pydantic BaseSettings.
-    
-    Args:
-        service_name: Name of the service (auth, agents, homepage, database)
-    
-    Returns:
-        List of relative paths from the service directory.
+    Legacy compatibility - just loads the single .env file.
+    Service name is ignored since we have one source.
     """
-    root = get_monorepo_root()
-    service_dir = root / service_name
-    env_files = []
-    
-    # Calculate relative paths from service directory to root env files
-    for file in get_env_files(service_name):
-        try:
-            # Try to get relative path from service directory
-            if file.is_absolute():
-                rel_path = os.path.relpath(file, service_dir)
-                env_files.append(rel_path)
-            else:
-                env_files.append(str(file))
-        except ValueError:
-            # If on different drives (Windows), use absolute path
-            env_files.append(str(file))
-    
-    return env_files
+    env_loader.load()
 
+def get_env(key: str, default: Optional[str] = None) -> Optional[str]:
+    """Get environment variable from single source."""
+    return env_loader.get(key, default)
 
-def ensure_python_path():
-    """Ensure the monorepo root and shared directory are in Python path."""
-    root = get_monorepo_root()
-    shared_dir = root / "shared"
-    
-    # Add to Python path if not already there
-    root_str = str(root)
-    shared_str = str(shared_dir)
-    
-    if root_str not in sys.path:
-        sys.path.insert(0, root_str)
-    
-    if shared_str not in sys.path:
-        sys.path.insert(0, shared_str)
+def require_env(key: str) -> str:
+    """Get required environment variable from single source."""
+    return env_loader.require(key)
 
-
-# Convenience function for services to use
-def load_env_for_service(service_name: str) -> List[str]:
+def load_dotenv(*args, **kwargs) -> None:
     """
-    Load environment files for a service and return paths for Pydantic.
-    
-    This is the main function services should use in their config.py files.
-    
-    Args:
-        service_name: Name of the service (auth, agents, homepage, database)
-    
-    Returns:
-        List of env file paths for Pydantic BaseSettings
+    Override for any direct load_dotenv calls.
+    This ensures they go through our single source.
     """
-    ensure_python_path()
-    return get_pydantic_env_files(service_name)
+    env_loader.load()
+
+# Auto-load on import
+env_loader.load()

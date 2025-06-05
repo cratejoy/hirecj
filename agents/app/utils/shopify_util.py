@@ -6,17 +6,17 @@ import json
 from typing import Dict, Any, Optional, List, Tuple
 import requests
 from urllib.parse import urlparse, parse_qs
-from dotenv import load_dotenv
 
-load_dotenv()
+# Use centralized config - no direct load_dotenv!
+from shared.env_loader import get_env
 
 
 class ShopifyAPI:
     """Low-level Shopify API client using REST API."""
     
     def __init__(self):
-        self.api_token = os.getenv("SHOPIFY_API_TOKEN")
-        self.shop_domain = os.getenv("SHOPIFY_SHOP_DOMAIN")
+        self.api_token = get_env("SHOPIFY_API_TOKEN")
+        self.shop_domain = get_env("SHOPIFY_SHOP_DOMAIN")
         
         if not self.api_token or not self.shop_domain:
             raise ValueError("SHOPIFY_API_TOKEN and SHOPIFY_SHOP_DOMAIN must be set")
