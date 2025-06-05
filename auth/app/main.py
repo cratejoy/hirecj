@@ -34,6 +34,12 @@ async def lifespan(app: FastAPI):
     logger.info(f"  OAuth Redirect Base: {settings.oauth_redirect_base_url}")
     logger.info(f"  Auth Service URL: {settings.auth_service_url}")
     
+    # Log Shopify OAuth redirect URI that will be used
+    logger.info("🛍️ Shopify OAuth Configuration:")
+    logger.info(f"  Redirect URI: {settings.oauth_redirect_base_url}/api/v1/shopify/callback")
+    logger.info(f"  Client ID: {settings.shopify_client_id}")
+    logger.info(f"  Scopes: {settings.shopify_scopes}")
+    
     # Log OAuth callback URLs
     if settings.debug:
         settings.log_oauth_urls()
