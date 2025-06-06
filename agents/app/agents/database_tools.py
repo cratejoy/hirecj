@@ -192,9 +192,9 @@ Data Source: Live database query from etl_freshdesk_ratings"""
                 
                 for i, conv in enumerate(result['conversations'], 1):
                     output += f"""
-{i}. From: {conv['from_email']}
-   Date: {conv['created_at']}
-   Message: {conv['body_text'][:500]}{'...' if len(conv.get('body_text', '')) > 500 else ''}
+{i}. From: {conv.get('from_email', 'Unknown')}
+   Date: {conv.get('created_at', 'Unknown')}
+   Message: {conv.get('body_text', '')[:500]}{'...' if len(conv.get('body_text', '')) > 500 else ''}
 """
                 
                 if result['ratings']:
@@ -348,20 +348,21 @@ Detailed Breakdown:
                 for i, ticket in enumerate(bad_tickets, 1):
                     output += f"""
 {'='*60}
-{i}. Ticket #{ticket['ticket_id']} - {ticket['data'].get('subject', 'No subject')}
-   Customer: {ticket['data'].get('requester', {}).get('name')} ({ticket['data'].get('requester', {}).get('email')})
-   Bad Rating Date: {ticket['bad_rating_date']}
+{i}. Ticket #{ticket.get('ticket_id', 'Unknown')} - {ticket.get('data', {}).get('subject', 'No subject')}
+   Customer: {ticket.get('data', {}).get('requester', {}).get('name', 'Unknown')} ({ticket.get('data', {}).get('requester', {}).get('email', 'Unknown')})
+   Bad Rating Date: {ticket.get('bad_rating_date', 'Unknown')}
    
    Customer's Rating Comment: {ticket.get('rating_comment') or 'No comment provided'}
    
-   Conversation Summary ({len(ticket['conversations'])} messages):"""
+   Conversation Summary ({len(ticket.get('conversations', []))} messages):"""
                     
                     # Show last 2 messages for context
-                    recent_convs = ticket['conversations'][-2:] if len(ticket['conversations']) > 1 else ticket['conversations']
+                    conversations = ticket.get('conversations', [])
+                    recent_convs = conversations[-2:] if len(conversations) > 1 else conversations
                     for conv in recent_convs:
                         output += f"""
-   - From: {conv['from_email']} at {conv['created_at']}
-     "{conv['body_text'][:200]}{'...' if len(conv.get('body_text', '')) > 200 else ''}"
+   - From: {conv.get('from_email', 'Unknown')} at {conv.get('created_at', 'Unknown')}
+     "{conv.get('body_text', '')[:200]}{'...' if len(conv.get('body_text', '')) > 200 else ''}"
 """
                 
                 output += f"""
