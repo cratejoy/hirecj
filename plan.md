@@ -387,13 +387,14 @@ get_user_facts(user_id) → [facts]   # Simple list return
 
 ---
 
-### Phase 4.6: System Events Architecture & Workflow Transitions 🔄 IN PROGRESS
+### Phase 4.6: System Events Architecture & Workflow Transitions 🔄 BACKEND COMPLETE, FRONTEND PENDING
 **Goal:** Enable CJ to naturally respond to system events AND transition between workflows mid-conversation.
 
 **Problems Solved:**
-1. OAuth completion silence - CJ didn't know how to respond
-2. Already-authenticated users stuck in onboarding workflow
-3. No way to switch workflows based on conversation needs
+1. OAuth completion silence - CJ didn't know how to respond ✅
+2. Already-authenticated users stuck in onboarding workflow ✅ 
+3. No way to switch workflows based on conversation needs ✅
+4. Frontend destroys conversation on workflow change ⏳
 
 **Solution:** System event handling in workflow YAMLs + simple workflow transition mechanism.
 

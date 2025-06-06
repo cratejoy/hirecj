@@ -375,44 +375,99 @@ SYSTEM EVENT HANDLING:
     Response: "Let's review your daily metrics. Here's what stands out today..."
 ```
 
-#### 2. Frontend Integration
+#### 2. Frontend Integration - Current Problem & Elegant Fix
 
-**Add Workflow Selector:**
+**Current Problematic Behavior:**
+The frontend currently destroys the entire conversation when workflows change:
+
 ```typescript
-// In SlackChat.tsx or similar
-const WorkflowSelector = ({ currentWorkflow, onWorkflowChange }) => (
-  <Select value={currentWorkflow} onChange={(e) => onWorkflowChange(e.target.value)}>
-    <option value="shopify_onboarding">Onboarding</option>
-    <option value="ad_hoc_support">Support</option>
-    <option value="daily_briefing">Daily Briefing</option>
-    <option value="crisis_response">Crisis Response</option>
-  </Select>
-);
+// ❌ CURRENT BAD PATTERN in SlackChat.tsx
+setChatConfig(prev => ({ 
+  ...prev, 
+  workflow: newWorkflow,
+  conversationId: uuidv4() // 🚨 NEW ID = NEW CONVERSATION = LOST CONTEXT
+}));
+```
 
-// Handle workflow change
-const handleWorkflowChange = (newWorkflow: string) => {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({
+This causes:
+- WebSocket disconnection/reconnection
+- New backend session creation
+- Complete loss of conversation history
+- Poor user experience
+
+**Elegant Fix Following North Stars:**
+
+```typescript
+// ✅ NEW ELEGANT PATTERN in SlackChat.tsx
+
+const handleWorkflowChange = useCallback((newWorkflow: string) => {
+  // Don't change if already in target workflow
+  if (newWorkflow === chatConfig.workflow) {
+    return;
+  }
+  
+  // Keep same conversation, just transition workflows
+  if (wsChat.isConnected) {
+    // Send transition request to backend
+    wsChat.sendWorkflowTransition(newWorkflow);
+    
+    // Update local state ONLY - keep same conversationId
+    setChatConfig(prev => ({ 
+      ...prev, 
+      workflow: newWorkflow
+      // NO conversationId change! Context preserved by backend
+    }));
+  } else {
+    // Only if not connected, update config for next connection
+    setChatConfig(prev => ({ 
+      ...prev, 
+      workflow: newWorkflow
+    }));
+  }
+}, [chatConfig.workflow, wsChat]);
+
+// In useWebSocketChat.ts - add this method
+const sendWorkflowTransition = useCallback((newWorkflow: string) => {
+  if (wsRef.current?.readyState === WebSocket.OPEN) {
+    const message = JSON.stringify({
       type: 'workflow_transition',
       data: {
         new_workflow: newWorkflow,
         user_initiated: true
       }
-    }));
+    });
+    wsRef.current.send(message);
+    wsLogger.info('Sent workflow transition request', { newWorkflow });
   }
-};
+}, []);
+
+// Handle backend's workflow_updated response
+case 'workflow_updated':
+  const { workflow: updatedWorkflow, previous } = wsData.data;
+  wsLogger.info('Workflow updated by backend', { 
+    from: previous, 
+    to: updatedWorkflow 
+  });
+  // Optionally update any UI state here
+  break;
 ```
 
-**Handle Query String:**
+**URL Parameter Handling:**
 ```typescript
-// Watch for query string changes
+// Watch for query string changes but DON'T recreate conversation
 useEffect(() => {
   const workflowParam = searchParams.get('workflow');
-  if (workflowParam && workflowParam !== currentWorkflow) {
-    handleWorkflowChange(workflowParam);
+  if (workflowParam && workflowParam !== chatConfig.workflow) {
+    handleWorkflowChange(workflowParam); // Uses transition, not recreation
   }
-}, [searchParams]);
+}, [searchParams, chatConfig.workflow, handleWorkflowChange]);
 ```
+
+**Key Design Principles:**
+1. **Backend-Driven**: Frontend just requests, backend decides what happens
+2. **Preserve Context**: Same conversationId = same context
+3. **Simple State**: Only update workflow field, nothing else
+4. **No Reconnection**: WebSocket stays connected throughout
 
 #### 3. Backend Handler
 
@@ -520,22 +575,45 @@ Phase 4.6 now includes comprehensive system event handling and workflow transiti
 
 ### Total Implementation
 
+**Backend (Completed):**
 - **Time**: ~2 hours
-- **Code Changes**: < 100 lines total
-- **YAML Changes**: Add patterns to all workflows
-- **Benefits**: Complete workflow flexibility with full transparency
+- **Code Changes**: ~180 lines
+- **YAML Changes**: ~105 lines across 6 workflows
+- **Status**: ✅ Fully implemented and tested
+
+**Frontend (Required):**
+- **Time**: ~30 minutes
+- **Code Changes**: ~40 lines total
+  - Remove conversationId regeneration: -4 lines
+  - Add sendWorkflowTransition method: +15 lines
+  - Update handleWorkflowChange: +20 lines
+  - Add workflow_updated handler: +9 lines
+- **Benefits**: 
+  - Preserves conversation context
+  - No WebSocket reconnection
+  - Smooth user experience
+  - Backend controls transition behavior
 
 The implementation maintains our principle of prompt transparency - all transition behavior is visible in the workflow YAMLs, with minimal supporting code to handle the mechanics.
 
 ## Success Criteria
 
+**Backend (Completed):**
 - [x] CJ responds naturally to OAuth completion
 - [x] No code complexity added for basic events
 - [x] Full prompt transparency maintained
-- [ ] Already-authenticated users skip onboarding automatically
-- [ ] User can change workflows via UI/query string
-- [ ] CJ acknowledges all transitions naturally
-- [ ] Workflow context preserved during transitions
-- [ ] Frontend updates to reflect current workflow
+- [x] Already-authenticated users skip onboarding automatically
+- [x] Backend supports workflow transitions via messages
+- [x] CJ acknowledges all transitions naturally
+- [x] Session manager preserves conversation context
+- [x] Backend sends workflow_updated notifications
 - [x] Easy to extend with new events
 - [x] Developers can understand behavior by reading YAML
+
+**Frontend (Pending):**
+- [ ] Workflow dropdown sends transition messages (not new conversations)
+- [ ] Same conversationId maintained across workflow changes
+- [ ] WebSocket connection stays open during transitions
+- [ ] Frontend handles workflow_updated messages
+- [ ] Query string changes trigger transitions (not recreations)
+- [ ] User sees smooth transition with context preserved
