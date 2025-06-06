@@ -44,9 +44,11 @@ def fill_database():
     print("="*60)
     
     migrations_dir = base_dir / "app" / "migrations"
-    migrations = [
-        "001_create_all_tables.sql"  # This already creates tables with the new schema
-    ]
+    # Get all SQL migration files in order
+    migrations = sorted([
+        f.name for f in migrations_dir.glob("*.sql") 
+        if f.name[0:3].isdigit()
+    ])
     
     for migration in migrations:
         migration_path = migrations_dir / migration
@@ -84,7 +86,7 @@ def fill_database():
     print("⚠️  Note: This fetches conversations individually and may take time")
     
     run_command(
-        f"cd {base_dir} && source venv/bin/activate && python scripts/sync_freshdesk.py --days 7 --max-pages 2",
+        f"cd {base_dir} && source venv/bin/activate && python scripts/sync_freshdesk.py --days 180",
         "Smart sync of Freshdesk tickets"
     )
     

@@ -18,11 +18,47 @@ def run_migration(migration_file: str):
     with open(migration_file, 'r') as f:
         sql = f.read()
     
-    # Execute the migration
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            conn.commit()
+    # Check if this migration contains CREATE INDEX CONCURRENTLY commands
+    if 'CREATE INDEX CONCURRENTLY' in sql.upper():
+        # Run with autocommit for concurrent operations
+        print("  (Running with autocommit for concurrent operations)")
+        with get_db_connection() as conn:
+            conn.autocommit = True
+            with conn.cursor() as cur:
+                # Simple approach: split on semicolon at end of line
+                # This preserves multi-line statements
+                statements = []
+                current_statement = []
+                
+                for line in sql.split('\n'):
+                    line = line.strip()
+                    if line.startswith('--'):
+                        continue
+                    if line:
+                        current_statement.append(line)
+                        if line.endswith(';'):
+                            # Join the lines and remove the trailing semicolon
+                            full_stmt = ' '.join(current_statement)[:-1]
+                            if full_stmt.strip():
+                                statements.append(full_stmt)
+                            current_statement = []
+                
+                # Execute each statement
+                for i, stmt in enumerate(statements, 1):
+                    try:
+                        print(f"    Executing statement {i}/{len(statements)}...")
+                        cur.execute(stmt)
+                    except Exception as e:
+                        if 'already exists' not in str(e):
+                            print(f"    ❌ Error on statement {i}: {e}")
+                            print(f"       Statement: {stmt[:100]}...")
+                            raise
+    else:
+        # Regular transactional execution
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql)
+                conn.commit()
     
     print("✅ Migration completed successfully")
 

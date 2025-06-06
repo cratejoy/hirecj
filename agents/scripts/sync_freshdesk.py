@@ -68,6 +68,11 @@ def main():
         action="store_true",
         help="Skip ratings sync"
     )
+    parser.add_argument(
+        "--force-reparse",
+        action="store_true",
+        help="Force re-parsing of all records (updates parsed fields even if data hasn't changed)"
+    )
     
     args = parser.parse_args()
     
@@ -99,6 +104,8 @@ def main():
         print(f"   ✓ Satisfaction Ratings")
     if args.max_pages:
         print(f"   Limiting to {args.max_pages} pages per API")
+    if args.force_reparse:
+        print(f"   🔄 Force re-parsing enabled - will update all parsed fields")
     print()
     
     # Initialize ETL
@@ -126,7 +133,8 @@ def main():
         
         result = etl.sync_tickets(
             since=since,
-            max_pages=args.max_pages
+            max_pages=args.max_pages,
+            force_reparse=args.force_reparse
         )
         
         if result['status'] == 'success':
@@ -158,7 +166,8 @@ def main():
         
         result = etl.sync_satisfaction_ratings(
             since=None,  # Always get all ratings
-            max_pages=args.max_pages
+            max_pages=args.max_pages,
+            force_reparse=args.force_reparse
         )
         
         if result['status'] == 'success':

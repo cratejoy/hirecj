@@ -104,6 +104,12 @@ class FreshdeskTicket(Base, TimestampMixin):
     )
     freshdesk_ticket_id = Column(String(255), primary_key=True, nullable=False)
     data = Column(JSONB, nullable=False, default={})  # Core ticket data only
+    
+    # Parsed fields for quick access
+    parsed_created_at = Column(DateTime(timezone=True), nullable=True)
+    parsed_updated_at = Column(DateTime(timezone=True), nullable=True)
+    parsed_email = Column(String(255), nullable=True)
+    parsed_shopify_id = Column(String(255), nullable=True)
     """
     Example data content:
     {
@@ -177,6 +183,10 @@ class FreshdeskConversation(Base, TimestampMixin):
         nullable=False
     )
     data = Column(JSONB, nullable=False, default={})  # Array of conversation entries
+    
+    # Parsed fields for quick access
+    parsed_created_at = Column(DateTime(timezone=True), nullable=True)  # First message created_at
+    parsed_updated_at = Column(DateTime(timezone=True), nullable=True)  # Last message created_at
     """
     Example data content (array of conversation entries):
     [
@@ -237,6 +247,9 @@ class FreshdeskRating(Base, TimestampMixin):
         nullable=False
     )
     data = Column(JSONB, nullable=False, default={})  # Rating data
+    
+    # Parsed fields for quick access
+    parsed_rating = Column(Integer, nullable=True)  # Rating converted from -103/103 to -3/3
     """
     Example data content:
     {

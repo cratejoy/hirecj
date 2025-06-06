@@ -18,6 +18,30 @@ class FreshdeskETL:
         self.merchant_id = merchant_id
         self.api = FreshdeskAPI()
     
+    def _parse_timestamp(self, timestamp_str: Optional[str]) -> Optional[datetime]:
+        """Parse timestamp string to datetime object."""
+        if not timestamp_str:
+            return None
+        try:
+            # Handle both formats: with 'Z' suffix and with '+00:00'
+            if timestamp_str.endswith('Z'):
+                return datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            return datetime.fromisoformat(timestamp_str)
+        except (ValueError, AttributeError):
+            return None
+    
+    def _convert_rating_scale(self, rating_value: Optional[int]) -> Optional[int]:
+        """Convert rating from -103/103 scale to -3/3 scale."""
+        if rating_value is None:
+            return None
+        if rating_value == 103:
+            return 3
+        elif rating_value == -103:
+            return -3
+        else:
+            # Handle any intermediate values proportionally
+            return round(rating_value / 103 * 3)
+    
     def get_last_sync_timestamp(self, resource_type: str) -> Optional[datetime]:
         """Get the last successful sync timestamp for a resource."""
         with get_db_session() as session:
@@ -56,7 +80,7 @@ class FreshdeskETL:
             
             session.execute(stmt)
     
-    def sync_tickets(self, since: Optional[datetime] = None, max_pages: Optional[int] = None) -> Dict[str, Any]:
+    def sync_tickets(self, since: Optional[datetime] = None, max_pages: Optional[int] = None, force_reparse: bool = False) -> Dict[str, Any]:
         """Sync Freshdesk tickets to database with conversations stored separately.
         
         Tickets are stored in etl_freshdesk_tickets table.
@@ -139,20 +163,50 @@ class FreshdeskETL:
                             if len(tickets) > 20 and idx % 10 == 0:
                                 print(f"    Processing ticket {idx}/{len(tickets)}...")
                             
+                            # Parse fields for quick access
+                            parsed_created_at = self._parse_timestamp(ticket.get('created_at'))
+                            parsed_updated_at = self._parse_timestamp(ticket.get('updated_at'))
+                            parsed_email = None
+                            if ticket.get('requester') and isinstance(ticket['requester'], dict):
+                                parsed_email = ticket['requester'].get('email')
+                            parsed_shopify_id = None
+                            if ticket.get('custom_fields') and isinstance(ticket['custom_fields'], dict):
+                                parsed_shopify_id = ticket['custom_fields'].get('cf_shopify_customer_id')
+                            
                             # Upsert the ticket (without conversations)
                             stmt = insert(FreshdeskTicket).values(
                                 freshdesk_ticket_id=ticket_id,
                                 merchant_id=self.merchant_id,
-                                data=ticket_data
+                                data=ticket_data,
+                                parsed_created_at=parsed_created_at,
+                                parsed_updated_at=parsed_updated_at,
+                                parsed_email=parsed_email,
+                                parsed_shopify_id=parsed_shopify_id
                             )
                             
-                            stmt = stmt.on_conflict_do_update(
-                                index_elements=['merchant_id', 'freshdesk_ticket_id'],
-                                set_={
-                                    'data': stmt.excluded.data
-                                },
-                                where=(FreshdeskTicket.data != stmt.excluded.data)  # Only update if data differs
-                            )
+                            if not force_reparse:
+                                stmt = stmt.on_conflict_do_update(
+                                    index_elements=['merchant_id', 'freshdesk_ticket_id'],
+                                    set_={
+                                        'data': stmt.excluded.data,
+                                        'parsed_created_at': stmt.excluded.parsed_created_at,
+                                        'parsed_updated_at': stmt.excluded.parsed_updated_at,
+                                        'parsed_email': stmt.excluded.parsed_email,
+                                        'parsed_shopify_id': stmt.excluded.parsed_shopify_id
+                                    },
+                                    where=(FreshdeskTicket.data != stmt.excluded.data)  # Only update if data differs
+                                )
+                            else:
+                                stmt = stmt.on_conflict_do_update(
+                                    index_elements=['merchant_id', 'freshdesk_ticket_id'],
+                                    set_={
+                                        'data': stmt.excluded.data,
+                                        'parsed_created_at': stmt.excluded.parsed_created_at,
+                                        'parsed_updated_at': stmt.excluded.parsed_updated_at,
+                                        'parsed_email': stmt.excluded.parsed_email,
+                                        'parsed_shopify_id': stmt.excluded.parsed_shopify_id
+                                    }
+                                )
                             
                             session.execute(stmt)
                             total_synced += 1
@@ -180,18 +234,43 @@ class FreshdeskETL:
                                 
                                 # Store conversations in separate table if we got any
                                 if all_conversations:
+                                    # Parse first and last message timestamps
+                                    parsed_created_at = None
+                                    parsed_updated_at = None
+                                    if all_conversations:
+                                        # First message created_at
+                                        if all_conversations[0] and isinstance(all_conversations[0], dict):
+                                            parsed_created_at = self._parse_timestamp(all_conversations[0].get('created_at'))
+                                        # Last message created_at
+                                        if all_conversations[-1] and isinstance(all_conversations[-1], dict):
+                                            parsed_updated_at = self._parse_timestamp(all_conversations[-1].get('created_at'))
+                                    
                                     conv_stmt = insert(FreshdeskConversation).values(
                                         freshdesk_ticket_id=ticket_id,
-                                        data=all_conversations  # Store as array
+                                        data=all_conversations,  # Store as array
+                                        parsed_created_at=parsed_created_at,
+                                        parsed_updated_at=parsed_updated_at
                                     )
                                     
-                                    conv_stmt = conv_stmt.on_conflict_do_update(
-                                        index_elements=['freshdesk_ticket_id'],
-                                        set_={
-                                            'data': conv_stmt.excluded.data
-                                        },
-                                        where=(FreshdeskConversation.data != conv_stmt.excluded.data)  # Only update if data differs
-                                    )
+                                    if not force_reparse:
+                                        conv_stmt = conv_stmt.on_conflict_do_update(
+                                            index_elements=['freshdesk_ticket_id'],
+                                            set_={
+                                                'data': conv_stmt.excluded.data,
+                                                'parsed_created_at': conv_stmt.excluded.parsed_created_at,
+                                                'parsed_updated_at': conv_stmt.excluded.parsed_updated_at
+                                            },
+                                            where=(FreshdeskConversation.data != conv_stmt.excluded.data)  # Only update if data differs
+                                        )
+                                    else:
+                                        conv_stmt = conv_stmt.on_conflict_do_update(
+                                            index_elements=['freshdesk_ticket_id'],
+                                            set_={
+                                                'data': conv_stmt.excluded.data,
+                                                'parsed_created_at': conv_stmt.excluded.parsed_created_at,
+                                                'parsed_updated_at': conv_stmt.excluded.parsed_updated_at
+                                            }
+                                        )
                                     
                                     session.execute(conv_stmt)
                                 
@@ -260,7 +339,7 @@ class FreshdeskETL:
                 "total_errors": total_errors
             }
     
-    def sync_satisfaction_ratings(self, since: Optional[datetime] = None, max_pages: Optional[int] = None) -> Dict[str, Any]:
+    def sync_satisfaction_ratings(self, since: Optional[datetime] = None, max_pages: Optional[int] = None, force_reparse: bool = False) -> Dict[str, Any]:
         """Sync ALL satisfaction ratings to separate ratings table.
         
         Ratings are stored in etl_freshdesk_ratings table with foreign key to tickets.
@@ -317,19 +396,36 @@ class FreshdeskETL:
                             ticket_record = result.scalar_one_or_none()
                             
                             if ticket_record:
+                                # Parse rating value from -103/103 to -3/3 scale
+                                parsed_rating = None
+                                if rating.get('ratings') and isinstance(rating['ratings'], dict):
+                                    rating_value = rating['ratings'].get('default_question')
+                                    parsed_rating = self._convert_rating_scale(rating_value)
+                                
                                 # Store rating in separate table
                                 rating_stmt = insert(FreshdeskRating).values(
                                     freshdesk_ticket_id=ticket_id,
-                                    data=rating  # Store the rating data
+                                    data=rating,  # Store the rating data
+                                    parsed_rating=parsed_rating
                                 )
                                 
-                                rating_stmt = rating_stmt.on_conflict_do_update(
-                                    index_elements=['freshdesk_ticket_id'],
-                                    set_={
-                                        'data': rating_stmt.excluded.data
-                                    },
-                                    where=(FreshdeskRating.data != rating_stmt.excluded.data)  # Only update if data differs
-                                )
+                                if not force_reparse:
+                                    rating_stmt = rating_stmt.on_conflict_do_update(
+                                        index_elements=['freshdesk_ticket_id'],
+                                        set_={
+                                            'data': rating_stmt.excluded.data,
+                                            'parsed_rating': rating_stmt.excluded.parsed_rating
+                                        },
+                                        where=(FreshdeskRating.data != rating_stmt.excluded.data)  # Only update if data differs
+                                    )
+                                else:
+                                    rating_stmt = rating_stmt.on_conflict_do_update(
+                                        index_elements=['freshdesk_ticket_id'],
+                                        set_={
+                                            'data': rating_stmt.excluded.data,
+                                            'parsed_rating': rating_stmt.excluded.parsed_rating
+                                        }
+                                    )
                                 
                                 session.execute(rating_stmt)
                                 tickets_updated += 1
