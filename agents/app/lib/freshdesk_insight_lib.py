@@ -35,20 +35,18 @@ class FreshdeskInsights:
         # Build query
         query = session.query(FreshdeskTicket).filter(FreshdeskTicket.merchant_id == merchant_id)
         
-        # Get the most recent tickets by created_at in the JSON data
-        most_recent = query.order_by(FreshdeskTicket.data['created_at'].desc()).first()
+        # Get the most recent tickets by parsed_created_at
+        most_recent = query.order_by(FreshdeskTicket.parsed_created_at.desc()).first()
         
         if not most_recent:
             return None
-        
-        # TODO add conversations and ratings before returning
         
         # Build result including metadata
         result = {
             "ticket_id": most_recent.freshdesk_ticket_id,
             "merchant_id": most_recent.merchant_id,
-            "created_at": most_recent.created_at.isoformat() if most_recent.created_at else None,
-            "updated_at": most_recent.updated_at.isoformat() if most_recent.updated_at else None,
+            "created_at": most_recent.parsed_created_at.isoformat() if most_recent.parsed_created_at else None,
+            "updated_at": most_recent.parsed_updated_at.isoformat() if most_recent.parsed_updated_at else None,
             "data": most_recent.data
         }
         
@@ -70,7 +68,7 @@ class FreshdeskInsights:
         
         # Build base query
         query = session.query(FreshdeskTicket)
-        query = query.filter(FreshdeskTicket.merchant_id == merchant_id).order_by(FreshdeskTicket.data['created_at'].desc()).limit(500)
+        query = query.filter(FreshdeskTicket.merchant_id == merchant_id).order_by(FreshdeskTicket.parsed_created_at.desc()).limit(500)
         
         # Get all tickets
         all_tickets = query.all()
@@ -160,14 +158,14 @@ class FreshdeskInsights:
                     "category": ticket_data.get('category', 'uncategorized'),
                     "status": ticket_data.get('status', 'unknown'),
                     "priority": ticket_data.get('priority', 'normal'),
-                    "created_at": ticket_data.get('created_at'),
+                    "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
                     "data": ticket_data
                 })
         
-        # Sort by created_at (most recent first)
+        # Sort by parsed_created_at (most recent first)
         sorted_tickets = sorted(
             matching_tickets,
-            key=lambda t: t['created_at'],
+            key=lambda t: t['created_at'] if t['created_at'] else '',
             reverse=True
         )
         
@@ -225,7 +223,7 @@ class FreshdeskInsights:
             query = query.filter(FreshdeskTicket.merchant_id == 1)
             merchant_info = "Merchant ID: 1"
         
-        # Apply time filter if specified (filter by Freshdesk's created_at in JSONB data)
+        # Apply time filter if specified
         if start_date and end_date:
             # Ensure timezone awareness
             if start_date.tzinfo is None:
@@ -234,20 +232,19 @@ class FreshdeskInsights:
                 end_date = end_date.replace(tzinfo=timezone.utc)
             
             # Add time to end_date to make it inclusive of the whole day
-            # Preserve timezone when setting time
             end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=end_date.tzinfo)
             
             query = query.filter(
                 and_(
-                    FreshdeskRating.data['created_at'].astext >= start_date.isoformat(),
-                    FreshdeskRating.data['created_at'].astext <= end_date.isoformat()
+                    FreshdeskRating.parsed_created_at >= start_date,
+                    FreshdeskRating.parsed_created_at <= end_date
                 )
             )
             time_range = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
         elif days is not None and days > 0:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             query = query.filter(
-                FreshdeskRating.data['created_at'].astext >= cutoff_date.isoformat()
+                FreshdeskRating.parsed_created_at >= cutoff_date
             )
             time_range = f"last {days} days"
         else:
@@ -267,7 +264,7 @@ class FreshdeskInsights:
                 
             # Get the rating value and timestamp
             rating_value = rating.data.get('ratings', {}).get('default_question')
-            created_at = rating.data.get('created_at', rating.created_at.isoformat() if rating.created_at else None)
+            created_at = rating.parsed_created_at
             
             # Keep only the most recent rating per user
             if user_id not in user_ratings or created_at > user_ratings[user_id]['created_at']:
@@ -327,7 +324,7 @@ class FreshdeskInsights:
         from app.dbmodels.base import FreshdeskConversation
         conversations = session.query(FreshdeskConversation).filter(
             FreshdeskConversation.freshdesk_ticket_id == ticket_id
-        ).order_by(FreshdeskConversation.data['created_at'].asc()).all()
+        ).order_by(FreshdeskConversation.parsed_created_at.asc()).all()
         
         # Get ratings for this ticket
         ratings = session.query(FreshdeskRating).filter(
@@ -338,12 +335,13 @@ class FreshdeskInsights:
         result = {
             "ticket_id": ticket.freshdesk_ticket_id,
             "merchant_id": ticket.merchant_id,
-            "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+            "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
+            "updated_at": ticket.parsed_updated_at.isoformat() if ticket.parsed_updated_at else None,
             "data": ticket.data,
             "conversations": [
                 {
                     "conversation_id": conv.freshdesk_conversation_id,
-                    "created_at": conv.data.get('created_at'),
+                    "created_at": conv.parsed_created_at.isoformat() if conv.parsed_created_at else None,
                     "from_email": conv.data.get('from_email'),
                     "body_text": conv.data.get('body_text'),
                     "data": conv.data
@@ -352,7 +350,7 @@ class FreshdeskInsights:
             "ratings": [
                 {
                     "rating_id": rating.freshdesk_rating_id,
-                    "created_at": rating.data.get('created_at'),
+                    "created_at": rating.parsed_created_at.isoformat() if rating.parsed_created_at else None,
                     "ratings": rating.data.get('ratings', {}),
                     "data": rating.data
                 } for rating in ratings
@@ -380,9 +378,9 @@ class FreshdeskInsights:
         tickets = session.query(FreshdeskTicket).filter(
             and_(
                 FreshdeskTicket.merchant_id == merchant_id,
-                func.lower(FreshdeskTicket.data['requester']['email'].astext) == email.lower()
+                func.lower(FreshdeskTicket.parsed_email) == email.lower()
             )
-        ).order_by(FreshdeskTicket.data['created_at'].desc()).all()
+        ).order_by(FreshdeskTicket.parsed_created_at.desc()).all()
         
         results = []
         for ticket in tickets:
@@ -391,7 +389,7 @@ class FreshdeskInsights:
                 "subject": ticket.data.get('subject', 'No subject'),
                 "status": ticket.data.get('status'),
                 "priority": ticket.data.get('priority'),
-                "created_at": ticket.data.get('created_at'),
+                "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
                 "requester": ticket.data.get('requester', {}),
                 "data": ticket.data
             })
@@ -436,7 +434,7 @@ class FreshdeskInsights:
         ).filter(
             and_(
                 FreshdeskTicket.merchant_id == merchant_id,
-                FreshdeskRating.data['ratings']['default_question'].astext == str(rating_value)
+                FreshdeskRating.parsed_rating == rating_value
             )
         )
         
@@ -450,18 +448,18 @@ class FreshdeskInsights:
             
             query = query.filter(
                 and_(
-                    FreshdeskRating.data['created_at'].astext >= start_date.isoformat(),
-                    FreshdeskRating.data['created_at'].astext <= end_date.isoformat()
+                    FreshdeskRating.parsed_created_at >= start_date,
+                    FreshdeskRating.parsed_created_at <= end_date
                 )
             )
         elif days is not None and days > 0:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             query = query.filter(
-                FreshdeskRating.data['created_at'].astext >= cutoff_date.isoformat()
+                FreshdeskRating.parsed_created_at >= cutoff_date
             )
         
         # Order by rating creation date
-        ratings = query.order_by(FreshdeskRating.data['created_at'].desc()).all()
+        ratings = query.order_by(FreshdeskRating.parsed_created_at.desc()).all()
         
         # Get unique tickets
         seen_tickets = set()
@@ -481,8 +479,8 @@ class FreshdeskInsights:
                         "ticket_id": ticket_id,
                         "subject": ticket.data.get('subject', 'No subject'),
                         "status": ticket.data.get('status'),
-                        "created_at": ticket.data.get('created_at'),
-                        "rating_created_at": rating.data.get('created_at'),
+                        "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
+                        "rating_created_at": rating.parsed_created_at.isoformat() if rating.parsed_created_at else None,
                         "rating": rating_type,
                         "requester": ticket.data.get('requester', {}),
                         "data": ticket.data
@@ -515,10 +513,10 @@ class FreshdeskInsights:
         ).filter(
             and_(
                 FreshdeskTicket.merchant_id == merchant_id,
-                FreshdeskRating.data['ratings']['default_question'].astext == str(RATING_UNHAPPY)
+                FreshdeskRating.parsed_rating == RATING_UNHAPPY
             )
         ).order_by(
-            FreshdeskRating.data['created_at'].desc()
+            FreshdeskRating.parsed_created_at.desc()
         ).limit(limit).all()
         
         results = []
@@ -532,7 +530,7 @@ class FreshdeskInsights:
             
             if ticket_details:
                 # Add rating info to the top level for easy access
-                ticket_details['bad_rating_date'] = rating.data.get('created_at')
+                ticket_details['bad_rating_date'] = rating.parsed_created_at.isoformat() if rating.parsed_created_at else None
                 ticket_details['rating_comment'] = rating.data.get('comments', {}).get('default_question')
                 results.append(ticket_details)
         
