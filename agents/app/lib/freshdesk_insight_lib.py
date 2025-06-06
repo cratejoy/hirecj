@@ -223,7 +223,8 @@ class FreshdeskInsights:
             query = query.filter(FreshdeskTicket.merchant_id == 1)
             merchant_info = "Merchant ID: 1"
         
-        # Apply time filter if specified
+        # Note: We can't efficiently filter ratings by date without a parsed_created_at field
+        # For now, we'll get all ratings and filter in Python
         if start_date and end_date:
             # Ensure timezone awareness
             if start_date.tzinfo is None:
@@ -233,25 +234,42 @@ class FreshdeskInsights:
             
             # Add time to end_date to make it inclusive of the whole day
             end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=end_date.tzinfo)
-            
-            query = query.filter(
-                and_(
-                    FreshdeskRating.parsed_created_at >= start_date,
-                    FreshdeskRating.parsed_created_at <= end_date
-                )
-            )
             time_range = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
         elif days is not None and days > 0:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-            query = query.filter(
-                FreshdeskRating.parsed_created_at >= cutoff_date
-            )
             time_range = f"last {days} days"
         else:
             time_range = "all time"
+            start_date = None
+            end_date = None
+            cutoff_date = None
         
-        # Get all ratings in the time range
-        all_ratings = query.all()
+        # Get all ratings (we'll filter by date in Python)
+        all_ratings_query = query.all()
+        
+        # Filter by date in Python if needed
+        all_ratings = []
+        for rating in all_ratings_query:
+            created_at_str = rating.data.get('created_at')
+            if not created_at_str:
+                continue
+                
+            # Parse the timestamp
+            try:
+                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                continue
+                
+            # Apply date filter if specified
+            if start_date and end_date:
+                if start_date <= created_at <= end_date:
+                    all_ratings.append(rating)
+            elif 'cutoff_date' in locals() and cutoff_date:
+                if created_at >= cutoff_date:
+                    all_ratings.append(rating)
+            else:
+                all_ratings.append(rating)
+        
         logger.info(f"[INSIGHTS] Found {len(all_ratings)} total ratings in {time_range}")
         
         # Group by user to get most recent rating per user
@@ -264,7 +282,16 @@ class FreshdeskInsights:
                 
             # Get the rating value and timestamp
             rating_value = rating.data.get('ratings', {}).get('default_question')
-            created_at = rating.parsed_created_at
+            # Get created_at from the rating's JSONB data
+            created_at_str = rating.data.get('created_at')
+            if not created_at_str:
+                continue
+            
+            # Parse the timestamp string to datetime for comparison
+            try:
+                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                continue
             
             # Keep only the most recent rating per user
             if user_id not in user_ratings or created_at > user_ratings[user_id]['created_at']:
@@ -341,7 +368,7 @@ class FreshdeskInsights:
             "conversations": [
                 {
                     "conversation_id": conv.freshdesk_conversation_id,
-                    "created_at": conv.parsed_created_at.isoformat() if conv.parsed_created_at else None,
+                    "created_at": conv.data.get('created_at'),
                     "from_email": conv.data.get('from_email'),
                     "body_text": conv.data.get('body_text'),
                     "data": conv.data
@@ -350,7 +377,7 @@ class FreshdeskInsights:
             "ratings": [
                 {
                     "rating_id": rating.freshdesk_rating_id,
-                    "created_at": rating.parsed_created_at.isoformat() if rating.parsed_created_at else None,
+                    "created_at": rating.data.get('created_at'),
                     "ratings": rating.data.get('ratings', {}),
                     "data": rating.data
                 } for rating in ratings
@@ -438,28 +465,43 @@ class FreshdeskInsights:
             )
         )
         
-        # Apply time filter
-        if start_date and end_date:
-            if start_date.tzinfo is None:
-                start_date = start_date.replace(tzinfo=timezone.utc)
-            if end_date.tzinfo is None:
-                end_date = end_date.replace(tzinfo=timezone.utc)
-            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=end_date.tzinfo)
-            
-            query = query.filter(
-                and_(
-                    FreshdeskRating.parsed_created_at >= start_date,
-                    FreshdeskRating.parsed_created_at <= end_date
-                )
-            )
-        elif days is not None and days > 0:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-            query = query.filter(
-                FreshdeskRating.parsed_created_at >= cutoff_date
-            )
+        # Get all ratings with the specified rating value
+        # Note: We can't order by parsed_created_at since it doesn't exist on FreshdeskRating
+        all_ratings_query = query.all()
         
-        # Order by rating creation date
-        ratings = query.order_by(FreshdeskRating.parsed_created_at.desc()).all()
+        # Filter by date and sort in Python
+        ratings_with_dates = []
+        for rating in all_ratings_query:
+            created_at_str = rating.data.get('created_at')
+            if not created_at_str:
+                continue
+                
+            # Parse the timestamp
+            try:
+                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+            except (ValueError, AttributeError):
+                continue
+                
+            # Apply time filter
+            if start_date and end_date:
+                if start_date.tzinfo is None:
+                    start_date = start_date.replace(tzinfo=timezone.utc)
+                if end_date.tzinfo is None:
+                    end_date = end_date.replace(tzinfo=timezone.utc)
+                end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=end_date.tzinfo)
+                
+                if not (start_date <= created_at <= end_date):
+                    continue
+            elif days is not None and days > 0:
+                cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+                if created_at < cutoff_date:
+                    continue
+            
+            ratings_with_dates.append((rating, created_at))
+        
+        # Sort by created_at descending
+        ratings_with_dates.sort(key=lambda x: x[1], reverse=True)
+        ratings = [r[0] for r in ratings_with_dates]
         
         # Get unique tickets
         seen_tickets = set()
@@ -480,7 +522,7 @@ class FreshdeskInsights:
                         "subject": ticket.data.get('subject', 'No subject'),
                         "status": ticket.data.get('status'),
                         "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
-                        "rating_created_at": rating.parsed_created_at.isoformat() if rating.parsed_created_at else None,
+                        "rating_created_at": rating.data.get('created_at'),
                         "rating": rating_type,
                         "requester": ticket.data.get('requester', {}),
                         "data": ticket.data
@@ -515,9 +557,23 @@ class FreshdeskInsights:
                 FreshdeskTicket.merchant_id == merchant_id,
                 FreshdeskRating.parsed_rating == RATING_UNHAPPY
             )
-        ).order_by(
-            FreshdeskRating.parsed_created_at.desc()
-        ).limit(limit).all()
+        ).all()
+        
+        # Sort by created_at from JSONB data and limit in Python
+        ratings_with_dates = []
+        for rating in bad_ratings:
+            created_at_str = rating.data.get('created_at')
+            if not created_at_str:
+                continue
+            try:
+                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                ratings_with_dates.append((rating, created_at))
+            except (ValueError, AttributeError):
+                continue
+        
+        # Sort by created_at descending and take the limit
+        ratings_with_dates.sort(key=lambda x: x[1], reverse=True)
+        bad_ratings = [r[0] for r in ratings_with_dates[:limit]]
         
         results = []
         for rating in bad_ratings:
@@ -530,7 +586,7 @@ class FreshdeskInsights:
             
             if ticket_details:
                 # Add rating info to the top level for easy access
-                ticket_details['bad_rating_date'] = rating.parsed_created_at.isoformat() if rating.parsed_created_at else None
+                ticket_details['bad_rating_date'] = rating.data.get('created_at')
                 ticket_details['rating_comment'] = rating.data.get('comments', {}).get('default_question')
                 results.append(ticket_details)
         
