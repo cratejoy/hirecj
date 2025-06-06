@@ -1,5 +1,16 @@
 # Phase 5: Quick Value Demo - Implementation Guide
 
+## 🌟 North Star Principles
+
+1. **Simplify, Simplify, Simplify**: Every decision should make the code simpler, not more complex
+2. **No Cruft**: Remove all redundant code, validation, and unnecessary complexity
+3. **Break It & Fix It Right**: No backwards compatibility shims - make breaking changes and migrate properly
+4. **Long-term Elegance**: Choose performant, compiler-enforced solutions that prevent subtle bugs
+5. **Backend-Driven**: Let the backend handle complexity, frontend should be a thin client
+6. **Single Source of Truth**: One pattern, one way to do things, no alternatives
+7. **No Over-Engineering**: Design for current needs only - no hypothetical features
+8. **Thoughtful Logging & Instrumentation**: Appropriate visibility into system behavior
+
 ## Overview
 
 Phase 5 delivers immediate value after Shopify OAuth by showing merchants quick insights about their store. Instead of complex ETL pipelines, we use a progressive disclosure pattern with targeted API calls.
