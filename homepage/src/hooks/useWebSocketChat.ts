@@ -426,35 +426,63 @@ export function useWebSocketChat({
         retryCount: 0  // Reset retry count on successful connection
       }));
       
-      // Send start_conversation message
-      const currentWorkflow = workflowRef.current;
-      const startData = {
-        conversation_id: conversationId,
-        merchant_id: merchantId || ((currentWorkflow === 'shopify_onboarding' || currentWorkflow === 'support_daily') ? 'onboarding_user' : null),
-        scenario: scenario || ((currentWorkflow === 'shopify_onboarding' || currentWorkflow === 'support_daily') ? 'onboarding' : null),
-        workflow: currentWorkflow,
-      };
-      
-      // Debug: Log what we're sending
-      wsLogger.info('📤 start_conversation data:', startData);
-      wsLogger.info('📤 Current user session:', localStorage.getItem('hirecj_user_session'));
-      
-      const startMessage = JSON.stringify({
-        type: 'start_conversation',
-        data: startData
-      });
-      
-      wsLogger.info('📤 Sending start_conversation', { 
-        type: 'start_conversation',
-        data: startData 
-      });
-      console.log('[WebSocket] Sending start_conversation message:', startMessage);
-      if (wsRef.current) {
-        wsRef.current.send(startMessage);
+      // Send user session info if available
+      const userSessionStr = localStorage.getItem('hirecj_user_session');
+      if (userSessionStr) {
+        try {
+          const userSession = JSON.parse(userSessionStr);
+          if (userSession.shopDomain && userSession.merchantId) {
+            const userId = `shop_${userSession.shopDomain.replace('.myshopify.com', '')}`;
+            const sessionUpdate = {
+              type: 'session_update',
+              data: {
+                user_id: userId,
+                merchant_id: userSession.merchantId,
+                shop_domain: userSession.shopDomain
+              }
+            };
+            wsLogger.info('📤 Sending session update with user info:', sessionUpdate);
+            if (wsRef.current) {
+              wsRef.current.send(JSON.stringify(sessionUpdate));
+            }
+          }
+        } catch (e) {
+          wsLogger.error('Failed to parse user session:', e);
+        }
       }
       
-      // Flush any queued messages
-      flushMessageQueue();
+      // Small delay to ensure session update is processed
+      setTimeout(() => {
+        // Send start_conversation message
+        const currentWorkflow = workflowRef.current;
+        const startData = {
+          conversation_id: conversationId,
+          merchant_id: merchantId || ((currentWorkflow === 'shopify_onboarding' || currentWorkflow === 'support_daily') ? 'onboarding_user' : null),
+          scenario: scenario || ((currentWorkflow === 'shopify_onboarding' || currentWorkflow === 'support_daily') ? 'onboarding' : null),
+          workflow: currentWorkflow,
+        };
+        
+        // Debug: Log what we're sending
+        wsLogger.info('📤 start_conversation data:', startData);
+        wsLogger.info('📤 Current user session:', localStorage.getItem('hirecj_user_session'));
+        
+        const startMessage = JSON.stringify({
+          type: 'start_conversation',
+          data: startData
+        });
+        
+        wsLogger.info('📤 Sending start_conversation', { 
+          type: 'start_conversation',
+          data: startData 
+        });
+        console.log('[WebSocket] Sending start_conversation message:', startMessage);
+        if (wsRef.current) {
+          wsRef.current.send(startMessage);
+        }
+        
+        // Flush any queued messages
+        flushMessageQueue();
+      }, 100); // 100ms delay to ensure session update is processed
     };
 
     wsRef.current.onmessage = handleMessage;
