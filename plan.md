@@ -12,6 +12,9 @@
 7. **Phase 4.6: System Events Architecture** - YAML-based system event handling for OAuth responses
 
 ### 🎯 Current Priority
+**Phase 4.7: Backend-Authoritative User Identity** - Fix user identity to be backend-only
+
+### 🔜 Next Phase
 **Phase 5: Quick Value Demo** - Show immediate value after Shopify connection
 
 ### 📅 Upcoming Phases
@@ -469,7 +472,54 @@ For "Transitioned from [previous_workflow] workflow":
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.6-system-events.md)**
 
-### Phase 5: Quick Value Demo 🎯 CURRENT PRIORITY
+### Phase 4.7: Backend-Authoritative User Identity 🔐 CRITICAL FIX
+**Goal:** Fix user identity generation to be backend-only, preventing ID mismatches and foreign key violations.
+
+**Problem:** User IDs are generated inconsistently:
+- Frontend creates: `shop_cratejoy-dev` (wrong)
+- Backend expects: `usr_2230c443` (correct SHA256-based)
+- Database rejects incorrect IDs → foreign key violations
+- Already-authenticated detection fails
+
+**Solution: Backend-Only Identity**
+- Frontend sends raw data only (shop_domain, merchant_id)
+- Backend is sole authority for ID generation
+- Uses consistent `get_or_create_user()` function
+- Clear documentation prevents future confusion
+
+**Deliverables:**
+1. **Frontend Updates** *(30 minutes)*
+   - [ ] Remove ALL user ID generation
+   - [ ] Update session_update to send only raw data
+   - [ ] Add clear comments explaining why
+
+2. **Backend Updates** *(45 minutes)*
+   - [ ] Update session_update handler - store raw data only
+   - [ ] Update start_conversation - generate user_id from shop_domain
+   - [ ] Add extensive comments about backend authority
+
+3. **Documentation** *(30 minutes)*
+   - [ ] Update agents/README.md with identity section
+   - [ ] Update homepage/README.md about no ID generation
+   - [ ] Add warnings in code about backend-only IDs
+
+4. **Testing & Cleanup** *(30 minutes)*
+   - [ ] Test already-authenticated detection
+   - [ ] Test new user creation flow
+   - [ ] Add database constraint for ID format
+   - [ ] Clean up any invalid user records
+
+**Benefits:**
+- ✅ **Single Source of Truth**: One place for ID generation
+- ✅ **Reliability**: Consistent IDs across all services  
+- ✅ **Simplicity**: Clear, documented pattern
+- ✅ **No More Errors**: Eliminates foreign key violations
+
+**Timeline: 2.25 hours total**
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.7-backend-authoritative-identity.md)**
+
+### Phase 5: Quick Value Demo 🎯 NEXT PRIORITY
 **Goal:** Show immediate value after Shopify connection by providing quick insights about their store WITHOUT requiring full data dumps or complex ETL.
 
 **Core Strategy: Progressive Data Disclosure**
