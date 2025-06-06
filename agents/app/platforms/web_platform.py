@@ -327,6 +327,9 @@ class WebPlatform(Platform):
                         ws_session = self.sessions.get(conversation_id, {})
                         user_id = ws_session.get("user_id", "anonymous")
                         
+                        logger.info(f"[SESSION_CREATE] WebSocket session data: {ws_session}")
+                        logger.info(f"[SESSION_CREATE] Creating session with user_id={user_id}")
+                        
                         session = self.session_manager.create_session(
                             merchant_name=merchant,
                             scenario_name=scenario,
@@ -399,6 +402,11 @@ class WebPlatform(Platform):
                 )
                 
                 # Check if starting onboarding workflow but already authenticated
+                logger.info(f"[ALREADY_AUTH_CHECK] Checking authentication for {conversation_id}")
+                logger.info(f"[ALREADY_AUTH_CHECK] workflow={workflow}, has_session={bool(session)}, "
+                           f"user_id={getattr(session, 'user_id', 'NONE')}, "
+                           f"existing_session={bool(existing_session)}")
+                
                 if workflow == "shopify_onboarding" and session and session.user_id and not existing_session:
                     # Get shop domain from session or OAuth metadata
                     shop_domain = "your store"
@@ -755,10 +763,21 @@ class WebPlatform(Platform):
 
             elif message_type == "session_update":
                 # Update session information
+                update_data = data.get("data", {})
                 session = self.sessions.get(conversation_id, {})
-                session.update(data.get("data", {}))
+                session.update(update_data)
                 self.sessions[conversation_id] = session
-                logger.debug(f"Updated session for {conversation_id}")
+                
+                # Log what we're updating
+                logger.info(f"[SESSION_UPDATE] Updating session for {conversation_id}")
+                logger.info(f"[SESSION_UPDATE] Data received: {update_data}")
+                logger.info(f"[SESSION_UPDATE] New session state: {session}")
+                
+                # Also update the backend session if it exists
+                backend_session = self.session_manager.get_session(conversation_id)
+                if backend_session and update_data.get("user_id"):
+                    logger.info(f"[SESSION_UPDATE] Updating backend session user_id to: {update_data['user_id']}")
+                    backend_session.user_id = update_data["user_id"]
 
             elif message_type == "oauth_complete":
                 # Handle OAuth completion from Shopify

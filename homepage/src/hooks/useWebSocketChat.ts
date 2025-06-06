@@ -435,6 +435,10 @@ export function useWebSocketChat({
         workflow: currentWorkflow,
       };
       
+      // Debug: Log what we're sending
+      wsLogger.info('📤 start_conversation data:', startData);
+      wsLogger.info('📤 Current user session:', localStorage.getItem('hirecj_user_session'));
+      
       const startMessage = JSON.stringify({
         type: 'start_conversation',
         data: startData
