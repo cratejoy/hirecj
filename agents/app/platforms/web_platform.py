@@ -407,7 +407,7 @@ class WebPlatform(Platform):
                            f"user_id={getattr(session, 'user_id', 'NONE')}, "
                            f"existing_session={bool(existing_session)}")
                 
-                if workflow == "shopify_onboarding" and session and session.user_id and not existing_session:
+                if workflow == "shopify_onboarding" and session and session.user_id:
                     # Get shop domain from session or OAuth metadata
                     shop_domain = "your store"
                     if hasattr(session, 'oauth_metadata') and session.oauth_metadata:

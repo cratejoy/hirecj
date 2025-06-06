@@ -427,28 +427,25 @@ export function useWebSocketChat({
       }));
       
       // Send user session info if available
-      const userSessionStr = localStorage.getItem('hirecj_user_session');
-      if (userSessionStr) {
-        try {
-          const userSession = JSON.parse(userSessionStr);
-          if (userSession.shopDomain && userSession.merchantId) {
-            const userId = `shop_${userSession.shopDomain.replace('.myshopify.com', '')}`;
-            const sessionUpdate = {
-              type: 'session_update',
-              data: {
-                user_id: userId,
-                merchant_id: userSession.merchantId,
-                shop_domain: userSession.shopDomain
-              }
-            };
-            wsLogger.info('📤 Sending session update with user info:', sessionUpdate);
-            if (wsRef.current) {
-              wsRef.current.send(JSON.stringify(sessionUpdate));
-            }
+      const merchantId = localStorage.getItem('merchantId');
+      const shopDomain = localStorage.getItem('shopDomain');
+      
+      if (merchantId && shopDomain) {
+        const userId = `shop_${shopDomain.replace('.myshopify.com', '')}`;
+        const sessionUpdate = {
+          type: 'session_update',
+          data: {
+            user_id: userId,
+            merchant_id: merchantId,
+            shop_domain: shopDomain
           }
-        } catch (e) {
-          wsLogger.error('Failed to parse user session:', e);
+        };
+        wsLogger.info('📤 Sending session update with user info:', sessionUpdate);
+        if (wsRef.current) {
+          wsRef.current.send(JSON.stringify(sessionUpdate));
         }
+      } else {
+        wsLogger.info('📤 No user session found in localStorage');
       }
       
       // Small delay to ensure session update is processed
@@ -464,7 +461,10 @@ export function useWebSocketChat({
         
         // Debug: Log what we're sending
         wsLogger.info('📤 start_conversation data:', startData);
-        wsLogger.info('📤 Current user session:', localStorage.getItem('hirecj_user_session'));
+        wsLogger.info('📤 Current user session:', {
+          merchantId: localStorage.getItem('merchantId'),
+          shopDomain: localStorage.getItem('shopDomain')
+        });
         
         const startMessage = JSON.stringify({
           type: 'start_conversation',
