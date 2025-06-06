@@ -387,24 +387,129 @@ get_user_facts(user_id) → [facts]   # Simple list return
 ---
 
 ### Phase 5: Quick Value Demo 🎯 CURRENT PRIORITY
-**Goal:** Show immediate value after Shopify connection by providing quick insights about their store.
+**Goal:** Show immediate value after Shopify connection by providing quick insights about their store WITHOUT requiring full data dumps or complex ETL.
+
+**Core Strategy: Progressive Data Disclosure**
+Instead of syncing all data, we fetch exactly what we need for the conversation using a three-tier approach:
+
+#### Tier 1: Instant Metrics (< 500ms)
+```python
+# Uses existing REST count endpoints - no pagination needed
+{
+    "customers": api.get_customer_count(),           # e.g., 1,234
+    "total_orders": api.get_order_count(),          # e.g., 5,678  
+    "active_orders": api.get_order_count("open")    # e.g., 12
+}
+```
+
+#### Tier 2: Quick Insights (< 2s) 
+```python
+# Single GraphQL query for rich data
+query = """
+{
+  shop { name, currencyCode }
+  orders(first: 10, reverse: true) {
+    edges { node {
+      createdAt
+      totalPriceSet { shopMoney { amount } }
+      lineItems(first: 5) { edges { node { title, quantity } } }
+    }}
+  }
+  products(first: 5, sortKey: INVENTORY_TOTAL, reverse: true) {
+    edges { node { title, totalInventory, priceRangeV2 {...} } }
+  }
+}
+"""
+```
+
+#### Tier 3: Deeper Analysis (< 5s)
+```python
+# Targeted REST queries with strict limits
+last_week_orders = api.get_orders(
+    updated_at_min=(datetime.now() - timedelta(days=7)).isoformat(),
+    limit=50  # Small, manageable dataset
+)
+```
 
 **Deliverables:**
-- [ ] Quick insights service for Shopify data
-- [ ] Store snapshot queries (products, orders, customers)
-- [ ] Progressive data loading mechanism
-- [ ] Conversation UI showing real-time insights
-- [ ] CJ's value-driven responses post-OAuth
 
-**The Experience:**
+**1. GraphQL Client Extension** *(2 hours)*
+- [ ] Add `ShopifyGraphQL` class to `shopify_util.py`
+- [ ] Implement `get_store_pulse()` query method
+- [ ] Add proper error handling and rate limiting
+
+**2. Quick Insights Service** *(4 hours)*
+- [ ] Create `app/services/quick_insights.py`
+- [ ] Implement three-tier data fetching:
+  - [ ] `tier_1_snapshot()` - REST count endpoints
+  - [ ] `tier_2_insights()` - GraphQL store pulse
+  - [ ] `tier_3_analysis()` - Limited REST queries
+- [ ] Add 15-minute Redis caching for demo phase
+
+**3. Natural Language Generator** *(3 hours)*
+- [ ] Create `generate_quick_insights()` function
+- [ ] Transform data into conversational insights:
+  ```python
+  # Input: {"recent_revenue": 1234.56, "order_velocity": 3.2}
+  # Output: ["You've made $1,234.56 in the last 10 orders",
+  #          "Your store is averaging 3.2 orders per day"]
+  ```
+- [ ] Handle edge cases (new stores, no recent orders)
+
+**4. CJ Agent Integration** *(3 hours)*
+- [ ] Update `handle_oauth_complete()` in CJ agent
+- [ ] Implement progressive disclosure flow:
+  ```python
+  # 1. Instant gratification
+  yield "Great! I can see you have 1,234 customers in your store."
+  
+  # 2. Show we're analyzing
+  yield "Let me take a quick look at your recent activity..."
+  
+  # 3. Deliver insights naturally
+  for insight in insights:
+      yield insight
+      await asyncio.sleep(0.5)  # Natural pacing
+  
+  # 4. Transition to next phase
+  yield "I'm already seeing some patterns. Would you like me to connect..."
+  ```
+
+**5. Error Handling & Edge Cases** *(2 hours)*
+- [ ] Handle stores with no data gracefully
+- [ ] Manage API rate limits
+- [ ] Fallback messages for API failures
+- [ ] Test with various store sizes
+
+**The Enhanced Experience:**
 ```
 After OAuth:
-├── "Great! Taking a quick look at your store..."
-├── Progressive loading of insights
-├── Show key metrics (products, recent orders, etc.)
-├── Natural transition to support system connection
-└── Build trust through immediate value
+├── [0-500ms] "Great! I can see you have 1,234 customers"
+├── [500ms-2s] "Let me look at your recent activity..."
+├── [2-3s] "You've made $12,456 in the last 10 orders"
+├── [3-4s] "Your store is averaging 5.2 orders per day"  
+├── [4-5s] "'Blue Widget' is your best stocked product"
+├── [5-6s] "I'm seeing some interesting patterns..."
+└── [6s+] "Would you like me to connect your support system?"
 ```
+
+**Success Metrics:**
+- Time to first insight: < 500ms
+- Total onboarding time: < 30 seconds
+- Zero full data dumps during demo
+- API calls per session: < 5
+- Cache hit rate: > 80% during demos
+
+**Why This Approach:**
+- ✅ **No ETL Complexity**: Direct API calls, no sync infrastructure
+- ✅ **Instant Value**: First response in under 500ms
+- ✅ **Conversation-Driven**: Data follows dialogue naturally
+- ✅ **Efficient**: Never fetch more than needed
+- ✅ **Demo-Optimized**: 15-min cache perfect for onboarding
+
+**Timeline: 14 hours total** (2 days)
+- Day 1: GraphQL client, Quick Insights service
+- Day 2: Natural language, CJ integration, testing
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-quick-value.md)** *(TODO)*
 
