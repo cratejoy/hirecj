@@ -12,6 +12,11 @@ available_tools:
   - get_recent_ticket_from_db
   - get_support_dashboard_from_db
   - search_tickets_in_db
+  - calculate_csat_score
+  - get_ticket_details
+  - get_customer_history
+  - get_tickets_with_rating
+  - analyze_bad_csat_tickets
 
 workflow: |
   # Support Daily Review - Enhanced Version with Database Support
