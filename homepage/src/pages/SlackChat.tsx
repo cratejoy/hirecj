@@ -92,9 +92,12 @@ const SlackChat = () => {
 		workflow: getWorkflowFromUrl()
 	}));
 	
+	// Track if we're updating internally to prevent loops
+	const isInternalUpdateRef = useRef(false);
+	
 	// Update URL when workflow changes
 	useEffect(() => {
-		if (chatConfig.workflow) {
+		if (chatConfig.workflow && !isInternalUpdateRef.current) {
 			const params = new URLSearchParams(searchString);
 			if (params.get('workflow') !== chatConfig.workflow) {
 				params.set('workflow', chatConfig.workflow);
@@ -102,6 +105,8 @@ const SlackChat = () => {
 			}
 			localStorage.setItem('lastWorkflow', chatConfig.workflow);
 		}
+		// Reset flag after update
+		isInternalUpdateRef.current = false;
 	}, [chatConfig.workflow, location, searchString, setLocation]);
 	
 	// Sync userSession.merchantId to chatConfig when it changes
@@ -187,6 +192,9 @@ const SlackChat = () => {
 	const isTyping = isRealChat ? wsChat.isTyping : demoChat.isTyping;
 	const handleSendMessage = isRealChat ? wsChat.sendMessage : demoChat.handleSendMessage;
 	
+	// Debounce timer ref for workflow changes
+	const workflowChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	
 	// Handle workflow change elegantly - preserve context
 	const handleWorkflowChange = useCallback((newWorkflow: typeof VALID_WORKFLOWS[number]) => {
 		// Don't change if already in target workflow
@@ -194,34 +202,65 @@ const SlackChat = () => {
 			return;
 		}
 		
-		// Keep same conversation, just transition workflows
-		if (wsChat.isConnected) {
-			// Send transition request to backend
-			wsChat.sendWorkflowTransition(newWorkflow);
-			
-			// Update local state ONLY - keep same conversationId
-			setChatConfig(prev => ({ 
-				...prev, 
-				workflow: newWorkflow
-				// NO conversationId change! Context preserved by backend
-			}));
-		} else {
-			// Only if not connected, update config for next connection
-			setChatConfig(prev => ({ 
-				...prev, 
-				workflow: newWorkflow
-			}));
+		// Clear any pending workflow changes
+		if (workflowChangeTimeoutRef.current) {
+			clearTimeout(workflowChangeTimeoutRef.current);
 		}
+		
+		// Debounce rapid workflow changes to prevent loops
+		workflowChangeTimeoutRef.current = setTimeout(() => {
+			// Keep same conversation, just transition workflows
+			if (wsChat.isConnected) {
+				// Send transition request to backend
+				wsChat.sendWorkflowTransition(newWorkflow);
+				
+				// Update local state ONLY - keep same conversationId
+				setChatConfig(prev => ({ 
+					...prev, 
+					workflow: newWorkflow
+					// NO conversationId change! Context preserved by backend
+				}));
+			} else {
+				// Only if not connected, update config for next connection
+				setChatConfig(prev => ({ 
+					...prev, 
+					workflow: newWorkflow
+				}));
+			}
+		}, 100); // 100ms debounce
 	}, [chatConfig.workflow, wsChat]);
 	
 	// Watch for URL parameter changes (e.g., user navigates with browser back/forward)
 	useEffect(() => {
 		const params = new URLSearchParams(searchString);
 		const urlWorkflow = params.get('workflow');
-		if (urlWorkflow && VALID_WORKFLOWS.includes(urlWorkflow as any) && urlWorkflow !== chatConfig.workflow) {
-			handleWorkflowChange(urlWorkflow as typeof VALID_WORKFLOWS[number]);
+		// Only handle if it's a valid workflow AND different from current
+		// This prevents circular updates when we programmatically update the URL
+		if (urlWorkflow && 
+		    VALID_WORKFLOWS.includes(urlWorkflow as any) && 
+		    urlWorkflow !== chatConfig.workflow) {
+			// If connected, send transition message
+			if (wsChat.isConnected) {
+				wsChat.sendWorkflowTransition(urlWorkflow);
+			}
+			// Mark as internal update to prevent URL update loop
+			isInternalUpdateRef.current = true;
+			// Update local state
+			setChatConfig(prev => ({ 
+				...prev, 
+				workflow: urlWorkflow as typeof VALID_WORKFLOWS[number]
+			}));
 		}
-	}, [searchString, chatConfig.workflow, handleWorkflowChange]);
+	}, [searchString, wsChat.isConnected, wsChat.sendWorkflowTransition]); // Minimal deps to prevent loops
+	
+	// Cleanup workflow change timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (workflowChangeTimeoutRef.current) {
+				clearTimeout(workflowChangeTimeoutRef.current);
+			}
+		};
+	}, []);
 	
 	// Add OAuth callback handling
 	const handleOAuthSuccess = useCallback((params: any) => {

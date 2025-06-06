@@ -82,6 +82,7 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
         />
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={handleShopSubmit}
             disabled={!shopDomain || isConnecting}
             className="flex-1 bg-shopify-green hover:bg-shopify-green-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
@@ -89,6 +90,7 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
             {isConnecting ? 'Redirecting...' : 'Connect'}
           </button>
           <button
+            type="button"
             onClick={() => {
               setShowShopInput(false);
               setShopDomain('');

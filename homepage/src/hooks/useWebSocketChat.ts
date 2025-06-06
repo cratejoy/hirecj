@@ -529,7 +529,7 @@ export function useWebSocketChat({
         wsRef.current.close(1000, 'Component unmounting');
       }
     };
-  }, [connectionKey]); // Remove connect from dependencies to prevent infinite reconnection loop
+  }, [connectionKey, connect]); // Only reconnect when connectionKey actually changes
 
   // Send message function with debouncing
   const sendMessage = useCallback((text: string) => {
