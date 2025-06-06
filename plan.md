@@ -8,12 +8,13 @@
 3. **Phase 3.7: OAuth 2.0 Implementation** - Full OAuth flow with HMAC verification, token storage
 4. **Phase 4.0: True Environment Centralization** - Single .env pattern with automatic distribution
 5. **Phase 4.1: UI Actions Pattern** - Parser, workflow config, WebSocket integration
+6. **Phase 4.5: User Identity & Persistence** - PostgreSQL user identity, fact storage, session management
+7. **Phase 4.6: System Events Architecture** - YAML-based system event handling for OAuth responses
 
 ### 🎯 Current Priority
-**Phase 4.5: User Identity & Persistence** - Library complete, needs integration with services
+**Phase 5: Quick Value Demo** - Show immediate value after Shopify connection
 
 ### 📅 Upcoming Phases
-- Phase 5: Quick Value Demo
 - Phase 6: Support System Connection
 - Phase 7: Notification & Polish
 - Phase 8: Testing & Refinement
@@ -386,7 +387,7 @@ get_user_facts(user_id) → [facts]   # Simple list return
 
 ---
 
-### Phase 4.6: System Events Architecture 🎯 CURRENT PRIORITY
+### Phase 4.6: System Events Architecture ✅ COMPLETE
 **Goal:** Enable CJ to naturally respond to system events like OAuth completion by adding explicit instructions to workflow YAML files.
 
 **Problem:** Currently when OAuth completes, CJ receives a vague system message "New Shopify merchant authenticated from {shop}" with instructions to "respond appropriately" - but has no specific guidance on HOW to respond, resulting in silence.
@@ -411,9 +412,9 @@ For "Returning Shopify merchant authenticated from [store]":
 **Deliverables:**
 
 **1. Workflow YAML Update** *(30 minutes)*
-- [ ] Add SYSTEM EVENT HANDLING section to shopify_onboarding.yaml
-- [ ] Define responses for oauth_complete (new vs returning)
-- [ ] Add instructions for future events (data loading, errors)
+- [x] Add SYSTEM EVENT HANDLING section to shopify_onboarding.yaml
+- [x] Define responses for oauth_complete (new vs returning)
+- [x] Add instructions for future events (data loading, errors)
 - [ ] Test that CJ follows the instructions
 
 **Benefits:**
@@ -431,7 +432,7 @@ For "Returning Shopify merchant authenticated from [store]":
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.6-system-events.md)**
 
-### Phase 5: Quick Value Demo
+### Phase 5: Quick Value Demo 🎯 CURRENT PRIORITY
 **Goal:** Show immediate value after Shopify connection by providing quick insights about their store WITHOUT requiring full data dumps or complex ETL.
 
 **Core Strategy: Progressive Data Disclosure**

@@ -102,6 +102,38 @@ workflow: |
   - shop_domain: From Shopify OAuth
   - notification_preference: email|browser|none
   
+  SYSTEM EVENT HANDLING:
+  When you receive a message from sender "system", handle these specific patterns:
+  
+  1. OAuth Completion Events:
+     - Pattern: "New Shopify merchant authenticated from [store_domain]"
+       Response: 
+       "Perfect! I've successfully connected to your store at [store_domain].
+        Give me just a moment to look around and get familiar with your setup..."
+     
+     - Pattern: "Returning Shopify merchant authenticated from [store_domain]"
+       Response:
+       "Welcome back! I've reconnected to [store_domain].
+        Let me quickly refresh my memory about your store..."
+  
+  2. Data Loading Events (Future - Phase 5):
+     - Pattern: "Store insights loaded"
+       Response: Share the insights naturally based on what was loaded
+     
+     - Pattern: "Background task completed: [task_name]"
+       Response: Acknowledge and share relevant information
+  
+  3. Error Events:
+     - Pattern: "OAuth failed: [reason]"
+       Response: 
+       "I had trouble connecting to your Shopify store. [reason]
+        Would you like to try again? {{oauth:shopify}}"
+  
+  4. General System Messages:
+     - For any other system message, use the context to respond naturally
+     - System messages provide context updates, not user queries
+     - Acknowledge important changes, ignore internal updates
+  
   SUCCESS CRITERIA:
   - Natural conversation flow maintained
   - Clear value demonstrated post-OAuth
