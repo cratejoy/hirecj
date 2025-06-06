@@ -44,6 +44,40 @@ Response via WebSocket
 2. **Session Management**: All state (including merchant memory) managed server-side
 3. **Backward Compatibility**: Scripts using CrewAI interface work unchanged
 4. **Single Source of Truth**: One session, one state, managed by the server
+5. **Prompt Transparency**: No runtime prompt mutations - all behavior visible in static YAML files
+
+## 🎯 Prompt Transparency Principle
+
+**Critical for Debuggability**: All CJ behavior must be understandable by reading static files. No hidden prompt mutations at runtime.
+
+### What CJ Sees
+CJ's complete prompt consists of exactly two parts:
+1. **Base Prompt**: `agents/prompts/cj/versions/v{version}.yaml` - Core identity and principles
+2. **Workflow Prompt**: `agents/prompts/workflows/{workflow}.yaml` - Workflow-specific instructions
+
+### The Golden Rules
+✅ **DO**: 
+- Put all instructions in YAML files
+- Use simple template variable substitution ({merchant_name}, {workflow_name})
+- Keep base + workflow separation clear
+- Make system event handling visible in workflow YAML
+
+❌ **DON'T**:
+- Dynamically modify prompts at runtime
+- Inject hidden context that's not in YAML files
+- Use complex conditional logic to build prompts
+- Hide behavior in code instead of prompts
+
+### Example: System Events
+Instead of complex code to handle OAuth completion, we simply add to the workflow YAML:
+```yaml
+SYSTEM EVENT HANDLING:
+When you receive a message from sender "system":
+  For "New Shopify merchant authenticated from [store]":
+    - Respond: "Perfect! I've connected to [store]..."
+```
+
+This principle ensures developers can always understand CJ's behavior by reading two YAML files.
 
 ## 🚀 Quick Start
 

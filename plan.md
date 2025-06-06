@@ -386,7 +386,52 @@ get_user_facts(user_id) → [facts]   # Simple list return
 
 ---
 
-### Phase 5: Quick Value Demo 🎯 CURRENT PRIORITY
+### Phase 4.6: System Events Architecture 🎯 CURRENT PRIORITY
+**Goal:** Enable CJ to naturally respond to system events like OAuth completion by adding explicit instructions to workflow YAML files.
+
+**Problem:** Currently when OAuth completes, CJ receives a vague system message "New Shopify merchant authenticated from {shop}" with instructions to "respond appropriately" - but has no specific guidance on HOW to respond, resulting in silence.
+
+**Solution:** Add system event handling instructions directly to the workflow YAML that CJ already sees. No hidden prompt mutations, no complex code - just clear instructions.
+
+**Implementation Pattern:**
+```yaml
+# In shopify_onboarding.yaml workflow
+SYSTEM EVENT HANDLING:
+When you receive a message from sender "system", handle these patterns:
+
+For "New Shopify merchant authenticated from [store]":
+- Respond: "Perfect! I've successfully connected to your store at [store]."
+- Then: "Give me just a moment to look around and get familiar with your setup..."
+
+For "Returning Shopify merchant authenticated from [store]":
+- Respond: "Welcome back! I've reconnected to [store]."
+- Then: "Let me quickly refresh my memory about your store..."
+```
+
+**Deliverables:**
+
+**1. Workflow YAML Update** *(30 minutes)*
+- [ ] Add SYSTEM EVENT HANDLING section to shopify_onboarding.yaml
+- [ ] Define responses for oauth_complete (new vs returning)
+- [ ] Add instructions for future events (data loading, errors)
+- [ ] Test that CJ follows the instructions
+
+**Benefits:**
+- ✅ **Transparent**: All behavior visible in workflow YAML
+- ✅ **Simple**: Zero code changes required
+- ✅ **Debuggable**: Read YAML = understand behavior
+- ✅ **Extensible**: Add new events by editing YAML
+- ✅ **Natural**: CJ already knows how to follow instructions
+
+**Critical Design Principle:** No runtime prompt mutations. Everything CJ sees must be visible in:
+1. Base prompt file (e.g., `v6.0.1.yaml`)
+2. Workflow file (e.g., `shopify_onboarding.yaml`)
+
+**Timeline: 30 minutes** (YAML editing only)
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.6-system-events.md)**
+
+### Phase 5: Quick Value Demo
 **Goal:** Show immediate value after Shopify connection by providing quick insights about their store WITHOUT requiring full data dumps or complex ETL.
 
 **Core Strategy: Progressive Data Disclosure**
