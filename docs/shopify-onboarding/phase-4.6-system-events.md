@@ -343,6 +343,136 @@ User: "Show me today's orders"
 CJ: [Responds with order data, no re-introduction needed]
 ```
 
+### General Workflow Transitions
+
+Building on the already-authenticated pattern, we can enable general workflow transitions for any reason.
+
+#### 1. Add Patterns to ALL Workflows
+
+Each workflow needs two patterns: departure and arrival.
+
+**Example for `ad_hoc_support.yaml`:**
+```yaml
+SYSTEM EVENT HANDLING:
+  # When leaving this workflow
+  - Pattern: "User requested transition to [new_workflow] workflow"
+    Response: "Switching to [new_workflow] mode as requested."
+  
+  # When arriving at this workflow
+  - Pattern: "Transitioned from [previous_workflow] workflow"
+    Response: "How can I help you today?"
+```
+
+**Example for `daily_briefing.yaml`:**
+```yaml
+SYSTEM EVENT HANDLING:
+  # When leaving this workflow
+  - Pattern: "User requested transition to [new_workflow] workflow"
+    Response: "I'll pause the daily briefing and switch to [new_workflow] mode."
+  
+  # When arriving at this workflow
+  - Pattern: "Transitioned from [previous_workflow] workflow"
+    Response: "Let's review your daily metrics. Here's what stands out today..."
+```
+
+#### 2. Frontend Integration
+
+**Add Workflow Selector:**
+```typescript
+// In SlackChat.tsx or similar
+const WorkflowSelector = ({ currentWorkflow, onWorkflowChange }) => (
+  <Select value={currentWorkflow} onChange={(e) => onWorkflowChange(e.target.value)}>
+    <option value="shopify_onboarding">Onboarding</option>
+    <option value="ad_hoc_support">Support</option>
+    <option value="daily_briefing">Daily Briefing</option>
+    <option value="crisis_response">Crisis Response</option>
+  </Select>
+);
+
+// Handle workflow change
+const handleWorkflowChange = (newWorkflow: string) => {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'workflow_transition',
+      data: {
+        new_workflow: newWorkflow,
+        user_initiated: true
+      }
+    }));
+  }
+};
+```
+
+**Handle Query String:**
+```typescript
+// Watch for query string changes
+useEffect(() => {
+  const workflowParam = searchParams.get('workflow');
+  if (workflowParam && workflowParam !== currentWorkflow) {
+    handleWorkflowChange(workflowParam);
+  }
+}, [searchParams]);
+```
+
+#### 3. Backend Handler
+
+**Add to `web_platform.py`:**
+```python
+elif message_type == "workflow_transition":
+    transition_data = data.get("data", {})
+    new_workflow = transition_data.get("new_workflow")
+    
+    # Validate workflow exists
+    workflow_loader = WorkflowLoader()
+    if not workflow_loader.workflow_exists(new_workflow):
+        await self._send_error(websocket, f"Unknown workflow: {new_workflow}")
+        return
+    
+    # Get current workflow for context
+    current_workflow = session.conversation.workflow
+    
+    # Don't transition if already in target workflow
+    if current_workflow == new_workflow:
+        logger.info(f"[WORKFLOW] Already in {new_workflow}, skipping transition")
+        return
+    
+    # Send transition announcement to current workflow
+    if transition_data.get("user_initiated"):
+        transition_msg = f"User requested transition to {new_workflow} workflow"
+    else:
+        transition_msg = f"System requested transition to {new_workflow} workflow"
+    
+    # Let current workflow say goodbye
+    await self.message_processor.process_message(
+        session=session,
+        message=transition_msg,
+        sender="system"
+    )
+    
+    # Update the workflow
+    success = self.session_manager.update_workflow(conversation_id, new_workflow)
+    if not success:
+        await self._send_error(websocket, "Failed to update workflow")
+        return
+    
+    # Let new workflow say hello
+    arrival_msg = f"Transitioned from {current_workflow} workflow"
+    await self.message_processor.process_message(
+        session=session,
+        message=arrival_msg,
+        sender="system"
+    )
+    
+    # Notify frontend of successful transition
+    await websocket.send_json({
+        "type": "workflow_updated",
+        "data": {
+            "workflow": new_workflow,
+            "previous": current_workflow
+        }
+    })
+```
+
 ### Other Use Cases This Enables
 
 1. **Crisis Detection**
@@ -351,10 +481,11 @@ CJ: [Responds with order data, no re-introduction needed]
    Response: "I've detected an urgent situation with your [metric]. Let me help you address this immediately."
    ```
 
-2. **User Request**
-   ```yaml
-   Pattern: "User requested workflow: [workflow_name]"
-   Response: "Switching to [workflow_name] mode as requested."
+2. **Natural Language Requests**
+   ```python
+   # In message processing, detect workflow requests
+   if "show me daily metrics" in message.lower():
+       # Trigger transition to daily_briefing
    ```
 
 3. **Scheduled Transitions**
@@ -365,22 +496,46 @@ CJ: [Responds with order data, no re-introduction needed]
 
 ## Summary
 
-Phase 4.6 now includes both system event handling and workflow transitions:
+Phase 4.6 now includes comprehensive system event handling and workflow transitions:
 
-1. **System Events**: 10 minutes (YAML editing) ✅
-2. **Workflow Transitions**: 40 minutes (YAML + minimal code)
-3. **Total Time**: ~50 minutes
-4. **Code Changes**: < 30 lines
-5. **Benefits**: Natural workflow switching with full transparency
+### Components
 
-The implementation maintains our principle of prompt transparency - all transition behavior is visible in the workflow YAMLs, with minimal supporting code to update the session state.
+1. **System Events** (30 minutes) ✅
+   - OAuth completion responses
+   - Error handling patterns
+   - Future event placeholders
+
+2. **Workflow Transitions** (90 minutes total)
+   
+   **2a. Already-Authenticated Detection** (40 minutes)
+   - Auto-transition from onboarding → ad_hoc_support
+   - Natural acknowledgment of existing session
+   - Smooth user experience for returning users
+   
+   **2b. General Workflow Transitions** (50 minutes)
+   - User-initiated transitions via UI or query string
+   - System-initiated transitions (crisis, scheduling)
+   - Natural departure/arrival acknowledgments
+   - Frontend workflow selector integration
+
+### Total Implementation
+
+- **Time**: ~2 hours
+- **Code Changes**: < 100 lines total
+- **YAML Changes**: Add patterns to all workflows
+- **Benefits**: Complete workflow flexibility with full transparency
+
+The implementation maintains our principle of prompt transparency - all transition behavior is visible in the workflow YAMLs, with minimal supporting code to handle the mechanics.
 
 ## Success Criteria
 
 - [x] CJ responds naturally to OAuth completion
 - [x] No code complexity added for basic events
 - [x] Full prompt transparency maintained
-- [ ] Workflow transitions work smoothly
-- [ ] Already-authenticated users skip onboarding
+- [ ] Already-authenticated users skip onboarding automatically
+- [ ] User can change workflows via UI/query string
+- [ ] CJ acknowledges all transitions naturally
+- [ ] Workflow context preserved during transitions
+- [ ] Frontend updates to reflect current workflow
 - [x] Easy to extend with new events
 - [x] Developers can understand behavior by reading YAML

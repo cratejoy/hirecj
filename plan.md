@@ -411,14 +411,18 @@ For "New Shopify merchant authenticated from [store]":
 
 **2. Workflow Transitions** 🔄
 ```yaml
-# Transition trigger in shopify_onboarding.yaml
+# A. Already-authenticated detection (shopify_onboarding.yaml)
 For "Existing session detected: [shop] with workflow transition to [new_workflow]":
 - Respond: "Welcome back! I see you're already connected to [shop]."
 - Then: "I'll switch to support mode so I can help you right away."
 
-# Receiving workflow acknowledgment in ad_hoc_support.yaml  
+# B. User-initiated transitions (all workflows)
+For "User requested transition to [new_workflow] workflow":
+- Response: [Workflow-specific acknowledgment and goodbye]
+
+# C. Arrival acknowledgment (all workflows)  
 For "Transitioned from [previous_workflow] workflow":
-- Continue naturally without re-introduction
+- Response: [Workflow-specific welcome without re-introduction]
 ```
 
 **Deliverables:**
@@ -428,11 +432,22 @@ For "Transitioned from [previous_workflow] workflow":
 - [x] Error handling patterns
 - [x] Future event placeholders
 
-**2. Workflow Transitions** *(40 minutes)*
-- [ ] Add transition patterns to workflow YAMLs
+**2. Workflow Transitions** *(90 minutes total)*
+
+**2a. Already-Authenticated Detection** *(40 minutes)*
+- [ ] Add transition patterns to shopify_onboarding.yaml
+- [ ] Add arrival pattern to ad_hoc_support.yaml
 - [ ] Implement `update_workflow()` in session_manager
-- [ ] Add already-authenticated detection in web_platform
-- [ ] Test workflow transitions maintain context
+- [ ] Add authenticated detection in web_platform
+- [ ] Test smooth transition from onboarding → ad_hoc
+
+**2b. General Workflow Transitions** *(50 minutes)*
+- [ ] Add user-initiated transition patterns to ALL workflows
+- [ ] Add arrival patterns to ALL workflows
+- [ ] Frontend: Add workflow dropdown/selector
+- [ ] Frontend: Handle query string workflow changes
+- [ ] Backend: Add workflow_transition message handler
+- [ ] Test transitions between various workflows
 
 **Benefits:**
 - ✅ **Transparent**: All behavior visible in workflow YAML
@@ -442,12 +457,14 @@ For "Transitioned from [previous_workflow] workflow":
 - ✅ **Extensible**: Easy to add new transition triggers
 
 **Use Cases Enabled:**
-- Already authenticated → Skip onboarding
+- Already authenticated → Skip onboarding automatically
+- User selects workflow → Smooth transition with acknowledgment
 - Crisis detected → Switch to crisis_response
 - "Show me metrics" → Switch to daily_briefing
 - Support spike → Focus on urgent tickets
+- Query string changes → Workflow follows URL
 
-**Timeline: 70 minutes total**
+**Timeline: 2 hours total** (System events: 30min + Transitions: 90min)
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.6-system-events.md)**
 
