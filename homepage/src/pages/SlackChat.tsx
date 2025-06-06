@@ -187,6 +187,42 @@ const SlackChat = () => {
 	const isTyping = isRealChat ? wsChat.isTyping : demoChat.isTyping;
 	const handleSendMessage = isRealChat ? wsChat.sendMessage : demoChat.handleSendMessage;
 	
+	// Handle workflow change elegantly - preserve context
+	const handleWorkflowChange = useCallback((newWorkflow: typeof VALID_WORKFLOWS[number]) => {
+		// Don't change if already in target workflow
+		if (newWorkflow === chatConfig.workflow) {
+			return;
+		}
+		
+		// Keep same conversation, just transition workflows
+		if (wsChat.isConnected) {
+			// Send transition request to backend
+			wsChat.sendWorkflowTransition(newWorkflow);
+			
+			// Update local state ONLY - keep same conversationId
+			setChatConfig(prev => ({ 
+				...prev, 
+				workflow: newWorkflow
+				// NO conversationId change! Context preserved by backend
+			}));
+		} else {
+			// Only if not connected, update config for next connection
+			setChatConfig(prev => ({ 
+				...prev, 
+				workflow: newWorkflow
+			}));
+		}
+	}, [chatConfig.workflow, wsChat]);
+	
+	// Watch for URL parameter changes (e.g., user navigates with browser back/forward)
+	useEffect(() => {
+		const params = new URLSearchParams(searchString);
+		const urlWorkflow = params.get('workflow');
+		if (urlWorkflow && VALID_WORKFLOWS.includes(urlWorkflow as any) && urlWorkflow !== chatConfig.workflow) {
+			handleWorkflowChange(urlWorkflow as typeof VALID_WORKFLOWS[number]);
+		}
+	}, [searchString, chatConfig.workflow, handleWorkflowChange]);
+	
 	// Add OAuth callback handling
 	const handleOAuthSuccess = useCallback((params: any) => {
 		console.log('[SlackChat] OAuth success:', params);
@@ -498,16 +534,7 @@ const SlackChat = () => {
 							value={chatConfig.workflow || DEFAULT_WORKFLOW}
 							onChange={(e) => {
 								const newWorkflow = e.target.value as typeof VALID_WORKFLOWS[number];
-								// End current conversation if connected
-								if (wsChat.isConnected) {
-									wsChat.endConversation();
-								}
-								// Start new conversation with new workflow
-								setChatConfig(prev => ({ 
-									...prev, 
-									workflow: newWorkflow,
-									conversationId: uuidv4() // New conversation for new workflow
-								}));
+								handleWorkflowChange(newWorkflow);
 							}}
 							className="bg-gray-700 text-white text-sm px-3 py-1 rounded border border-gray-600 focus:border-blue-400 focus:outline-none hover:bg-gray-600 transition-colors"
 						>

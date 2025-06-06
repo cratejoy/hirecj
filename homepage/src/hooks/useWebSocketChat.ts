@@ -35,7 +35,7 @@ interface Progress {
 }
 
 interface WebSocketMessage {
-  type: 'system' | 'cj_thinking' | 'cj_message' | 'error' | 'fact_check_status' | 'oauth_complete' | 'conversation_started' | 'oauth_processed';
+  type: 'system' | 'cj_thinking' | 'cj_message' | 'error' | 'fact_check_status' | 'oauth_complete' | 'conversation_started' | 'oauth_processed' | 'workflow_updated' | 'debug_response' | 'debug_event';
   message?: string;
   text?: string;
   progress?: Progress;
@@ -262,6 +262,15 @@ export function useWebSocketChat({
           
         case 'conversation_started':
           wsLogger.info('Conversation started', data.data);
+          break;
+          
+        case 'workflow_updated':
+          const { workflow: updatedWorkflow, previous } = data.data;
+          wsLogger.info('Workflow updated by backend', { 
+            from: previous, 
+            to: updatedWorkflow 
+          });
+          // Optionally could trigger UI updates here
           break;
         
         case 'debug_response':
@@ -624,12 +633,30 @@ export function useWebSocketChat({
       retryCount: 0
     });
   }, []);
+  
+  // Send workflow transition request
+  const sendWorkflowTransition = useCallback((newWorkflow: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      const message = JSON.stringify({
+        type: 'workflow_transition',
+        data: {
+          new_workflow: newWorkflow,
+          user_initiated: true
+        }
+      });
+      wsRef.current.send(message);
+      wsLogger.info('📤 Sent workflow transition request', { newWorkflow });
+    } else {
+      wsLogger.warn('Cannot send workflow transition - WebSocket not connected');
+    }
+  }, []);
 
   return {
     messages: state.messages,
     sendMessage,
     sendFactCheck,
     sendSpecialMessage,
+    sendWorkflowTransition,
     isConnected: state.connectionState === 'connected',
     connectionState: state.connectionState,
     isTyping: state.isTyping,
