@@ -32,8 +32,9 @@ SERVICE_VARS = {
             "REDIS_URL",
             
             # Security
-            "SECRET_KEY", "JWT_SECRET_KEY", "JWT_ALGORITHM", "JWT_EXPIRATION_MINUTES",
-            "CREDENTIALS_ENCRYPTION_KEY",
+            "SECRET_KEY", "JWT_SECRET_KEY", "JWT_SECRET", "JWT_ALGORITHM", 
+            "JWT_EXPIRATION_MINUTES", "JWT_EXPIRATION_HOURS",
+            "CREDENTIALS_ENCRYPTION_KEY", "ENCRYPTION_KEY",
             
             # OAuth credentials
             "SHOPIFY_CLIENT_ID", "SHOPIFY_CLIENT_SECRET", "SHOPIFY_SCOPES",
@@ -43,6 +44,10 @@ SERVICE_VARS = {
             
             # URLs for OAuth callbacks
             "FRONTEND_URL", "BACKEND_URL", "HOMEPAGE_URL", "OAUTH_REDIRECT_BASE_URL",
+            "FRONTEND_SUCCESS_PATH", "FRONTEND_ERROR_PATH",
+            
+            # App Host
+            "APP_HOST",
             
             # Service URLs for API calls
             "AGENTS_SERVICE_URL", "DATABASE_SERVICE_URL",
@@ -73,6 +78,12 @@ SERVICE_VARS = {
             # Databases
             "SUPABASE_CONNECTION_STRING",
             "IDENTITY_SUPABASE_URL", "IDENTITY_SUPABASE_ANON_KEY",
+            
+            # Freshdesk
+            "FRESHDESK_API_KEY", "FRESHDESK_DOMAIN",
+            
+            # Shopify API
+            "SHOPIFY_API_TOKEN", "SHOPIFY_SHOP_DOMAIN",
             
             # Service URLs
             "AUTH_SERVICE_URL", "DATABASE_SERVICE_URL",
