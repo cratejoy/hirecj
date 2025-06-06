@@ -97,6 +97,7 @@ export function useWebSocketChat({
   const onErrorRef = useRef(onError);
   const lastMessageTimeRef = useRef<number>(0);
   const sendTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const workflowRef = useRef(workflow);
   
   // Use environment variable with fallback to backend default port
   const WS_BASE_URL = useMemo(() => {
@@ -127,6 +128,11 @@ export function useWebSocketChat({
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
+  
+  // Keep workflow ref updated
+  useEffect(() => {
+    workflowRef.current = workflow;
+  }, [workflow]);
 
   // Create a stable connection key
   const connectionKey = useMemo(
@@ -421,11 +427,12 @@ export function useWebSocketChat({
       }));
       
       // Send start_conversation message
+      const currentWorkflow = workflowRef.current;
       const startData = {
         conversation_id: conversationId,
-        merchant_id: merchantId || ((workflow === 'shopify_onboarding' || workflow === 'support_daily') ? 'onboarding_user' : null),
-        scenario: scenario || ((workflow === 'shopify_onboarding' || workflow === 'support_daily') ? 'onboarding' : null),
-        workflow: workflow,
+        merchant_id: merchantId || ((currentWorkflow === 'shopify_onboarding' || currentWorkflow === 'support_daily') ? 'onboarding_user' : null),
+        scenario: scenario || ((currentWorkflow === 'shopify_onboarding' || currentWorkflow === 'support_daily') ? 'onboarding' : null),
+        workflow: currentWorkflow,
       };
       
       const startMessage = JSON.stringify({
@@ -503,7 +510,7 @@ export function useWebSocketChat({
         return prev;
       });
     };
-  }, [connectionKey, conversationId, merchantId, scenario, workflow, WS_BASE_URL, handleMessage, flushMessageQueue]); // Removed state.connectionState to prevent circular dependency
+  }, [connectionKey, conversationId, merchantId, scenario, WS_BASE_URL, handleMessage, flushMessageQueue]); // Removed workflow to prevent reconnection on workflow change
 
   // Effect to manage connection lifecycle
   useEffect(() => {
