@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/logger';
 import { FactCheckButton } from './FactCheckButton';
 import { FactCheckModal } from './FactCheckModal';
+import { MessageContent } from './MessageContent';
 import { useFactCheck } from '@/hooks/useFactCheck';
 
 const chatLogger = logger.child('chat');
@@ -29,6 +30,12 @@ interface Message {
 		factCheckAvailable?: boolean;
 		isThinking?: boolean;
 	};
+	ui_elements?: Array<{
+		id: string;
+		type: string;
+		provider: string;
+		placeholder: string;
+	}>;
 }
 
 interface Progress {
@@ -76,7 +83,7 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 			const fetchAnnotations = async () => {
 				setIsLoadingAnnotations(true);
 				try {
-					const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || '';
+					const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 					const response = await fetch(`${BACKEND_URL}/api/v1/conversations/${conversationId}`);
 
 					if (response.ok) {
@@ -282,6 +289,13 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 										<p className="text-sm italic opacity-75">
 											{message.content}
 										</p>
+									) : message.sender === 'cj' ? (
+										<MessageContent
+											content={message.content}
+											conversationId={conversationId}
+											isThinking={message.metadata?.isThinking}
+											ui_elements={message.ui_elements}
+										/>
 									) : (
 										<div className="text-sm prose prose-sm max-w-none prose-invert">
 											<ReactMarkdown 
@@ -376,7 +390,7 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 																onClick={async () => {
 																	if (messageIndex !== undefined) {
 																		try {
-																			const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || '';
+																			const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 																			const response = await fetch(
 																				`${BACKEND_URL}/api/v1/conversations/${conversationId}/annotations/${messageIndex}`,
 																				{ method: 'DELETE' }
@@ -524,7 +538,7 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 											throw new Error('Message index not available');
 										}
 
-										const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || '';
+										const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 										const response = await fetch(
 											`${BACKEND_URL}/api/v1/conversations/${conversationId}/annotations/${annotationModal.messageIndex}`,
 											{

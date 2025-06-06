@@ -6,7 +6,6 @@ import uuid
 
 from app.models import Conversation, ConversationState
 from app.agents.universe_data_agent import UniverseDataAgent
-from app.services.merchant_memory import MerchantMemory, MerchantMemoryService
 from app.logging_config import get_logger
 from app.config import settings
 
@@ -22,14 +21,14 @@ class Session:
         data_agent: Optional[UniverseDataAgent] = None,
         merchant_name: Optional[str] = None,
         scenario_name: Optional[str] = None,
-        merchant_memory: Optional[MerchantMemory] = None,
+        user_id: Optional[str] = None,
     ):
         self.id = str(uuid.uuid4())
         self.conversation = conversation
         self.data_agent = data_agent
         self.merchant_name = merchant_name or conversation.merchant_name
         self.scenario_name = scenario_name or conversation.scenario_name
-        self.merchant_memory = merchant_memory
+        self.user_id = user_id
         self.created_at = datetime.utcnow()
         self.last_activity = datetime.utcnow()
         self.is_active = True
@@ -51,6 +50,7 @@ class SessionManager:
         merchant_name: str,
         scenario_name: str,
         workflow_name: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> Session:
         """Create a new session."""
         conversation = Conversation(
@@ -77,31 +77,12 @@ class SessionManager:
                 logger.error(f"Failed to load universe for {merchant_name}/{scenario_name}: {e}")
                 raise
 
-        # Load merchant memory (always - even new merchants get empty memory)
-        # Memory is merchant-specific and accumulates across ALL conversations,
-        # regardless of scenario. This is different from universe data which is
-        # scenario-specific and optional.
-        memory_service = MerchantMemoryService()
-        logger.info(f"[MEMORY] Loading memory for merchant: {merchant_name}")
-        merchant_memory = memory_service.load_memory(merchant_name)
-        
-        # Log memory stats
-        fact_count = len(merchant_memory.facts) if merchant_memory else 0
-        if fact_count > 0:
-            logger.info(f"[MEMORY] Loaded {fact_count} facts for {merchant_name}")
-            # Log first few facts as examples
-            sample_facts = merchant_memory.get_recent_facts(3)
-            for i, fact in enumerate(sample_facts, 1):
-                logger.debug(f"[MEMORY] Sample fact {i}: {fact[:100]}...")
-        else:
-            logger.info(f"[MEMORY] No existing facts for {merchant_name} (new merchant or empty memory)")
-
         session = Session(
             conversation, 
             data_agent, 
             merchant_name, 
             scenario_name,
-            merchant_memory=merchant_memory
+            user_id=user_id
         )
         self._sessions[session.id] = session
         logger.info(f"Created session {session.id}")

@@ -3,6 +3,12 @@ description: "Natural onboarding flow for all new conversations"
 version: "1.0.0"
 active: true
 
+# Enable UI components for this workflow
+ui_components:
+  enabled: true
+  components:
+    - oauth
+
 # IMPORTANT: Workflows define WHAT happens, not HOW to communicate
 # - Define milestones, data to pull, topics to cover
 # - DO NOT include tone, style, or personality instructions
@@ -32,11 +38,19 @@ workflow: |
      - Explain value proposition clearly
      - Emphasize read-only, no changes
      - Mention unpublished app status
-     - Present OAuth button when ready
+     - When ready, insert OAuth button with: {{oauth:shopify}}
+     - Continue conversation after button
+     
+     EXAMPLE:
+     "I'll need read-only access to your Shopify store to analyze your support patterns.
+
+     {{oauth:shopify}}
+
+     Once connected, I'll be able to show you insights about your customers."
      
      FOR RETURNING USERS:
      - Welcome back message
-     - Quick re-authentication
+     - Quick re-authentication with {{oauth:shopify}}
      - Skip lengthy explanations
      - Get them logged in fast
      

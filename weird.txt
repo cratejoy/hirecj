@@ -1,0 +1,43 @@
+CJ
+CJ - v6.0.1
+3:10 PM
+"Greetings! I'm CJ, your dedicated AI-powered Customer Experience Officer. My job is to help handle your support operations and transform your support data into actionable strategies. I'm currently in beta, so while I offer robust aid to you, there might be areas that are still being enhanced. By chance, have we had the pleasure of collaborating before?"
+
+
+Helpful
+
+Not helpful
+
+
+
+------------
+
+
+Helpful
+
+Not helpful
+
+Fact Check
+Y
+You
+3:10 PM
+Im amir shopify me
+
+CJ
+CJ - v6.0.1
+3:10 PM
+
+Helpful
+
+Not helpful
+
+Fact Check
+Y
+You
+3:11 PM
+uh shopify
+
+CJ
+CJ - v6.0.1
+3:11 PM
+Hi Amir! To ensure I can assist you effectively, it's essential that I connect to your Shopify store. Don't worry! This process is entirely safe and requires only read-only access, meaning I can't make any changes, only analyze. Let's proceed with connecting

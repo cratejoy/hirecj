@@ -6,7 +6,6 @@ from app.models import ConversationState
 from app.model_config.simple_config import get_model, get_provider, ModelPurpose
 from app.logging_config import get_logger
 from app.config import settings
-from app.services.merchant_memory import MerchantMemory
 from app.agents.universe_data_agent import UniverseDataAgent
 
 logger = get_logger(__name__)
@@ -49,7 +48,7 @@ class CJAgent:
 
         # Extract common parameters
         self.data_agent: Optional[UniverseDataAgent] = kwargs.pop("data_agent", None)
-        self.merchant_memory: Optional[MerchantMemory] = kwargs.pop("merchant_memory", None)
+        self.user_id: Optional[str] = kwargs.pop("user_id", None)
         self.workflow_name = kwargs.pop("workflow_name", None)
         self.conversation_state = kwargs.pop("conversation_state", None)
         self.scenario_context = kwargs.pop("scenario_context", "")
@@ -57,8 +56,9 @@ class CJAgent:
         self.oauth_metadata = kwargs.pop("oauth_metadata", None)
 
         # Log memory status
-        if self.merchant_memory:
-            fact_count = len(self.merchant_memory.facts) if hasattr(self.merchant_memory, 'facts') else 0
+        if self.user_id:
+            # Facts will be loaded when needed
+            fact_count = 0  # We'll get actual count when we load facts
             logger.info(f"[CJ_AGENT] Initialized with {fact_count} merchant memory facts")
         else:
             logger.info(f"[CJ_AGENT] Initialized without merchant memory")
@@ -238,8 +238,12 @@ class CJAgent:
             backstory += universe_info
 
         # Add merchant memory facts if available
-        if self.merchant_memory and hasattr(self.merchant_memory, 'get_recent_facts'):
-            facts = self.merchant_memory.get_recent_facts(20)  # Get up to 20 most recent facts
+        if self.user_id:
+            # Get facts from user_identity
+            from shared.user_identity import get_user_facts
+            all_facts = get_user_facts(self.user_id)
+            # Get up to 20 most recent facts
+            facts = [f['fact'] for f in all_facts[-20:]]
             if facts:
                 logger.info(f"[CJ_AGENT] [MEMORY] Injecting {len(facts)} facts into context for {self.merchant_name}")
                 memory_context = "\n\nThings I know about this merchant from previous conversations:\n"
@@ -317,7 +321,7 @@ def create_cj_agent(
     workflow_name: Optional[str] = None,
     conversation_state: Optional[ConversationState] = None,
     data_agent: Optional[UniverseDataAgent] = None,
-    merchant_memory: Optional[MerchantMemory] = None,
+    user_id: Optional[str] = None,
     oauth_metadata: Optional[Dict[str, Any]] = None,
     scenario_context: str = "",
     verbose: bool = True,
@@ -334,7 +338,7 @@ def create_cj_agent(
         workflow_name: Optional workflow name (e.g., "daily_briefing")
         conversation_state: Optional conversation state with history
         data_agent: Optional data agent for tools (UniverseDataAgent or other)
-        merchant_memory: Optional merchant memory with accumulated facts
+        user_id: Optional user ID for loading facts from database
         oauth_metadata: Optional OAuth metadata dict with authentication info
         scenario_context: Optional additional scenario context
         verbose: Enable verbose output (default: True)
@@ -352,7 +356,7 @@ def create_cj_agent(
         workflow_name=workflow_name,
         conversation_state=conversation_state,
         data_agent=data_agent,
-        merchant_memory=merchant_memory,
+        user_id=user_id,
         oauth_metadata=oauth_metadata,
         scenario_context=scenario_context,
         verbose=verbose,

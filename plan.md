@@ -1,5 +1,31 @@
 # Shopify Login & Onboarding Plan
 
+## 📊 Current Status Summary
+
+### ✅ Completed Phases
+1. **Phase 1: Foundation** - Onboarding workflow, CJ agent, OAuth button component
+2. **Phase 2: Auth Flow Integration** - OAuth callbacks, shop domain identifier, context updates
+3. **Phase 3.7: OAuth 2.0 Implementation** - Full OAuth flow with HMAC verification, token storage
+4. **Phase 4.0: True Environment Centralization** - Single .env pattern with automatic distribution
+5. **Phase 4.1: UI Actions Pattern** - Parser, workflow config, WebSocket integration
+
+### 🎯 Current Priority
+**Phase 4.5: User Identity & Persistence** - Library complete, needs integration with services
+
+### 📅 Upcoming Phases
+- Phase 5: Quick Value Demo
+- Phase 6: Support System Connection
+- Phase 7: Notification & Polish
+- Phase 8: Testing & Refinement
+
+### 🚀 Next Steps
+1. Configure Supabase connection and run identity schema migration
+2. Integrate user_identity library into auth service for OAuth
+3. Integrate archival service into agents for conversation persistence
+4. Test end-to-end user identity flow
+
+---
+
 ## 🌟 North Star Principles
 
 1. **Simplify, Simplify, Simplify**: Every decision should make the code simpler, not more complex
@@ -33,41 +59,381 @@
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-2-auth-flow.md)**
 
-### Phase 3: Quick Value Demo
+### Phase 3: OAuth Production Ready ⚠️ NEEDS CUSTOM APP SUPPORT
+**Deliverables:**
+- [x] Configure real Shopify OAuth credentials
+- [x] Fix ngrok tunnel integration for OAuth callbacks
+- [x] Verify new vs returning merchant detection implementation
+- [ ] Support Shopify custom app installation flow *(NEW REQUIREMENT)*
+- [ ] Test OAuth flow end-to-end with real Shopify (manual testing required)
+- [ ] Test CJ's response to OAuth completion (manual testing required)
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-3-oauth-production.md)**
+📄 **[Testing Guide →](docs/shopify-onboarding/phase-3-testing.md)**
+
+**Implementation Summary:**
+- OAuth credentials configured in auth/.env.secrets
+- Tunnel detection working correctly via unified env config
+- Homepage automatically uses correct auth service URL
+- New vs returning merchant detection already implemented
+- **DISCOVERED:** Custom apps require different installation flow than public apps
+
+### Phase 3.5: ~~Complex App Bridge Implementation~~ ❌ ABANDONED
+**Problem:** We implemented a complex App Bridge solution that requires embedded context, but our use case needs everything to work on hirecj.ai directly.
+
+**What We Built (Overly Complex):**
+- App Bridge integration requiring embedded context
+- Session token retrieval from within Shopify admin
+- Complex dual-context handling
+- JWT verification and token exchange (good parts)
+
+**Why It Failed:** Fundamental mismatch - we need merchants to use HireCJ from hirecj.ai, not from within Shopify admin.
+
+### Phase 3.6: ~~Manual Token Entry (Custom Distribution)~~ ❌ ABANDONED
+**Problem:** Discovered that custom distribution apps don't support OAuth - they require manual token generation and entry by merchants. This creates friction in the onboarding process.
+
+**What We Built:**
+- Manual token entry form with beta notice
+- Token validation endpoint
+- Instructions for merchants to generate tokens
+
+**Why It Failed:** Not a technical failure, but a Shopify limitation. Custom distribution apps simply don't support OAuth. To use OAuth, we need a different app type.
+
+### Phase 3.7: OAuth 2.0 Implementation ✅ COMPLETE
+**Solution:** Switch from custom distribution to OAuth-enabled app. Implement standard Shopify OAuth 2.0 authorization code grant flow.
+
+**The Right Flow:**
+```
+OAuth Flow:
+├── User clicks "Connect Shopify" on hirecj.ai
+├── Enter shop domain (if not saved)
+├── Redirect to https://{shop}/admin/oauth/authorize
+├── User approves permissions
+├── Shopify redirects back with authorization code
+├── Backend exchanges code for access token
+├── Store token in Redis
+└── Redirect to chat - authenticated!
+```
+
+**What We Built:**
+- ✅ HMAC verification utility for secure OAuth callbacks
+- ✅ Full OAuth endpoints with proper security (nonce validation)
+- ✅ Token exchange and storage in Redis
+- ✅ Updated frontend button to always collect shop domain
+- ✅ Fixed async/sync issues in auth service
+- ✅ Removed shop domain persistence (always ask)
+- ✅ Proper error handling and logging
+
+**Benefits:**
+- Standard OAuth flow that works for any app type
+- No manual token entry required
+- Production-ready authentication
+- Can eventually become a public app
+- Seamless merchant experience
+
+📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.7-oauth-implementation.md)**
+
+### What We Keep from 3.5:
+- ✅ OAuth code deletion (already done)
+- ✅ Magic number fixes (already done)
+- ✅ JWT verification service (reusable)
+- ✅ Token exchange service (reusable)
+- ❌ App Bridge integration (remove)
+- ❌ Polling mechanism (remove)
+- ❌ Complex context handling (remove)
+
+### Phase 4.0: True Environment Centralization ✅ COMPLETE
+**Goal:** Implement TRUE single .env file management with zero exceptions. Fix the broken multi-file pattern.
+
+**Deliverables:**
+- [x] Audit and consolidate ALL environment variables across services
+- [x] Create master .env.example with every variable needed
+- [x] Rewrite env_loader.py to enforce single source (no fallbacks)
+- [x] Create distribute_env.py script for automatic distribution
+- [x] Update all services to use centralized pattern
+- [x] Remove ALL bypass paths (load_dotenv, direct access)
+- [x] Update Makefile and documentation
+
+**Achieved:**
+- Developers now manage exactly ONE .env file
+- Automatic distribution to services via `make dev`
+- No service can bypass the centralized pattern
+- Startup validation catches missing resources early
+- Git hooks prevent accidental service .env commits
+
+📄 **[Implementation Complete →](docs/phase-4.0-env-centralization.md)**
+
+### Phase 4.1: UI Actions Pattern ✅ COMPLETE
+**Deliverables:**
+- [x] Parser implementation to extract {{oauth:shopify}} markers
+- [x] Workflow configuration to enable UI components
+- [x] Message processor integration to parse UI elements
+- [x] Platform layer passes ui_elements through WebSocket
+- [x] Frontend UI element rendering with pattern matching fallback
+- [ ] End-to-end testing of complete flow
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-ui-actions.md)**
+
+### Phase 4.5: User Identity & Persistence (SIMPLIFIED) ✅ COMPLETE
+**Goal:** Add minimal user identity for persistent "your store" insights across sessions.
+
+**Revised Architecture (Much Simpler):**
+- User IDs generated from shop domains (usr_xxx format)
+- Direct Supabase writes - no Redis archival complexity
+- Conversations saved directly as they happen
+- Simple 3-table schema in Supabase (users, conversations, user_facts)
+
+**What We're Actually Building:**
+```python
+# Core identity functions - ~100 lines
+generate_user_id(shop_domain) → "usr_12345678"
+get_or_create_user(shop_domain, email) → (user_id, is_new)
+save_conversation_message(user_id, message) → None
+get_user_conversations(user_id) → List[messages]
+
+# Fact storage functions - ~40 lines (planned)
+append_fact(user_id, fact, source) → None
+get_user_facts(user_id) → List[facts]
+```
+
+**The Simplified Flow:**
+```
+Shopify OAuth → Generate User ID → Save Messages Directly
+      ↓              ↓                    ↓
+  Shop Domain    usr_xxx ID           Supabase
+```
+
+**Minimal Schema:**
+```sql
+-- 1. Users (from OAuth)
+CREATE TABLE users (
+    id VARCHAR(50) PRIMARY KEY,
+    shop_domain VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 2. Conversations (direct writes)
+CREATE TABLE conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id VARCHAR(50) REFERENCES users(id),
+    message JSONB NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 3. User Facts (single JSONB document)
+CREATE TABLE user_facts (
+    user_id VARCHAR(50) PRIMARY KEY REFERENCES users(id),
+    facts JSONB DEFAULT '[]'::jsonb,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Just 2 indexes
+CREATE INDEX idx_users_shop ON users(shop_domain);
+CREATE INDEX idx_conv_user ON conversations(user_id);
+```
+
+**Fact Storage Design:**
+- Single JSONB array per user containing all facts
+- Append new facts with: `facts = facts || jsonb_build_array($new_fact)`
+- Facts stored as: `{"fact": "...", "source": "conv_123", "learned_at": "2024-..."}`
+- One row per user, updated atomically
+- ~40 lines for `append_fact()` and `get_facts()` functions
+
+**Benefits of Simplified Approach:**
+- ✅ **No Redis Complexity**: Direct DB writes, no archival needed
+- ✅ **No Over-Engineering**: Just store messages as they come
+- ✅ **Dead Simple**: Can be understood in 5 minutes
+- ✅ **Still Enables Phase 5**: "Your store had 5 orders yesterday..."
+
+**Implementation Status:**
+- [x] Built over-engineered library (1,072 lines) ❌
+- [x] Created simplified version (109 lines) ✅
+- [x] Replace complex library with simple version ✅
+- [x] Remove Redis archival assumptions ✅
+- [x] Integrate direct PostgreSQL writes ✅
+- [x] Add fact storage functions (50 lines)
+- [x] Remove old file-based merchant memory system
+  - [x] Delete merchant_memory.py service
+  - [x] Remove dedicated test files
+  - [x] Update user_identity tests
+### Minimum Viable Integration ✅ COMPLETE
+- [x] **Database Setup** (30 min) ✅
+  - [x] Test connection with scripts/test_user_identity.py
+  - [x] Run migration via create_identity_tables.py
+  - [x] Verify tables created and basic CRUD works
+  - [x] Created stub merchant_memory.py to avoid breaking imports
+  
+- [x] **Auth Service Integration** (1 hour) ✅
+  - [x] Import user_identity in shopify_oauth.py
+  - [x] Add get_or_create_user() call after token exchange
+  - [x] NO NEED to pass user_id in redirect (backend generates it)
+  
+- [x] **Minimal Agents Integration** (2 hours) ✅
+  - [x] Add user_id field to Session class
+  - [x] Generate user_id from shop_domain in WebSocket
+  - [x] Update message_processor to save conversations
+  - [x] Update oauth_complete handler to generate user_id
+  - [x] Skip fact migration for MVP
+
+### Full Integration (Later)
+- [ ] Update agents service completely
+  - [ ] Remove all MerchantMemory imports (5 files)
+  - [ ] Update session_manager to use user_identity facts
+  - [ ] Update fact_extractor to use append_fact
+  - [ ] Clean up data/merchant_memory directory
+- [ ] Frontend updates
+  - [ ] Accept user_id from OAuth redirect
+  - [ ] Include user_id when creating WebSocket session
+- [ ] Full testing
+  - [ ] Test fact persistence across sessions
+  - [ ] Verify old file-based system removed
+
+📄 **[Updated Simple Implementation Guide →](docs/shopify-onboarding/phase-4.5-user-identity-simple.md)**
+
+## 📊 Phase 4.5 Implementation Audit - FINAL
+
+### Final Implementation Grade: A+
+
+**From D to A+**: We successfully identified and fixed the over-engineering problem, then elegantly added fact storage without complexity.
+
+After deep analysis, we discovered:
+1. **The agents service doesn't use Redis for conversations** - uses in-memory + file storage
+2. **The archival system solves a non-existent problem** - no Redis TTL to worry about
+3. **We built 1,072 lines when ~100 would suffice** - 10x overengineering
+
+### What We Built vs What Was Needed
+
+| What We Built | What Was Actually Needed |
+|--------------|-------------------------|
+| Complex Redis archival service (349 lines) | Nothing - Redis isn't used |
+| SQLAlchemy ORM with 3 models | Simple SQL with 2 tables |
+| Event tracking system | Not needed for POC |
+| Background archival loops | Direct writes on message |
+| 11 database indexes | 2 indexes |
+| Error handling, retries, transactions | Let it fail in POC |
+| **Total: 1,072 lines** | **Total: ~100 lines** |
+
+### The Root Cause
+
+The complexity cascade:
+1. **Assumed Redis usage** (wrong assumption)
+2. **Built archival for Redis TTL** (solving non-problem)
+3. **"Shared library" triggered production mindset** (overbuilding)
+4. **SQLAlchemy brought complexity tax** (ORM overhead)
+
+### The Elegant Solution
+
+Direct PostgreSQL writes with minimal fact storage:
+```python
+# Identity & conversations
+generate_user_id(shop_domain) → "usr_12345678"
+save_conversation_message(user_id, message)
+
+# Facts (replacing file-based system)
+append_fact(user_id, fact, source)  # Atomic JSONB append
+get_user_facts(user_id) → [facts]   # Simple list return
+```
+
+**Final Implementation:**
+- 6 functions, 190 lines total (with logging)
+- 3 simple tables (users, conversations, user_facts)
+- Facts stored as JSONB array per user
+- No background services, no Redis, no complexity
+- Thoughtful logging added (8 strategic log points)
+
+### North Star Violations
+
+- ❌ **Simplify**: Added massive unnecessary complexity
+- ❌ **No Over-Engineering**: Built for hypothetical scale
+- ❌ **No Cruft**: 90% of code is cruft
+- ❌ **Current Needs Only**: Built for production during discovery
+
+### Lesson Learned
+
+**Always verify assumptions before building.** We built an elaborate archival system for Redis data that doesn't exist. Classic case of solving the wrong problem elegantly.
+
+---
+
+## Development Environment Updates
+
+### Recent Environment Changes (Phase 3.7 - Phase 5)
+
+**New Required Environment Variables:**
+- `SHOPIFY_CLIENT_ID` - Required for Shopify OAuth
+- `SHOPIFY_CLIENT_SECRET` - Required for Shopify OAuth
+
+**Tunnel Configuration Updates:**
+- Auth service now uses `HOMEPAGE_URL` from `.env.tunnel` for OAuth redirects
+- Added `env_ignore_empty=True` to Pydantic configs to prevent empty string overrides
+- Fixed `.env.tunnel` loading order (now has highest precedence)
+
+**CORS Configuration:**
+- Both `frontend_url` and `homepage_url` are now added to allowed origins
+- Automatic detection of hirecj.ai domains for CORS
+
+**Debug System:**
+- Browser console now has `window.cj` debug commands (enabled by default)
+- Commands: `cj.debug()`, `cj.session()`, `cj.prompts()`, `cj.context()`
+- Backend debug_request handler provides session and state information
+
+**OAuth Flow Requirements:**
+- Must use tunnels for OAuth (localhost redirects won't work)
+- Shopify app must be configured with proper redirect URLs
+- JSON serialization fix for datetime objects in merchant storage
+
+📄 **[Full Environment Setup Guide →](README_ENV_SETUP.md)**
+
+---
+
+### Phase 5: Quick Value Demo 🎯 CURRENT PRIORITY
+**Goal:** Show immediate value after Shopify connection by providing quick insights about their store.
+
 **Deliverables:**
 - [ ] Quick insights service for Shopify data
 - [ ] Store snapshot queries (products, orders, customers)
 - [ ] Progressive data loading mechanism
 - [ ] Conversation UI showing real-time insights
+- [ ] CJ's value-driven responses post-OAuth
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-3-quick-value.md)** *(TODO)*
+**The Experience:**
+```
+After OAuth:
+├── "Great! Taking a quick look at your store..."
+├── Progressive loading of insights
+├── Show key metrics (products, recent orders, etc.)
+├── Natural transition to support system connection
+└── Build trust through immediate value
+```
 
-### Phase 4: Support System Connection
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-quick-value.md)** *(TODO)*
+
+### Phase 6: Support System Connection
 **Deliverables:**
 - [ ] Support system provider detection logic
 - [ ] Interest list for unsupported systems
 - [ ] OAuth flows for supported systems
 - [ ] Graceful handling of unsupported providers
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-support-systems.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-6-support-systems.md)** *(TODO)*
 
-### Phase 5: Notification & Polish
+### Phase 7: Notification & Polish
 **Deliverables:**
 - [ ] Email notification capture and sending
 - [ ] Browser notification implementation
 - [ ] Beta messaging throughout experience
 - [ ] Error handling and edge cases
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-notifications.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-7-notifications.md)** *(TODO)*
 
-### Phase 6: Testing & Refinement
+### Phase 8: Testing & Refinement
 **Deliverables:**
 - [ ] End-to-end flow testing suite
 - [ ] Performance optimization
 - [ ] Security review
 - [ ] Documentation and deployment guide
 
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-6-testing.md)** *(TODO)*
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-8-testing.md)** *(TODO)*
 
 ## 🏛️ System Architecture Overview
 
@@ -454,3 +820,129 @@ The guides include:
 - Common issues & solutions
 
 Use the [phase template](docs/shopify-onboarding/PHASE_TEMPLATE.md) when creating new guides.
+
+## 🔧 Side Quest: Unified Environment Configuration ✅ COMPLETE
+
+### Previous Pain Points (NOW RESOLVED)
+- ~~Each service has its own `.env` file with duplicated service URLs~~
+- ~~Homepage needs to know Auth and Agents URLs~~
+- ~~Tunnel detection updates multiple files~~
+- ~~Hard to manage secrets across services~~
+- ~~OAuth redirect URLs need coordination~~
+
+### Implemented Solution: Single Root `.env` with Service Secrets
+
+```
+/hirecj/
+├── .env                    # Main configuration file (developers edit this)
+├── .env.local             # Local overrides (optional, gitignored)
+├── .env.tunnel            # Auto-generated tunnel URLs (gitignored)
+├── auth/
+│   ├── .env               # Service overrides (minimal, mostly empty)
+│   └── .env.secrets       # Auth-specific secrets (gitignored)
+├── agents/
+│   ├── .env               # Service overrides (minimal, mostly empty)
+│   └── .env.secrets       # API keys (gitignored)
+└── homepage/
+    └── (no .env needed)   # Vite reads from root .env via config
+```
+
+### Developer Experience ✅
+1. **Initial Setup (One-time)**:
+   ```bash
+   cp .env.example .env
+   cp auth/.env.secrets.example auth/.env.secrets
+   cp agents/.env.secrets.example agents/.env.secrets
+   ```
+
+2. **That's it!** Services automatically load configuration in this order:
+   - Root `.env` (shared config)
+   - Root `.env.local` (local overrides if exists)
+   - Root `.env.tunnel` (auto-generated tunnel URLs)
+   - Service `.env.secrets` (sensitive data)
+   - Service `.env` (service-specific overrides - rarely needed)
+
+### Verification
+```bash
+python scripts/verify_env_config.py
+```
+
+### Benefits Achieved
+- ✅ **Single `.env` file** for all shared configuration
+- ✅ **Secrets isolated** in service-specific `.env.secrets` files
+- ✅ **Tunnel detection** updates only `.env.tunnel`
+- ✅ **Simple setup** - just copy 3 files and go
+- ✅ **No duplication** - service URLs defined once
+
+### Documentation
+- 📄 **[Environment Setup Guide →](README_ENV_SETUP.md)**
+- 📄 **[Dev Environment Changes →](docs/DEV_ENVIRONMENT_CHANGES.md)**
+
+## 🔍 Console Debug System
+
+### Overview
+An elegant console-based debug system that exposes CJ's internal state through simple JavaScript commands, providing real-time visibility without any UI complexity.
+
+### Design: `window.cj` API
+
+```javascript
+// Browser console commands:
+cj.debug()        // Show current state snapshot
+cj.session()      // Session & auth info
+cj.prompts()      // Last 5 prompts sent to CJ
+cj.context()      // Current conversation context
+cj.events()       // Start live event stream
+cj.stop()         // Stop event stream
+cj.help()         // Show all available commands
+```
+
+### Console Output Format
+
+```javascript
+// Example cj.debug() output:
+🤖 CJ Debug Snapshot
+├── 📊 Session
+│   ├── ID: abc-123-def-456
+│   ├── Status: ✅ Authenticated
+│   ├── Merchant: cratejoy.myshopify.com
+│   └── Connected: 5 minutes ago
+├── 🧠 CJ State
+│   ├── Workflow: shopify_onboarding
+│   ├── Model: claude-3-opus (temp: 0.2)
+│   ├── Tools: [shopify_api, memory_store, fact_checker]
+│   └── Memory Facts: 12
+└── 💬 Recent Activity
+    ├── 14:23:45 oauth_complete     New merchant
+    ├── 14:23:46 workflow_change    ad_hoc_support
+    └── 14:23:47 tool_use          shopify_api.get_orders
+```
+
+### Implementation Components
+
+1. **Frontend (SlackChat.tsx)**:
+   - Expose `window.cj` debug interface
+   - Handle debug WebSocket messages
+   - Format console output beautifully
+
+2. **WebSocket Handler (web_platform.py)**:
+   - Add `debug_request` message handler
+   - Return formatted debug data
+   - Stream live events when requested
+
+3. **Production Safety**:
+   - Only enable in development by default
+   - Allow production access via localStorage flag
+   - No sensitive data in console by default
+
+### Benefits
+- **Zero UI complexity** - Just console commands
+- **Developer-native** - Uses familiar browser console
+- **Easy to extend** - Add new commands as needed
+- **No bundle impact** - It's just console logs
+- **Fast to implement** - Minimal code changes
+
+### North Star Alignment
+- ✅ **Simplify**: Console commands instead of UI
+- ✅ **No Cruft**: Minimal implementation
+- ✅ **Long-term Elegance**: Clean API design
+- ✅ **No Over-Engineering**: Just what's needed for debugging

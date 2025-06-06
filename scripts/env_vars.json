@@ -1,0 +1,927 @@
+{
+  "18M": [
+    "homepage/src/components/Hero.tsx"
+  ],
+  "ACTION": [
+    "scripts/dev.sh"
+  ],
+  "ADDON_CLUSTER_CHART_VERSION": [
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh",
+    "third-party/LightRAG/k8s-deploy/databases/01-prepare.sh"
+  ],
+  "AGENTS_SERVICE_PORT": [
+    "agents/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "AGENTS_SERVICE_URL": [
+    "agents/app/config.py",
+    "auth/app/config.py",
+    "database/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "AGE_GRAPH_NAME": [
+    "third-party/LightRAG/examples/unofficial-sample/copy_llm_cache_to_another_storage.py"
+  ],
+  "AGE_POSTGRES_DB": [
+    "third-party/LightRAG/lightrag/kg/age_impl.py"
+  ],
+  "AGE_POSTGRES_HOST": [
+    "third-party/LightRAG/lightrag/kg/age_impl.py"
+  ],
+  "AGE_POSTGRES_PASSWORD": [
+    "third-party/LightRAG/lightrag/kg/age_impl.py"
+  ],
+  "AGE_POSTGRES_USER": [
+    "third-party/LightRAG/lightrag/kg/age_impl.py"
+  ],
+  "ALLOWED_ORIGINS": [
+    ".env",
+    ".env.example"
+  ],
+  "ALL_READY": [
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh"
+  ],
+  "ANTHROPIC_API_KEY": [
+    "agents/app/model_config/simple_config.py",
+    "third-party/LightRAG/lightrag/llm/anthropic.py",
+    "agents/app/main.py"
+  ],
+  "API_BASE_URL": [
+    "homepage/src/hooks/useUniverses.ts"
+  ],
+  "API_HOST": [
+    "agents/app/config.py"
+  ],
+  "API_PORT": [
+    "agents/app/config.py"
+  ],
+  "API_PREFIX": [
+    "auth/app/config.py",
+    "database/app/config.py"
+  ],
+  "API_TIMEOUT": [
+    "agents/app/config.py",
+    "database/.env.example"
+  ],
+  "APP_ENV": [
+    "knowledge/.env.example",
+    "database/.env.example"
+  ],
+  "APP_HOST": [
+    "database/.env.example",
+    "agents/app/config.py",
+    "auth/app/config.py",
+    "database/app/config.py",
+    "knowledge/.env.example"
+  ],
+  "APP_PORT": [
+    "knowledge/.env.example",
+    "database/.env.example"
+  ],
+  "AUTH_DATABASE_URL": [
+    "auth/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "AUTH_SERVICE_PORT": [
+    "auth/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "AUTH_SERVICE_URL": [
+    "agents/app/config.py",
+    "auth/app/config.py",
+    "database/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "AWS_ACCESS_KEY_ID": [
+    "third-party/LightRAG/lightrag/llm/bedrock.py"
+  ],
+  "AWS_SECRET_ACCESS_KEY": [
+    "third-party/LightRAG/lightrag/llm/bedrock.py"
+  ],
+  "AWS_SESSION_TOKEN": [
+    "third-party/LightRAG/lightrag/llm/bedrock.py"
+  ],
+  "AZURE_EMBEDDING_API_VERSION": [
+    "third-party/LightRAG/examples/lightrag_azure_openai_demo.py"
+  ],
+  "AZURE_EMBEDDING_DEPLOYMENT": [
+    "third-party/LightRAG/examples/lightrag_azure_openai_demo.py"
+  ],
+  "AZURE_OPENAI_API_KEY": [
+    "third-party/LightRAG/lightrag/api/lightrag_server.py",
+    "third-party/LightRAG/examples/lightrag_azure_openai_demo.py",
+    "third-party/LightRAG/lightrag/llm/azure_openai.py"
+  ],
+  "AZURE_OPENAI_API_VERSION": [
+    "third-party/LightRAG/examples/lightrag_azure_openai_demo.py",
+    "third-party/LightRAG/lightrag/llm/azure_openai.py"
+  ],
+  "AZURE_OPENAI_DEPLOYMENT": [
+    "third-party/LightRAG/examples/lightrag_azure_openai_demo.py"
+  ],
+  "AZURE_OPENAI_ENDPOINT": [
+    "third-party/LightRAG/examples/lightrag_azure_openai_demo.py",
+    "third-party/LightRAG/lightrag/llm/azure_openai.py"
+  ],
+  "BACKEND_URL": [
+    "homepage/src/components/ChatInterface.tsx",
+    ".env",
+    ".env.example"
+  ],
+  "BASE_DIR": [
+    "agents/app/config.py"
+  ],
+  "BATCH_SIZE": [
+    "agents/app/config.py"
+  ],
+  "BLUE": [
+    "scripts/unification-checklist.sh",
+    "scripts/dev.sh",
+    "scripts/migration-checklist.sh",
+    "dev.sh"
+  ],
+  "CACHE_TTL": [
+    "agents/app/config.py"
+  ],
+  "CACHE_TTL_SHORT": [
+    "agents/app/config.py"
+  ],
+  "CACHE_WARM_CONCURRENCY": [
+    "agents/app/config.py"
+  ],
+  "CJ_MODEL": [
+    ".env",
+    ".env.example"
+  ],
+  "CJ_TEMPERATURE": [
+    ".env",
+    ".env.example"
+  ],
+  "CONDITION": [
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh"
+  ],
+  "CONTEXT_WINDOW_SIZE": [
+    "agents/app/config.py"
+  ],
+  "CONVERSATIONS_DIR": [
+    "agents/app/config.py"
+  ],
+  "CREDENTIALS_ENCRYPTION_KEY": [
+    "database/.env.example"
+  ],
+  "CREWAI_TELEMETRY": [
+    ".env",
+    ".env.example"
+  ],
+  "DATABASE_SCRIPT_DIR": [
+    "third-party/LightRAG/k8s-deploy/databases/uninstall-kubeblocks.sh",
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh",
+    "third-party/LightRAG/k8s-deploy/databases/04-cleanup.sh",
+    "third-party/LightRAG/k8s-deploy/databases/01-prepare.sh",
+    "third-party/LightRAG/k8s-deploy/databases/00-config.sh",
+    "third-party/LightRAG/k8s-deploy/databases/03-uninstall-database.sh",
+    "third-party/LightRAG/k8s-deploy/databases/install-kubeblocks.sh"
+  ],
+  "DATABASE_SERVICE_PORT": [
+    "database/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "DATABASE_SERVICE_URL": [
+    "database/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "DATABASE_URL": [
+    "database/.env.example",
+    "database/migrations/env.py",
+    "database/app/config.py",
+    ".env",
+    "homepage/drizzle.config.ts",
+    "knowledge/.env.example",
+    ".env.example",
+    "homepage/.env.example"
+  ],
+  "DATA_DIR": [
+    "agents/app/config.py"
+  ],
+  "DEBUG": [
+    "auth/app/config.py",
+    "database/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "DEFAULT_CJ_VERSION": [
+    "agents/app/config.py"
+  ],
+  "DEFAULT_PAGINATION_LIMIT": [
+    "agents/app/config.py"
+  ],
+  "DEFAULT_PERSONA_VERSION": [
+    "agents/app/config.py"
+  ],
+  "DEFAULT_TEMPERATURE": [
+    "agents/app/config.py"
+  ],
+  "DEFAULT_TIMEOUT": [
+    "agents/app/config.py"
+  ],
+  "DOCUMENTS_DIR": [
+    "knowledge/.env.example"
+  ],
+  "DOMAIN": [
+    ".env",
+    ".env.example"
+  ],
+  "ELAPSED": [
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh"
+  ],
+  "EMBEDDING_BINDING": [
+    "third-party/LightRAG/.env"
+  ],
+  "EMBEDDING_DIM": [
+    "third-party/LightRAG/.env"
+  ],
+  "EMBEDDING_MODEL": [
+    "third-party/LightRAG/.env"
+  ],
+  "ENABLE_AUTH": [
+    ".env",
+    ".env.example"
+  ],
+  "ENABLE_CACHE_WARMING": [
+    "agents/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "ENABLE_CHAT": [
+    ".env",
+    ".env.example"
+  ],
+  "ENABLE_ELASTICSEARCH": [
+    "third-party/LightRAG/k8s-deploy/databases/04-cleanup.sh",
+    "third-party/LightRAG/k8s-deploy/databases/03-uninstall-database.sh",
+    "third-party/LightRAG/k8s-deploy/databases/01-prepare.sh",
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh"
+  ],
+  "ENABLE_FACT_CHECKING": [
+    "agents/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "ENABLE_LITELLM_CACHE": [
+    "agents/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "ENABLE_MONGODB": [
+    "third-party/LightRAG/k8s-deploy/databases/04-cleanup.sh",
+    "third-party/LightRAG/k8s-deploy/databases/03-uninstall-database.sh",
+    "third-party/LightRAG/k8s-deploy/databases/01-prepare.sh",
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh"
+  ],
+  "ENABLE_NEO4J": [
+    "third-party/LightRAG/k8s-deploy/databases/04-cleanup.sh",
+    "third-party/LightRAG/k8s-deploy/databases/03-uninstall-database.sh",
+    "third-party/LightRAG/k8s-deploy/databases/01-prepare.sh",
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh"
+  ],
+  "ENABLE_OAUTH": [
+    ".env",
+    ".env.example"
+  ],
+  "ENABLE_PERFORMANCE_METRICS": [
+    "agents/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "ENABLE_POSTGRESQL": [
+    "third-party/LightRAG/k8s-deploy/databases/04-cleanup.sh",
+    "third-party/LightRAG/k8s-deploy/databases/03-uninstall-database.sh",
+    "third-party/LightRAG/k8s-deploy/databases/01-prepare.sh",
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh"
+  ],
+  "ENABLE_PROMPT_CACHING": [
+    "agents/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "ENABLE_QDRANT": [
+    "third-party/LightRAG/k8s-deploy/databases/04-cleanup.sh",
+    "third-party/LightRAG/k8s-deploy/databases/03-uninstall-database.sh",
+    "third-party/LightRAG/k8s-deploy/databases/01-prepare.sh",
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh"
+  ],
+  "ENABLE_REDIS": [
+    "third-party/LightRAG/k8s-deploy/databases/04-cleanup.sh",
+    "third-party/LightRAG/k8s-deploy/databases/03-uninstall-database.sh",
+    "third-party/LightRAG/k8s-deploy/databases/01-prepare.sh",
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh"
+  ],
+  "ENABLE_VERBOSE_LOGGING": [
+    "agents/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "ENCRYPTION_KEY": [
+    "auth/app/config.py"
+  ],
+  "ENVIRONMENT": [
+    ".env",
+    ".env.example"
+  ],
+  "EVALUATOR_MODEL": [
+    "agents/scripts/analysis/verify_evaluator_model.py",
+    ".env",
+    ".env.example"
+  ],
+  "EVALUATOR_TEMPERATURE": [
+    ".env",
+    ".env.example"
+  ],
+  "FACT_EXTRACTION_MODEL": [
+    "agents/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "FRESHDESK_API_KEY": [
+    "agents/app/utils/freshdesk_util.py"
+  ],
+  "FRESHDESK_CLIENT_ID": [
+    "database/.env.example"
+  ],
+  "FRESHDESK_CLIENT_SECRET": [
+    "database/.env.example"
+  ],
+  "FRESHDESK_DOMAIN": [
+    "agents/app/utils/freshdesk_util.py",
+    "database/.env.example"
+  ],
+  "FRONTEND_ERROR_PATH": [
+    "auth/app/config.py",
+    "auth/.env.example"
+  ],
+  "FRONTEND_SUCCESS_PATH": [
+    "auth/app/config.py",
+    "auth/.env.example"
+  ],
+  "FRONTEND_URL": [
+    "auth/.env.example"
+  ],
+  "GEMINI_API_KEY": [
+    "third-party/LightRAG/examples/lightrag_gemini_demo_no_tiktoken.py",
+    "third-party/LightRAG/examples/lightrag_gemini_demo.py",
+    "third-party/LightRAG/examples/lightrag_gemini_track_token_demo.py"
+  ],
+  "GOOGLE_CLIENT_ID": [
+    "database/.env.example"
+  ],
+  "GOOGLE_CLIENT_SECRET": [
+    "database/.env.example"
+  ],
+  "GREEN": [
+    "scripts/unification-checklist.sh",
+    "scripts/dev.sh",
+    "scripts/migration-checklist.sh",
+    "dev.sh"
+  ],
+  "GREMLIN_HOST": [
+    "third-party/LightRAG/lightrag/kg/gremlin_impl.py"
+  ],
+  "GREMLIN_PORT": [
+    "third-party/LightRAG/lightrag/kg/gremlin_impl.py"
+  ],
+  "HELM_REPO": [
+    "third-party/LightRAG/k8s-deploy/databases/01-prepare.sh",
+    "third-party/LightRAG/k8s-deploy/databases/install-kubeblocks.sh"
+  ],
+  "HIRECJ_API_URL": [
+    "agents/app/config.py"
+  ],
+  "HOMEPAGE_PORT": [
+    ".env",
+    ".env.example"
+  ],
+  "HOMEPAGE_URL": [
+    "agents/app/config.py",
+    "auth/app/config.py",
+    "database/app/config.py",
+    ".env",
+    ".env.example"
+  ],
+  "INPUT_DIR": [
+    "third-party/LightRAG/.env"
+  ],
+  "JINA_API_KEY": [
+    "third-party/LightRAG/lightrag/llm/jina.py"
+  ],
+  "JWT_ALGORITHM": [
+    "auth/app/config.py"
+  ],
+  "JWT_EXPIRATION_HOURS": [
+    "auth/app/config.py"
+  ],
+  "JWT_SECRET": [
+    "auth/app/config.py"
+  ],
+  "KB_VERSION": [
+    "third-party/LightRAG/k8s-deploy/databases/uninstall-kubeblocks.sh",
+    "third-party/LightRAG/k8s-deploy/databases/install-kubeblocks.sh"
+  ],
+  "KLAVIYO_CLIENT_ID": [
+    "database/.env.example"
+  ],
+  "KLAVIYO_CLIENT_SECRET": [
+    "database/.env.example"
+  ],
+  "LIGHTRAG_API_KEY": [
+    "third-party/LightRAG/lightrag/api/lightrag_server.py"
+  ],
+  "LIGHTRAG_CHUNK_SIZE": [
+    "knowledge/.env.example"
+  ],
+  "LIGHTRAG_EMBEDDING_FUNC": [
+    "knowledge/.env.example"
+  ],
+  "LIGHTRAG_EMBEDDING_MODEL": [
+    "knowledge/.env.example"
+  ],
+  "LIGHTRAG_KG_FUNC": [
+    "knowledge/.env.example"
+  ],
+  "LIGHTRAG_MAIN_PROCESS": [
+    "third-party/LightRAG/lightrag/api/run_with_gunicorn.py"
+  ],
+  "LIGHTRAG_MAX_ASYNC": [
+    "knowledge/.env.example"
+  ],
+  "LIGHTRAG_MAX_RETRIES": [
+    "knowledge/.env.example"
+  ],
+  "LIGHTRAG_MAX_TOKENS": [
+    "knowledge/.env.example"
+  ],
+  "LIGHTRAG_MODEL": [
+    "knowledge/.env.example"
+  ],
+  "LIGHTRAG_WORKING_DIR": [
+    "knowledge/.env.example"
+  ],
+  "LLM_BINDING": [
+    "third-party/LightRAG/.env"
+  ],
+  "LLM_BINDING_API_KEY": [
+    "third-party/LightRAG/examples/lightrag_openai_compatible_demo.py"
+  ],
+  "LLM_MODEL": [
+    "third-party/LightRAG/.env"
+  ],
+  "LOGS_DIR": [
+    "agents/app/config.py"
+  ],
+  "LOG_BACKUP_COUNT": [
+    "agents/app/config.py"
+  ],
+  "LOG_LEVEL": [
+    "database/.env.example",
+    "agents/app/config.py",
+    "auth/app/config.py",
+    "database/app/config.py",
+    ".env",
+    "knowledge/.env.example",
+    ".env.example",
+    "homepage/server/logging.ts"
+  ],
+  "LOG_MAX_BYTES": [
+    "agents/app/config.py"
+  ],
+  "MAX_CONCURRENT_REQUESTS": [
+    "agents/app/config.py"
+  ],
+  "MAX_CONVERSATION_TURNS": [
+    "agents/app/config.py"
+  ],
+  "MAX_CONVERSATION_TURNS_DISPLAY": [
+    "agents/app/config.py"
+  ],
+  "MAX_MESSAGE_LENGTH": [
+    "agents/app/config.py"
+  ],
+  "MAX_PAGINATION_LIMIT": [
+    "agents/app/config.py"
+  ],
+  "MAX_RETRIES": [
+    "agents/app/config.py",
+    "database/.env.example"
+  ],
+  "MAX_SEARCH_RESULTS": [
+    "agents/app/config.py"
+  ],
+  "MAX_TOKENS_EVALUATION": [
+    "agents/app/config.py"
+  ],
+  "MAX_TOKENS_STANDARD": [
+    "agents/app/config.py"
+  ],
+  "MAX_TOKENS_UNIVERSE": [
+    "agents/app/config.py"
+  ],
+  "MERCHANT_MODEL": [
+    ".env",
+    ".env.example"
+  ],
+  "MERCHANT_TEMPERATURE": [
+    ".env",
+    ".env.example"
+  ],
+  "MESSAGE_TIMEOUT": [
+    "agents/app/config.py"
+  ],
+  "MILVUS_DB_NAME": [
+    "third-party/LightRAG/examples/unofficial-sample/lightrag_openai_neo4j_milvus_redis_demo.py"
+  ],
+  "MILVUS_PASSWORD": [
+    "third-party/LightRAG/examples/unofficial-sample/lightrag_openai_neo4j_milvus_redis_demo.py"
+  ],
+  "MILVUS_URI": [
+    "third-party/LightRAG/examples/unofficial-sample/lightrag_openai_neo4j_milvus_redis_demo.py"
+  ],
+  "MILVUS_USER": [
+    "third-party/LightRAG/examples/unofficial-sample/lightrag_openai_neo4j_milvus_redis_demo.py"
+  ],
+  "MODE": [
+    "homepage/src/lib/logger.ts"
+  ],
+  "MODEL_NAME": [
+    ".env",
+    ".env.example"
+  ],
+  "MONGO_DATABASE": [
+    "third-party/LightRAG/examples/lightrag_openai_mongodb_graph_demo.py"
+  ],
+  "MONGO_KG_COLLECTION": [
+    "third-party/LightRAG/examples/lightrag_openai_mongodb_graph_demo.py"
+  ],
+  "MONGO_URI": [
+    "third-party/LightRAG/examples/lightrag_openai_mongodb_graph_demo.py"
+  ],
+  "NAMESPACE": [
+    "third-party/LightRAG/k8s-deploy/uninstall_lightrag_dev.sh",
+    "third-party/LightRAG/k8s-deploy/install_lightrag.sh",
+    "third-party/LightRAG/k8s-deploy/uninstall_lightrag.sh",
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh",
+    "third-party/LightRAG/k8s-deploy/databases/04-cleanup.sh",
+    "third-party/LightRAG/k8s-deploy/databases/01-prepare.sh",
+    "third-party/LightRAG/k8s-deploy/databases/03-uninstall-database.sh"
+  ],
+  "NEO4J_PASSWORD": [
+    "third-party/LightRAG/k8s-deploy/install_lightrag.sh",
+    "third-party/LightRAG/examples/unofficial-sample/lightrag_openai_neo4j_milvus_redis_demo.py"
+  ],
+  "NEO4J_URI": [
+    "third-party/LightRAG/examples/unofficial-sample/lightrag_openai_neo4j_milvus_redis_demo.py"
+  ],
+  "NEO4J_USERNAME": [
+    "third-party/LightRAG/examples/unofficial-sample/lightrag_openai_neo4j_milvus_redis_demo.py"
+  ],
+  "NGROK_ENABLED": [
+    "auth/app/config.py"
+  ],
+  "NODE_ENV": [
+    "homepage/.env.example"
+  ],
+  "NVIDIA_OPENAI_API_KEY": [
+    "third-party/LightRAG/examples/unofficial-sample/lightrag_nvidia_demo.py"
+  ],
+  "OAUTH_REDIRECT_BASE_URL": [
+    "auth/app/config.py",
+    "auth/.env.example"
+  ],
+  "OPENAI_API_BASE": [
+    "third-party/LightRAG/k8s-deploy/install_lightrag.sh",
+    "third-party/LightRAG/k8s-deploy/install_lightrag_dev.sh"
+  ],
+  "OPENAI_API_KEY": [
+    "agents/app/universe/generator.py",
+    "third-party/LightRAG/k8s-deploy/install_lightrag_dev.sh",
+    "third-party/LightRAG/lightrag/llm/nvidia_openai.py",
+    "third-party/LightRAG/k8s-deploy/install_lightrag.sh",
+    "knowledge/src/scripts/lightrag_transcripts_demo.py",
+    "third-party/LightRAG/examples/lightrag_openai_demo.py",
+    "knowledge/src/__main__.py",
+    "knowledge/.env.example",
+    "knowledge/src/scripts/simple_demo.py",
+    "third-party/LightRAG/lightrag/llm/openai.py",
+    "agents/app/model_config/simple_config.py",
+    "third-party/LightRAG/examples/lightrag_openai_mongodb_graph_demo.py",
+    "third-party/LightRAG/.env",
+    "agents/app/main.py",
+    "third-party/LightRAG/examples/lightrag_openai_compatible_demo.py"
+  ],
+  "OPENAI_API_KEY_1": [
+    "third-party/LightRAG/lightrag/llm.py"
+  ],
+  "OPENAI_API_KEY_2": [
+    "third-party/LightRAG/lightrag/llm.py"
+  ],
+  "OPENAI_API_KEY_3": [
+    "third-party/LightRAG/lightrag/llm.py"
+  ],
+  "OPENAI_API_KEY_4": [
+    "third-party/LightRAG/lightrag/llm.py"
+  ],
+  "OPENAI_API_KEY_5": [
+    "third-party/LightRAG/lightrag/llm.py"
+  ],
+  "OPENAI_API_URL": [
+    "agents/app/config.py"
+  ],
+  "ORIGIN": [
+    "third-party/LightRAG/lightrag/api/webui/assets/markdown-vendor-BBaHfVvE.js"
+  ],
+  "PORT": [
+    "homepage/server/index.ts",
+    "homepage/.env.example"
+  ],
+  "POSTGRES_PASSWORD": [
+    "third-party/LightRAG/k8s-deploy/install_lightrag.sh"
+  ],
+  "PROMPTS_DIR": [
+    "agents/app/config.py"
+  ],
+  "PUBLIC_URL": [
+    "auth/app/config.py",
+    "database/app/config.py",
+    "agents/app/config.py"
+  ],
+  "RATE_LIMIT_DELAY": [
+    "agents/app/config.py"
+  ],
+  "RECENT_HISTORY_LIMIT": [
+    "agents/app/config.py"
+  ],
+  "RED": [
+    "scripts/unification-checklist.sh",
+    "scripts/dev.sh",
+    "scripts/migration-checklist.sh"
+  ],
+  "REDIS_DB": [
+    "agents/app/config.py"
+  ],
+  "REDIS_HOST": [
+    "agents/app/config.py"
+  ],
+  "REDIS_PASSWORD": [
+    "third-party/LightRAG/k8s-deploy/install_lightrag.sh"
+  ],
+  "REDIS_PORT": [
+    "agents/app/config.py"
+  ],
+  "REDIS_URI": [
+    "third-party/LightRAG/examples/unofficial-sample/lightrag_openai_neo4j_milvus_redis_demo.py"
+  ],
+  "REDIS_URL": [
+    "auth/app/config.py",
+    ".env",
+    "agents/app/cache_config.py",
+    "knowledge/.env.example",
+    ".env.example"
+  ],
+  "REPLY": [
+    "scripts/migrate-to-monorepo.sh"
+  ],
+  "ROOT_DIR": [
+    "third-party/LightRAG/examples/unofficial-sample/copy_llm_cache_to_another_storage.py"
+  ],
+  "SCRIPT_DIR": [
+    "third-party/LightRAG/k8s-deploy/install_lightrag.sh",
+    "third-party/LightRAG/k8s-deploy/install_lightrag_dev.sh"
+  ],
+  "SEARCH_RESULTS_DISPLAY_COUNT": [
+    "agents/app/config.py"
+  ],
+  "SERVICE": [
+    "scripts/dev.sh"
+  ],
+  "SERVICE_NAME": [
+    "knowledge/.env.example",
+    "homepage/.env.example",
+    "database/.env.example"
+  ],
+  "SESSION_CLEANUP_TIMEOUT": [
+    "agents/app/config.py"
+  ],
+  "SHOPIFY_API_TOKEN": [
+    "agents/app/utils/shopify_util.py"
+  ],
+  "SHOPIFY_SCOPES": [
+    "auth/app/config.py"
+  ],
+  "SHOPIFY_SHOP_DOMAIN": [
+    "agents/app/utils/shopify_util.py"
+  ],
+  "SIDEBAR_COOKIE_MAX_AGE": [
+    "homepage/src/components/ui/sidebar.tsx"
+  ],
+  "SIDEBAR_COOKIE_NAME": [
+    "homepage/src/components/ui/sidebar.tsx"
+  ],
+  "SILICONFLOW_API_KEY": [
+    "third-party/LightRAG/examples/lightrag_gemini_track_token_demo.py"
+  ],
+  "SLOW_RESPONSE_THRESHOLD": [
+    "agents/app/config.py"
+  ],
+  "SSL_CERTFILE": [
+    "third-party/LightRAG/lightrag/api/run_with_gunicorn.py"
+  ],
+  "SSL_KEYFILE": [
+    "third-party/LightRAG/lightrag/api/run_with_gunicorn.py"
+  ],
+  "STORAGE_BACKEND": [
+    "database/app/config.py"
+  ],
+  "STORAGE_TYPE": [
+    "database/.env.example"
+  ],
+  "SUPABASE_CONNECTION_STRING": [
+    "agents/app/utils/supabase_util.py"
+  ],
+  "TIMEOUT": [
+    "third-party/LightRAG/k8s-deploy/databases/02-install-database.sh"
+  ],
+  "TMUX": [
+    "dev-simple.py",
+    "dev.sh"
+  ],
+  "TOKENIZERS_PARALLELISM": [
+    "third-party/LightRAG/lightrag/llm/hf.py"
+  ],
+  "TOP_TRENDING_COUNT": [
+    "agents/app/config.py"
+  ],
+  "TRANSCRIPTS_DIR": [
+    "knowledge/.env.example"
+  ],
+  "TRENDING_ISSUES_DISPLAY_COUNT": [
+    "agents/app/config.py"
+  ],
+  "TRENDING_WINDOW_DAYS": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSES_DIR": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSE_CURRENT_DAY": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSE_CUSTOMERS_MAX": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSE_CUSTOMERS_MIN": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSE_DATA_PREVIEW_LENGTH": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSE_EVENTS_MAX": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSE_EVENTS_MIN": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSE_GENERATOR_MODEL": [
+    ".env",
+    ".env.example"
+  ],
+  "UNIVERSE_GENERATOR_TEMPERATURE": [
+    ".env",
+    ".env.example"
+  ],
+  "UNIVERSE_TEMPERATURE": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSE_TICKETS_MAX": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSE_TICKETS_MIN": [
+    "agents/app/config.py"
+  ],
+  "UNIVERSE_TIMELINE_DAYS": [
+    "agents/app/config.py"
+  ],
+  "UPSTAGE_API_KEY": [
+    "third-party/LightRAG/reproduce/Step_3_openai_compatible.py",
+    "third-party/LightRAG/reproduce/Step_1_openai_compatible.py"
+  ],
+  "VITE_API_BASE_URL": [
+    "homepage/src/hooks/useUniverses.ts",
+    "homepage/vite.config.ts",
+    "homepage/src/main.tsx",
+    "homepage/src/pages/SlackChat.tsx",
+    "homepage/src/components/ChatInterface.tsx",
+    "homepage/src/hooks/useWebSocketChat.ts"
+  ],
+  "VITE_API_ENDPOINTS": [
+    "third-party/LightRAG/lightrag_webui/vite.config.ts"
+  ],
+  "VITE_API_PROXY": [
+    "third-party/LightRAG/lightrag_webui/vite.config.ts"
+  ],
+  "VITE_API_URL": [
+    "homepage/.env.example"
+  ],
+  "VITE_AUTH_URL": [
+    "homepage/vite.config.ts",
+    "homepage/src/pages/SlackChat.tsx",
+    "homepage/src/main.tsx",
+    "homepage/src/components/OAuthButton.tsx",
+    "homepage/src/components/ShopifyOAuthButton.tsx",
+    "homepage/.env.example"
+  ],
+  "VITE_BACKEND_URL": [
+    "third-party/LightRAG/lightrag_webui/vite.config.ts"
+  ],
+  "VITE_BASE_URL": [
+    "third-party/LightRAG/lightrag_webui/vite.config.ts"
+  ],
+  "VITE_ENABLE_AUTH": [
+    "homepage/.env.example"
+  ],
+  "VITE_ENABLE_CHAT": [
+    "homepage/.env.example"
+  ],
+  "VITE_GA_ID": [
+    "homepage/.env.example"
+  ],
+  "VITE_MIXPANEL_TOKEN": [
+    "homepage/.env.example"
+  ],
+  "VITE_PUBLIC_URL": [
+    "homepage/src/pages/SlackChat.tsx",
+    "homepage/vite.config.ts",
+    "homepage/src/main.tsx",
+    "homepage/src/hooks/useWebSocketChat.ts",
+    "homepage/.env.example"
+  ],
+  "VITE_WS_BASE_URL": [
+    "homepage/src/pages/SlackChat.tsx",
+    "homepage/src/hooks/useWebSocketChat.ts",
+    "homepage/vite.config.ts",
+    "homepage/src/main.tsx"
+  ],
+  "VITE_WS_URL": [
+    "homepage/.env.example"
+  ],
+  "VOYAGE_API_KEY": [
+    "third-party/LightRAG/lightrag/llm/anthropic.py"
+  ],
+  "WARM_CACHE_ON_STARTUP": [
+    ".env",
+    ".env.example"
+  ],
+  "WEBSOCKET_CHECK_INTERVAL": [
+    "agents/app/config.py"
+  ],
+  "WEBSOCKET_PING_INTERVAL": [
+    "agents/app/config.py"
+  ],
+  "WEBSOCKET_PING_TIMEOUT": [
+    "agents/app/config.py"
+  ],
+  "WEBSOCKET_PORT": [
+    "agents/app/config.py"
+  ],
+  "WEBSOCKET_RESPONSE_TIMEOUT": [
+    "agents/app/config.py"
+  ],
+  "WEBSOCKET_TIMEOUT": [
+    "agents/app/config.py"
+  ],
+  "WEBUI_DESCRIPTION": [
+    "third-party/LightRAG/lightrag/api/lightrag_server.py"
+  ],
+  "WEBUI_TITLE": [
+    "third-party/LightRAG/lightrag/api/lightrag_server.py"
+  ],
+  "WORKING_DIR": [
+    "third-party/LightRAG/.env"
+  ],
+  "WS_BASE_URL": [
+    "homepage/src/hooks/useWebSocketChat.ts"
+  ],
+  "YELLOW": [
+    "scripts/unification-checklist.sh",
+    "scripts/dev.sh",
+    "scripts/migration-checklist.sh",
+    "dev.sh"
+  ],
+  "ZHIPUAI_API_KEY": [
+    "third-party/LightRAG/lightrag/llm/zhipu.py"
+  ]
+}

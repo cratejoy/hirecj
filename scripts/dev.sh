@@ -1,5 +1,9 @@
 #!/bin/bash
 # HireCJ Development Helper Script
+# ================================
+# This script follows the Single .env Pattern
+# All configuration comes from root .env file
+# ================================
 
 set -e
 
@@ -12,6 +16,9 @@ NC='\033[0m' # No Color
 
 # Default action
 ACTION=${1:-help}
+
+# Move to project root
+cd "$(dirname "$0")/.."
 
 # Functions
 print_header() {
@@ -83,9 +90,11 @@ case $ACTION in
         start_infrastructure
         echo ""
         echo -e "${YELLOW}Next steps:${NC}"
-        echo "1. In terminal 1: ./scripts/dev.sh agents"
-        echo "2. In terminal 2: ./scripts/dev.sh homepage"
-        echo "3. In terminal 3: ./scripts/dev.sh auth (if needed)"
+        echo "1. In terminal 1: make dev-agents"
+        echo "2. In terminal 2: make dev-homepage"
+        echo "3. In terminal 3: make dev-auth (if needed)"
+        echo ""
+        echo "Or use: make dev-all (requires tmux)"
         ;;
     
     stop|down)
@@ -96,61 +105,29 @@ case $ACTION in
     agents)
         print_header
         echo -e "${YELLOW}Starting Agents service...${NC}"
-        cd agents
-        if [ ! -d "venv" ]; then
-            echo "Creating virtual environment..."
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install -r requirements.txt
-        else
-            . venv/bin/activate
-        fi
-        echo -e "${GREEN}✅ Starting at http://localhost:8000${NC}"
-        python -m app.main
+        echo -e "${BLUE}Using single .env pattern - env vars will be distributed automatically${NC}"
+        make dev-agents
         ;;
     
     homepage)
         print_header
         echo -e "${YELLOW}Starting Homepage...${NC}"
-        cd homepage
-        if [ ! -d "node_modules" ]; then
-            echo "Installing dependencies..."
-            npm install
-        fi
-        echo -e "${GREEN}✅ Starting at http://localhost:3000${NC}"
-        npm run dev
+        echo -e "${BLUE}Using single .env pattern - env vars will be distributed automatically${NC}"
+        make dev-homepage
         ;;
     
     auth)
         print_header
         echo -e "${YELLOW}Starting Auth service...${NC}"
-        cd auth
-        if [ ! -d "venv" ]; then
-            echo "Creating virtual environment..."
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install -r requirements.txt
-        else
-            . venv/bin/activate
-        fi
-        echo -e "${GREEN}✅ Starting at http://localhost:8103${NC}"
-        python -m app.main
+        echo -e "${BLUE}Using single .env pattern - env vars will be distributed automatically${NC}"
+        make dev-auth
         ;;
     
     database)
         print_header
         echo -e "${YELLOW}Starting Database service...${NC}"
-        cd database
-        if [ ! -d "venv" ]; then
-            echo "Creating virtual environment..."
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install -r requirements.txt
-        else
-            . venv/bin/activate
-        fi
-        echo -e "${GREEN}✅ Starting at http://localhost:8002${NC}"
-        python -m app.main
+        echo -e "${BLUE}Using single .env pattern - env vars will be distributed automatically${NC}"
+        make dev-database
         ;;
     
     status)
@@ -213,8 +190,11 @@ case $ACTION in
         echo "  help          Show this help"
         echo ""
         echo "Example workflow:"
-        echo "  1. ./scripts/dev.sh start    # Start infrastructure"
-        echo "  2. ./scripts/dev.sh agents   # In terminal 1"
-        echo "  3. ./scripts/dev.sh homepage # In terminal 2"
+        echo "  1. make env-setup            # Set up .env file (first time only)"
+        echo "  2. ./scripts/dev.sh start    # Start infrastructure"
+        echo "  3. make dev-agents           # In terminal 1"
+        echo "  4. make dev-homepage         # In terminal 2"
+        echo ""
+        echo "Or simply use: make dev-all (tmux) or make dev-tunnels-tmux (with ngrok)"
         ;;
 esac

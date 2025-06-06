@@ -3,22 +3,23 @@
 import os
 import psycopg2
 from contextlib import contextmanager
-from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import NullPool
 
-load_dotenv()
+# Use centralized config - no direct load_dotenv!
+from app.config import settings
 
 
 def get_connection_string():
     """Return connection string."""
-    conn_string = os.getenv("SUPABASE_CONNECTION_STRING")
+    # Get from settings which uses centralized env loader
+    conn_string = settings.supabase_connection_string
     
     if not conn_string:
-        raise ValueError("SUPABASE_CONNECTION_STRING must be set")
+        raise ValueError("SUPABASE_CONNECTION_STRING must be set in .env")
     
-    return f"{conn_string}"
+    return conn_string
 
 
 @contextmanager

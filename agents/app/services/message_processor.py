@@ -2,17 +2,16 @@
 
 import asyncio
 from datetime import datetime
-from typing import List, Callable, Dict, Any
+from typing import List, Callable, Dict, Any, Union
 
 from crewai import Crew, Task
 
 from app.models import Message
 from app.agents.cj_agent import create_cj_agent
 from app.services.session_manager import Session
-from app.services.fact_extractor import FactExtractor
-from app.services.merchant_memory import MerchantMemoryService
 from app.logging_config import get_logger
 from app.config import settings
+from shared.user_identity import save_conversation_message
 
 logger = get_logger(__name__)
 
@@ -36,7 +35,7 @@ class MessageProcessor:
         session: Session,
         message: str,
         sender: str = "merchant",
-    ) -> str:
+    ) -> Union[str, Dict[str, Any]]:
         """Process a message and get response."""
         # Update session
         session.last_activity = datetime.utcnow()
@@ -51,9 +50,13 @@ class MessageProcessor:
                 content=message,
             )
             session.conversation.add_message(msg)
+            
+            # Save to database if user_id is available
+            if session.user_id:
+                asyncio.create_task(self._save_message_to_db(session.user_id, msg))
         
         # Extract facts immediately after merchant message (non-blocking)
-        if sender == "merchant" and session.merchant_memory:
+        if sender == "merchant" and session.user_id:
             asyncio.create_task(self._extract_facts_background(session))
 
         # Get response
@@ -70,22 +73,43 @@ class MessageProcessor:
             elapsed = (datetime.utcnow() - start_time).total_seconds()
             session.metrics["response_time_total"] += elapsed
 
-            # Add CJ's response
-            response_msg = Message(
-                timestamp=datetime.utcnow(),
-                sender="CJ",
-                content=response,
-            )
-            session.conversation.add_message(response_msg)
-
-            return response
+            # Handle structured response with UI elements
+            if isinstance(response, dict) and response.get("type") == "message_with_ui":
+                # Add the clean content to conversation history
+                response_msg = Message(
+                    timestamp=datetime.utcnow(),
+                    sender="CJ",
+                    content=response["content"],
+                )
+                session.conversation.add_message(response_msg)
+                
+                # Save to database if user_id is available
+                if session.user_id:
+                    asyncio.create_task(self._save_message_to_db(session.user_id, response_msg))
+                
+                # Return the full structured response for the platform layer
+                return response
+            else:
+                # Regular text response
+                response_msg = Message(
+                    timestamp=datetime.utcnow(),
+                    sender="CJ",
+                    content=response,
+                )
+                session.conversation.add_message(response_msg)
+                
+                # Save to database if user_id is available
+                if session.user_id:
+                    asyncio.create_task(self._save_message_to_db(session.user_id, response_msg))
+                
+                return response
 
         except Exception as e:
             session.metrics["errors"] += 1
             logger.error(f"Error processing message: {e}")
             raise
 
-    async def _get_cj_response(self, session: Session, message: str, is_system: bool = False) -> str:
+    async def _get_cj_response(self, session: Session, message: str, is_system: bool = False) -> Union[str, Dict[str, Any]]:
         """Get CJ's response to merchant message."""
         await self._report_progress(session.id, "thinking", {"status": "initializing"})
 
@@ -93,22 +117,12 @@ class MessageProcessor:
         session.conversation.state.context_window = session.conversation.messages[-10:]
 
         # Create CJ agent
-        if session.merchant_memory:
-            facts = session.merchant_memory.get_all_facts()
-            logger.info(f"[CJ_AGENT] ====== COMPOSING RESPONSE ======")
-            logger.info(f"[CJ_AGENT] Merchant: {session.conversation.merchant_name}")
-            logger.info(f"[CJ_AGENT] Total facts available: {len(facts)}")
-            
-            if facts:
-                logger.info(f"[CJ_AGENT] === FACTS AVAILABLE TO CJ ===")
-                for i, fact in enumerate(facts, 1):
-                    logger.info(f"[CJ_AGENT]   {i}. {fact}")
-            else:
-                logger.info(f"[CJ_AGENT] No facts available for this merchant")
+        logger.info(f"[CJ_AGENT] ====== COMPOSING RESPONSE ======")
+        logger.info(f"[CJ_AGENT] Merchant: {session.conversation.merchant_name}")
+        if session.user_id:
+            logger.info(f"[CJ_AGENT] User ID: {session.user_id}")
         else:
-            logger.info(f"[CJ_AGENT] ====== COMPOSING RESPONSE ======")
-            logger.info(f"[CJ_AGENT] Merchant: {session.conversation.merchant_name}")
-            logger.info(f"[CJ_AGENT] No merchant memory available")
+            logger.info(f"[CJ_AGENT] No user ID available")
             
         # Pass OAuth metadata if available
         oauth_metadata = getattr(session, 'oauth_metadata', None)
@@ -119,7 +133,7 @@ class MessageProcessor:
             workflow_name=session.conversation.workflow,
             conversation_state=session.conversation.state,
             data_agent=session.data_agent,
-            merchant_memory=session.merchant_memory,
+            user_id=session.user_id,
             oauth_metadata=oauth_metadata,
             verbose=settings.enable_verbose_logging,
         )
@@ -166,6 +180,20 @@ class MessageProcessor:
         )
         logger.info(f"[CJ_AGENT] ====== RESPONSE COMPLETE ======")
 
+        # Only parse UI components if workflow has them enabled
+        if session.conversation.workflow == "shopify_onboarding":
+            from app.services.ui_components import UIComponentParser
+            parser = UIComponentParser()
+            clean_content, ui_components = parser.parse_oauth_buttons(response)
+
+            if ui_components:
+                logger.info(f"[UI_PARSER] Found {len(ui_components)} UI components in response")
+                return {
+                    "type": "message_with_ui",
+                    "content": clean_content,
+                    "ui_elements": ui_components
+                }
+
         return response
 
     async def _report_progress(
@@ -197,21 +225,34 @@ class MessageProcessor:
             logger.info(f"[REAL_TIME_FACTS] Starting extraction for conversation {session.id}")
             
             # Only analyze last 4 messages (2 exchanges) for efficiency
+            from app.services.fact_extractor import FactExtractor
             fact_extractor = FactExtractor()
             new_facts = await fact_extractor.extract_and_add_facts(
                 session.conversation, 
-                session.merchant_memory,
+                session.user_id,
                 last_n_messages=4
             )
             
             if new_facts:
                 logger.info(f"[REAL_TIME_FACTS] Extracted {len(new_facts)} new facts")
-                # Save memory every 5 new facts to avoid too many disk writes
-                total_facts = len(session.merchant_memory.facts)
-                if total_facts % 5 == 0:
-                    memory_service = MerchantMemoryService()
-                    memory_service.save_memory(session.merchant_memory)
-                    logger.info(f"[REAL_TIME_FACTS] Saved memory with {total_facts} facts")
                     
         except Exception as e:
             logger.error(f"[REAL_TIME_FACTS] Error extracting facts: {e}", exc_info=True)
+    
+    async def _save_message_to_db(self, user_id: str, message: Message):
+        """Save message to database in background without blocking conversation."""
+        try:
+            # Convert Message object to dict for database storage
+            message_data = {
+                "sender": message.sender,
+                "content": message.content,
+                "timestamp": message.timestamp.isoformat()
+            }
+            
+            # Save to database (this is synchronous but runs in background task)
+            save_conversation_message(user_id, message_data)
+            logger.debug(f"[DB_SAVE] Saved message from {message.sender} for user {user_id}")
+            
+        except Exception as e:
+            # Log error but don't fail the conversation
+            logger.error(f"[DB_SAVE] Failed to save message to database: {e}", exc_info=True)

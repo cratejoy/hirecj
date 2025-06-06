@@ -61,6 +61,10 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        "shopify-green": {
+          DEFAULT: "#96bf48",
+          dark: "#7ea03a",
+        },
       },
       keyframes: {
         "accordion-down": {

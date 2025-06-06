@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test</title>
+</head>
+<body>
+    <h1>CORS Test</h1>
+    <button onclick="testCORS()">Test CORS</button>
+    <pre id="result"></pre>
+
+    <script>
+    async function testCORS() {
+        const resultEl = document.getElementById('result');
+        const apiUrl = 'https://78bbe6547398.ngrok.app/api/v1/test-cors';
+        
+        resultEl.textContent = 'Testing CORS...\n';
+        
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            resultEl.textContent += `Status: ${response.status}\n`;
+            resultEl.textContent += `Headers:\n`;
+            
+            // Log all response headers
+            for (let [key, value] of response.headers.entries()) {
+                resultEl.textContent += `  ${key}: ${value}\n`;
+            }
+            
+            if (response.ok) {
+                const data = await response.json();
+                resultEl.textContent += `\nResponse: ${JSON.stringify(data, null, 2)}`;
+            }
+        } catch (error) {
+            resultEl.textContent += `\nError: ${error.message}\n`;
+            console.error('Full error:', error);
+        }
+    }
+    
+    // Test on load
+    window.onload = testCORS;
+    </script>
+</body>
+</html>

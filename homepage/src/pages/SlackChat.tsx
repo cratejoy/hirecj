@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useSearch } from 'wouter';
 import { motion } from 'framer-motion';
 import { useChat } from '@/hooks/useChat';
 import { useWebSocketChat } from '@/hooks/useWebSocketChat';
 import { useOAuthCallback } from '@/hooks/useOAuthCallback';
+import { useUserSession } from '@/hooks/useUserSession';
 import DemoScriptFlow from '@/components/DemoScriptFlow';
 import { ConfigurationModal } from '@/components/ConfigurationModal';
 import { ChatInterface } from '@/components/ChatInterface';
@@ -15,6 +16,12 @@ interface Message {
 	sender: 'user' | 'cj';
 	content: string;
 	timestamp: string;
+	ui_elements?: Array<{
+		id: string;
+		type: string;
+		provider: string;
+		placeholder: string;
+	}>;
 }
 
 interface ChatConfig {
@@ -24,8 +31,19 @@ interface ChatConfig {
 	workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | 'support_daily' | null;
 }
 
+const VALID_WORKFLOWS = ['ad_hoc_support', 'daily_briefing', 'shopify_onboarding', 'support_daily'] as const;
+const DEFAULT_WORKFLOW = 'support_daily';
+
+const WORKFLOW_NAMES: Record<typeof VALID_WORKFLOWS[number], string> = {
+	'support_daily': '📋 Support Daily',
+	'ad_hoc_support': '💬 Ad Hoc Support',
+	'daily_briefing': '📊 Daily Briefing',
+	'shopify_onboarding': '🛍️ Shopify Onboarding'
+};
+
 const SlackChat = () => {
-	const [, setLocation] = useLocation();
+	const [location, setLocation] = useLocation();
+	const searchString = useSearch();
 	const { toast } = useToast();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -33,16 +51,66 @@ const SlackChat = () => {
 	const [emailModalOpen, setEmailModalOpen] = useState(false);
 	const [showDailyReport, setShowDailyReport] = useState(true);
 	
-	// Always skip config modal
-	const [showConfigModal] = useState(false);
+	// Use the user session hook for persistent user state
+	const userSession = useUserSession();
 	
-	// Update initial chatConfig
-	const [chatConfig, setChatConfig] = useState<ChatConfig>({
-		scenarioId: null, // No demo scenario
-		merchantId: null, // Will be set after OAuth
+	// Always skip config modal
+	const [showConfigModal, setShowConfigModal] = useState(false);
+	
+	// Log OAuth configuration on startup
+	useEffect(() => {
+		const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
+		console.log('🛍️ Shopify OAuth Configuration (on page load):');
+		console.log('  Auth Service URL:', authUrl);
+		console.log('  Expected Redirect URI:', `${authUrl}/api/v1/shopify/callback`);
+		console.log('  Frontend URL:', window.location.origin);
+	}, []);
+	
+	// Parse workflow from URL params
+	const getWorkflowFromUrl = useCallback(() => {
+		const params = new URLSearchParams(searchString);
+		const urlWorkflow = params.get('workflow');
+		
+		if (urlWorkflow && VALID_WORKFLOWS.includes(urlWorkflow as any)) {
+			return urlWorkflow as typeof VALID_WORKFLOWS[number];
+		}
+		
+		// Check localStorage for last used workflow
+		const savedWorkflow = localStorage.getItem('lastWorkflow');
+		if (savedWorkflow && VALID_WORKFLOWS.includes(savedWorkflow as any)) {
+			return savedWorkflow as typeof VALID_WORKFLOWS[number];
+		}
+		
+		return DEFAULT_WORKFLOW;
+	}, [searchString]);
+	
+	// Initialize chatConfig with URL workflow (merchant now in userSession)
+	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => ({
+		scenarioId: null,
+		merchantId: userSession.merchantId, // Get from user session
 		conversationId: uuidv4(),
-		workflow: 'support_daily' // Always start with onboarding
-	});
+		workflow: getWorkflowFromUrl()
+	}));
+	
+	// Update URL when workflow changes
+	useEffect(() => {
+		if (chatConfig.workflow) {
+			const params = new URLSearchParams(searchString);
+			if (params.get('workflow') !== chatConfig.workflow) {
+				params.set('workflow', chatConfig.workflow);
+				setLocation(`${location}?${params.toString()}`, { replace: true });
+			}
+			localStorage.setItem('lastWorkflow', chatConfig.workflow);
+		}
+	}, [chatConfig.workflow, location, searchString, setLocation]);
+	
+	// Sync userSession.merchantId to chatConfig when it changes
+	useEffect(() => {
+		setChatConfig(prev => ({
+			...prev,
+			merchantId: userSession.merchantId
+		}));
+	}, [userSession.merchantId]);
 	
 
 	const isRealChat = useMemo(() =>
@@ -123,17 +191,20 @@ const SlackChat = () => {
 	const handleOAuthSuccess = useCallback((params: any) => {
 		console.log('[SlackChat] OAuth success:', params);
 		
-		// Store shop domain for future visits (optional UX enhancement)
-		if (params.shop) {
-			localStorage.setItem('last_shop_domain', params.shop);
-		}
+		// Debug: Log what we received
+		console.log('[SlackChat] OAuth params received:', {
+			merchant_id: params.merchant_id,
+			shop: params.shop,
+			is_new: params.is_new,
+			current_merchantId: chatConfig.merchantId
+		});
 		
-		// Update chat config with merchant ID
-		if (params.merchant_id) {
-			setChatConfig(prev => ({
-				...prev,
-				merchantId: params.merchant_id
-			}));
+		// Update user session with OAuth data
+		if (params.merchant_id && params.shop) {
+			console.log('[SlackChat] Updating user session:', params.merchant_id, params.shop);
+			userSession.setMerchant(params.merchant_id, params.shop);
+		} else {
+			console.warn('[SlackChat] Missing merchant_id or shop in OAuth params!');
 		}
 		
 		// Send OAuth complete to WebSocket
@@ -154,13 +225,43 @@ const SlackChat = () => {
 			description: params.is_new === 'true' ? "Welcome! Let me take a look at your store..." : "Welcome back! Good to see you again.",
 			duration: 5000,
 		});
-	}, [wsChat, setChatConfig, toast]);
+	}, [wsChat, toast, userSession]);
 	
 	const handleOAuthError = useCallback((error: string) => {
 		console.error('[SlackChat] OAuth error:', error);
+		
+		// Map error codes to user-friendly messages
+		let title = "Authentication Failed";
+		let description = "Unable to connect to Shopify. Please try again.";
+		
+		switch (error) {
+			case 'internal_error':
+				description = "An unexpected error occurred. Please try again or contact support if the issue persists.";
+				break;
+			case 'shopify_not_configured':
+				title = "Shopify Integration Not Available";
+				description = "The Shopify integration is not properly configured. Please contact support.";
+				break;
+			case 'invalid_hmac':
+			case 'invalid_state':
+			case 'state_verification_failed':
+				description = "Security verification failed. Please try connecting again.";
+				break;
+			case 'missing_code':
+				description = "Authorization was cancelled or incomplete. Please try again.";
+				break;
+			case 'token_exchange_failed':
+				description = "Failed to complete authentication with Shopify. Please try again.";
+				break;
+			default:
+				if (error) {
+					description = error;
+				}
+		}
+		
 		toast({
-			title: "Authentication Failed",
-			description: error || "Unable to connect to Shopify. Please try again.",
+			title,
+			description,
 			variant: "destructive"
 		});
 	}, [toast]);
@@ -196,6 +297,133 @@ const SlackChat = () => {
 			window.removeEventListener('beforeunload', handleBeforeUnload);
 		};
 	}, [isRealChat, wsChat]);
+
+	// Setup debug interface
+	useEffect(() => {
+		// Always enable debug interface
+
+		// Define the debug interface
+		const debugInterface = {
+			debug: () => {
+				console.group('%c🤖 CJ Debug Snapshot', 'color: #00D4FF; font-size: 16px; font-weight: bold');
+				
+				console.group('📊 Session');
+				console.log('Conversation ID:', chatConfig.conversationId);
+				console.log('Status:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
+				console.log('Merchant:', chatConfig.merchantId || 'Not authenticated');
+				console.log('Workflow:', chatConfig.workflow);
+				console.log('Scenario:', chatConfig.scenarioId || 'None');
+				console.groupEnd();
+				
+				console.group('💬 Conversation');
+				console.log('Messages:', messages.length);
+				console.log('Is Typing:', isTyping);
+				console.log('Connection State:', wsChat.connectionState);
+				console.groupEnd();
+				
+				console.groupEnd();
+				
+				// Request detailed state from backend
+				if (wsChat.isConnected) {
+					wsChat.sendSpecialMessage({
+						type: 'debug_request',
+						data: { type: 'snapshot' }
+					});
+				}
+			},
+			
+			session: () => {
+				if (wsChat.isConnected) {
+					wsChat.sendSpecialMessage({
+						type: 'debug_request',
+						data: { type: 'session' }
+					});
+				} else {
+					console.log('%c❌ Not connected to CJ', 'color: red');
+				}
+			},
+			
+			prompts: () => {
+				if (wsChat.isConnected) {
+					wsChat.sendSpecialMessage({
+						type: 'debug_request',
+						data: { type: 'prompts' }
+					});
+				} else {
+					console.log('%c❌ Not connected to CJ', 'color: red');
+				}
+			},
+			
+			context: () => {
+				console.group('%c📝 Conversation Context', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+				console.log('Total Messages:', messages.length);
+				
+				if (messages.length > 0) {
+					console.group('Recent Messages');
+					messages.slice(-5).forEach((msg, idx) => {
+						console.log(`[${idx + 1}] ${msg.sender}:`, msg.content.substring(0, 100) + '...');
+					});
+					console.groupEnd();
+				}
+				
+				console.groupEnd();
+			},
+			
+			events: () => {
+				console.log('%c📡 Live events started...', 'color: #00D4FF');
+				console.log('(Events will appear as they occur)');
+				// Note: events will be logged by the WebSocket handler
+			},
+			
+			stop: () => {
+				console.log('%c📡 Live events stopped', 'color: #00D4FF');
+			},
+			
+			help: () => {
+				console.log('%c🤖 CJ Debug Commands:', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+				console.table({
+					'cj.debug()': 'Full state snapshot',
+					'cj.session()': 'Session & auth details',
+					'cj.prompts()': 'Recent prompts to CJ',
+					'cj.context()': 'Conversation context',
+					'cj.events()': 'Start live event stream',
+					'cj.stop()': 'Stop event stream',
+					'cj.help()': 'Show this help'
+				});
+			}
+		};
+		
+		// Attach to window
+		(window as any).cj = debugInterface;
+		
+		// Always show help message with current session info
+		console.log('%c🤖 CJ Debug Interface Ready!', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+		
+		// Show persistent user data
+		console.group('%c👤 User Session (Persistent)', 'color: #4CAF50; font-size: 12px');
+		console.log('Merchant ID:', userSession.merchantId || 'None');
+		console.log('Shop Domain:', userSession.shopDomain || 'None');
+		console.log('Connected:', userSession.isConnected ? '✅ Yes' : '❌ No');
+		console.groupEnd();
+		
+		// Show ephemeral conversation data
+		console.group('%c💬 Conversation (Ephemeral)', 'color: #2196F3; font-size: 12px');
+		console.log('Conversation ID:', chatConfig.conversationId);
+		console.log('Workflow:', chatConfig.workflow || 'None');
+		console.log('Scenario:', chatConfig.scenarioId || 'None');
+		console.log('WebSocket:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
+		console.groupEnd();
+		
+		console.log('Type cj.help() for available commands');
+		
+		// Debug environment variables
+		console.log('%c🔧 Frontend Environment Variables:', 'color: #FF00FF; font-weight: bold');
+		console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+		console.log('VITE_AUTH_URL:', import.meta.env.VITE_AUTH_URL);
+		console.log('VITE_WS_BASE_URL:', import.meta.env.VITE_WS_BASE_URL);
+		console.log('VITE_PUBLIC_URL:', import.meta.env.VITE_PUBLIC_URL);
+		
+	}, [chatConfig, messages, isTyping, wsChat, userSession]);
 
 	const handleMessageSend = () => {
 		if (inputValue.trim()) {
@@ -262,6 +490,34 @@ const SlackChat = () => {
 					</button>
 
 					<div className="text-lg sm:text-xl font-bold">HireCJ</div>
+					
+					{/* Workflow Switcher */}
+					<div className="ml-6 flex items-center gap-2">
+						<span className="text-sm text-gray-300">Workflow:</span>
+						<select
+							value={chatConfig.workflow || DEFAULT_WORKFLOW}
+							onChange={(e) => {
+								const newWorkflow = e.target.value as typeof VALID_WORKFLOWS[number];
+								// End current conversation if connected
+								if (wsChat.isConnected) {
+									wsChat.endConversation();
+								}
+								// Start new conversation with new workflow
+								setChatConfig(prev => ({ 
+									...prev, 
+									workflow: newWorkflow,
+									conversationId: uuidv4() // New conversation for new workflow
+								}));
+							}}
+							className="bg-gray-700 text-white text-sm px-3 py-1 rounded border border-gray-600 focus:border-blue-400 focus:outline-none hover:bg-gray-600 transition-colors"
+						>
+							{VALID_WORKFLOWS.map(workflow => (
+								<option key={workflow} value={workflow}>
+									{WORKFLOW_NAMES[workflow]}
+								</option>
+							))}
+						</select>
+					</div>
 					{chatConfig.scenarioId && chatConfig.merchantId && (
 						<span className="ml-2 sm:ml-4 text-xs sm:text-sm text-gray-300 truncate max-w-[200px] sm:max-w-none">
 							{chatConfig.merchantId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - {chatConfig.scenarioId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}

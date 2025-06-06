@@ -1,7 +1,9 @@
 """Main FastAPI application for HireCJ - Unified API server."""
 
+import os
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, WebSocket
@@ -28,6 +30,12 @@ from app.constants import HTTPStatus, WebSocketCloseCodes
 # Initialize logging
 setup_logging()
 
+# Set environment variables for litellm if they're not already set
+if settings.openai_api_key and not os.getenv("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = settings.openai_api_key
+if settings.anthropic_api_key and not os.getenv("ANTHROPIC_API_KEY"):
+    os.environ["ANTHROPIC_API_KEY"] = settings.anthropic_api_key
+
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
@@ -40,6 +48,7 @@ app = FastAPI(
 # Build allowed origins from configuration
 allowed_origins = [
     settings.frontend_url,
+    settings.homepage_url,  # Add homepage_url which is set by tunnel detector
     settings.auth_url,
     # Always allow localhost for development
     "http://localhost:3456",
@@ -59,8 +68,22 @@ if "hirecj.ai" in settings.frontend_url:
         "https://amir-auth.hirecj.ai",
     ])
 
+# Also check homepage_url which is set by tunnel detector
+if settings.homepage_url and "hirecj.ai" in settings.homepage_url:
+    allowed_origins.extend([
+        "https://amir.hirecj.ai",
+        "https://amir-auth.hirecj.ai",
+    ])
+
 # Remove duplicates and empty strings
 allowed_origins = list(set(filter(None, allowed_origins)))
+
+# Log CORS configuration for debugging
+logger.info("🔧 CORS Configuration:")
+logger.info(f"  Frontend URL: {settings.frontend_url}")
+logger.info(f"  Homepage URL: {settings.homepage_url}")
+logger.info(f"  Public URL: {settings.public_url}")
+logger.info(f"  Allowed origins: {allowed_origins}")
 
 # Add CORS middleware
 app.add_middleware(
@@ -80,10 +103,95 @@ platform_manager: Optional[PlatformManager] = None
 web_platform: Optional[WebPlatform] = None
 
 
+def validate_critical_resources():
+    """Validate that all critical resources exist at startup.
+    
+    Fails fast with clear error messages if any required resources are missing.
+    """
+    logger.info("🔍 Validating critical resources...")
+    errors = []
+    
+    # Validate CJ prompt version exists
+    try:
+        cj_version = settings.default_cj_version
+        prompt_loader.load_cj_prompt(cj_version)
+        logger.info(f"✅ CJ prompt version '{cj_version}' found")
+    except FileNotFoundError as e:
+        errors.append(f"CJ prompt missing: {e}")
+    except Exception as e:
+        errors.append(f"CJ prompt error: {e}")
+    
+    # Validate fact extraction prompts exist
+    fact_prompt_v1_path = Path(settings.prompts_dir) / "fact_extraction.yaml"
+    fact_prompt_v2_path = Path(settings.prompts_dir) / "fact_extraction_v2_dedup.yaml"
+    
+    if not fact_prompt_v1_path.exists():
+        errors.append(f"Fact extraction prompt v1 missing: {fact_prompt_v1_path}")
+    else:
+        logger.info("✅ Fact extraction prompt v1 found")
+        
+    if not fact_prompt_v2_path.exists():
+        errors.append(f"Fact extraction prompt v2 missing: {fact_prompt_v2_path}")
+    else:
+        logger.info("✅ Fact extraction prompt v2 found")
+    
+    # Validate merchant personas directory exists
+    personas_dir = Path(settings.prompts_dir) / "merchants" / "personas"
+    if not personas_dir.exists():
+        errors.append(f"Merchant personas directory missing: {personas_dir}")
+    else:
+        personas = prompt_loader.list_merchant_personas()
+        logger.info(f"✅ Found {len(personas)} merchant personas")
+    
+    # Validate scenarios exist
+    scenario_files = [
+        Path(settings.prompts_dir) / "scenarios" / "business_scenarios.yaml",
+        Path(settings.prompts_dir) / "scenarios" / "normal_business_scenarios.yaml",
+    ]
+    scenarios_found = False
+    for scenario_file in scenario_files:
+        if scenario_file.exists():
+            scenarios_found = True
+            logger.info(f"✅ Scenario file found: {scenario_file.name}")
+    
+    if not scenarios_found:
+        errors.append(f"No scenario files found in {Path(settings.prompts_dir) / 'scenarios'}")
+    
+    # Validate conversation directory exists
+    conversations_dir = Path(settings.conversations_dir)
+    if not conversations_dir.exists():
+        try:
+            conversations_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"✅ Created conversations directory: {conversations_dir}")
+        except Exception as e:
+            errors.append(f"Failed to create conversations directory: {e}")
+    else:
+        logger.info("✅ Conversations directory found")
+    
+    # Check for required API keys
+    if not settings.anthropic_api_key and not settings.openai_api_key:
+        errors.append("No LLM API keys configured (need ANTHROPIC_API_KEY or OPENAI_API_KEY)")
+    else:
+        logger.info("✅ LLM API keys configured")
+    
+    # If any errors, fail fast
+    if errors:
+        logger.error("❌ Critical resource validation failed!")
+        for error in errors:
+            logger.error(f"  - {error}")
+        logger.error("\nPlease fix these issues before starting the server.")
+        raise RuntimeError("Critical resources missing. Server cannot start.")
+    
+    logger.info("✅ All critical resources validated!")
+
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
     logger.info("🚀 Initializing HireCJ services...")
+    
+    # Validate critical resources first
+    validate_critical_resources()
 
     # Setup cache
     setup_litellm_cache()
@@ -150,6 +258,16 @@ async def root():
             "health": "/health",
             "api_docs": "/docs",
         },
+    }
+
+
+@app.get("/api/v1/test-cors")
+async def test_cors():
+    """Test endpoint to verify CORS is working"""
+    return {
+        "status": "ok",
+        "message": "CORS is working correctly",
+        "timestamp": datetime.now().isoformat()
     }
 
 
