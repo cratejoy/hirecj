@@ -72,8 +72,9 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
           value={shopDomain}
           onChange={(e) => setShopDomain(e.target.value)}
           className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-shopify-green focus:border-transparent text-white placeholder-gray-500 transition-all"
-          onKeyPress={(e) => {
+          onKeyDown={(e) => {
             if (e.key === 'Enter') {
+              e.preventDefault(); // Prevent form submission
               handleShopSubmit();
             }
           }}

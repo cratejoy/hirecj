@@ -150,7 +150,7 @@ export function useWebSocketChat({
       
       // For onboarding and support_daily workflows, we don't need merchant/scenario
       if (workflow === 'shopify_onboarding' || workflow === 'support_daily') {
-        const key = `${conversationId}-${workflow}`;
+        const key = `${conversationId}`;
         wsLogger.info('Connection key for ${workflow}', { key });
         return key;
       }
@@ -167,11 +167,12 @@ export function useWebSocketChat({
         return null;
       }
       
-      const key = `${conversationId}-${merchantId}-${scenario}-${workflow}`;
-      wsLogger.info('Connection key computed', { key });
+      // Don't include workflow in key - we want to keep same connection during transitions
+      const key = `${conversationId}-${merchantId}-${scenario}`;
+      wsLogger.info('Connection key computed (workflow excluded for transitions)', { key });
       return key;
     },
-    [enabled, conversationId, merchantId, scenario, workflow]
+    [enabled, conversationId, merchantId, scenario] // workflow removed - we don't want reconnections on workflow change
   );
 
   // Send queued messages when connected
