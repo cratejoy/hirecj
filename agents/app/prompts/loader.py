@@ -5,6 +5,9 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 from app.config import settings
+from app.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class PromptLoader:
@@ -36,16 +39,38 @@ class PromptLoader:
         """Load a CJ prompt by version."""
 
         cj_dir = self.prompts_path / "cj" / "versions"
+        original_version = version
 
         if version == "latest":
             # Find the latest version
             version = self._get_latest_version(cj_dir)
+            logger.info(f"Loading latest CJ prompt version: {version}")
+        else:
+            # Handle short versions like "v2" by finding the matching full version
+            # Check if the version is a short version (e.g., "v2" instead of "v2.0.0")
+            if version.count('.') < 2:
+                matching_versions = []
+                for file in cj_dir.glob(f"{version}.*.yaml"):
+                    matching_versions.append(file.stem)
+                
+                if matching_versions:
+                    # Sort and pick the latest matching version
+                    def version_key(version_str):
+                        parts = version_str[1:].split(".")
+                        return [int(part) for part in parts]
+                    version = sorted(matching_versions, key=version_key)[-1]
+                    logger.info(f"Resolved short version '{original_version}' to '{version}'")
 
         prompt_file = cj_dir / f"{version}.yaml"
 
         if not prompt_file.exists():
+            logger.error(f"CJ prompt file not found: {prompt_file}")
+            # List available versions for debugging
+            available = list(cj_dir.glob("*.yaml"))
+            logger.error(f"Available CJ prompt files: {[f.name for f in available]}")
             raise FileNotFoundError(f"CJ prompt not found: {prompt_file}")
 
+        logger.info(f"Loading CJ prompt from: {prompt_file}")
         with open(prompt_file, "r") as f:
             return yaml.safe_load(f)
 
