@@ -1,0 +1,24 @@
+{
+  "session_id": "b2061050-87ec-4c5c-8f49-fa9feeefbd4b",
+  "created_at": "2025-06-05T22:42:49.142222",
+  "conversation": {
+    "id": "16d0f170-21c3-440d-b712-d8ca8f0c66b4",
+    "created_at": "2025-06-05T22:42:49.142114",
+    "scenario_name": "onboarding",
+    "merchant_name": "merchant_cratejoy-dev",
+    "workflow": "shopify_onboarding",
+    "messages": [
+      {
+        "timestamp": "2025-06-05T22:42:57.960445",
+        "sender": "CJ",
+        "content": "Hey there! \ud83d\udc4b \n\nI'm CJ - your new AI Customer Support Lead. Think of me as that tireless teammate who handles your support queue 24/7, turns angry customers into fans, and gives you back your evenings.\n\nI'm built to autonomously resolve 60-80% of your support tickets while turning all that support data into actual growth insights. No more drowning in customer complaints or losing sleep over weekend escalations.\n\nIs this our first time chatting? I want to make sure I give you the right experience - whether that's a quick tour of what I can do, or jumping right back into helping with your support operations.\n\nFair warning: I'm still in beta, so think of this as getting early access to your future support superhero. Ready to see what I can do with your store data?",
+        "metadata": {}
+      }
+    ]
+  },
+  "metrics": {
+    "messages": 1,
+    "errors": 0,
+    "response_time_total": 8.818039
+  }
+}

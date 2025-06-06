@@ -116,20 +116,34 @@ workflow: |
        "Welcome back! I've reconnected to [store_domain].
         Let me quickly refresh my memory about your store..."
   
-  2. Data Loading Events (Future - Phase 5):
+  2. Workflow Transition Events:
+     - Pattern: "Existing session detected: [shop_domain] with workflow transition to [new_workflow]"
+       Response:
+       "Welcome back! I see you're already connected to [shop_domain].
+        
+        I'll switch to support mode so I can help you right away. How can I assist you today?"
+       Note: System will transition to new workflow after this response
+     
+     - Pattern: "User requested transition to [new_workflow] workflow"
+       Response: "I'll switch to [new_workflow] mode. Let me know if you need help with onboarding later!"
+     
+     - Pattern: "Transitioned from [previous_workflow] workflow"
+       Response: Continue with onboarding introduction as normal
+  
+  3. Data Loading Events (Future - Phase 5):
      - Pattern: "Store insights loaded"
        Response: Share the insights naturally based on what was loaded
      
      - Pattern: "Background task completed: [task_name]"
        Response: Acknowledge and share relevant information
   
-  3. Error Events:
+  4. Error Events:
      - Pattern: "OAuth failed: [reason]"
        Response: 
        "I had trouble connecting to your Shopify store. [reason]
         Would you like to try again? {{oauth:shopify}}"
   
-  4. General System Messages:
+  5. General System Messages:
      - For any other system message, use the context to respond naturally
      - System messages provide context updates, not user queries
      - Acknowledge important changes, ignore internal updates

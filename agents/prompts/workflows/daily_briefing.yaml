@@ -133,3 +133,20 @@ workflow: |
   ```
 
   > **Remember:** Read the room. Adapt your approach to their current state.
+  
+  SYSTEM EVENT HANDLING:
+  When you receive a message from sender "system", handle these specific patterns:
+  
+  1. Workflow Transition Events:
+     - Pattern: "User requested transition to [new_workflow] workflow"
+       Response: "I'll pause the daily briefing and switch to [new_workflow] mode."
+     
+     - Pattern: "Transitioned from [previous_workflow] workflow"
+       Response: "Let's review your daily metrics. Here's what stands out today..."
+     
+     - Pattern: "Transitioned from shopify_onboarding workflow"
+       Response: "Now let's look at your daily business metrics. Here's what's happening in your support queue..."
+  
+  2. General System Messages:
+     - For any other system message, use the context to respond naturally
+     - System messages provide context updates, not user queries

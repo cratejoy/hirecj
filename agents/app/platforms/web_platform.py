@@ -273,6 +273,7 @@ class WebPlatform(Platform):
                 "session_update",
                 "oauth_complete",
                 "debug_request",
+                "workflow_transition",
             ]
             if message_type not in valid_types:
                 logger.warning(
@@ -396,6 +397,65 @@ class WebPlatform(Platform):
                         "data": conversation_data,
                     }
                 )
+                
+                # Check if starting onboarding workflow but already authenticated
+                if workflow == "shopify_onboarding" and session and session.user_id and not existing_session:
+                    # Get shop domain from session or OAuth metadata
+                    shop_domain = "your store"
+                    if hasattr(session, 'oauth_metadata') and session.oauth_metadata:
+                        shop_domain = session.oauth_metadata.get('shop_domain', shop_domain)
+                    elif hasattr(session, 'shop_domain'):
+                        shop_domain = session.shop_domain
+                    elif session.merchant_name and session.merchant_name != "onboarding_user":
+                        shop_domain = session.merchant_name
+                    
+                    logger.info(f"[ALREADY_AUTH] Detected authenticated user {session.user_id} starting onboarding workflow, transitioning to ad_hoc_support")
+                    
+                    # Send transition notification
+                    transition_msg = f"Existing session detected: {shop_domain} with workflow transition to ad_hoc_support"
+                    
+                    # Let CJ acknowledge before switching
+                    response = await self.message_processor.process_message(
+                        session=session,
+                        message=transition_msg,
+                        sender="system"
+                    )
+                    
+                    # Send CJ's acknowledgment
+                    if response:
+                        response_data = {
+                            "content": response if isinstance(response, str) else response.get("content", response),
+                            "factCheckStatus": "available",
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                        await websocket.send_json(
+                            {"type": "cj_message", "data": response_data}
+                        )
+                    
+                    # Update workflow after CJ responds
+                    success = self.session_manager.update_workflow(conversation_id, "ad_hoc_support")
+                    if success:
+                        # Notify the new workflow about the transition
+                        arrival_msg = "Transitioned from shopify_onboarding workflow"
+                        await self.message_processor.process_message(
+                            session=session,
+                            message=arrival_msg,
+                            sender="system"
+                        )
+                        
+                        # Update the workflow in conversation_data for frontend
+                        conversation_data["workflow"] = "ad_hoc_support"
+                        
+                        # Notify frontend of workflow change
+                        await websocket.send_json({
+                            "type": "workflow_updated",
+                            "data": {
+                                "workflow": "ad_hoc_support",
+                                "previous": "shopify_onboarding"
+                            }
+                        })
+                    else:
+                        logger.error(f"[ALREADY_AUTH] Failed to update workflow for {conversation_id}")
 
                 # Register progress callback for this WebSocket connection (all workflows)
                 async def progress_callback(update):
@@ -892,6 +952,97 @@ class WebPlatform(Platform):
                             "conversation_id": conversation_id
                         }
                     })
+            
+            elif message_type == "workflow_transition":
+                # Handle workflow transition requests
+                transition_data = data.get("data", {})
+                if not isinstance(transition_data, dict):
+                    await self._send_error(websocket, "Invalid workflow_transition data format")
+                    return
+                
+                new_workflow = transition_data.get("new_workflow")
+                if not new_workflow:
+                    await self._send_error(websocket, "Missing new_workflow in transition request")
+                    return
+                
+                # Get current session
+                session = self.session_manager.get_session(conversation_id)
+                if not session:
+                    await self._send_error(websocket, "No active session for workflow transition")
+                    return
+                
+                # Validate workflow exists
+                from app.workflows.loader import WorkflowLoader
+                workflow_loader = WorkflowLoader()
+                if not workflow_loader.workflow_exists(new_workflow):
+                    await self._send_error(websocket, f"Unknown workflow: {new_workflow}")
+                    return
+                
+                # Get current workflow for context
+                current_workflow = session.conversation.workflow
+                
+                # Don't transition if already in target workflow
+                if current_workflow == new_workflow:
+                    logger.info(f"[WORKFLOW] Already in {new_workflow}, skipping transition")
+                    await websocket.send_json({
+                        "type": "workflow_transition_complete",
+                        "data": {
+                            "workflow": new_workflow,
+                            "message": "Already in requested workflow"
+                        }
+                    })
+                    return
+                
+                logger.info(f"[WORKFLOW_TRANSITION] Transitioning {conversation_id} from {current_workflow} to {new_workflow}")
+                
+                # Send transition announcement to current workflow
+                if transition_data.get("user_initiated"):
+                    transition_msg = f"User requested transition to {new_workflow} workflow"
+                else:
+                    transition_msg = f"System requested transition to {new_workflow} workflow"
+                
+                # Let current workflow say goodbye
+                farewell_response = await self.message_processor.process_message(
+                    session=session,
+                    message=transition_msg,
+                    sender="system"
+                )
+                
+                # Send farewell message if any
+                if farewell_response:
+                    response_data = {
+                        "content": farewell_response if isinstance(farewell_response, str) else farewell_response.get("content", farewell_response),
+                        "factCheckStatus": "available",
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                    await websocket.send_json(
+                        {"type": "cj_message", "data": response_data}
+                    )
+                
+                # Update the workflow
+                success = self.session_manager.update_workflow(conversation_id, new_workflow)
+                if not success:
+                    await self._send_error(websocket, "Failed to update workflow")
+                    return
+                
+                # Let new workflow say hello
+                arrival_msg = f"Transitioned from {current_workflow} workflow"
+                await self.message_processor.process_message(
+                    session=session,
+                    message=arrival_msg,
+                    sender="system"
+                )
+                
+                # Notify frontend of successful transition
+                await websocket.send_json({
+                    "type": "workflow_updated",
+                    "data": {
+                        "workflow": new_workflow,
+                        "previous": current_workflow
+                    }
+                })
+                
+                logger.info(f"[WORKFLOW_TRANSITION] Successfully transitioned {conversation_id} to {new_workflow}")
 
             else:
                 logger.warning(f"Unknown message type from web client: {message_type}")

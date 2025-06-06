@@ -107,6 +107,28 @@ class SessionManager:
             logger.info(f"Resumed session {session_id}")
             return True
         return False
+    
+    def update_workflow(self, session_id: str, new_workflow: str) -> bool:
+        """Update session workflow mid-conversation."""
+        session = self.get_session(session_id)
+        if session:
+            # Store previous workflow for logging
+            previous_workflow = session.conversation.workflow
+            
+            # Update both places workflow is stored
+            session.conversation.workflow = new_workflow
+            session.conversation.state.workflow = new_workflow
+            
+            # Load new workflow data
+            from app.workflows.loader import WorkflowLoader
+            workflow_loader = WorkflowLoader()
+            workflow_data = workflow_loader.load_workflow(new_workflow)
+            if workflow_data:
+                session.conversation.state.workflow_details = workflow_data.get("workflow", "")
+            
+            logger.info(f"[WORKFLOW_SWITCH] {session_id}: {previous_workflow} → {new_workflow}")
+            return True
+        return False
 
     def end_session(self, session_id: str) -> Optional[Session]:
         """End and remove session."""

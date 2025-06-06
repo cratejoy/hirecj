@@ -1,0 +1,24 @@
+{
+  "session_id": "df7d171d-4f63-4a85-9d20-3ea0249917db",
+  "created_at": "2025-06-06T02:17:50.414132",
+  "conversation": {
+    "id": "05e2531f-7816-4f1a-ab4c-a82e26328e67",
+    "created_at": "2025-06-06T02:17:50.414018",
+    "scenario_name": "onboarding",
+    "merchant_name": "merchant_cratejoy-dev",
+    "workflow": "shopify_onboarding",
+    "messages": [
+      {
+        "timestamp": "2025-06-06T02:17:57.219857",
+        "sender": "CJ",
+        "content": "Hey there! \ud83d\udc4b I'm CJ, your new AI Customer Experience Officer. Think of me as that tireless teammate who handles support while you focus on building your business.\n\nI'm here to autonomously resolve 60-80% of your support tickets, turn customer complaints into growth insights, and basically give you your life back - one handled ticket at a time.\n\nQuick question to get us started right - is this our first time chatting? I want to make sure I'm not explaining things you already know!\n\nI should mention upfront: I'm still in beta, so we're perfecting things together. But I'm already saving founders 8-12 hours per week on support operations. Ready to see what I can do for your store?\n\nWhat's your name, by the way? I like to know who I'm working with! \ud83d\ude80",
+        "metadata": {}
+      }
+    ]
+  },
+  "metrics": {
+    "messages": 1,
+    "errors": 0,
+    "response_time_total": 6.805527
+  }
+}
