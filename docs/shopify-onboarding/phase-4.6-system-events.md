@@ -245,21 +245,142 @@ SYSTEM EVENT HANDLING:
 ✅ Clear separation of base + workflow
 ✅ Easy to understand what CJ will do
 
+## Workflow Transitions Extension
+
+### The Problem
+Users who are already authenticated (returning users or those who reload the page) get stuck in the onboarding workflow, leading to a poor experience where they have to go through onboarding again.
+
+### The Solution: Workflow Transitions via System Events
+
+Using the same system events pattern, we can enable smooth workflow transitions mid-conversation.
+
+#### 1. Add Transition Patterns to YAMLs
+
+**In `shopify_onboarding.yaml`:**
+```yaml
+SYSTEM EVENT HANDLING:
+  ... existing patterns ...
+  
+  5. Already Authenticated Detection:
+     - Pattern: "Existing session detected: [shop_domain] with workflow transition to [new_workflow]"
+       Response:
+       "Welcome back! I see you're already connected to [shop_domain].
+        
+        I'll switch to support mode so I can help you right away. How can I assist you today?"
+       Note: After this response, the system will switch to the new workflow
+```
+
+**In `ad_hoc_support.yaml`:**
+```yaml
+SYSTEM EVENT HANDLING:
+  1. Workflow Transition Arrival:
+     - Pattern: "Transitioned from [previous_workflow] workflow"
+       Response: Continue naturally from the context without re-introducing yourself
+       Note: The user just saw your transition message, so jump right into helping
+```
+
+#### 2. Minimal Code Changes
+
+**Add to `session_manager.py`:**
+```python
+def update_workflow(self, session_id: str, new_workflow: str) -> bool:
+    """Update session workflow mid-conversation."""
+    session = self.get_session(session_id)
+    if session:
+        # Update both places workflow is stored
+        session.conversation.workflow = new_workflow
+        session.conversation.state.workflow = new_workflow
+        
+        # Load new workflow data
+        workflow_loader = WorkflowLoader()
+        workflow_data = workflow_loader.load_workflow(new_workflow)
+        if workflow_data:
+            session.conversation.state.workflow_details = workflow_data.get("workflow", "")
+        
+        logger.info(f"[WORKFLOW_SWITCH] {session_id}: {session.conversation.workflow} → {new_workflow}")
+        return True
+    return False
+```
+
+**Add to `web_platform.py` in start_conversation handler:**
+```python
+# Check if starting onboarding but already authenticated
+if workflow == "shopify_onboarding" and session and session.user_id:
+    # Get shop domain from session
+    shop_domain = session.shop_domain or session.merchant_name or "your store"
+    
+    # Send transition notification
+    transition_msg = f"Existing session detected: {shop_domain} with workflow transition to ad_hoc_support"
+    
+    # Let CJ acknowledge before switching
+    await self.message_processor.process_message(
+        session=session,
+        message=transition_msg,
+        sender="system"
+    )
+    
+    # Update workflow after CJ responds
+    self.session_manager.update_workflow(conversation_id, "ad_hoc_support")
+    
+    # Optional: Notify the new workflow about the transition
+    await self.message_processor.process_message(
+        session=session,
+        message="Transitioned from shopify_onboarding workflow",
+        sender="system"
+    )
+```
+
+### Example Flow
+
+```
+User: [Returns to site, already authenticated as test-store.myshopify.com]
+System: "Existing session detected: test-store.myshopify.com with workflow transition to ad_hoc_support"
+CJ: "Welcome back! I see you're already connected to test-store.myshopify.com. I'll switch to support mode so I can help you right away. How can I assist you today?"
+[Workflow switches to ad_hoc_support]
+System: "Transitioned from shopify_onboarding workflow"
+[CJ now operates in ad_hoc_support mode]
+User: "Show me today's orders"
+CJ: [Responds with order data, no re-introduction needed]
+```
+
+### Other Use Cases This Enables
+
+1. **Crisis Detection**
+   ```yaml
+   Pattern: "Crisis detected: [metric] exceeded threshold with workflow transition to crisis_response"
+   Response: "I've detected an urgent situation with your [metric]. Let me help you address this immediately."
+   ```
+
+2. **User Request**
+   ```yaml
+   Pattern: "User requested workflow: [workflow_name]"
+   Response: "Switching to [workflow_name] mode as requested."
+   ```
+
+3. **Scheduled Transitions**
+   ```yaml
+   Pattern: "Scheduled transition to [workflow_name] at [time]"
+   Response: "It's time for your [workflow_name]. Let's get started."
+   ```
+
 ## Summary
 
-Phase 4.6 transforms system event handling from a complex architectural change to a simple YAML update:
+Phase 4.6 now includes both system event handling and workflow transitions:
 
-1. **Implementation Time**: 30 minutes (just YAML editing)
-2. **Code Changes**: Zero (optional message format improvement)
-3. **Testing**: Manual verification that CJ follows instructions
-4. **Benefits**: Full transparency, zero complexity, immediate results
+1. **System Events**: 10 minutes (YAML editing) ✅
+2. **Workflow Transitions**: 40 minutes (YAML + minimal code)
+3. **Total Time**: ~50 minutes
+4. **Code Changes**: < 30 lines
+5. **Benefits**: Natural workflow switching with full transparency
 
-The entire "system events architecture" is really just adding clear instructions to the workflow about how to handle system messages. CJ already has all the capabilities needed - we just need to tell her what to do.
+The implementation maintains our principle of prompt transparency - all transition behavior is visible in the workflow YAMLs, with minimal supporting code to update the session state.
 
 ## Success Criteria
 
 - [x] CJ responds naturally to OAuth completion
-- [x] No code complexity added
+- [x] No code complexity added for basic events
 - [x] Full prompt transparency maintained
+- [ ] Workflow transitions work smoothly
+- [ ] Already-authenticated users skip onboarding
 - [x] Easy to extend with new events
 - [x] Developers can understand behavior by reading YAML

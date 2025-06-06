@@ -387,48 +387,67 @@ get_user_facts(user_id) → [facts]   # Simple list return
 
 ---
 
-### Phase 4.6: System Events Architecture ✅ COMPLETE
-**Goal:** Enable CJ to naturally respond to system events like OAuth completion by adding explicit instructions to workflow YAML files.
+### Phase 4.6: System Events Architecture & Workflow Transitions 🔄 IN PROGRESS
+**Goal:** Enable CJ to naturally respond to system events AND transition between workflows mid-conversation.
 
-**Problem:** Currently when OAuth completes, CJ receives a vague system message "New Shopify merchant authenticated from {shop}" with instructions to "respond appropriately" - but has no specific guidance on HOW to respond, resulting in silence.
+**Problems Solved:**
+1. OAuth completion silence - CJ didn't know how to respond
+2. Already-authenticated users stuck in onboarding workflow
+3. No way to switch workflows based on conversation needs
 
-**Solution:** Add system event handling instructions directly to the workflow YAML that CJ already sees. No hidden prompt mutations, no complex code - just clear instructions.
+**Solution:** System event handling in workflow YAMLs + simple workflow transition mechanism.
 
-**Implementation Pattern:**
+**Implementation Patterns:**
+
+**1. System Event Handling** ✅
 ```yaml
-# In shopify_onboarding.yaml workflow
+# In workflow YAML
 SYSTEM EVENT HANDLING:
 When you receive a message from sender "system", handle these patterns:
 
 For "New Shopify merchant authenticated from [store]":
 - Respond: "Perfect! I've successfully connected to your store at [store]."
-- Then: "Give me just a moment to look around and get familiar with your setup..."
+```
 
-For "Returning Shopify merchant authenticated from [store]":
-- Respond: "Welcome back! I've reconnected to [store]."
-- Then: "Let me quickly refresh my memory about your store..."
+**2. Workflow Transitions** 🔄
+```yaml
+# Transition trigger in shopify_onboarding.yaml
+For "Existing session detected: [shop] with workflow transition to [new_workflow]":
+- Respond: "Welcome back! I see you're already connected to [shop]."
+- Then: "I'll switch to support mode so I can help you right away."
+
+# Receiving workflow acknowledgment in ad_hoc_support.yaml  
+For "Transitioned from [previous_workflow] workflow":
+- Continue naturally without re-introduction
 ```
 
 **Deliverables:**
 
-**1. Workflow YAML Update** *(30 minutes)*
-- [x] Add SYSTEM EVENT HANDLING section to shopify_onboarding.yaml
-- [x] Define responses for oauth_complete (new vs returning)
-- [x] Add instructions for future events (data loading, errors)
-- [ ] Test that CJ follows the instructions
+**1. System Events** *(30 minutes)* ✅
+- [x] OAuth completion responses
+- [x] Error handling patterns
+- [x] Future event placeholders
+
+**2. Workflow Transitions** *(40 minutes)*
+- [ ] Add transition patterns to workflow YAMLs
+- [ ] Implement `update_workflow()` in session_manager
+- [ ] Add already-authenticated detection in web_platform
+- [ ] Test workflow transitions maintain context
 
 **Benefits:**
 - ✅ **Transparent**: All behavior visible in workflow YAML
-- ✅ **Simple**: Zero code changes required
-- ✅ **Debuggable**: Read YAML = understand behavior
-- ✅ **Extensible**: Add new events by editing YAML
-- ✅ **Natural**: CJ already knows how to follow instructions
+- ✅ **Simple**: Minimal code changes (< 30 lines)
+- ✅ **Flexible**: Can transition between any workflows
+- ✅ **Natural**: CJ acknowledges transitions conversationally
+- ✅ **Extensible**: Easy to add new transition triggers
 
-**Critical Design Principle:** No runtime prompt mutations. Everything CJ sees must be visible in:
-1. Base prompt file (e.g., `v6.0.1.yaml`)
-2. Workflow file (e.g., `shopify_onboarding.yaml`)
+**Use Cases Enabled:**
+- Already authenticated → Skip onboarding
+- Crisis detected → Switch to crisis_response
+- "Show me metrics" → Switch to daily_briefing
+- Support spike → Focus on urgent tickets
 
-**Timeline: 30 minutes** (YAML editing only)
+**Timeline: 70 minutes total**
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.6-system-events.md)**
 
