@@ -488,20 +488,20 @@ For "Transitioned from [previous_workflow] workflow":
 - Clear documentation prevents future confusion
 
 **Deliverables:**
-1. **Frontend Updates** *(30 minutes)*
-   - [ ] Remove ALL user ID generation
-   - [ ] Update session_update to send only raw data
-   - [ ] Add clear comments explaining why
+1. **Frontend Updates** *(30 minutes)* ✅
+   - [x] Remove ALL user ID generation
+   - [x] Update session_update to send only raw data
+   - [x] Add clear comments explaining why
 
-2. **Backend Updates** *(45 minutes)*
-   - [ ] Update session_update handler - store raw data only
-   - [ ] Update start_conversation - generate user_id from shop_domain
-   - [ ] Add extensive comments about backend authority
+2. **Backend Updates** *(45 minutes)* ✅
+   - [x] Update session_update handler - store raw data only
+   - [x] Update start_conversation - generate user_id from shop_domain
+   - [x] Add extensive comments about backend authority
 
-3. **Documentation** *(30 minutes)*
-   - [ ] Update agents/README.md with identity section
-   - [ ] Update homepage/README.md about no ID generation
-   - [ ] Add warnings in code about backend-only IDs
+3. **Documentation** *(30 minutes)* ✅
+   - [x] Update agents/README.md with identity section
+   - [x] Update homepage/README.md about no ID generation
+   - [x] Add warnings in code about backend-only IDs
 
 4. **Testing & Cleanup** *(30 minutes)*
    - [ ] Test already-authenticated detection
