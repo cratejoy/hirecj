@@ -1,6 +1,12 @@
 name: "Weekly Business Review"
 description: "Comprehensive weekly analysis and strategic planning"
 
+# Workflow requirements
+requirements:
+  merchant: true       # Need to know which merchant
+  scenario: true       # Need business context
+  authentication: true # Must be authenticated
+
 # IMPORTANT: Workflows define WHAT happens, not HOW to communicate
 # - Define milestones, data to pull, topics to cover
 # - DO NOT include tone, style, or personality instructions

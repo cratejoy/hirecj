@@ -3,6 +3,12 @@ description: "Simple workflow to show the most recent open support ticket"
 
 # Simple workflow - just fetch and display one ticket
 
+# Workflow requirements
+requirements:
+  merchant: true       # Need merchant for database queries
+  scenario: false      # Don't need specific scenario
+  authentication: false # Can work without auth
+
 data_requirements:
   - view: "support_tickets"
     refresh: "on_start"

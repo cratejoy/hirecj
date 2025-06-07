@@ -3,6 +3,12 @@ description: "Natural onboarding flow for all new conversations"
 version: "1.0.0"
 active: true
 
+# Workflow requirements
+requirements:
+  merchant: false      # Don't need merchant context
+  scenario: false      # Don't need scenario context
+  authentication: false # Can start without auth
+
 # Enable UI components for this workflow
 ui_components:
   enabled: true
