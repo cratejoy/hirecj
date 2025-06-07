@@ -298,14 +298,33 @@ class WebPlatform(Platform):
                     )
                     return
 
-                # For onboarding workflow, we don't require merchant/scenario upfront
-                workflow = start_data.get("workflow")
-                if workflow == "shopify_onboarding":
+                workflow = start_data.get("workflow", "ad_hoc_support")
+                
+                # Get workflow requirements
+                workflow_data = self.workflow_loader.get_workflow(workflow)
+                requirements = workflow_data.get('requirements', {})
+                
+                # Use requirements to determine defaults and validation
+                if not requirements.get('merchant', True):
+                    # Workflow doesn't require merchant
                     merchant = start_data.get("merchant_id", "onboarding_user")
-                    scenario = start_data.get("scenario", "onboarding")
                 else:
-                    merchant = start_data.get("merchant_id", "demo_merchant")
-                    scenario = start_data.get("scenario", "normal_day")
+                    # Workflow requires merchant
+                    merchant = start_data.get("merchant_id")
+                    if not merchant:
+                        await self._send_error(websocket, "Merchant ID required for this workflow")
+                        return
+                
+                if not requirements.get('scenario', True):
+                    # Workflow doesn't require scenario
+                    scenario = start_data.get("scenario", "default")
+                else:
+                    # Workflow requires scenario
+                    scenario = start_data.get("scenario")
+                    if not scenario:
+                        await self._send_error(websocket, "Scenario required for this workflow")
+                        return
+                
                 # cj_version = start_data.get("cj_version", settings.default_cj_version)  # TODO: Pass to session when supported
 
                 # Check for existing session first
@@ -437,7 +456,8 @@ class WebPlatform(Platform):
                            f"user_id={getattr(session, 'user_id', 'NONE')}, "
                            f"existing_session={bool(existing_session)}")
                 
-                if workflow == "shopify_onboarding" and session and session.user_id:
+                # Check if user is already authenticated but trying a workflow that doesn't require auth
+                if not requirements.get('authentication', True) and session and session.user_id:
                     # Get shop domain from session or OAuth metadata
                     shop_domain = WorkflowConstants.DEFAULT_SHOP_DOMAIN
                     if hasattr(session, 'oauth_metadata') and session.oauth_metadata:
@@ -447,24 +467,26 @@ class WebPlatform(Platform):
                     elif session.merchant_name and session.merchant_name != "onboarding_user":
                         shop_domain = session.merchant_name
                     
-                    logger.info(f"[ALREADY_AUTH] Detected authenticated user {session.user_id} starting onboarding workflow, transitioning to ad_hoc_support")
+                    # Transition to a workflow that requires authentication (default to ad_hoc_support)
+                    target_workflow = "ad_hoc_support"  # TODO: Make this configurable
+                    logger.info(f"[ALREADY_AUTH] Detected authenticated user {session.user_id} starting {workflow} workflow, transitioning to {target_workflow}")
                     
                     # IMMEDIATE: Update workflow first for instant feedback
-                    success = self.session_manager.update_workflow(conversation_id, "ad_hoc_support")
+                    success = self.session_manager.update_workflow(conversation_id, target_workflow)
                     if success:
                         # IMMEDIATE: Update the workflow in conversation_data for frontend
-                        conversation_data["workflow"] = "ad_hoc_support"
+                        conversation_data["workflow"] = target_workflow
                         
                         # IMMEDIATE: Notify frontend of workflow change
                         await websocket.send_json({
                             "type": "workflow_updated",
                             "data": {
-                                "workflow": "ad_hoc_support",
-                                "previous": "shopify_onboarding"
+                                "workflow": target_workflow,
+                                "previous": workflow
                             }
                         })
                         
-                        logger.info(f"[ALREADY_AUTH] Successfully transitioned {conversation_id} to ad_hoc_support")
+                        logger.info(f"[ALREADY_AUTH] Successfully transitioned {conversation_id} to {target_workflow}")
                         
                         # ASYNC: Handle CJ's responses without blocking
                         async def handle_auth_transition():
@@ -526,57 +548,59 @@ class WebPlatform(Platform):
                 self.message_processor.clear_progress_callbacks()
                 self.message_processor.on_progress(progress_callback)
 
-                # If workflow starts with CJ, generate initial message
-                if workflow in ["daily_briefing", "weekly_review", "ad_hoc_support", "shopify_onboarding", "support_daily"]:
-                    # Get initial message based on workflow
-                    if workflow == "daily_briefing":
-                        response = await self.message_processor.process_message(
-                            session=session,
-                            message="Provide daily briefing using the get_support_dashboard tool to fetch current metrics",
-                            sender="merchant",
-                        )
-                    elif workflow == "shopify_onboarding":
-                        # For onboarding, we want CJ to start with a natural greeting
-                        # The workflow details will guide CJ on what to say
-                        logger.info(f"[SHOPIFY_ONBOARDING] Triggering initial greeting for conversation {conversation_id}")
-                        # Use a clear instruction that won't appear in conversation history
-                        # Similar to how daily_briefing uses "Provide daily briefing"
-                        response = await self.message_processor.process_message(
-                            session=session,
-                            message="Begin onboarding introduction",
-                            sender="merchant",
-                        )
-                        greeting_preview = response["content"][:100] if isinstance(response, dict) and "content" in response else str(response)[:100] if response else 'None'
-                        logger.info(f"[SHOPIFY_ONBOARDING] Generated greeting: {greeting_preview}...")
-                        
-                        # Don't add the trigger message to conversation history
-                        # Remove it so the conversation starts cleanly with CJ's greeting
-                        if session.conversation.messages and session.conversation.messages[-2].content == "Begin onboarding introduction":
-                            # Remove the trigger message (should be second to last, before CJ's response)
-                            session.conversation.messages.pop(-2)
-                            # Also remove from context window
-                            if session.conversation.state.context_window and len(session.conversation.state.context_window) > 1:
-                                session.conversation.state.context_window.pop(-2)
-                    elif workflow == "support_daily":
-                        response = await self.message_processor.process_message(
-                            session=session,
-                            message="Show me the most recent open support ticket using the get_recent_ticket_from_db tool",
-                            sender="merchant",
-                        )
-                    elif workflow == "ad_hoc_support":
-                        response = (
-                            "Hey boss, what's up? 👋 Need help with anything today?"
-                        )
+                # TODO: Workflow initial messages should be defined in workflow YAML files
+                # For now, keeping the workflow-specific initial messages inline
+                # This is behavioral configuration, not requirements-based
+                
+                # Generate initial message based on workflow
+                if workflow == "daily_briefing":
+                    response = await self.message_processor.process_message(
+                        session=session,
+                        message="Provide daily briefing using the get_support_dashboard tool to fetch current metrics",
+                        sender="merchant",
+                    )
+                elif workflow == "shopify_onboarding":
+                    # For onboarding, we want CJ to start with a natural greeting
+                    # The workflow details will guide CJ on what to say
+                    logger.info(f"[SHOPIFY_ONBOARDING] Triggering initial greeting for conversation {conversation_id}")
+                    # Use a clear instruction that won't appear in conversation history
+                    # Similar to how daily_briefing uses "Provide daily briefing"
+                    response = await self.message_processor.process_message(
+                        session=session,
+                        message="Begin onboarding introduction",
+                        sender="merchant",
+                    )
+                    greeting_preview = response["content"][:100] if isinstance(response, dict) and "content" in response else str(response)[:100] if response else 'None'
+                    logger.info(f"[SHOPIFY_ONBOARDING] Generated greeting: {greeting_preview}...")
+                    
+                    # Don't add the trigger message to conversation history
+                    # Remove it so the conversation starts cleanly with CJ's greeting
+                    if session.conversation.messages and session.conversation.messages[-2].content == "Begin onboarding introduction":
+                        # Remove the trigger message (should be second to last, before CJ's response)
+                        session.conversation.messages.pop(-2)
+                        # Also remove from context window
+                        if session.conversation.state.context_window and len(session.conversation.state.context_window) > 1:
+                            session.conversation.state.context_window.pop(-2)
+                elif workflow == "support_daily":
+                    response = await self.message_processor.process_message(
+                        session=session,
+                        message="Show me the most recent open support ticket using the get_recent_ticket_from_db tool",
+                        sender="merchant",
+                    )
+                elif workflow == "ad_hoc_support":
+                    response = (
+                        "Hey boss, what's up? 👋 Need help with anything today?"
+                    )
 
-                        # Add greeting to conversation history so it's part of future context
-                        greeting_msg = Message(
-                            timestamp=datetime.utcnow(),
-                            sender="CJ",
-                            content=response,
-                        )
-                        session.conversation.add_message(greeting_msg)
-                    else:
-                        response = None
+                    # Add greeting to conversation history so it's part of future context
+                    greeting_msg = Message(
+                        timestamp=datetime.utcnow(),
+                        sender="CJ",
+                        content=response,
+                    )
+                    session.conversation.add_message(greeting_msg)
+                else:
+                    response = None
 
                     if response:
                         # Handle structured response with UI elements
