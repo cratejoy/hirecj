@@ -130,6 +130,14 @@ class SessionManager:
             return True
         return False
 
+    def store_session(self, session_id: str, session: Session) -> None:
+        """Store a session with a specific ID.
+        
+        Used when conversation_id needs to be the session key.
+        """
+        self._sessions[session_id] = session
+        logger.info(f"Stored session with ID {session_id}")
+    
     def end_session(self, session_id: str) -> Optional[Session]:
         """End and remove session."""
         return self._sessions.pop(session_id, None)

@@ -30,6 +30,7 @@ from app.models import Message
 # WARNING: Do NOT import generate_user_id directly
 # Always use get_or_create_user() for user identity management
 # This ensures users are properly created in the database
+from shared.user_identity import get_or_create_user
 
 logger = get_logger(__name__)
 websocket_logger = get_logger("websocket")
@@ -207,8 +208,8 @@ class WebPlatform(Platform):
             logger.info(f"WebSocket connection {conversation_id} closed: {str(e)}")
         finally:
             # Extract facts on disconnect if session exists
-            if conversation_id in self.session_manager._sessions:
-                session = self.session_manager._sessions[conversation_id]
+            session = self.session_manager.get_session(conversation_id)
+            if session:
                 
                 # Only extract facts if conversation has messages and user_id
                 if session.user_id and session.conversation.messages:
@@ -338,7 +339,6 @@ class WebPlatform(Platform):
                         # Uses shared.user_identity.get_or_create_user() for consistency
                         if shop_domain:
                             try:
-                                from shared.user_identity import get_or_create_user
                                 user_id, is_new = get_or_create_user(shop_domain)
                                 logger.info(f"[USER_IDENTITY] Backend generated user_id={user_id} "
                                            f"for shop_domain={shop_domain} (new={is_new})")
@@ -358,8 +358,8 @@ class WebPlatform(Platform):
                             workflow_name=workflow,
                             user_id=user_id,  # Will be None for unauthenticated users
                         )
-                        # Store the session with the conversation_id
-                        self.session_manager._sessions[conversation_id] = session
+                        # Store the session with the conversation_id as key
+                        self.session_manager.store_session(conversation_id, session)
                     except ValueError as e:
                         # Handle missing universe or other critical errors
                         error_msg = str(e)
@@ -770,8 +770,8 @@ class WebPlatform(Platform):
             elif message_type == "end_conversation":
                 # Save conversation and close connection
                 # Save conversation
-                if conversation_id in self.session_manager._sessions:
-                    session = self.session_manager._sessions[conversation_id]
+                session = self.session_manager.get_session(conversation_id)
+                if session:
                     self.conversation_storage.save_session(session)
                     
                     # Real-time extraction already handles fact extraction
@@ -841,7 +841,6 @@ class WebPlatform(Platform):
                 # OAuth flow also uses the SAME user identity generation as everywhere else
                 if shop_domain:
                     try:
-                        from shared.user_identity import get_or_create_user
                         user_id, _ = get_or_create_user(shop_domain)
                         logger.info(f"[OAUTH_UPDATE] Backend generated user_id={user_id} from shop={shop_domain}")
                         
