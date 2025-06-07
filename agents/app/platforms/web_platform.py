@@ -27,6 +27,7 @@ from app.services.fact_extractor import FactExtractor
 from app.constants import WebSocketCloseCodes, WorkflowConstants
 from app.config import settings
 from app.models import Message
+from app.workflows.loader import WorkflowLoader
 # WARNING: Do NOT import generate_user_id directly
 # Always use get_or_create_user() for user identity management
 # This ensures users are properly created in the database
@@ -64,6 +65,7 @@ class WebPlatform(Platform):
         self.session_manager = SessionManager()
         self.message_processor = MessageProcessor()
         self.conversation_storage = ConversationStorage()
+        self.workflow_loader = WorkflowLoader()
 
     async def connect(self) -> None:
         """Initialize web platform (no external connections needed)"""
@@ -386,6 +388,10 @@ class WebPlatform(Platform):
                         )
                         return
 
+                # Get workflow requirements
+                workflow_data = self.workflow_loader.get_workflow(workflow)
+                workflow_requirements = workflow_data.get('requirements', {})
+
                 # Create conversation data
                 conversation_data = {
                     "conversationId": conversation_id,
@@ -393,6 +399,8 @@ class WebPlatform(Platform):
                     "scenario": scenario,
                     "workflow": workflow,
                     "sessionId": session.id,
+                    "workflow_requirements": workflow_requirements,
+                    "user_id": session.user_id,
                 }
 
                 if existing_session:
