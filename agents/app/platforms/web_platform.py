@@ -531,6 +531,11 @@ class WebPlatform(Platform):
                             
                             # Create async task to handle messages without blocking
                             asyncio.create_task(handle_auth_transition())
+                            
+                            # IMPORTANT: Return early to prevent processing the original workflow's initial action
+                            # The user has already been transitioned to the new workflow
+                            logger.info(f"[ALREADY_AUTH] Skipping {workflow} initial action - user transitioned to {target_workflow}")
+                            return
                         else:
                             logger.error(f"[ALREADY_AUTH] Failed to update workflow for {conversation_id}")
 
@@ -813,6 +818,36 @@ class WebPlatform(Platform):
                     {"type": "system", "text": "Conversation saved. Goodbye!"}
                 )
                 await websocket.close()
+
+            elif message_type == "logout":
+                # Backend-driven logout - clear session and notify frontend
+                logger.info(f"[LOGOUT] Processing logout request for conversation {conversation_id}")
+                
+                # End any active session
+                session = self.session_manager.get_session(conversation_id)
+                if session:
+                    # Save conversation before logout
+                    self.conversation_storage.save_session(session)
+                    # Remove session
+                    self.session_manager.end_session(conversation_id)
+                    logger.info(f"[LOGOUT] Ended session for conversation {conversation_id}")
+                
+                # Clear WebSocket session data
+                if conversation_id in self.sessions:
+                    del self.sessions[conversation_id]
+                    logger.info(f"[LOGOUT] Cleared WebSocket session data")
+                
+                # Send logout confirmation
+                await websocket.send_json({
+                    "type": "logout_complete",
+                    "data": {
+                        "message": "Successfully logged out"
+                    }
+                })
+                
+                # Close WebSocket connection
+                await websocket.close()
+                logger.info(f"[LOGOUT] Logout complete, connection closed")
 
             elif message_type == "session_update":
                 # IMPORTANT: This handler stores raw merchant data from frontend

@@ -336,7 +336,7 @@ def store_merchant_token(shop: str, access_token: str) -> str:
             "merchant_id": merchant_id,
             "shop_domain": shop,
             "access_token": access_token,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow()  # Pass as datetime object, not string
         })
         logger.info(f"[STORE_TOKEN] Created new merchant: {shop}")
         return f"new_{merchant_id}"

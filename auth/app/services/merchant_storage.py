@@ -34,7 +34,7 @@ class MerchantStorage:
         key = f"merchant:{shop_domain}"
         
         # Convert datetime to ISO format for JSON serialization
-        if "created_at" in merchant_data:
+        if "created_at" in merchant_data and hasattr(merchant_data["created_at"], "isoformat"):
             merchant_data["created_at"] = merchant_data["created_at"].isoformat()
         
         try:

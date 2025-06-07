@@ -607,6 +607,35 @@ const SlackChat = () => {
 				</div>
 
 				<div className="flex items-center space-x-2">
+					{userSession.isConnected && (
+						<>
+							<span className="text-gray-400 text-sm mr-2 hidden sm:inline">
+								{userSession.shopDomain}
+							</span>
+							<button
+								onClick={() => {
+									// Backend-driven logout
+									if (wsChat.connectionState === 'connected') {
+										wsChat.sendSpecialMessage({
+											type: 'logout',
+											data: {}
+										});
+									}
+									
+									// Clear local session
+									userSession.clearMerchant();
+									
+									// Redirect to home after a short delay to ensure backend processing
+									setTimeout(() => {
+										window.location.href = '/';
+									}, 100);
+								}}
+								className="text-gray-300 hover:text-white px-3 py-1 rounded text-sm bg-gray-700 hover:bg-gray-600 transition-colors"
+							>
+								Logout
+							</button>
+						</>
+					)}
 					{isRealChat && (
 						<button
 							onClick={() => {

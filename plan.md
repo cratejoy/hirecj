@@ -33,31 +33,27 @@
    - YAML-based system event handling for OAuth responses
    - [📄 Detailed Documentation](docs/shopify-onboarding/phase-4.6-system-events.md)
 
-8. **Phase 4.6.5: Workflow-Driven Requirements** ⚠️ PARTIALLY COMPLETE
-   - ✅ Backend: All workflow requirements moved to YAML files
-   - ✅ Backend: All workflow behavior moved to YAML files  
-   - ✅ Backend: Serves requirements to frontend
-   - ❌ Frontend: Still has hardcoded workflow checks
-   - ❌ Frontend: Phase 3 not implemented
-   - ⚠️ Some backend services still have hardcoded checks
+8. **Phase 4.6.5: Workflow-Driven Requirements** ✅
+   - All workflow requirements moved to YAML files
+   - All workflow behavior moved to YAML files (Phase 2.5)
+   - Zero hardcoded workflow logic remaining
+   - Backend serves requirements to frontend
+   - Enhanced debug interface for troubleshooting
+
+9. **Phase 4.7: Backend-Authoritative User Identity** ✅
+   - Verified backend is sole authority for user ID generation
+   - Frontend never generates user IDs (only conversation/message IDs)
+   - All services use shared.user_identity module
+   - User IDs follow consistent format: usr_xxxxxxxx
+   - No changes needed - system already correctly implemented
 
 ### ⏳ In Progress
 
-**Phase 4.6.6: Complete Workflow-Driven Requirements** (2 hours remaining)
-
-Remove all remaining hardcoded workflow logic from frontend and backend services to achieve truly workflow-driven architecture.
-
-[📄 Detailed Implementation Plan](docs/phase-4.6.6-complete-workflow-driven-requirements.md)
+None - ready for next phase!
 
 ### 📅 Upcoming Phases
 
-1. **Phase 4.7: Backend-Authoritative User Identity** (2 hours)
-   - Fix user identity generation to be backend-only
-   - Prevent frontend from generating IDs
-   - Ensure consistency across all services
-   - [📄 Detailed Documentation](docs/shopify-onboarding/phase-4.7-backend-authoritative-identity.md)
-
-2. **Phase 5: Quick Value Demo** (4 hours)
+1. **Phase 5: Quick Value Demo** (4 hours)
    - Show immediate value after Shopify connection
    - Progressive data disclosure
    - Smooth transition to support systems
