@@ -441,42 +441,13 @@ class WebPlatform(Platform):
                     
                     logger.info(f"[ALREADY_AUTH] Detected authenticated user {session.user_id} starting onboarding workflow, transitioning to ad_hoc_support")
                     
-                    # Send transition notification
-                    transition_msg = f"Existing session detected: {shop_domain} with workflow transition to ad_hoc_support"
-                    
-                    # Let CJ acknowledge before switching
-                    response = await self.message_processor.process_message(
-                        session=session,
-                        message=transition_msg,
-                        sender="system"
-                    )
-                    
-                    # Send CJ's acknowledgment
-                    if response:
-                        response_data = {
-                            "content": response if isinstance(response, str) else response.get("content", response),
-                            "factCheckStatus": "available",
-                            "timestamp": datetime.now().isoformat(),
-                        }
-                        await websocket.send_json(
-                            {"type": "cj_message", "data": response_data}
-                        )
-                    
-                    # Update workflow after CJ responds
+                    # IMMEDIATE: Update workflow first for instant feedback
                     success = self.session_manager.update_workflow(conversation_id, "ad_hoc_support")
                     if success:
-                        # Notify the new workflow about the transition
-                        arrival_msg = "Transitioned from shopify_onboarding workflow"
-                        await self.message_processor.process_message(
-                            session=session,
-                            message=arrival_msg,
-                            sender="system"
-                        )
-                        
-                        # Update the workflow in conversation_data for frontend
+                        # IMMEDIATE: Update the workflow in conversation_data for frontend
                         conversation_data["workflow"] = "ad_hoc_support"
                         
-                        # Notify frontend of workflow change
+                        # IMMEDIATE: Notify frontend of workflow change
                         await websocket.send_json({
                             "type": "workflow_updated",
                             "data": {
@@ -484,6 +455,45 @@ class WebPlatform(Platform):
                                 "previous": "shopify_onboarding"
                             }
                         })
+                        
+                        logger.info(f"[ALREADY_AUTH] Successfully transitioned {conversation_id} to ad_hoc_support")
+                        
+                        # ASYNC: Handle CJ's responses without blocking
+                        async def handle_auth_transition():
+                            try:
+                                # Send transition notification
+                                transition_msg = f"Existing session detected: {shop_domain} with workflow transition to ad_hoc_support"
+                                
+                                # Let CJ acknowledge the transition
+                                response = await self.message_processor.process_message(
+                                    session=session,
+                                    message=transition_msg,
+                                    sender="system"
+                                )
+                                
+                                # Send CJ's acknowledgment
+                                if response:
+                                    response_data = {
+                                        "content": response if isinstance(response, str) else response.get("content", response),
+                                        "factCheckStatus": "available",
+                                        "timestamp": datetime.now().isoformat(),
+                                    }
+                                    await websocket.send_json(
+                                        {"type": "cj_message", "data": response_data}
+                                    )
+                                
+                                # Notify the new workflow about the transition
+                                arrival_msg = "Transitioned from shopify_onboarding workflow"
+                                await self.message_processor.process_message(
+                                    session=session,
+                                    message=arrival_msg,
+                                    sender="system"
+                                )
+                            except Exception as e:
+                                logger.error(f"[ALREADY_AUTH] Error handling transition messages: {e}")
+                        
+                        # Create async task to handle messages without blocking
+                        asyncio.create_task(handle_auth_transition())
                     else:
                         logger.error(f"[ALREADY_AUTH] Failed to update workflow for {conversation_id}")
 
