@@ -10,6 +10,7 @@ import { ConfigurationModal } from '@/components/ConfigurationModal';
 import { ChatInterface } from '@/components/ChatInterface';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
+import { VALID_WORKFLOWS, WorkflowType, WORKFLOW_TRANSITION_DEBOUNCE_MS, DEFAULT_WORKFLOW } from '@/constants/workflow';
 
 interface Message {
 	id: string;
@@ -28,13 +29,11 @@ interface ChatConfig {
 	scenarioId: string | null;
 	merchantId: string | null;
 	conversationId: string;
-	workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | 'support_daily' | null;
+	workflow: WorkflowType | null;
 }
 
-const VALID_WORKFLOWS = ['ad_hoc_support', 'daily_briefing', 'shopify_onboarding', 'support_daily'] as const;
-const DEFAULT_WORKFLOW = 'support_daily';
-
-const WORKFLOW_NAMES: Record<typeof VALID_WORKFLOWS[number], string> = {
+// Workflow display names with emojis for UI
+const WORKFLOW_NAMES: Record<WorkflowType, string> = {
 	'support_daily': '📋 Support Daily',
 	'ad_hoc_support': '💬 Ad Hoc Support',
 	'daily_briefing': '📊 Daily Briefing',
@@ -72,13 +71,13 @@ const SlackChat = () => {
 		const urlWorkflow = params.get('workflow');
 		
 		if (urlWorkflow && VALID_WORKFLOWS.includes(urlWorkflow as any)) {
-			return urlWorkflow as typeof VALID_WORKFLOWS[number];
+			return urlWorkflow as WorkflowType;
 		}
 		
 		// Check localStorage for last used workflow
 		const savedWorkflow = localStorage.getItem('lastWorkflow');
 		if (savedWorkflow && VALID_WORKFLOWS.includes(savedWorkflow as any)) {
-			return savedWorkflow as typeof VALID_WORKFLOWS[number];
+			return savedWorkflow as WorkflowType;
 		}
 		
 		return DEFAULT_WORKFLOW;
@@ -178,7 +177,7 @@ const SlackChat = () => {
 		onError: handleChatError,
 		onWorkflowUpdated: (newWorkflow, previousWorkflow) => {
 			// Update local state
-			setChatConfig(prev => ({ ...prev, workflow: newWorkflow as typeof VALID_WORKFLOWS[number] }));
+			setChatConfig(prev => ({ ...prev, workflow: newWorkflow as WorkflowType }));
 			
 			// Update URL to match confirmed workflow
 			const params = new URLSearchParams(window.location.search);
@@ -212,7 +211,7 @@ const SlackChat = () => {
 	const workflowChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	
 	// Handle workflow change elegantly - preserve context
-	const handleWorkflowChange = useCallback((newWorkflow: typeof VALID_WORKFLOWS[number]) => {
+	const handleWorkflowChange = useCallback((newWorkflow: WorkflowType) => {
 		// Don't change if already in target workflow
 		if (newWorkflow === chatConfig.workflow) {
 			return;
@@ -243,7 +242,7 @@ const SlackChat = () => {
 					workflow: newWorkflow
 				}));
 			}
-		}, 100); // 100ms debounce
+		}, WORKFLOW_TRANSITION_DEBOUNCE_MS);
 	}, [chatConfig.workflow, wsChat]);
 	
 	// Watch for URL parameter changes (e.g., user navigates with browser back/forward)
@@ -257,14 +256,14 @@ const SlackChat = () => {
 		    urlWorkflow !== chatConfig.workflow) {
 			// If connected, send transition message
 			if (wsChat.isConnected) {
-				wsChat.sendWorkflowTransition(urlWorkflow);
+				wsChat.sendWorkflowTransition(urlWorkflow as WorkflowType);
 			}
 			// Mark as internal update to prevent URL update loop
 			isInternalUpdateRef.current = true;
 			// Update local state
 			setChatConfig(prev => ({ 
 				...prev, 
-				workflow: urlWorkflow as typeof VALID_WORKFLOWS[number]
+				workflow: urlWorkflow as WorkflowType
 			}));
 		}
 	}, [searchString, wsChat.isConnected, wsChat.sendWorkflowTransition]); // Minimal deps to prevent loops
@@ -588,7 +587,7 @@ const SlackChat = () => {
 						<select
 							value={chatConfig.workflow || DEFAULT_WORKFLOW}
 							onChange={(e) => {
-								const newWorkflow = e.target.value as typeof VALID_WORKFLOWS[number];
+								const newWorkflow = e.target.value as WorkflowType;
 								handleWorkflowChange(newWorkflow);
 							}}
 							className="bg-gray-700 text-white text-sm px-3 py-1 rounded border border-gray-600 focus:border-blue-400 focus:outline-none hover:bg-gray-600 transition-colors"

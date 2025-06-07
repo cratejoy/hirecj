@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { logger } from '@/lib/logger';
+import { WorkflowType } from '@/constants/workflow';
+import { WorkflowTransitionMessage } from '@/types/websocket';
 
 const wsLogger = logger.child('websocket');
 
@@ -685,16 +687,16 @@ export function useWebSocketChat({
   }, []);
   
   // Send workflow transition request
-  const sendWorkflowTransition = useCallback((newWorkflow: string) => {
+  const sendWorkflowTransition = useCallback((newWorkflow: WorkflowType) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      const message = JSON.stringify({
+      const message: WorkflowTransitionMessage = {
         type: 'workflow_transition',
         data: {
           new_workflow: newWorkflow,
           user_initiated: true
         }
-      });
-      wsRef.current.send(message);
+      };
+      wsRef.current.send(JSON.stringify(message));
       wsLogger.info('📤 Sent workflow transition request', { newWorkflow });
     } else {
       wsLogger.warn('Cannot send workflow transition - WebSocket not connected');

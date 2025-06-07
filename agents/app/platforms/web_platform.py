@@ -24,7 +24,7 @@ from app.services.session_manager import SessionManager
 from app.services.message_processor import MessageProcessor
 from app.services.conversation_storage import ConversationStorage
 from app.services.fact_extractor import FactExtractor
-from app.constants import WebSocketCloseCodes
+from app.constants import WebSocketCloseCodes, WorkflowConstants
 from app.config import settings
 from app.models import Message
 # WARNING: Do NOT import generate_user_id directly
@@ -431,7 +431,7 @@ class WebPlatform(Platform):
                 
                 if workflow == "shopify_onboarding" and session and session.user_id:
                     # Get shop domain from session or OAuth metadata
-                    shop_domain = "your store"
+                    shop_domain = WorkflowConstants.DEFAULT_SHOP_DOMAIN
                     if hasattr(session, 'oauth_metadata') and session.oauth_metadata:
                         shop_domain = session.oauth_metadata.get('shop_domain', shop_domain)
                     elif hasattr(session, 'shop_domain'):
