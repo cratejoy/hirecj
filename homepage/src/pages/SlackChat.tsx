@@ -175,7 +175,23 @@ const SlackChat = () => {
 		merchantId: chatConfig.merchantId || '',
 		scenario: chatConfig.scenarioId || '',
 		workflow: chatConfig.workflow || 'ad_hoc_support',
-		onError: handleChatError
+		onError: handleChatError,
+		onWorkflowUpdated: (newWorkflow, previousWorkflow) => {
+			// Update local state
+			setChatConfig(prev => ({ ...prev, workflow: newWorkflow as typeof VALID_WORKFLOWS[number] }));
+			
+			// Update URL to match confirmed workflow
+			const params = new URLSearchParams(window.location.search);
+			params.set('workflow', newWorkflow);
+			const newUrl = `${window.location.pathname}?${params.toString()}`;
+			window.history.replaceState({}, '', newUrl);
+			
+			console.log('[SlackChat] URL updated after workflow transition', { 
+				from: previousWorkflow, 
+				to: newWorkflow,
+				url: newUrl 
+			});
+		}
 	});
 	
 	// Debug WebSocket connection

@@ -52,6 +52,7 @@ interface UseWebSocketChatProps {
   scenario: string;
   workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | 'support_daily';
   onError?: (error: string) => void;
+  onWorkflowUpdated?: (newWorkflow: string, previousWorkflow: string) => void;
 }
 
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'closed';
@@ -72,7 +73,8 @@ export function useWebSocketChat({
   merchantId, 
   scenario,
   workflow,
-  onError 
+  onError,
+  onWorkflowUpdated
 }: UseWebSocketChatProps) {
   // Debug initial props
   wsLogger.debug('🎯 useWebSocketChat initialized', {
@@ -277,7 +279,10 @@ export function useWebSocketChat({
             from: previous, 
             to: updatedWorkflow 
           });
-          // Optionally could trigger UI updates here
+          // Trigger callback to parent component
+          if (onWorkflowUpdated) {
+            onWorkflowUpdated(updatedWorkflow, previous);
+          }
           break;
         
         case 'debug_response':
