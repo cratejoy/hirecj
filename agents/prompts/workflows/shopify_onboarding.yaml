@@ -3,6 +3,26 @@ description: "Natural onboarding flow for all new conversations"
 version: "1.0.0"
 active: true
 
+# Workflow requirements
+requirements:
+  merchant: false      # Don't need merchant context
+  scenario: false      # Don't need scenario context
+  authentication: false # Can start without auth
+
+# Workflow behavior configuration
+behavior:
+  initiator: "cj"  # Who starts: "cj" or "merchant"
+  initial_action:
+    type: "process_message"
+    message: "Begin onboarding introduction"
+    sender: "merchant"
+    cleanup_trigger: true  # Remove trigger message from history
+  
+  transitions:
+    already_authenticated:
+      target_workflow: "ad_hoc_support"
+      message: "I see you're already connected! Let me help you with your store."
+
 # Enable UI components for this workflow
 ui_components:
   enabled: true

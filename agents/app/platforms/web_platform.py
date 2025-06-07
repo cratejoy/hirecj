@@ -27,6 +27,7 @@ from app.services.fact_extractor import FactExtractor
 from app.constants import WebSocketCloseCodes, WorkflowConstants
 from app.config import settings
 from app.models import Message
+from app.workflows.loader import WorkflowLoader
 # WARNING: Do NOT import generate_user_id directly
 # Always use get_or_create_user() for user identity management
 # This ensures users are properly created in the database
@@ -64,6 +65,7 @@ class WebPlatform(Platform):
         self.session_manager = SessionManager()
         self.message_processor = MessageProcessor()
         self.conversation_storage = ConversationStorage()
+        self.workflow_loader = WorkflowLoader()
 
     async def connect(self) -> None:
         """Initialize web platform (no external connections needed)"""
@@ -296,14 +298,33 @@ class WebPlatform(Platform):
                     )
                     return
 
-                # For onboarding workflow, we don't require merchant/scenario upfront
-                workflow = start_data.get("workflow")
-                if workflow == "shopify_onboarding":
+                workflow = start_data.get("workflow", "ad_hoc_support")
+                
+                # Get workflow requirements
+                workflow_data = self.workflow_loader.get_workflow(workflow)
+                requirements = workflow_data.get('requirements', {})
+                
+                # Use requirements to determine defaults and validation
+                if not requirements.get('merchant', True):
+                    # Workflow doesn't require merchant
                     merchant = start_data.get("merchant_id", "onboarding_user")
-                    scenario = start_data.get("scenario", "onboarding")
                 else:
-                    merchant = start_data.get("merchant_id", "demo_merchant")
-                    scenario = start_data.get("scenario", "normal_day")
+                    # Workflow requires merchant
+                    merchant = start_data.get("merchant_id")
+                    if not merchant:
+                        await self._send_error(websocket, "Merchant ID required for this workflow")
+                        return
+                
+                if not requirements.get('scenario', True):
+                    # Workflow doesn't require scenario
+                    scenario = start_data.get("scenario", "default")
+                else:
+                    # Workflow requires scenario
+                    scenario = start_data.get("scenario")
+                    if not scenario:
+                        await self._send_error(websocket, "Scenario required for this workflow")
+                        return
+                
                 # cj_version = start_data.get("cj_version", settings.default_cj_version)  # TODO: Pass to session when supported
 
                 # Check for existing session first
@@ -386,6 +407,10 @@ class WebPlatform(Platform):
                         )
                         return
 
+                # Get workflow requirements
+                workflow_data = self.workflow_loader.get_workflow(workflow)
+                workflow_requirements = workflow_data.get('requirements', {})
+
                 # Create conversation data
                 conversation_data = {
                     "conversationId": conversation_id,
@@ -393,6 +418,8 @@ class WebPlatform(Platform):
                     "scenario": scenario,
                     "workflow": workflow,
                     "sessionId": session.id,
+                    "workflow_requirements": workflow_requirements,
+                    "user_id": session.user_id,
                 }
 
                 if existing_session:
@@ -429,73 +456,88 @@ class WebPlatform(Platform):
                            f"user_id={getattr(session, 'user_id', 'NONE')}, "
                            f"existing_session={bool(existing_session)}")
                 
-                if workflow == "shopify_onboarding" and session and session.user_id:
-                    # Get shop domain from session or OAuth metadata
-                    shop_domain = WorkflowConstants.DEFAULT_SHOP_DOMAIN
-                    if hasattr(session, 'oauth_metadata') and session.oauth_metadata:
-                        shop_domain = session.oauth_metadata.get('shop_domain', shop_domain)
-                    elif hasattr(session, 'shop_domain'):
-                        shop_domain = session.shop_domain
-                    elif session.merchant_name and session.merchant_name != "onboarding_user":
-                        shop_domain = session.merchant_name
-                    
-                    logger.info(f"[ALREADY_AUTH] Detected authenticated user {session.user_id} starting onboarding workflow, transitioning to ad_hoc_support")
-                    
-                    # IMMEDIATE: Update workflow first for instant feedback
-                    success = self.session_manager.update_workflow(conversation_id, "ad_hoc_support")
-                    if success:
-                        # IMMEDIATE: Update the workflow in conversation_data for frontend
-                        conversation_data["workflow"] = "ad_hoc_support"
+                # Check for workflow transitions
+                workflow_behavior = self.workflow_loader.get_workflow_behavior(workflow)
+                transitions = workflow_behavior.get('transitions', {})
+                
+                # Check if user is already authenticated but trying a workflow that doesn't require auth
+                if not requirements.get('authentication', True) and session and session.user_id:
+                    transition_config = transitions.get('already_authenticated')
+                    if transition_config:
+                        target_workflow = transition_config.get('target_workflow', 'ad_hoc_support')
+                        transition_message = transition_config.get('message')
                         
-                        # IMMEDIATE: Notify frontend of workflow change
-                        await websocket.send_json({
-                            "type": "workflow_updated",
-                            "data": {
-                                "workflow": "ad_hoc_support",
-                                "previous": "shopify_onboarding"
-                            }
-                        })
+                        # Get shop domain from session or OAuth metadata
+                        shop_domain = WorkflowConstants.DEFAULT_SHOP_DOMAIN
+                        if hasattr(session, 'oauth_metadata') and session.oauth_metadata:
+                            shop_domain = session.oauth_metadata.get('shop_domain', shop_domain)
+                        elif hasattr(session, 'shop_domain'):
+                            shop_domain = session.shop_domain
+                        elif session.merchant_name and session.merchant_name != "onboarding_user":
+                            shop_domain = session.merchant_name
                         
-                        logger.info(f"[ALREADY_AUTH] Successfully transitioned {conversation_id} to ad_hoc_support")
+                        logger.info(f"[ALREADY_AUTH] Detected authenticated user {session.user_id} starting {workflow} workflow, transitioning to {target_workflow}")
                         
-                        # ASYNC: Handle CJ's responses without blocking
-                        async def handle_auth_transition():
-                            try:
-                                # Send transition notification
-                                transition_msg = f"Existing session detected: {shop_domain} with workflow transition to ad_hoc_support"
-                                
-                                # Let CJ acknowledge the transition
-                                response = await self.message_processor.process_message(
-                                    session=session,
-                                    message=transition_msg,
-                                    sender="system"
-                                )
-                                
-                                # Send CJ's acknowledgment
-                                if response:
-                                    response_data = {
-                                        "content": response if isinstance(response, str) else response.get("content", response),
-                                        "factCheckStatus": "available",
-                                        "timestamp": datetime.now().isoformat(),
-                                    }
-                                    await websocket.send_json(
-                                        {"type": "cj_message", "data": response_data}
+                        # IMMEDIATE: Update workflow first for instant feedback
+                        success = self.session_manager.update_workflow(conversation_id, target_workflow)
+                        if success:
+                            # IMMEDIATE: Update the workflow in conversation_data for frontend
+                            conversation_data["workflow"] = target_workflow
+                            
+                            # IMMEDIATE: Notify frontend of workflow change
+                            await websocket.send_json({
+                                "type": "workflow_updated",
+                                "data": {
+                                    "workflow": target_workflow,
+                                    "previous": workflow
+                                }
+                            })
+                            
+                            logger.info(f"[ALREADY_AUTH] Successfully transitioned {conversation_id} to {target_workflow}")
+                            
+                            # ASYNC: Handle CJ's responses without blocking
+                            async def handle_auth_transition():
+                                try:
+                                    # Send transition notification
+                                    transition_msg = f"Existing session detected: {shop_domain} with workflow transition to {target_workflow}"
+                                    
+                                    # Let CJ acknowledge the transition
+                                    response = await self.message_processor.process_message(
+                                        session=session,
+                                        message=transition_msg,
+                                        sender="system"
                                     )
-                                
-                                # Notify the new workflow about the transition
-                                arrival_msg = "Transitioned from shopify_onboarding workflow"
-                                await self.message_processor.process_message(
-                                    session=session,
-                                    message=arrival_msg,
-                                    sender="system"
-                                )
-                            except Exception as e:
-                                logger.error(f"[ALREADY_AUTH] Error handling transition messages: {e}")
-                        
-                        # Create async task to handle messages without blocking
-                        asyncio.create_task(handle_auth_transition())
-                    else:
-                        logger.error(f"[ALREADY_AUTH] Failed to update workflow for {conversation_id}")
+                                    
+                                    # Send CJ's acknowledgment
+                                    if response:
+                                        response_data = {
+                                            "content": response if isinstance(response, str) else response.get("content", response),
+                                            "factCheckStatus": "available",
+                                            "timestamp": datetime.now().isoformat(),
+                                        }
+                                        await websocket.send_json(
+                                            {"type": "cj_message", "data": response_data}
+                                        )
+                                    
+                                    # Notify the new workflow about the transition
+                                    arrival_msg = f"Transitioned from {workflow} workflow"
+                                    await self.message_processor.process_message(
+                                        session=session,
+                                        message=arrival_msg,
+                                        sender="system"
+                                    )
+                                except Exception as e:
+                                    logger.error(f"[ALREADY_AUTH] Error handling transition messages: {e}")
+                            
+                            # Create async task to handle messages without blocking
+                            asyncio.create_task(handle_auth_transition())
+                            
+                            # IMPORTANT: Return early to prevent processing the original workflow's initial action
+                            # The user has already been transitioned to the new workflow
+                            logger.info(f"[ALREADY_AUTH] Skipping {workflow} initial action - user transitioned to {target_workflow}")
+                            return
+                        else:
+                            logger.error(f"[ALREADY_AUTH] Failed to update workflow for {conversation_id}")
 
                 # Register progress callback for this WebSocket connection (all workflows)
                 async def progress_callback(update):
@@ -518,59 +560,43 @@ class WebPlatform(Platform):
                 self.message_processor.clear_progress_callbacks()
                 self.message_processor.on_progress(progress_callback)
 
-                # If workflow starts with CJ, generate initial message
-                if workflow in ["daily_briefing", "weekly_review", "ad_hoc_support", "shopify_onboarding", "support_daily"]:
-                    # Get initial message based on workflow
-                    if workflow == "daily_briefing":
+                # Get workflow behavior
+                workflow_behavior = self.workflow_loader.get_workflow_behavior(workflow)
+                initial_action = workflow_behavior.get('initial_action')
+                
+                if initial_action:
+                    action_type = initial_action.get('type')
+                    
+                    if action_type == 'process_message':
                         response = await self.message_processor.process_message(
                             session=session,
-                            message="Provide daily briefing using the get_support_dashboard tool to fetch current metrics",
-                            sender="merchant",
+                            message=initial_action.get('message'),
+                            sender=initial_action.get('sender', 'merchant'),
                         )
-                    elif workflow == "shopify_onboarding":
-                        # For onboarding, we want CJ to start with a natural greeting
-                        # The workflow details will guide CJ on what to say
-                        logger.info(f"[SHOPIFY_ONBOARDING] Triggering initial greeting for conversation {conversation_id}")
-                        # Use a clear instruction that won't appear in conversation history
-                        # Similar to how daily_briefing uses "Provide daily briefing"
-                        response = await self.message_processor.process_message(
-                            session=session,
-                            message="Begin onboarding introduction",
-                            sender="merchant",
-                        )
-                        greeting_preview = response["content"][:100] if isinstance(response, dict) and "content" in response else str(response)[:100] if response else 'None'
-                        logger.info(f"[SHOPIFY_ONBOARDING] Generated greeting: {greeting_preview}...")
                         
-                        # Don't add the trigger message to conversation history
-                        # Remove it so the conversation starts cleanly with CJ's greeting
-                        if session.conversation.messages and session.conversation.messages[-2].content == "Begin onboarding introduction":
-                            # Remove the trigger message (should be second to last, before CJ's response)
-                            session.conversation.messages.pop(-2)
-                            # Also remove from context window
-                            if session.conversation.state.context_window and len(session.conversation.state.context_window) > 1:
-                                session.conversation.state.context_window.pop(-2)
-                    elif workflow == "support_daily":
-                        response = await self.message_processor.process_message(
-                            session=session,
-                            message="Show me the most recent open support ticket using the get_recent_ticket_from_db tool",
-                            sender="merchant",
-                        )
-                    elif workflow == "ad_hoc_support":
-                        response = (
-                            "Hey boss, what's up? 👋 Need help with anything today?"
-                        )
-
-                        # Add greeting to conversation history so it's part of future context
-                        greeting_msg = Message(
-                            timestamp=datetime.utcnow(),
-                            sender="CJ",
-                            content=response,
-                        )
-                        session.conversation.add_message(greeting_msg)
-                    else:
-                        response = None
-
-                    if response:
+                        # Handle cleanup if specified
+                        if initial_action.get('cleanup_trigger') and session.conversation.messages:
+                            trigger_message = initial_action.get('message')
+                            if (len(session.conversation.messages) >= 2 and 
+                                session.conversation.messages[-2].content == trigger_message):
+                                session.conversation.messages.pop(-2)
+                                if session.conversation.state.context_window and len(session.conversation.state.context_window) > 1:
+                                    session.conversation.state.context_window.pop(-2)
+                    
+                    elif action_type == 'static_message':
+                        response = initial_action.get('content')
+                        
+                        if initial_action.get('add_to_history', False):
+                            greeting_msg = Message(
+                                timestamp=datetime.utcnow(),
+                                sender="CJ",
+                                content=response,
+                            )
+                            session.conversation.add_message(greeting_msg)
+                else:
+                    response = None
+                
+                if response:
                         # Handle structured response with UI elements
                         if isinstance(response, dict) and response.get("type") == "message_with_ui":
                             response_with_fact_check = {
@@ -792,6 +818,36 @@ class WebPlatform(Platform):
                     {"type": "system", "text": "Conversation saved. Goodbye!"}
                 )
                 await websocket.close()
+
+            elif message_type == "logout":
+                # Backend-driven logout - clear session and notify frontend
+                logger.info(f"[LOGOUT] Processing logout request for conversation {conversation_id}")
+                
+                # End any active session
+                session = self.session_manager.get_session(conversation_id)
+                if session:
+                    # Save conversation before logout
+                    self.conversation_storage.save_session(session)
+                    # Remove session
+                    self.session_manager.end_session(conversation_id)
+                    logger.info(f"[LOGOUT] Ended session for conversation {conversation_id}")
+                
+                # Clear WebSocket session data
+                if conversation_id in self.sessions:
+                    del self.sessions[conversation_id]
+                    logger.info(f"[LOGOUT] Cleared WebSocket session data")
+                
+                # Send logout confirmation
+                await websocket.send_json({
+                    "type": "logout_complete",
+                    "data": {
+                        "message": "Successfully logged out"
+                    }
+                })
+                
+                # Close WebSocket connection
+                await websocket.close()
+                logger.info(f"[LOGOUT] Logout complete, connection closed")
 
             elif message_type == "session_update":
                 # IMPORTANT: This handler stores raw merchant data from frontend

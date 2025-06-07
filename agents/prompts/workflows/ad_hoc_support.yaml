@@ -1,6 +1,20 @@
 name: "Ad Hoc Support"
 description: "Responsive support for merchant-initiated conversations"
 
+# Workflow requirements
+requirements:
+  merchant: true       # Need to know which merchant
+  scenario: true       # Need business context
+  authentication: true # Must be authenticated
+
+# Workflow behavior configuration
+behavior:
+  initiator: "cj"
+  initial_action:
+    type: "static_message"
+    content: "Hey boss, what's up? 👋 Need help with anything today?"
+    add_to_history: true
+
 # IMPORTANT: Workflows define WHAT happens, not HOW to communicate
 # - Define milestones, data to pull, topics to cover
 # - DO NOT include tone, style, or personality instructions

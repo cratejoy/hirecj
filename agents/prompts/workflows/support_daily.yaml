@@ -3,6 +3,20 @@ description: "Simple workflow to show the most recent open support ticket"
 
 # Simple workflow - just fetch and display one ticket
 
+# Workflow requirements
+requirements:
+  merchant: true       # Need merchant for database queries
+  scenario: false      # Don't need specific scenario
+  authentication: false # Can work without auth
+
+# Workflow behavior configuration
+behavior:
+  initiator: "cj"
+  initial_action:
+    type: "process_message"
+    message: "Show me the most recent open support ticket using the get_recent_ticket_from_db tool"
+    sender: "merchant"
+
 data_requirements:
   - view: "support_tickets"
     refresh: "on_start"
