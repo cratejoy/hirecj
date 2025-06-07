@@ -1,4 +1,4 @@
-# Shopify Login & Onboarding Plan
+# Workflow-Driven Requirements Plan
 
 ## 📊 Current Status Summary
 
@@ -12,21 +12,11 @@
 7. **Phase 4.6: System Events Architecture** - YAML-based system event handling for OAuth responses
 
 ### 🎯 Current Priority
-**Phase 4.7: Backend-Authoritative User Identity** - Fix user identity to be backend-only
+**Workflow-Driven Requirements** - Move all workflow requirements into YAML files, remove ALL hardcoded logic (3 hours)
 
-### 🔜 Next Phase
-**Phase 5: Quick Value Demo** - Show immediate value after Shopify connection
-
-### 📅 Upcoming Phases
-- Phase 6: Support System Connection
-- Phase 7: Notification & Polish
-- Phase 8: Testing & Refinement
-
-### 🚀 Next Steps
-1. Configure Supabase connection and run identity schema migration
-2. Integrate user_identity library into auth service for OAuth
-3. Integrate archival service into agents for conversation persistence
-4. Test end-to-end user identity flow
+### 🔜 Next Phases
+- **Phase 4.7: Backend-Authoritative User Identity** - Fix user identity to be backend-only
+- **Phase 5: Quick Value Demo** - Show immediate value after Shopify connection
 
 ---
 
@@ -41,1146 +31,441 @@
 7. **No Over-Engineering**: Design for current needs only - no hypothetical features
 8. **Thoughtful Logging & Instrumentation**: Appropriate visibility into system behavior
 
-## 🚀 Implementation Phases
-
-### Phase 1: Foundation ✅ COMPLETE
-**Deliverables:**
-- [x] Onboarding workflow definition (`shopify_onboarding.yaml`)
-- [x] Default workflow routing (always start with onboarding)
-- [x] CJ agent context updates for onboarding awareness
-- [x] OAuth button React component
-- [x] WebSocket connection fix for onboarding workflow
-- [x] CJ initial greeting implementation
-
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-1-foundation.md)**
-
-### Phase 2: Auth Flow Integration ✅ COMPLETE
-**Deliverables:**
-- [x] OAuth callback enhancement to detect new/returning merchants
-- [x] Shop domain as primary identifier (no visitor tracking)
-- [x] Conversation context updates post-OAuth
-- [x] Frontend OAuth flow with redirect handling
-
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-2-auth-flow.md)**
-
-### Phase 3: OAuth Production Ready ⚠️ NEEDS CUSTOM APP SUPPORT
-**Deliverables:**
-- [x] Configure real Shopify OAuth credentials
-- [x] Fix ngrok tunnel integration for OAuth callbacks
-- [x] Verify new vs returning merchant detection implementation
-- [ ] Support Shopify custom app installation flow *(NEW REQUIREMENT)*
-- [ ] Test OAuth flow end-to-end with real Shopify (manual testing required)
-- [ ] Test CJ's response to OAuth completion (manual testing required)
-
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-3-oauth-production.md)**
-📄 **[Testing Guide →](docs/shopify-onboarding/phase-3-testing.md)**
-
-**Implementation Summary:**
-- OAuth credentials configured in auth/.env.secrets
-- Tunnel detection working correctly via unified env config
-- Homepage automatically uses correct auth service URL
-- New vs returning merchant detection already implemented
-- **DISCOVERED:** Custom apps require different installation flow than public apps
-
-### Phase 3.5: ~~Complex App Bridge Implementation~~ ❌ ABANDONED
-**Problem:** We implemented a complex App Bridge solution that requires embedded context, but our use case needs everything to work on hirecj.ai directly.
-
-**What We Built (Overly Complex):**
-- App Bridge integration requiring embedded context
-- Session token retrieval from within Shopify admin
-- Complex dual-context handling
-- JWT verification and token exchange (good parts)
-
-**Why It Failed:** Fundamental mismatch - we need merchants to use HireCJ from hirecj.ai, not from within Shopify admin.
-
-### Phase 3.6: ~~Manual Token Entry (Custom Distribution)~~ ❌ ABANDONED
-**Problem:** Discovered that custom distribution apps don't support OAuth - they require manual token generation and entry by merchants. This creates friction in the onboarding process.
-
-**What We Built:**
-- Manual token entry form with beta notice
-- Token validation endpoint
-- Instructions for merchants to generate tokens
-
-**Why It Failed:** Not a technical failure, but a Shopify limitation. Custom distribution apps simply don't support OAuth. To use OAuth, we need a different app type.
-
-### Phase 3.7: OAuth 2.0 Implementation ✅ COMPLETE
-**Solution:** Switch from custom distribution to OAuth-enabled app. Implement standard Shopify OAuth 2.0 authorization code grant flow.
-
-**The Right Flow:**
-```
-OAuth Flow:
-├── User clicks "Connect Shopify" on hirecj.ai
-├── Enter shop domain (if not saved)
-├── Redirect to https://{shop}/admin/oauth/authorize
-├── User approves permissions
-├── Shopify redirects back with authorization code
-├── Backend exchanges code for access token
-├── Store token in Redis
-└── Redirect to chat - authenticated!
-```
-
-**What We Built:**
-- ✅ HMAC verification utility for secure OAuth callbacks
-- ✅ Full OAuth endpoints with proper security (nonce validation)
-- ✅ Token exchange and storage in Redis
-- ✅ Updated frontend button to always collect shop domain
-- ✅ Fixed async/sync issues in auth service
-- ✅ Removed shop domain persistence (always ask)
-- ✅ Proper error handling and logging
-
-**Benefits:**
-- Standard OAuth flow that works for any app type
-- No manual token entry required
-- Production-ready authentication
-- Can eventually become a public app
-- Seamless merchant experience
-
-📄 **[Implementation Guide →](docs/shopify-onboarding/phase-3.7-oauth-implementation.md)**
-
-### What We Keep from 3.5:
-- ✅ OAuth code deletion (already done)
-- ✅ Magic number fixes (already done)
-- ✅ JWT verification service (reusable)
-- ✅ Token exchange service (reusable)
-- ❌ App Bridge integration (remove)
-- ❌ Polling mechanism (remove)
-- ❌ Complex context handling (remove)
-
-### Phase 4.0: True Environment Centralization ✅ COMPLETE
-**Goal:** Implement TRUE single .env file management with zero exceptions. Fix the broken multi-file pattern.
-
-**Deliverables:**
-- [x] Audit and consolidate ALL environment variables across services
-- [x] Create master .env.example with every variable needed
-- [x] Rewrite env_loader.py to enforce single source (no fallbacks)
-- [x] Create distribute_env.py script for automatic distribution
-- [x] Update all services to use centralized pattern
-- [x] Remove ALL bypass paths (load_dotenv, direct access)
-- [x] Update Makefile and documentation
-
-**Achieved:**
-- Developers now manage exactly ONE .env file
-- Automatic distribution to services via `make dev`
-- No service can bypass the centralized pattern
-- Startup validation catches missing resources early
-- Git hooks prevent accidental service .env commits
-
-📄 **[Implementation Complete →](docs/phase-4.0-env-centralization.md)**
-
-### Phase 4.1: UI Actions Pattern ✅ COMPLETE
-**Deliverables:**
-- [x] Parser implementation to extract {{oauth:shopify}} markers
-- [x] Workflow configuration to enable UI components
-- [x] Message processor integration to parse UI elements
-- [x] Platform layer passes ui_elements through WebSocket
-- [x] Frontend UI element rendering with pattern matching fallback
-- [ ] End-to-end testing of complete flow
-
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4-ui-actions.md)**
-
-### Phase 4.5: User Identity & Persistence (SIMPLIFIED) ✅ COMPLETE
-**Goal:** Add minimal user identity for persistent "your store" insights across sessions.
-
-**Revised Architecture (Much Simpler):**
-- User IDs generated from shop domains (usr_xxx format)
-- Direct Supabase writes - no Redis archival complexity
-- Conversations saved directly as they happen
-- Simple 3-table schema in Supabase (users, conversations, user_facts)
-
-**What We're Actually Building:**
-```python
-# Core identity functions - ~100 lines
-generate_user_id(shop_domain) → "usr_12345678"
-get_or_create_user(shop_domain, email) → (user_id, is_new)
-save_conversation_message(user_id, message) → None
-get_user_conversations(user_id) → List[messages]
-
-# Fact storage functions - ~40 lines (planned)
-append_fact(user_id, fact, source) → None
-get_user_facts(user_id) → List[facts]
-```
-
-**The Simplified Flow:**
-```
-Shopify OAuth → Generate User ID → Save Messages Directly
-      ↓              ↓                    ↓
-  Shop Domain    usr_xxx ID           Supabase
-```
-
-**Minimal Schema:**
-```sql
--- 1. Users (from OAuth)
-CREATE TABLE users (
-    id VARCHAR(50) PRIMARY KEY,
-    shop_domain VARCHAR(255) UNIQUE NOT NULL,
-    email VARCHAR(255),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- 2. Conversations (direct writes)
-CREATE TABLE conversations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id VARCHAR(50) REFERENCES users(id),
-    message JSONB NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- 3. User Facts (single JSONB document)
-CREATE TABLE user_facts (
-    user_id VARCHAR(50) PRIMARY KEY REFERENCES users(id),
-    facts JSONB DEFAULT '[]'::jsonb,
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Just 2 indexes
-CREATE INDEX idx_users_shop ON users(shop_domain);
-CREATE INDEX idx_conv_user ON conversations(user_id);
-```
-
-**Fact Storage Design:**
-- Single JSONB array per user containing all facts
-- Append new facts with: `facts = facts || jsonb_build_array($new_fact)`
-- Facts stored as: `{"fact": "...", "source": "conv_123", "learned_at": "2024-..."}`
-- One row per user, updated atomically
-- ~40 lines for `append_fact()` and `get_facts()` functions
-
-**Benefits of Simplified Approach:**
-- ✅ **No Redis Complexity**: Direct DB writes, no archival needed
-- ✅ **No Over-Engineering**: Just store messages as they come
-- ✅ **Dead Simple**: Can be understood in 5 minutes
-- ✅ **Still Enables Phase 5**: "Your store had 5 orders yesterday..."
-
-**Implementation Status:**
-- [x] Built over-engineered library (1,072 lines) ❌
-- [x] Created simplified version (109 lines) ✅
-- [x] Replace complex library with simple version ✅
-- [x] Remove Redis archival assumptions ✅
-- [x] Integrate direct PostgreSQL writes ✅
-- [x] Add fact storage functions (50 lines)
-- [x] Remove old file-based merchant memory system
-  - [x] Delete merchant_memory.py service
-  - [x] Remove dedicated test files
-  - [x] Update user_identity tests
-### Minimum Viable Integration ✅ COMPLETE
-- [x] **Database Setup** (30 min) ✅
-  - [x] Test connection with scripts/test_user_identity.py
-  - [x] Run migration via create_identity_tables.py
-  - [x] Verify tables created and basic CRUD works
-  - [x] Created stub merchant_memory.py to avoid breaking imports
-  
-- [x] **Auth Service Integration** (1 hour) ✅
-  - [x] Import user_identity in shopify_oauth.py
-  - [x] Add get_or_create_user() call after token exchange
-  - [x] NO NEED to pass user_id in redirect (backend generates it)
-  
-- [x] **Minimal Agents Integration** (2 hours) ✅
-  - [x] Add user_id field to Session class
-  - [x] Generate user_id from shop_domain in WebSocket
-  - [x] Update message_processor to save conversations
-  - [x] Update oauth_complete handler to generate user_id
-  - [x] Skip fact migration for MVP
-
-### Full Integration (Later)
-- [ ] Update agents service completely
-  - [ ] Remove all MerchantMemory imports (5 files)
-  - [ ] Update session_manager to use user_identity facts
-  - [ ] Update fact_extractor to use append_fact
-  - [ ] Clean up data/merchant_memory directory
-- [ ] Frontend updates
-  - [ ] Accept user_id from OAuth redirect
-  - [ ] Include user_id when creating WebSocket session
-- [ ] Full testing
-  - [ ] Test fact persistence across sessions
-  - [ ] Verify old file-based system removed
-
-📄 **[Updated Simple Implementation Guide →](docs/shopify-onboarding/phase-4.5-user-identity-simple.md)**
-
-## 📊 Phase 4.5 Implementation Audit - FINAL
-
-### Final Implementation Grade: A+
-
-**From D to A+**: We successfully identified and fixed the over-engineering problem, then elegantly added fact storage without complexity.
-
-After deep analysis, we discovered:
-1. **The agents service doesn't use Redis for conversations** - uses in-memory + file storage
-2. **The archival system solves a non-existent problem** - no Redis TTL to worry about
-3. **We built 1,072 lines when ~100 would suffice** - 10x overengineering
-
-### What We Built vs What Was Needed
-
-| What We Built | What Was Actually Needed |
-|--------------|-------------------------|
-| Complex Redis archival service (349 lines) | Nothing - Redis isn't used |
-| SQLAlchemy ORM with 3 models | Simple SQL with 2 tables |
-| Event tracking system | Not needed for POC |
-| Background archival loops | Direct writes on message |
-| 11 database indexes | 2 indexes |
-| Error handling, retries, transactions | Let it fail in POC |
-| **Total: 1,072 lines** | **Total: ~100 lines** |
-
-### The Root Cause
-
-The complexity cascade:
-1. **Assumed Redis usage** (wrong assumption)
-2. **Built archival for Redis TTL** (solving non-problem)
-3. **"Shared library" triggered production mindset** (overbuilding)
-4. **SQLAlchemy brought complexity tax** (ORM overhead)
-
-### The Elegant Solution
-
-Direct PostgreSQL writes with minimal fact storage:
-```python
-# Identity & conversations
-generate_user_id(shop_domain) → "usr_12345678"
-save_conversation_message(user_id, message)
-
-# Facts (replacing file-based system)
-append_fact(user_id, fact, source)  # Atomic JSONB append
-get_user_facts(user_id) → [facts]   # Simple list return
-```
-
-**Final Implementation:**
-- 6 functions, 190 lines total (with logging)
-- 3 simple tables (users, conversations, user_facts)
-- Facts stored as JSONB array per user
-- No background services, no Redis, no complexity
-- Thoughtful logging added (8 strategic log points)
-
-### North Star Violations
-
-- ❌ **Simplify**: Added massive unnecessary complexity
-- ❌ **No Over-Engineering**: Built for hypothetical scale
-- ❌ **No Cruft**: 90% of code is cruft
-- ❌ **Current Needs Only**: Built for production during discovery
-
-### Lesson Learned
-
-**Always verify assumptions before building.** We built an elaborate archival system for Redis data that doesn't exist. Classic case of solving the wrong problem elegantly.
-
 ---
 
-## Development Environment Updates
+## 🔧 Workflow-Driven Requirements (Current Task)
 
-### Recent Environment Changes (Phase 3.7 - Phase 5)
+### Problem
+Workflow requirements are hardcoded in multiple places:
+- Frontend has `if (workflow === 'shopify_onboarding' || workflow === 'support_daily')`
+- Backend has `if workflow == "shopify_onboarding":`
+- No single source of truth for what each workflow needs
 
-**New Required Environment Variables:**
-- `SHOPIFY_CLIENT_ID` - Required for Shopify OAuth
-- `SHOPIFY_CLIENT_SECRET` - Required for Shopify OAuth
+### Solution
+Move ALL workflow requirements into their YAML files. Zero hardcoded workflow names in code.
 
-**Tunnel Configuration Updates:**
-- Auth service now uses `HOMEPAGE_URL` from `.env.tunnel` for OAuth redirects
-- Added `env_ignore_empty=True` to Pydantic configs to prevent empty string overrides
-- Fixed `.env.tunnel` loading order (now has highest precedence)
+### Phase 1: Add Requirements to Workflow YAMLs (30 min)
 
-**CORS Configuration:**
-- Both `frontend_url` and `homepage_url` are now added to allowed origins
-- Automatic detection of hirecj.ai domains for CORS
+**Task**: Add `requirements` section to each workflow YAML file.
 
-**Debug System:**
-- Browser console now has `window.cj` debug commands (enabled by default)
-- Commands: `cj.debug()`, `cj.session()`, `cj.prompts()`, `cj.context()`
-- Backend debug_request handler provides session and state information
+**Files to update**:
+- `/agents/prompts/workflows/shopify_onboarding.yaml`
+- `/agents/prompts/workflows/ad_hoc_support.yaml`
+- `/agents/prompts/workflows/support_daily.yaml`
+- `/agents/prompts/workflows/daily_briefing.yaml`
+- `/agents/prompts/workflows/weekly_review.yaml`
+- `/agents/prompts/workflows/crisis_response.yaml`
 
-**OAuth Flow Requirements:**
-- Must use tunnels for OAuth (localhost redirects won't work)
-- Shopify app must be configured with proper redirect URLs
-- JSON serialization fix for datetime objects in merchant storage
-
-📄 **[Full Environment Setup Guide →](README_ENV_SETUP.md)**
-
----
-
-### Phase 4.6: System Events Architecture & Workflow Transitions 🔄 BACKEND COMPLETE, FRONTEND PENDING
-**Goal:** Enable CJ to naturally respond to system events AND transition between workflows mid-conversation.
-
-**Problems Solved:**
-1. OAuth completion silence - CJ didn't know how to respond ✅
-2. Already-authenticated users stuck in onboarding workflow ✅ 
-3. No way to switch workflows based on conversation needs ✅
-4. Frontend destroys conversation on workflow change ⏳
-
-**Solution:** System event handling in workflow YAMLs + simple workflow transition mechanism.
-
-**Implementation Patterns:**
-
-**1. System Event Handling** ✅
+**Add this section to each**:
 ```yaml
-# In workflow YAML
-SYSTEM EVENT HANDLING:
-When you receive a message from sender "system", handle these patterns:
+# shopify_onboarding.yaml
+requirements:
+  merchant: false      # Don't need merchant context
+  scenario: false      # Don't need scenario context
+  authentication: false # Can start without auth
 
-For "New Shopify merchant authenticated from [store]":
-- Respond: "Perfect! I've successfully connected to your store at [store]."
+# ad_hoc_support.yaml
+requirements:
+  merchant: true       # Need to know which merchant
+  scenario: true       # Need business context
+  authentication: true # Must be authenticated
+
+# support_daily.yaml
+requirements:
+  merchant: true       # Need merchant for database queries
+  scenario: false      # Don't need specific scenario
+  authentication: false # Can work without auth
+
+# daily_briefing.yaml, weekly_review.yaml, crisis_response.yaml
+requirements:
+  merchant: true
+  scenario: true
+  authentication: true
 ```
 
-**2. Workflow Transitions** 🔄
-```yaml
-# A. Already-authenticated detection (shopify_onboarding.yaml)
-For "Existing session detected: [shop] with workflow transition to [new_workflow]":
-- Respond: "Welcome back! I see you're already connected to [shop]."
-- Then: "I'll switch to support mode so I can help you right away."
+### Phase 2: Backend Reads & Serves Requirements (1 hour)
 
-# B. User-initiated transitions (all workflows)
-For "User requested transition to [new_workflow] workflow":
-- Response: [Workflow-specific acknowledgment and goodbye]
+**Task 1**: Update WorkflowLoader to include requirements
 
-# C. Arrival acknowledgment (all workflows)  
-For "Transitioned from [previous_workflow] workflow":
-- Response: [Workflow-specific welcome without re-introduction]
-```
-
-**Deliverables:**
-
-**1. System Events** *(30 minutes)* ✅
-- [x] OAuth completion responses
-- [x] Error handling patterns
-- [x] Future event placeholders
-
-**2. Workflow Transitions** *(90 minutes total)*
-
-**2a. Already-Authenticated Detection** *(40 minutes)*
-- [ ] Add transition patterns to shopify_onboarding.yaml
-- [ ] Add arrival pattern to ad_hoc_support.yaml
-- [ ] Implement `update_workflow()` in session_manager
-- [ ] Add authenticated detection in web_platform
-- [ ] Test smooth transition from onboarding → ad_hoc
-
-**2b. General Workflow Transitions** *(50 minutes)*
-- [ ] Add user-initiated transition patterns to ALL workflows
-- [ ] Add arrival patterns to ALL workflows
-- [ ] Frontend: Add workflow dropdown/selector
-- [ ] Frontend: Handle query string workflow changes
-- [ ] Backend: Add workflow_transition message handler
-- [ ] Test transitions between various workflows
-
-**Benefits:**
-- ✅ **Transparent**: All behavior visible in workflow YAML
-- ✅ **Simple**: Minimal code changes (< 30 lines)
-- ✅ **Flexible**: Can transition between any workflows
-- ✅ **Natural**: CJ acknowledges transitions conversationally
-- ✅ **Extensible**: Easy to add new transition triggers
-
-**Use Cases Enabled:**
-- Already authenticated → Skip onboarding automatically
-- User selects workflow → Smooth transition with acknowledgment
-- Crisis detected → Switch to crisis_response
-- "Show me metrics" → Switch to daily_briefing
-- Support spike → Focus on urgent tickets
-- Query string changes → Workflow follows URL
-
-**Timeline: 2 hours total** (System events: 30min + Transitions: 90min)
-
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.6-system-events.md)**
-
-### Phase 4.7: Backend-Authoritative User Identity 🔐 CRITICAL FIX
-**Goal:** Fix user identity generation to be backend-only, preventing ID mismatches and foreign key violations.
-
-**Problem:** User IDs are generated inconsistently:
-- Frontend creates: `shop_cratejoy-dev` (wrong)
-- Backend expects: `usr_2230c443` (correct SHA256-based)
-- Database rejects incorrect IDs → foreign key violations
-- Already-authenticated detection fails
-
-**Solution: Backend-Only Identity**
-- Frontend sends raw data only (shop_domain, merchant_id)
-- Backend is sole authority for ID generation
-- Uses consistent `get_or_create_user()` function
-- Clear documentation prevents future confusion
-
-**Deliverables:**
-1. **Frontend Updates** *(30 minutes)* ✅
-   - [x] Remove ALL user ID generation
-   - [x] Update session_update to send only raw data
-   - [x] Add clear comments explaining why
-
-2. **Backend Updates** *(45 minutes)* ✅
-   - [x] Update session_update handler - store raw data only
-   - [x] Update start_conversation - generate user_id from shop_domain
-   - [x] Add extensive comments about backend authority
-
-3. **Documentation** *(30 minutes)* ✅
-   - [x] Update agents/README.md with identity section
-   - [x] Update homepage/README.md about no ID generation
-   - [x] Add warnings in code about backend-only IDs
-
-4. **Testing & Cleanup** *(30 minutes)*
-   - [ ] Test already-authenticated detection
-   - [ ] Test new user creation flow
-   - [ ] Add database constraint for ID format
-   - [ ] Clean up any invalid user records
-
-**Benefits:**
-- ✅ **Single Source of Truth**: One place for ID generation
-- ✅ **Reliability**: Consistent IDs across all services  
-- ✅ **Simplicity**: Clear, documented pattern
-- ✅ **No More Errors**: Eliminates foreign key violations
-
-**Timeline: 2.25 hours total**
-
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.7-backend-authoritative-identity.md)**
-
-### Phase 5: Quick Value Demo 🎯 NEXT PRIORITY
-**Goal:** Show immediate value after Shopify connection by providing quick insights about their store WITHOUT requiring full data dumps or complex ETL.
-
-**Core Strategy: Progressive Data Disclosure**
-Instead of syncing all data, we fetch exactly what we need for the conversation using a three-tier approach:
-
-#### Tier 1: Instant Metrics (< 500ms)
+File: `/agents/app/workflows/loader.py`
 ```python
-# Uses existing REST count endpoints - no pagination needed
-{
-    "customers": api.get_customer_count(),           # e.g., 1,234
-    "total_orders": api.get_order_count(),          # e.g., 5,678  
-    "active_orders": api.get_order_count("open")    # e.g., 12
-}
+def get_workflow(self, name: str) -> Dict[str, Any]:
+    """Get a workflow by name."""
+    if name not in self.workflows:
+        available = ", ".join(self.list_workflows())
+        raise ValueError(f"Workflow '{name}' not found. Available: {available}")
+    
+    workflow_data = self.workflows[name].copy()  # Don't modify cached version
+    
+    # Ensure requirements exist with sensible defaults
+    if 'requirements' not in workflow_data:
+        # Default: require everything (safer default)
+        workflow_data['requirements'] = {
+            'merchant': True,
+            'scenario': True,
+            'authentication': True
+        }
+    
+    # Check if workflow enables UI components
+    if workflow_data.get('ui_components', {}).get('enabled', False):
+        # Add UI instructions to workflow
+        ui_instructions = self._get_ui_instructions(
+            workflow_data['ui_components']
+        )
+        workflow_data['workflow'] += f"\n\n{ui_instructions}"
+    
+    return workflow_data
+
+def get_workflow_requirements(self, name: str) -> Dict[str, bool]:
+    """Get just the requirements for a workflow."""
+    workflow = self.get_workflow(name)
+    return workflow.get('requirements', {
+        'merchant': True,
+        'scenario': True,
+        'authentication': True
+    })
 ```
 
-#### Tier 2: Quick Insights (< 2s) 
+**Task 2**: Add requirements to conversation_started message
+
+File: `/agents/app/platforms/web_platform.py`
+
+Add import at top:
 ```python
-# Single GraphQL query for rich data
-query = """
-{
-  shop { name, currencyCode }
-  orders(first: 10, reverse: true) {
-    edges { node {
-      createdAt
-      totalPriceSet { shopMoney { amount } }
-      lineItems(first: 5) { edges { node { title, quantity } } }
-    }}
-  }
-  products(first: 5, sortKey: INVENTORY_TOTAL, reverse: true) {
-    edges { node { title, totalInventory, priceRangeV2 {...} } }
-  }
-}
-"""
+from app.workflows.loader import WorkflowLoader
 ```
 
-#### Tier 3: Deeper Analysis (< 5s)
+In `__init__`:
 ```python
-# Targeted REST queries with strict limits
-last_week_orders = api.get_orders(
-    updated_at_min=(datetime.now() - timedelta(days=7)).isoformat(),
-    limit=50  # Small, manageable dataset
-)
+self.workflow_loader = WorkflowLoader()
 ```
 
-**Deliverables:**
+In `handle_websocket_message`, modify conversation_started section:
+```python
+# Get workflow requirements
+workflow_data = self.workflow_loader.get_workflow(workflow)
+workflow_requirements = workflow_data.get('requirements', {})
 
-**1. GraphQL Client Extension** *(2 hours)*
-- [ ] Add `ShopifyGraphQL` class to `shopify_util.py`
-- [ ] Implement `get_store_pulse()` query method
-- [ ] Add proper error handling and rate limiting
-
-**2. Quick Insights Service** *(4 hours)*
-- [ ] Create `app/services/quick_insights.py`
-- [ ] Implement three-tier data fetching:
-  - [ ] `tier_1_snapshot()` - REST count endpoints
-  - [ ] `tier_2_insights()` - GraphQL store pulse
-  - [ ] `tier_3_analysis()` - Limited REST queries
-- [ ] Add 15-minute Redis caching for demo phase
-
-**3. Natural Language Generator** *(3 hours)*
-- [ ] Create `generate_quick_insights()` function
-- [ ] Transform data into conversational insights:
-  ```python
-  # Input: {"recent_revenue": 1234.56, "order_velocity": 3.2}
-  # Output: ["You've made $1,234.56 in the last 10 orders",
-  #          "Your store is averaging 3.2 orders per day"]
-  ```
-- [ ] Handle edge cases (new stores, no recent orders)
-
-**4. CJ Agent Integration** *(3 hours)*
-- [ ] Update `handle_oauth_complete()` in CJ agent
-- [ ] Implement progressive disclosure flow:
-  ```python
-  # 1. Instant gratification
-  yield "Great! I can see you have 1,234 customers in your store."
-  
-  # 2. Show we're analyzing
-  yield "Let me take a quick look at your recent activity..."
-  
-  # 3. Deliver insights naturally
-  for insight in insights:
-      yield insight
-      await asyncio.sleep(0.5)  # Natural pacing
-  
-  # 4. Transition to next phase
-  yield "I'm already seeing some patterns. Would you like me to connect..."
-  ```
-
-**5. Error Handling & Edge Cases** *(2 hours)*
-- [ ] Handle stores with no data gracefully
-- [ ] Manage API rate limits
-- [ ] Fallback messages for API failures
-- [ ] Test with various store sizes
-
-**The Enhanced Experience:**
-```
-After OAuth:
-├── [0-500ms] "Great! I can see you have 1,234 customers"
-├── [500ms-2s] "Let me look at your recent activity..."
-├── [2-3s] "You've made $12,456 in the last 10 orders"
-├── [3-4s] "Your store is averaging 5.2 orders per day"  
-├── [4-5s] "'Blue Widget' is your best stocked product"
-├── [5-6s] "I'm seeing some interesting patterns..."
-└── [6s+] "Would you like me to connect your support system?"
-```
-
-**Success Metrics:**
-- Time to first insight: < 500ms
-- Total onboarding time: < 30 seconds
-- Zero full data dumps during demo
-- API calls per session: < 5
-- Cache hit rate: > 80% during demos
-
-**Why This Approach:**
-- ✅ **No ETL Complexity**: Direct API calls, no sync infrastructure
-- ✅ **Instant Value**: First response in under 500ms
-- ✅ **Conversation-Driven**: Data follows dialogue naturally
-- ✅ **Efficient**: Never fetch more than needed
-- ✅ **Demo-Optimized**: 15-min cache perfect for onboarding
-
-**Timeline: 14 hours total** (2 days)
-- Day 1: GraphQL client, Quick Insights service
-- Day 2: Natural language, CJ integration, testing
-
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-quick-value.md)** *(TODO)*
-
-### Phase 6: Support System Connection
-**Deliverables:**
-- [ ] Support system provider detection logic
-- [ ] Interest list for unsupported systems
-- [ ] OAuth flows for supported systems
-- [ ] Graceful handling of unsupported providers
-
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-6-support-systems.md)** *(TODO)*
-
-### Phase 7: Notification & Polish
-**Deliverables:**
-- [ ] Email notification capture and sending
-- [ ] Browser notification implementation
-- [ ] Beta messaging throughout experience
-- [ ] Error handling and edge cases
-
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-7-notifications.md)** *(TODO)*
-
-### Phase 8: Testing & Refinement
-**Deliverables:**
-- [ ] End-to-end flow testing suite
-- [ ] Performance optimization
-- [ ] Security review
-- [ ] Documentation and deployment guide
-
-📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-8-testing.md)** *(TODO)*
-
-## 🏛️ System Architecture Overview
-
-### Identity Architecture: Shopify OAuth as the Gate
-
-**Core Principle**: No visitor tracking, no spam records. Shopify OAuth is both authentication and identity.
-
-```
-New Visitor Flow:
-┌────────────┐     ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│   Visit    │────▶│   Always    │────▶│   Shopify    │────▶│  New/Return │
-│   Site     │     │  Onboarding │     │    OAuth     │     │  Detection  │
-└────────────┘     └─────────────┘     └──────────────┘     └─────────────┘
-                         │                                           │
-                         ▼                                           ▼
-                   "Hi! First time?"                          Check shop exists
-                   Natural routing                            Continue accordingly
-```
-
-### High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        User's Browser                               │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌──────────────────────┐          ┌────────────────────────────┐  │
-│  │                      │          │                            │  │
-│  │   Homepage (React)   │ WebSocket│    OAuth Redirect Flow     │  │
-│  │    Port: 3456        ├─────────►│    (Shopify/Support)       │  │
-│  │                      │          │                            │  │
-│  └──────────┬───────────┘          └──────────┬─────────────────┘  │
-│             │                                  │                    │
-└─────────────┼──────────────────────────────────┼────────────────────┘
-              │ REST API                         │ OAuth
-              ▼                                  ▼
-┌─────────────────────────────────┐  ┌──────────────────────────────┐
-│                                 │  │                              │
-│      Agents Service             │  │      Auth Service            │
-│      Port: 8000                 │  │      Port: 8103              │
-│                                 │  │                              │
-│  ┌─────────────────────────┐   │  │  ┌────────────────────────┐  │
-│  │   WebSocket Handler     │   │  │  │  OAuth Providers       │  │
-│  │   - Default: Onboarding │   │  │  │  - Shopify (Identity)  │  │
-│  │   - Message Router      │   │  │  │  - FreshDesk           │  │
-│  └───────────┬─────────────┘   │  │  │  - Zendesk             │  │
-│              │                  │  │  └────────────────────────┘  │
-│  ┌───────────▼─────────────┐   │  │                              │
-│  │   Message Processor     │   │  │  ┌────────────────────────┐  │
-│  │   - Parse & Route       │   │  │  │  OAuth Callback Logic  │  │
-│  │   - Context Building    │   │  │  │  - Shop Domain Check   │  │
-│  │   - State Management    │   │  │  │  - New/Return Status   │  │
-│  └───────────┬─────────────┘   │  │  │  - Context Updates     │  │
-│              │                  │  │  └────────────────────────┘  │
-│  ┌───────────▼─────────────┐   │  │                              │
-│  │      CJ Agent           │   │  └──────────────────────────────┘
-│  │   - Always Onboarding   │   │
-│  │   - Natural Routing     │   │  ┌──────────────────────────────┐
-│  │   - Tool Integration    │   │  │                              │
-│  └───────────┬─────────────┘   │  │    Database Service         │
-│              │                  │  │    Port: 8002               │
-│  ┌───────────▼─────────────┐   │  │                              │
-│  │   Quick Insights        │   │  │  ┌────────────────────────┐  │
-│  │   - Store Snapshot      │   │  │  │  PostgreSQL            │  │
-│  │   - Basic Analytics     │   │  │  │  - Merchants (by shop) │  │
-│  │   - Progressive Load    │   │  │  │  - OAuth Tokens        │  │
-│  └─────────────────────────┘   │  │  │  - No Visitor Records  │  │
-│                                 │  │  └────────────────────────┘  │
-└─────────────────────────────────┘  └──────────────────────────────┘
-```
-
-### Data Flow Sequences
-
-#### 1. **First Visit Flow**
-```
-1. User visits site
-2. Frontend starts WebSocket with workflow="shopify_onboarding"
-3. CJ: "Hi! I'm CJ, here to help with your customer support. First time chatting?"
-4. Natural conversation determines path
-5. OAuth button presented when appropriate
-```
-
-#### 2. **OAuth Identity Flow**
-```
-1. User clicks "Connect Shopify"
-2. Homepage → Auth Service: /oauth/shopify/authorize?conversation_id=X
-3. Auth Service → Shopify: Redirect with read-only scopes
-4. User authorizes on Shopify
-5. Shopify → Auth Service: Callback with code + shop domain
-6. Auth Service:
-   - Exchanges code for token
-   - Checks if shop domain exists in DB
-   - Returns: { is_new: bool, merchant_id?: str, shop: str }
-7. Auth Service → Homepage: Redirect with context
-8. Homepage → Agents: "oauth_complete" with new/returning status
-9. CJ Agent: Continues appropriately based on status
-```
-
-#### 3. **Returning Merchant Detection**
-```
-OAuth Callback Logic:
-if (shop_exists_in_database):
-    return {
-        "is_new": false,
-        "merchant_id": existing_merchant.id,
-        "redirect": "/chat?returning=true"
+# Send conversation started with requirements
+await websocket.send_json({
+    "type": "conversation_started",
+    "data": {
+        "conversation_id": conversation_id,
+        "session_id": session.id,
+        "merchant": merchant,
+        "scenario": scenario,
+        "workflow": workflow,
+        "workflow_requirements": workflow_requirements,
+        "user_id": session.user_id,
     }
+})
+```
+
+**Task 3**: Remove hardcoded workflow checks
+
+File: `/agents/app/platforms/web_platform.py`
+
+DELETE:
+```python
+# For onboarding workflow, we don't require merchant/scenario upfront
+workflow = start_data.get("workflow")
+if workflow == "shopify_onboarding":
+    merchant = start_data.get("merchant_id", "onboarding_user")
+    scenario = start_data.get("scenario", "onboarding")
 else:
-    return {
-        "is_new": true,
-        "shop_domain": shop,
-        "redirect": "/chat?continue_onboarding=true"
-    }
+    merchant = start_data.get("merchant_id", "demo_merchant")
+    scenario = start_data.get("scenario", "normal_day")
 ```
 
-### Frontend Simplification
+REPLACE WITH:
+```python
+workflow = start_data.get("workflow", "ad_hoc_support")
 
-#### 1. **Remove Configuration Modal**
+# Get workflow requirements
+workflow_data = self.workflow_loader.get_workflow(workflow)
+requirements = workflow_data.get('requirements', {})
+
+# Use requirements to determine defaults and validation
+if not requirements.get('merchant', True):
+    # Workflow doesn't require merchant
+    merchant = start_data.get("merchant_id", "onboarding_user")
+else:
+    # Workflow requires merchant
+    merchant = start_data.get("merchant_id")
+    if not merchant:
+        await self._send_error(websocket, "Merchant ID required for this workflow")
+        return
+
+if not requirements.get('scenario', True):
+    # Workflow doesn't require scenario
+    scenario = start_data.get("scenario", "default")
+else:
+    # Workflow requires scenario
+    scenario = start_data.get("scenario")
+    if not scenario:
+        await self._send_error(websocket, "Scenario required for this workflow")
+        return
+```
+
+Also DELETE any other hardcoded workflow checks like:
+```python
+if workflow in ["daily_briefing", "weekly_review", "ad_hoc_support", "shopify_onboarding", "support_daily"]:
+```
+
+### Phase 3: Frontend Uses Backend Requirements (1 hour)
+
+**Task 1**: Store requirements from backend
+
+File: `/homepage/src/hooks/useWebSocketChat.ts`
+
+Add state for requirements:
 ```typescript
-// SlackChat.tsx - Simplified
-const [chatConfig] = useState<ChatConfig>({
-  workflow: 'shopify_onboarding',  // Always start here
-  conversationId: uuidv4(),
-  merchantId: null  // Set after OAuth
+// Add near other refs
+const workflowRequirementsRef = useRef<Record<string, any>>({});
+
+// In message handler
+case 'conversation_started':
+  wsLogger.info('Conversation started', data.data);
+  
+  // Store workflow requirements
+  if (data.data.workflow_requirements) {
+    workflowRequirementsRef.current = data.data.workflow_requirements;
+    wsLogger.info('Received workflow requirements:', data.data.workflow_requirements);
+  }
+  
+  // ... rest of existing code
+  break;
+```
+
+**Task 2**: Replace hardcoded workflow checks in SlackChat
+
+File: `/homepage/src/pages/SlackChat.tsx`
+
+Add state for requirements:
+```typescript
+const [workflowRequirements, setWorkflowRequirements] = useState<Record<string, any>>({});
+```
+
+DELETE:
+```typescript
+const isRealChat = useMemo(() =>
+    !showConfigModal && !!chatConfig.conversationId && !!chatConfig.workflow && 
+    // For onboarding and support_daily workflows, we don't need merchantId/scenarioId initially
+    (chatConfig.workflow === 'shopify_onboarding' || chatConfig.workflow === 'support_daily' || (!!chatConfig.scenarioId && !!chatConfig.merchantId)),
+    [showConfigModal, chatConfig]
+);
+```
+
+REPLACE WITH:
+```typescript
+const canConnect = useMemo(() => {
+    if (!chatConfig.conversationId || !chatConfig.workflow) return false;
+    if (showConfigModal) return false;
+    
+    // Get requirements from backend (with safe fallback)
+    const requirements = workflowRequirements[chatConfig.workflow] || {
+        merchant: true,
+        scenario: true
+    };
+    
+    // Validate against requirements
+    if (requirements.merchant && !chatConfig.merchantId) {
+        console.warn(`[CONNECTION] ${chatConfig.workflow} requires merchant but none provided`);
+        return false;
+    }
+    
+    if (requirements.scenario && !chatConfig.scenarioId) {
+        console.warn(`[CONNECTION] ${chatConfig.workflow} requires scenario but none provided`);
+        return false;
+    }
+    
+    console.log(`[CONNECTION] ${chatConfig.workflow} requirements met, can connect`);
+    return true;
+}, [showConfigModal, chatConfig, workflowRequirements]);
+```
+
+Update all uses of `isRealChat` to `canConnect`.
+
+Pass requirements callback to WebSocket hook:
+```typescript
+const wsChat = useWebSocketChat({
+    enabled: canConnect,
+    conversationId: chatConfig.conversationId,
+    merchantId: chatConfig.merchantId || '',
+    scenario: chatConfig.scenarioId || '',
+    workflow: chatConfig.workflow || 'ad_hoc_support',
+    onError: handleChatError,
+    onWorkflowUpdated: handleWorkflowChange,
+    onRequirementsReceived: (reqs) => {
+        console.log('[SlackChat] Received workflow requirements:', reqs);
+        setWorkflowRequirements(reqs);
+    }
 });
-
-// Optional: Show hint for returning merchants
-const lastShopDomain = localStorage.getItem('last_shop_domain');
-{lastShopDomain && (
-  <Button size="sm" onClick={() => startOAuth()}>
-    Shop owner? Login →
-  </Button>
-)}
 ```
 
-#### 2. **OAuth Button Component**
+**Task 3**: Remove hardcoded checks in connection key
+
+File: `/homepage/src/hooks/useWebSocketChat.ts`
+
+DELETE:
 ```typescript
-interface OAuthButtonProps {
-  provider: 'shopify' | 'freshdesk' | 'zendesk';
-  conversationId: string;
-  variant?: 'primary' | 'secondary';
+// For onboarding and support_daily workflows, we don't need merchant/scenario
+if (workflow === 'shopify_onboarding' || workflow === 'support_daily') {
+    const key = `${conversationId}`;
+    wsLogger.info('Connection key for ${workflow}', { key });
+    return key;
 }
-
-// Usage in chat
-<OAuthButton 
-  provider="shopify"
-  conversationId={chatConfig.conversationId}
-  variant="primary"
-/>
 ```
 
-### Backend Intelligence
-
-#### 1. **Workflow Selection**
-```python
-# agents/app/services/message_processor.py
-async def start_conversation(data: dict):
-    # Always use shopify_onboarding for new conversations
-    workflow = "shopify_onboarding"
-    
-    # After OAuth, workflow can change based on merchant status
-    if data.get("oauth_complete") and not data.get("is_new"):
-        workflow = "ad_hoc_support"
+REPLACE WITH:
+```typescript
+// Connection key always uses same format
+// Requirements determine if we can connect, not the key format
+const key = `${conversationId}-${merchantId || 'none'}-${scenario || 'none'}`;
+wsLogger.info('Connection key computed', { key, workflow });
+return key;
 ```
 
-#### 2. **OAuth Callback Enhancement**
-```python
-# auth/app/providers/shopify.py
-async def handle_callback(self, code: str, state: str, shop: str):
-    # Exchange code for token
-    token_data = await self.exchange_code(code, shop)
+Add callback prop:
+```typescript
+interface UseWebSocketChatProps {
+    // ... existing props
+    onRequirementsReceived?: (requirements: Record<string, any>) => void;
+}
+```
+
+Call it when requirements received:
+```typescript
+case 'conversation_started':
+    // ... existing code
     
-    # Check merchant existence by shop domain
-    merchant = await db.get_merchant_by_shop_domain(shop)
+    if (data.data.workflow_requirements && onRequirementsReceived) {
+        onRequirementsReceived(data.data.workflow_requirements);
+    }
+    break;
+```
+
+### Phase 4: Enhanced Debug Interface (30 min)
+
+File: `/homepage/src/pages/SlackChat.tsx`
+
+Update debug interface:
+```typescript
+why: () => {
+    console.group('%c❓ Why is CJ not connected?', 'color: #FF6B6B; font-size: 14px; font-weight: bold');
     
-    # Build redirect URL with context
-    redirect_params = {
-        "conversation_id": state_data.get("conversation_id"),
-        "is_new": merchant is None,
-        "shop": shop
+    if (showConfigModal) {
+        console.log('❌ Configuration modal is open');
     }
     
-    if merchant:
-        redirect_params["merchant_id"] = str(merchant.id)
+    if (!chatConfig.conversationId || !chatConfig.workflow) {
+        console.log('❌ Missing basic configuration');
+    }
     
-    return redirect_to_frontend(redirect_params)
+    const requirements = workflowRequirements[chatConfig.workflow] || {
+        merchant: true,
+        scenario: true,
+        authentication: true
+    };
+    
+    console.log('📋 Workflow:', chatConfig.workflow);
+    console.log('✅ Requirements:', requirements);
+    console.log('📦 Current config:', {
+        merchantId: chatConfig.merchantId || 'none',
+        scenarioId: chatConfig.scenarioId || 'none',
+        isAuthenticated: !!userSession.isConnected
+    });
+    
+    // Check each requirement
+    if (requirements.merchant && !chatConfig.merchantId) {
+        console.log('❌ Missing required merchantId');
+    } else if (requirements.merchant) {
+        console.log('✅ Has required merchantId:', chatConfig.merchantId);
+    }
+    
+    if (requirements.scenario && !chatConfig.scenarioId) {
+        console.log('❌ Missing required scenarioId');
+    } else if (requirements.scenario) {
+        console.log('✅ Has required scenarioId:', chatConfig.scenarioId);
+    }
+    
+    if (requirements.authentication && !userSession.isConnected) {
+        console.log('❌ Authentication required but not connected');
+    } else if (requirements.authentication) {
+        console.log('✅ Authenticated:', userSession.merchantId);
+    }
+    
+    if (canConnect) {
+        console.log('✅ All requirements met! Should be connecting...');
+        console.log('WebSocket state:', wsChat.connectionState);
+    } else {
+        console.log('❌ Cannot connect due to missing requirements');
+    }
+    
+    console.groupEnd();
+},
+
+requirements: () => {
+    console.group('%c📋 Workflow Requirements', 'color: #4CAF50; font-size: 14px; font-weight: bold');
+    console.table(workflowRequirements);
+    console.groupEnd();
+}
 ```
 
-### CJ's Conversational Routing
+### What Gets Deleted
 
-```yaml
-# agents/prompts/workflows/shopify_onboarding.yaml
-workflow: |
-  WORKFLOW: Shopify Onboarding
-  GOAL: Natural conversation that adapts to new/returning merchants
-  
-  OPENING LOGIC:
-  - Greet warmly and gauge if new/returning
-  - "I'm CJ, here to help with your customer support. First time chatting?"
-  - If hints at returning: "Welcome back! Let's get you logged in with Shopify"
-  - If new: Continue onboarding flow
-  
-  OAUTH COMPLETION HANDLING:
-  - Check oauth_complete context
-  - If is_new=false: "Great to see you again! I remember your store..."
-  - If is_new=true: "Awesome! Taking a look around your store now..."
-```
+1. **Frontend**:
+   - All `chatConfig.workflow === 'shopify_onboarding'` checks
+   - All `chatConfig.workflow === 'support_daily'` checks
+   - The entire hardcoded workflow list in `isRealChat`
+   - Special case handling in connection key logic
 
-## 🎯 The Experience We're Building
+2. **Backend**:
+   - All `if workflow == "shopify_onboarding":` checks
+   - All hardcoded workflow lists
+   - Special case merchant/scenario defaults per workflow
 
-### What We Want
+### Benefits
 
-A conversational onboarding flow where CJ naturally guides new users through connecting their Shopify store and (optionally) their support system. The experience should feel like chatting with a knowledgeable colleague who's helping you get set up, not filling out forms or clicking through a wizard.
+1. **Single Source of Truth**: Workflow YAMLs define their own requirements
+2. **No More Hardcoding**: Zero workflow names in conditional logic
+3. **Self-Documenting**: Requirements visible in workflow files
+4. **Extensible**: New workflows just work by declaring requirements
+5. **Backend Authority**: Frontend gets requirements from backend
+6. **Better Debugging**: Clear visibility into what each workflow needs
 
-### The Vibe
+### Success Metrics
 
-- **Conversational**: Natural back-and-forth dialogue, not a rigid flow
-- **Respectful**: CJ acknowledges she's new/beta, respects the merchant's time
-- **Value-First**: Shows immediate value after connection (quick insights)
-- **Low-Friction**: Minimal steps, clear benefits, easy escape hatches
-- **Progressive**: Start with read-only, upgrade permissions later as needed
-- **No Tracking**: No cookies or visitor records until OAuth consent
+- Zero hardcoded workflow names in code
+- Adding a new workflow requires only creating a YAML file
+- Debug interface clearly shows requirements vs provided values
+- No silent connection failures
 
-### The Flow
+### Timeline: 3 hours total
 
-1. **Every Visit Starts Fresh**
-   - No visitor tracking or cookies
-   - Always begins with onboarding workflow
-   - Natural conversation determines path
+1. ✅ Phase 1: Add requirements to YAMLs (30 min)
+2. ✅ Phase 2: Backend parsing & serving (1 hour)
+3. ✅ Phase 3: Frontend implementation (1 hour)
+4. ✅ Phase 4: Debug interface (30 min)
 
-2. **Identity Through Conversation**
-   - CJ asks if first time or returning
-   - Presents appropriate options
-   - OAuth button when ready
+---
 
-3. **Shopify OAuth = Identity**
-   - Shop domain becomes unique identifier
-   - Backend checks for existing merchant
-   - Routes appropriately post-OAuth
+## 🚀 Future Phases
 
-4. **Quick Value Demo**
-   - Immediate insights after connection
-   - Shows understanding of their business
-   - Builds trust for next steps
+### Phase 4.7: Backend-Authoritative User Identity
+Fix user identity generation to be backend-only, preventing ID mismatches.
 
-5. **Support System Offer** (Optional)
-   - Natural progression after Shopify
-   - Same elegant OAuth flow
-   - Graceful handling of unsupported
+### Phase 5: Quick Value Demo
+Show immediate value after Shopify connection with progressive data disclosure.
 
-6. **Natural Conclusion**
-   - Notification preferences
-   - Clear next steps
-   - Ready for future visits
-
-## 🏗️ Implementation Details
-
-### Phase 1: Foundation Implementation
-
-**Onboarding Workflow Definition**
-```yaml
-# agents/prompts/workflows/shopify_onboarding.yaml
-name: "Shopify Onboarding"
-description: "Natural onboarding for all new conversations"
-
-workflow: |
-  WORKFLOW: Shopify Onboarding
-  GOAL: Guide merchants through setup while detecting new/returning naturally
-  
-  CONVERSATION FLOW:
-  1. Opening & Detection
-     - Warm greeting and introduction
-     - Natural detection of new/returning
-     - Set beta expectations
-  
-  2. Shopify Connection
-     - Value proposition
-     - OAuth trigger
-     - Handle both new and returning paths
-  
-  3. Support System (if new)
-     - Only for new merchants
-     - Optional and low pressure
-     - Waitlist for unsupported
-  
-  4. Wrap Up
-     - Different for new vs returning
-     - Set appropriate expectations
-```
-
-### Phase 2: Auth Flow Implementation
-
-**No Visitor Tracking Required**
-```python
-# No visitor tables or tracking
-# Shop domain is the only identifier needed
-
-# auth/app/models.py
-class Merchant(Base):
-    id = Column(UUID, primary_key=True)
-    shop_domain = Column(String, unique=True, index=True)
-    shopify_access_token = Column(String)
-    created_at = Column(DateTime)
-    # No visitor_id or tracking fields
-```
-
-### Phase 3: Quick Insights Implementation
-
-**Same as original plan - immediate value after OAuth**
-
-### Phase 4: Support System Implementation
-
-**Only offered to new merchants during onboarding**
-
-## 🎨 Key Design Decisions
-
-### Why No Visitor Tracking?
-- **Privacy First**: No tracking until explicit consent (OAuth)
-- **No Spam Records**: Bots never make it past OAuth
-- **Elegant Simplicity**: Shop domain is the perfect identifier
-- **GDPR Friendly**: No PII until merchant opts in
-
-### Why Always Start with Onboarding?
-- **Natural Flow**: Conversation determines the path
-- **No Configuration**: Remove complexity for users
-- **Flexible**: CJ adapts based on responses
-- **Future Proof**: Easy to add more intelligence later
-
-### Why Shopify OAuth as Identity?
-- **Verified Identity**: Can't fake a shop domain
-- **Business Context**: Know exactly who they are
-- **Single Source**: No duplicate records or conflicts
-- **Clean Data**: Only real merchants in database
-
-## 📊 Success Metrics
-
-### Onboarding Funnel
-1. Conversation Started → Engaged with CJ (target: 90%)
-2. Engaged → Shopify OAuth Started (target: 70%)
-3. OAuth Started → OAuth Completed (target: 85%)
-4. New Merchant → Support Connected (target: 40%)
-5. Returning → Re-engaged (target: 95%)
-
-### Quality Indicators
-- Zero spam/bot records in database
-- Time to first insight: < 30 seconds
-- Natural conversation flow: > 4.5/5 rating
-- OAuth error rate: < 5%
+---
 
 ## 🚨 What We're NOT Building
 
-- **No** visitor tracking or analytics
-- **No** cookies before OAuth
-- **No** complex routing logic
-- **No** pre-registration flows
-- **No** merchant selection UI
-- **No** configuration modals
+- **No** complex state management libraries
+- **No** over-abstraction of simple concepts
+- **No** backwards compatibility with old hardcoded system
+- **No** frontend-specific workflow knowledge
+- **No** special cases or exceptions
 
-Focus: Natural conversation that intelligently adapts based on Shopify OAuth identity.
-
-## 🔄 Next Steps After This Sprint
-
-1. **Enhanced Returning Experience**: Personalized greetings based on history
-2. **Multi-Store Support**: Handle merchants with multiple shops
-3. **Team Invites**: Let merchants add team members
-4. **Advanced Routing**: Remember conversation preferences
-5. **Analytics**: Post-OAuth tracking for improvements
-
-But first: **nail the natural, privacy-first onboarding experience**.
-
-## 📚 Detailed Implementation Documentation
-
-Each phase has a comprehensive implementation guide with exact code, file paths, and step-by-step instructions:
-
-**[📁 View all implementation guides →](docs/shopify-onboarding/)**
-
-The guides include:
-- Complete code implementations
-- Exact file paths and changes
-- API specifications
-- Database schemas
-- Testing procedures
-- Security considerations
-- Common issues & solutions
-
-Use the [phase template](docs/shopify-onboarding/PHASE_TEMPLATE.md) when creating new guides.
-
-## 🔧 Side Quest: Unified Environment Configuration ✅ COMPLETE
-
-### Previous Pain Points (NOW RESOLVED)
-- ~~Each service has its own `.env` file with duplicated service URLs~~
-- ~~Homepage needs to know Auth and Agents URLs~~
-- ~~Tunnel detection updates multiple files~~
-- ~~Hard to manage secrets across services~~
-- ~~OAuth redirect URLs need coordination~~
-
-### Implemented Solution: Single Root `.env` with Service Secrets
-
-```
-/hirecj/
-├── .env                    # Main configuration file (developers edit this)
-├── .env.local             # Local overrides (optional, gitignored)
-├── .env.tunnel            # Auto-generated tunnel URLs (gitignored)
-├── auth/
-│   ├── .env               # Service overrides (minimal, mostly empty)
-│   └── .env.secrets       # Auth-specific secrets (gitignored)
-├── agents/
-│   ├── .env               # Service overrides (minimal, mostly empty)
-│   └── .env.secrets       # API keys (gitignored)
-└── homepage/
-    └── (no .env needed)   # Vite reads from root .env via config
-```
-
-### Developer Experience ✅
-1. **Initial Setup (One-time)**:
-   ```bash
-   cp .env.example .env
-   cp auth/.env.secrets.example auth/.env.secrets
-   cp agents/.env.secrets.example agents/.env.secrets
-   ```
-
-2. **That's it!** Services automatically load configuration in this order:
-   - Root `.env` (shared config)
-   - Root `.env.local` (local overrides if exists)
-   - Root `.env.tunnel` (auto-generated tunnel URLs)
-   - Service `.env.secrets` (sensitive data)
-   - Service `.env` (service-specific overrides - rarely needed)
-
-### Verification
-```bash
-python scripts/verify_env_config.py
-```
-
-### Benefits Achieved
-- ✅ **Single `.env` file** for all shared configuration
-- ✅ **Secrets isolated** in service-specific `.env.secrets` files
-- ✅ **Tunnel detection** updates only `.env.tunnel`
-- ✅ **Simple setup** - just copy 3 files and go
-- ✅ **No duplication** - service URLs defined once
-
-### Documentation
-- 📄 **[Environment Setup Guide →](README_ENV_SETUP.md)**
-- 📄 **[Dev Environment Changes →](docs/DEV_ENVIRONMENT_CHANGES.md)**
-
-## 🔍 Console Debug System
-
-### Overview
-An elegant console-based debug system that exposes CJ's internal state through simple JavaScript commands, providing real-time visibility without any UI complexity.
-
-### Design: `window.cj` API
-
-```javascript
-// Browser console commands:
-cj.debug()        // Show current state snapshot
-cj.session()      // Session & auth info
-cj.prompts()      // Last 5 prompts sent to CJ
-cj.context()      // Current conversation context
-cj.events()       // Start live event stream
-cj.stop()         // Stop event stream
-cj.help()         // Show all available commands
-```
-
-### Console Output Format
-
-```javascript
-// Example cj.debug() output:
-🤖 CJ Debug Snapshot
-├── 📊 Session
-│   ├── ID: abc-123-def-456
-│   ├── Status: ✅ Authenticated
-│   ├── Merchant: cratejoy.myshopify.com
-│   └── Connected: 5 minutes ago
-├── 🧠 CJ State
-│   ├── Workflow: shopify_onboarding
-│   ├── Model: claude-3-opus (temp: 0.2)
-│   ├── Tools: [shopify_api, memory_store, fact_checker]
-│   └── Memory Facts: 12
-└── 💬 Recent Activity
-    ├── 14:23:45 oauth_complete     New merchant
-    ├── 14:23:46 workflow_change    ad_hoc_support
-    └── 14:23:47 tool_use          shopify_api.get_orders
-```
-
-### Implementation Components
-
-1. **Frontend (SlackChat.tsx)**:
-   - Expose `window.cj` debug interface
-   - Handle debug WebSocket messages
-   - Format console output beautifully
-
-2. **WebSocket Handler (web_platform.py)**:
-   - Add `debug_request` message handler
-   - Return formatted debug data
-   - Stream live events when requested
-
-3. **Production Safety**:
-   - Only enable in development by default
-   - Allow production access via localStorage flag
-   - No sensitive data in console by default
-
-### Benefits
-- **Zero UI complexity** - Just console commands
-- **Developer-native** - Uses familiar browser console
-- **Easy to extend** - Add new commands as needed
-- **No bundle impact** - It's just console logs
-- **Fast to implement** - Minimal code changes
-
-### North Star Alignment
-- ✅ **Simplify**: Console commands instead of UI
-- ✅ **No Cruft**: Minimal implementation
-- ✅ **Long-term Elegance**: Clean API design
-- ✅ **No Over-Engineering**: Just what's needed for debugging
+Focus: Make workflows self-describing with their requirements in YAML.
