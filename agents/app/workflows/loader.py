@@ -33,6 +33,15 @@ class WorkflowLoader:
         
         workflow_data = self.workflows[name].copy()  # Don't modify cached version
         
+        # Ensure requirements exist with sensible defaults
+        if 'requirements' not in workflow_data:
+            # Default: require everything (safer default)
+            workflow_data['requirements'] = {
+                'merchant': True,
+                'scenario': True,
+                'authentication': True
+            }
+        
         # Check if workflow enables UI components
         if workflow_data.get('ui_components', {}).get('enabled', False):
             # Add UI instructions to workflow
@@ -64,6 +73,15 @@ class WorkflowLoader:
         """Get the display name for a workflow."""
         workflow = self.get_workflow(name)
         return workflow.get("name", name)
+
+    def get_workflow_requirements(self, name: str) -> Dict[str, bool]:
+        """Get just the requirements for a workflow."""
+        workflow = self.get_workflow(name)
+        return workflow.get('requirements', {
+            'merchant': True,
+            'scenario': True,
+            'authentication': True
+        })
 
     def _get_ui_instructions(self, ui_config: Dict) -> str:
         """Generate UI instructions based on workflow config."""
