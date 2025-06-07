@@ -44,6 +44,71 @@ Response via WebSocket
 2. **Session Management**: All state (including merchant memory) managed server-side
 3. **Backward Compatibility**: Scripts using CrewAI interface work unchanged
 4. **Single Source of Truth**: One session, one state, managed by the server
+5. **Prompt Transparency**: No runtime prompt mutations - all behavior visible in static YAML files
+
+## 🔐 User Identity Management
+
+**CRITICAL: Backend is the SOLE AUTHORITY for user identity generation**
+
+### The Pattern
+1. **Frontend**: Sends only raw data (`shop_domain`, `merchant_id`)
+2. **Backend**: Generates user IDs using `shared.user_identity.get_or_create_user()`
+3. **Format**: All user IDs follow pattern `usr_xxxxxxxx` (8-char hex from SHA256)
+
+### Where User IDs are Generated
+- **OAuth Callback** (auth service): When merchant completes Shopify OAuth
+- **start_conversation** (agents service): When session begins with shop_domain
+- **oauth_complete** (agents service): When OAuth completion is reported
+
+### Common Mistakes to Avoid
+```python
+# ❌ WRONG - Never generate IDs manually
+user_id = f"shop_{shop_domain.replace('.myshopify.com', '')}"  # NO!
+user_id = f"user_{merchant_id}"  # NO!
+
+# ✅ CORRECT - Always use the authoritative function
+from shared.user_identity import get_or_create_user
+user_id, is_new = get_or_create_user(shop_domain)
+```
+
+### Frontend Guidelines
+- NEVER attempt to generate user IDs
+- Store only `merchantId` and `shopDomain` in localStorage
+- Send these raw values to backend via `session_update`
+- Backend will handle all ID generation and user creation
+
+## 🎯 Prompt Transparency Principle
+
+**Critical for Debuggability**: All CJ behavior must be understandable by reading static files. No hidden prompt mutations at runtime.
+
+### What CJ Sees
+CJ's complete prompt consists of exactly two parts:
+1. **Base Prompt**: `agents/prompts/cj/versions/v{version}.yaml` - Core identity and principles
+2. **Workflow Prompt**: `agents/prompts/workflows/{workflow}.yaml` - Workflow-specific instructions
+
+### The Golden Rules
+✅ **DO**: 
+- Put all instructions in YAML files
+- Use simple template variable substitution ({merchant_name}, {workflow_name})
+- Keep base + workflow separation clear
+- Make system event handling visible in workflow YAML
+
+❌ **DON'T**:
+- Dynamically modify prompts at runtime
+- Inject hidden context that's not in YAML files
+- Use complex conditional logic to build prompts
+- Hide behavior in code instead of prompts
+
+### Example: System Events
+Instead of complex code to handle OAuth completion, we simply add to the workflow YAML:
+```yaml
+SYSTEM EVENT HANDLING:
+When you receive a message from sender "system":
+  For "New Shopify merchant authenticated from [store]":
+    - Respond: "Perfect! I've connected to [store]..."
+```
+
+This principle ensures developers can always understand CJ's behavior by reading two YAML files.
 
 ## 🚀 Quick Start
 

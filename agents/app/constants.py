@@ -99,3 +99,11 @@ class FileFormats:
     """File format constants."""
 
     UNIVERSE_ID_MIN_PARTS = 3  # Format: merchant_scenario_version
+
+
+# Workflow Constants
+class WorkflowConstants:
+    """Workflow-related constants."""
+
+    DEFAULT_SHOP_DOMAIN = "your store"  # Fallback shop domain when none is available
+    WORKFLOW_TRANSITION_DEBOUNCE_MS = 100  # Milliseconds to debounce workflow transitions

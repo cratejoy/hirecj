@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { logger } from '@/lib/logger';
+import { WorkflowType } from '@/constants/workflow';
+import { WorkflowTransitionMessage } from '@/types/websocket';
 
 const wsLogger = logger.child('websocket');
 
@@ -35,7 +37,7 @@ interface Progress {
 }
 
 interface WebSocketMessage {
-  type: 'system' | 'cj_thinking' | 'cj_message' | 'error' | 'fact_check_status' | 'oauth_complete' | 'conversation_started' | 'oauth_processed';
+  type: 'system' | 'cj_thinking' | 'cj_message' | 'error' | 'fact_check_status' | 'oauth_complete' | 'conversation_started' | 'oauth_processed' | 'workflow_updated' | 'debug_response' | 'debug_event';
   message?: string;
   text?: string;
   progress?: Progress;
@@ -52,6 +54,7 @@ interface UseWebSocketChatProps {
   scenario: string;
   workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | 'support_daily';
   onError?: (error: string) => void;
+  onWorkflowUpdated?: (newWorkflow: string, previousWorkflow: string) => void;
 }
 
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'closed';
@@ -72,7 +75,8 @@ export function useWebSocketChat({
   merchantId, 
   scenario,
   workflow,
-  onError 
+  onError,
+  onWorkflowUpdated
 }: UseWebSocketChatProps) {
   // Debug initial props
   wsLogger.debug('🎯 useWebSocketChat initialized', {
@@ -97,6 +101,7 @@ export function useWebSocketChat({
   const onErrorRef = useRef(onError);
   const lastMessageTimeRef = useRef<number>(0);
   const sendTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const workflowRef = useRef(workflow);
   
   // Use environment variable with fallback to backend default port
   const WS_BASE_URL = useMemo(() => {
@@ -127,6 +132,11 @@ export function useWebSocketChat({
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
+  
+  // Keep workflow ref updated
+  useEffect(() => {
+    workflowRef.current = workflow;
+  }, [workflow]);
 
   // Create a stable connection key
   const connectionKey = useMemo(
@@ -150,7 +160,7 @@ export function useWebSocketChat({
       
       // For onboarding and support_daily workflows, we don't need merchant/scenario
       if (workflow === 'shopify_onboarding' || workflow === 'support_daily') {
-        const key = `${conversationId}-${workflow}`;
+        const key = `${conversationId}`;
         wsLogger.info('Connection key for ${workflow}', { key });
         return key;
       }
@@ -167,11 +177,12 @@ export function useWebSocketChat({
         return null;
       }
       
-      const key = `${conversationId}-${merchantId}-${scenario}-${workflow}`;
-      wsLogger.info('Connection key computed', { key });
+      // Don't include workflow in key - we want to keep same connection during transitions
+      const key = `${conversationId}-${merchantId}-${scenario}`;
+      wsLogger.info('Connection key computed (workflow excluded for transitions)', { key });
       return key;
     },
-    [enabled, conversationId, merchantId, scenario, workflow]
+    [enabled, conversationId, merchantId, scenario] // workflow removed - we don't want reconnections on workflow change
   );
 
   // Send queued messages when connected
@@ -262,6 +273,18 @@ export function useWebSocketChat({
           
         case 'conversation_started':
           wsLogger.info('Conversation started', data.data);
+          break;
+          
+        case 'workflow_updated':
+          const { workflow: updatedWorkflow, previous } = data.data;
+          wsLogger.info('Workflow updated by backend', { 
+            from: previous, 
+            to: updatedWorkflow 
+          });
+          // Trigger callback to parent component
+          if (onWorkflowUpdated) {
+            onWorkflowUpdated(updatedWorkflow, previous);
+          }
           break;
         
         case 'debug_response':
@@ -410,30 +433,68 @@ export function useWebSocketChat({
         retryCount: 0  // Reset retry count on successful connection
       }));
       
-      // Send start_conversation message
-      const startData = {
-        conversation_id: conversationId,
-        merchant_id: merchantId || ((workflow === 'shopify_onboarding' || workflow === 'support_daily') ? 'onboarding_user' : null),
-        scenario: scenario || ((workflow === 'shopify_onboarding' || workflow === 'support_daily') ? 'onboarding' : null),
-        workflow: workflow,
-      };
+      // Send user session info if available
+      // IMPORTANT: Frontend NEVER generates user IDs - this is backend's responsibility
+      // We only send raw merchant data (shop_domain, merchant_id) to the backend
+      // The backend will use shared.user_identity.get_or_create_user() to generate proper IDs
+      const merchantId = localStorage.getItem('merchantId');
+      const shopDomain = localStorage.getItem('shopDomain');
       
-      const startMessage = JSON.stringify({
-        type: 'start_conversation',
-        data: startData
-      });
-      
-      wsLogger.info('📤 Sending start_conversation', { 
-        type: 'start_conversation',
-        data: startData 
-      });
-      console.log('[WebSocket] Sending start_conversation message:', startMessage);
-      if (wsRef.current) {
-        wsRef.current.send(startMessage);
+      if (merchantId && shopDomain) {
+        // WARNING: Do NOT attempt to generate user_id here!
+        // User IDs must be generated by backend using the authoritative
+        // generate_user_id() function to ensure consistency (usr_xxxxxxxx format)
+        const sessionUpdate = {
+          type: 'session_update',
+          data: {
+            merchant_id: merchantId,  // Raw merchant ID from localStorage
+            shop_domain: shopDomain   // Raw shop domain from localStorage
+            // NO user_id field! Backend generates this.
+          }
+        };
+        wsLogger.info('📤 Sending session update (backend will generate user_id):', sessionUpdate);
+        if (wsRef.current) {
+          wsRef.current.send(JSON.stringify(sessionUpdate));
+        }
+      } else {
+        wsLogger.info('📤 No merchant session found in localStorage');
       }
       
-      // Flush any queued messages
-      flushMessageQueue();
+      // Small delay to ensure session update is processed
+      setTimeout(() => {
+        // Send start_conversation message
+        const currentWorkflow = workflowRef.current;
+        const startData = {
+          conversation_id: conversationId,
+          merchant_id: merchantId || ((currentWorkflow === 'shopify_onboarding' || currentWorkflow === 'support_daily') ? 'onboarding_user' : null),
+          scenario: scenario || ((currentWorkflow === 'shopify_onboarding' || currentWorkflow === 'support_daily') ? 'onboarding' : null),
+          workflow: currentWorkflow,
+        };
+        
+        // Debug: Log what we're sending
+        wsLogger.info('📤 start_conversation data:', startData);
+        wsLogger.info('📤 Current user session:', {
+          merchantId: localStorage.getItem('merchantId'),
+          shopDomain: localStorage.getItem('shopDomain')
+        });
+        
+        const startMessage = JSON.stringify({
+          type: 'start_conversation',
+          data: startData
+        });
+        
+        wsLogger.info('📤 Sending start_conversation', { 
+          type: 'start_conversation',
+          data: startData 
+        });
+        console.log('[WebSocket] Sending start_conversation message:', startMessage);
+        if (wsRef.current) {
+          wsRef.current.send(startMessage);
+        }
+        
+        // Flush any queued messages
+        flushMessageQueue();
+      }, 100); // 100ms delay to ensure session update is processed
     };
 
     wsRef.current.onmessage = handleMessage;
@@ -493,7 +554,7 @@ export function useWebSocketChat({
         return prev;
       });
     };
-  }, [connectionKey, conversationId, merchantId, scenario, workflow, WS_BASE_URL, handleMessage, flushMessageQueue]); // Removed state.connectionState to prevent circular dependency
+  }, [connectionKey, conversationId, merchantId, scenario, WS_BASE_URL, handleMessage, flushMessageQueue]); // Removed workflow to prevent reconnection on workflow change
 
   // Effect to manage connection lifecycle
   useEffect(() => {
@@ -519,7 +580,7 @@ export function useWebSocketChat({
         wsRef.current.close(1000, 'Component unmounting');
       }
     };
-  }, [connectionKey]); // Remove connect from dependencies to prevent infinite reconnection loop
+  }, [connectionKey, connect]); // Only reconnect when connectionKey actually changes
 
   // Send message function with debouncing
   const sendMessage = useCallback((text: string) => {
@@ -624,12 +685,30 @@ export function useWebSocketChat({
       retryCount: 0
     });
   }, []);
+  
+  // Send workflow transition request
+  const sendWorkflowTransition = useCallback((newWorkflow: WorkflowType) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      const message: WorkflowTransitionMessage = {
+        type: 'workflow_transition',
+        data: {
+          new_workflow: newWorkflow,
+          user_initiated: true
+        }
+      };
+      wsRef.current.send(JSON.stringify(message));
+      wsLogger.info('📤 Sent workflow transition request', { newWorkflow });
+    } else {
+      wsLogger.warn('Cannot send workflow transition - WebSocket not connected');
+    }
+  }, []);
 
   return {
     messages: state.messages,
     sendMessage,
     sendFactCheck,
     sendSpecialMessage,
+    sendWorkflowTransition,
     isConnected: state.connectionState === 'connected',
     connectionState: state.connectionState,
     isTyping: state.isTyping,

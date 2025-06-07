@@ -24,10 +24,13 @@ from app.services.session_manager import SessionManager
 from app.services.message_processor import MessageProcessor
 from app.services.conversation_storage import ConversationStorage
 from app.services.fact_extractor import FactExtractor
-from app.constants import WebSocketCloseCodes
+from app.constants import WebSocketCloseCodes, WorkflowConstants
 from app.config import settings
 from app.models import Message
-from shared.user_identity import generate_user_id
+# WARNING: Do NOT import generate_user_id directly
+# Always use get_or_create_user() for user identity management
+# This ensures users are properly created in the database
+from shared.user_identity import get_or_create_user
 
 logger = get_logger(__name__)
 websocket_logger = get_logger("websocket")
@@ -205,8 +208,8 @@ class WebPlatform(Platform):
             logger.info(f"WebSocket connection {conversation_id} closed: {str(e)}")
         finally:
             # Extract facts on disconnect if session exists
-            if conversation_id in self.session_manager._sessions:
-                session = self.session_manager._sessions[conversation_id]
+            session = self.session_manager.get_session(conversation_id)
+            if session:
                 
                 # Only extract facts if conversation has messages and user_id
                 if session.user_id and session.conversation.messages:
@@ -273,6 +276,7 @@ class WebPlatform(Platform):
                 "session_update",
                 "oauth_complete",
                 "debug_request",
+                "workflow_transition",
             ]
             if message_type not in valid_types:
                 logger.warning(
@@ -322,18 +326,40 @@ class WebPlatform(Platform):
                     )
                     # Create conversation session
                     try:
-                        # Get user_id from the WebSocket session
+                        # CRITICAL: This is the ONLY place where user IDs are generated
+                        # Frontend sends raw data → Backend generates authoritative ID
+                        # This ensures consistency across all services (usr_xxxxxxxx format)
+                        
+                        # Get merchant data from WebSocket session (set by session_update)
                         ws_session = self.sessions.get(conversation_id, {})
-                        user_id = ws_session.get("user_id", "anonymous")
+                        shop_domain = ws_session.get("shop_domain")
+                        user_id = None
+                        
+                        # Backend is the SOLE AUTHORITY for user ID generation
+                        # Uses shared.user_identity.get_or_create_user() for consistency
+                        if shop_domain:
+                            try:
+                                user_id, is_new = get_or_create_user(shop_domain)
+                                logger.info(f"[USER_IDENTITY] Backend generated user_id={user_id} "
+                                           f"for shop_domain={shop_domain} (new={is_new})")
+                            except Exception as e:
+                                logger.error(f"[USER_IDENTITY] Failed to get/create user for {shop_domain}: {e}")
+                                # Continue without user_id rather than fail the session
+                                # This allows onboarding to work even if identity service is down
+                        else:
+                            logger.info(f"[USER_IDENTITY] No shop_domain provided - proceeding without user_id")
+                        
+                        logger.info(f"[SESSION_CREATE] Creating session: merchant={merchant}, "
+                                   f"workflow={workflow}, user_id={user_id or 'None'}")
                         
                         session = self.session_manager.create_session(
                             merchant_name=merchant,
                             scenario_name=scenario,
                             workflow_name=workflow,
-                            user_id=user_id if user_id != "anonymous" else None,
+                            user_id=user_id,  # Will be None for unauthenticated users
                         )
-                        # Store the session with the conversation_id
-                        self.session_manager._sessions[conversation_id] = session
+                        # Store the session with the conversation_id as key
+                        self.session_manager.store_session(conversation_id, session)
                     except ValueError as e:
                         # Handle missing universe or other critical errors
                         error_msg = str(e)
@@ -396,6 +422,80 @@ class WebPlatform(Platform):
                         "data": conversation_data,
                     }
                 )
+                
+                # Check if starting onboarding workflow but already authenticated
+                logger.info(f"[ALREADY_AUTH_CHECK] Checking authentication for {conversation_id}")
+                logger.info(f"[ALREADY_AUTH_CHECK] workflow={workflow}, has_session={bool(session)}, "
+                           f"user_id={getattr(session, 'user_id', 'NONE')}, "
+                           f"existing_session={bool(existing_session)}")
+                
+                if workflow == "shopify_onboarding" and session and session.user_id:
+                    # Get shop domain from session or OAuth metadata
+                    shop_domain = WorkflowConstants.DEFAULT_SHOP_DOMAIN
+                    if hasattr(session, 'oauth_metadata') and session.oauth_metadata:
+                        shop_domain = session.oauth_metadata.get('shop_domain', shop_domain)
+                    elif hasattr(session, 'shop_domain'):
+                        shop_domain = session.shop_domain
+                    elif session.merchant_name and session.merchant_name != "onboarding_user":
+                        shop_domain = session.merchant_name
+                    
+                    logger.info(f"[ALREADY_AUTH] Detected authenticated user {session.user_id} starting onboarding workflow, transitioning to ad_hoc_support")
+                    
+                    # IMMEDIATE: Update workflow first for instant feedback
+                    success = self.session_manager.update_workflow(conversation_id, "ad_hoc_support")
+                    if success:
+                        # IMMEDIATE: Update the workflow in conversation_data for frontend
+                        conversation_data["workflow"] = "ad_hoc_support"
+                        
+                        # IMMEDIATE: Notify frontend of workflow change
+                        await websocket.send_json({
+                            "type": "workflow_updated",
+                            "data": {
+                                "workflow": "ad_hoc_support",
+                                "previous": "shopify_onboarding"
+                            }
+                        })
+                        
+                        logger.info(f"[ALREADY_AUTH] Successfully transitioned {conversation_id} to ad_hoc_support")
+                        
+                        # ASYNC: Handle CJ's responses without blocking
+                        async def handle_auth_transition():
+                            try:
+                                # Send transition notification
+                                transition_msg = f"Existing session detected: {shop_domain} with workflow transition to ad_hoc_support"
+                                
+                                # Let CJ acknowledge the transition
+                                response = await self.message_processor.process_message(
+                                    session=session,
+                                    message=transition_msg,
+                                    sender="system"
+                                )
+                                
+                                # Send CJ's acknowledgment
+                                if response:
+                                    response_data = {
+                                        "content": response if isinstance(response, str) else response.get("content", response),
+                                        "factCheckStatus": "available",
+                                        "timestamp": datetime.now().isoformat(),
+                                    }
+                                    await websocket.send_json(
+                                        {"type": "cj_message", "data": response_data}
+                                    )
+                                
+                                # Notify the new workflow about the transition
+                                arrival_msg = "Transitioned from shopify_onboarding workflow"
+                                await self.message_processor.process_message(
+                                    session=session,
+                                    message=arrival_msg,
+                                    sender="system"
+                                )
+                            except Exception as e:
+                                logger.error(f"[ALREADY_AUTH] Error handling transition messages: {e}")
+                        
+                        # Create async task to handle messages without blocking
+                        asyncio.create_task(handle_auth_transition())
+                    else:
+                        logger.error(f"[ALREADY_AUTH] Failed to update workflow for {conversation_id}")
 
                 # Register progress callback for this WebSocket connection (all workflows)
                 async def progress_callback(update):
@@ -680,8 +780,8 @@ class WebPlatform(Platform):
             elif message_type == "end_conversation":
                 # Save conversation and close connection
                 # Save conversation
-                if conversation_id in self.session_manager._sessions:
-                    session = self.session_manager._sessions[conversation_id]
+                session = self.session_manager.get_session(conversation_id)
+                if session:
                     self.conversation_storage.save_session(session)
                     
                     # Real-time extraction already handles fact extraction
@@ -694,11 +794,26 @@ class WebPlatform(Platform):
                 await websocket.close()
 
             elif message_type == "session_update":
-                # Update session information
+                # IMPORTANT: This handler stores raw merchant data from frontend
+                # User ID generation happens ONLY in start_conversation handler
+                # Frontend sends: merchant_id, shop_domain (NO user_id)
+                # Backend generates: user_id using shared.user_identity.get_or_create_user()
+                
+                update_data = data.get("data", {})
+                
+                # Validate frontend is NOT sending user_id (it shouldn't)
+                if "user_id" in update_data:
+                    logger.warning(f"[SESSION_UPDATE] Frontend sent user_id - this is incorrect! "
+                                 f"User IDs must be generated by backend only.")
+                
+                # Store raw data in WebSocket session for later use
                 session = self.sessions.get(conversation_id, {})
-                session.update(data.get("data", {}))
+                session.update(update_data)
                 self.sessions[conversation_id] = session
-                logger.debug(f"Updated session for {conversation_id}")
+                
+                logger.info(f"[SESSION_UPDATE] Stored merchant data for {conversation_id}")
+                logger.info(f"[SESSION_UPDATE] Data: merchant_id={update_data.get('merchant_id')}, "
+                           f"shop_domain={update_data.get('shop_domain')}")
 
             elif message_type == "oauth_complete":
                 # Handle OAuth completion from Shopify
@@ -732,18 +847,23 @@ class WebPlatform(Platform):
                     if hasattr(session.conversation, 'merchant_name'):
                         session.conversation.merchant_name = merchant_id
                 
-                # Generate user_id from shop_domain
+                # Generate user_id from shop_domain using backend authority
+                # OAuth flow also uses the SAME user identity generation as everywhere else
                 if shop_domain:
-                    user_id = generate_user_id(shop_domain)
-                    logger.info(f"[OAUTH_UPDATE] Generated user_id {user_id} from shop {shop_domain}")
-                    
-                    # Update WebSocket session
-                    if conversation_id in self.sessions:
-                        self.sessions[conversation_id]["user_id"] = user_id
-                    
-                    # Update SessionManager session
-                    session.user_id = user_id
-                    logger.info(f"[OAUTH_UPDATE] Updated session with user_id: {user_id}")
+                    try:
+                        user_id, _ = get_or_create_user(shop_domain)
+                        logger.info(f"[OAUTH_UPDATE] Backend generated user_id={user_id} from shop={shop_domain}")
+                        
+                        # Update WebSocket session with shop_domain (NOT user_id)
+                        if conversation_id in self.sessions:
+                            self.sessions[conversation_id]["shop_domain"] = shop_domain
+                            # Do NOT store user_id in WebSocket session - it's backend-only
+                        
+                        # Update SessionManager session with generated user_id
+                        session.user_id = user_id
+                        logger.info(f"[OAUTH_UPDATE] Updated backend session with user_id: {user_id}")
+                    except Exception as e:
+                        logger.error(f"[OAUTH_UPDATE] Failed to get/create user: {e}")
                 
                 # Store OAuth metadata in session for context
                 if not hasattr(session, 'oauth_metadata'):
@@ -892,6 +1012,119 @@ class WebPlatform(Platform):
                             "conversation_id": conversation_id
                         }
                     })
+            
+            elif message_type == "workflow_transition":
+                # Handle workflow transition requests
+                transition_data = data.get("data", {})
+                if not isinstance(transition_data, dict):
+                    await self._send_error(websocket, "Invalid workflow_transition data format")
+                    return
+                
+                new_workflow = transition_data.get("new_workflow")
+                if not new_workflow:
+                    await self._send_error(websocket, "Missing new_workflow in transition request")
+                    return
+                
+                # Get current session
+                session = self.session_manager.get_session(conversation_id)
+                if not session:
+                    await self._send_error(websocket, "No active session for workflow transition")
+                    return
+                
+                # Validate workflow exists
+                from app.workflows.loader import WorkflowLoader
+                workflow_loader = WorkflowLoader()
+                if not workflow_loader.workflow_exists(new_workflow):
+                    await self._send_error(websocket, f"Unknown workflow: {new_workflow}")
+                    return
+                
+                # Get current workflow for context
+                current_workflow = session.conversation.workflow
+                
+                # Don't transition if already in target workflow
+                if current_workflow == new_workflow:
+                    logger.info(f"[WORKFLOW] Already in {new_workflow}, skipping transition")
+                    await websocket.send_json({
+                        "type": "workflow_transition_complete",
+                        "data": {
+                            "workflow": new_workflow,
+                            "message": "Already in requested workflow"
+                        }
+                    })
+                    return
+                
+                logger.info(f"[WORKFLOW_TRANSITION] Transitioning {conversation_id} from {current_workflow} to {new_workflow}")
+                
+                # IMMEDIATE: Update the workflow first for instant feedback
+                success = self.session_manager.update_workflow(conversation_id, new_workflow)
+                if not success:
+                    await self._send_error(websocket, "Failed to update workflow")
+                    return
+                
+                # IMMEDIATE: Notify frontend of successful transition
+                await websocket.send_json({
+                    "type": "workflow_updated",
+                    "data": {
+                        "workflow": new_workflow,
+                        "previous": current_workflow
+                    }
+                })
+                
+                logger.info(f"[WORKFLOW_TRANSITION] Successfully transitioned {conversation_id} to {new_workflow}")
+                
+                # ASYNC: Handle farewell and arrival messages without blocking
+                async def handle_transition_messages():
+                    try:
+                        # Prepare transition message
+                        if transition_data.get("user_initiated"):
+                            transition_msg = f"User requested transition to {new_workflow} workflow"
+                        else:
+                            transition_msg = f"System requested transition to {new_workflow} workflow"
+                        
+                        # Let current workflow say goodbye
+                        logger.info(f"[WORKFLOW_TRANSITION] Generating farewell from {current_workflow}")
+                        farewell_response = await self.message_processor.process_message(
+                            session=session,
+                            message=transition_msg,
+                            sender="system"
+                        )
+                        
+                        # Send farewell message if any
+                        if farewell_response:
+                            response_data = {
+                                "content": farewell_response if isinstance(farewell_response, str) else farewell_response.get("content", farewell_response),
+                                "factCheckStatus": "available",
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                            await websocket.send_json(
+                                {"type": "cj_message", "data": response_data}
+                            )
+                        
+                        # Let new workflow say hello
+                        logger.info(f"[WORKFLOW_TRANSITION] Generating arrival for {new_workflow}")
+                        arrival_msg = f"Transitioned from {current_workflow} workflow"
+                        arrival_response = await self.message_processor.process_message(
+                            session=session,
+                            message=arrival_msg,
+                            sender="system"
+                        )
+                        
+                        # Send arrival message if any
+                        if arrival_response:
+                            response_data = {
+                                "content": arrival_response if isinstance(arrival_response, str) else arrival_response.get("content", arrival_response),
+                                "factCheckStatus": "available",
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                            await websocket.send_json(
+                                {"type": "cj_message", "data": response_data}
+                            )
+                            
+                    except Exception as e:
+                        logger.error(f"[WORKFLOW_TRANSITION] Error handling transition messages: {e}")
+                
+                # Create async task to handle messages without blocking
+                asyncio.create_task(handle_transition_messages())
 
             else:
                 logger.warning(f"Unknown message type from web client: {message_type}")

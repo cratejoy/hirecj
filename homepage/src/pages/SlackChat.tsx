@@ -10,6 +10,7 @@ import { ConfigurationModal } from '@/components/ConfigurationModal';
 import { ChatInterface } from '@/components/ChatInterface';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
+import { VALID_WORKFLOWS, WorkflowType, WORKFLOW_TRANSITION_DEBOUNCE_MS, DEFAULT_WORKFLOW } from '@/constants/workflow';
 
 interface Message {
 	id: string;
@@ -28,13 +29,11 @@ interface ChatConfig {
 	scenarioId: string | null;
 	merchantId: string | null;
 	conversationId: string;
-	workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | 'support_daily' | null;
+	workflow: WorkflowType | null;
 }
 
-const VALID_WORKFLOWS = ['ad_hoc_support', 'daily_briefing', 'shopify_onboarding', 'support_daily'] as const;
-const DEFAULT_WORKFLOW = 'support_daily';
-
-const WORKFLOW_NAMES: Record<typeof VALID_WORKFLOWS[number], string> = {
+// Workflow display names with emojis for UI
+const WORKFLOW_NAMES: Record<WorkflowType, string> = {
 	'support_daily': '📋 Support Daily',
 	'ad_hoc_support': '💬 Ad Hoc Support',
 	'daily_briefing': '📊 Daily Briefing',
@@ -72,13 +71,13 @@ const SlackChat = () => {
 		const urlWorkflow = params.get('workflow');
 		
 		if (urlWorkflow && VALID_WORKFLOWS.includes(urlWorkflow as any)) {
-			return urlWorkflow as typeof VALID_WORKFLOWS[number];
+			return urlWorkflow as WorkflowType;
 		}
 		
 		// Check localStorage for last used workflow
 		const savedWorkflow = localStorage.getItem('lastWorkflow');
 		if (savedWorkflow && VALID_WORKFLOWS.includes(savedWorkflow as any)) {
-			return savedWorkflow as typeof VALID_WORKFLOWS[number];
+			return savedWorkflow as WorkflowType;
 		}
 		
 		return DEFAULT_WORKFLOW;
@@ -92,9 +91,12 @@ const SlackChat = () => {
 		workflow: getWorkflowFromUrl()
 	}));
 	
+	// Track if we're updating internally to prevent loops
+	const isInternalUpdateRef = useRef(false);
+	
 	// Update URL when workflow changes
 	useEffect(() => {
-		if (chatConfig.workflow) {
+		if (chatConfig.workflow && !isInternalUpdateRef.current) {
 			const params = new URLSearchParams(searchString);
 			if (params.get('workflow') !== chatConfig.workflow) {
 				params.set('workflow', chatConfig.workflow);
@@ -102,6 +104,8 @@ const SlackChat = () => {
 			}
 			localStorage.setItem('lastWorkflow', chatConfig.workflow);
 		}
+		// Reset flag after update
+		isInternalUpdateRef.current = false;
 	}, [chatConfig.workflow, location, searchString, setLocation]);
 	
 	// Sync userSession.merchantId to chatConfig when it changes
@@ -170,7 +174,23 @@ const SlackChat = () => {
 		merchantId: chatConfig.merchantId || '',
 		scenario: chatConfig.scenarioId || '',
 		workflow: chatConfig.workflow || 'ad_hoc_support',
-		onError: handleChatError
+		onError: handleChatError,
+		onWorkflowUpdated: (newWorkflow, previousWorkflow) => {
+			// Update local state
+			setChatConfig(prev => ({ ...prev, workflow: newWorkflow as WorkflowType }));
+			
+			// Update URL to match confirmed workflow
+			const params = new URLSearchParams(window.location.search);
+			params.set('workflow', newWorkflow);
+			const newUrl = `${window.location.pathname}?${params.toString()}`;
+			window.history.replaceState({}, '', newUrl);
+			
+			console.log('[SlackChat] URL updated after workflow transition', { 
+				from: previousWorkflow, 
+				to: newWorkflow,
+				url: newUrl 
+			});
+		}
 	});
 	
 	// Debug WebSocket connection
@@ -186,6 +206,76 @@ const SlackChat = () => {
 	const messages = isRealChat ? wsChat.messages : demoChat.messages;
 	const isTyping = isRealChat ? wsChat.isTyping : demoChat.isTyping;
 	const handleSendMessage = isRealChat ? wsChat.sendMessage : demoChat.handleSendMessage;
+	
+	// Debounce timer ref for workflow changes
+	const workflowChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	
+	// Handle workflow change elegantly - preserve context
+	const handleWorkflowChange = useCallback((newWorkflow: WorkflowType) => {
+		// Don't change if already in target workflow
+		if (newWorkflow === chatConfig.workflow) {
+			return;
+		}
+		
+		// Clear any pending workflow changes
+		if (workflowChangeTimeoutRef.current) {
+			clearTimeout(workflowChangeTimeoutRef.current);
+		}
+		
+		// Debounce rapid workflow changes to prevent loops
+		workflowChangeTimeoutRef.current = setTimeout(() => {
+			// Keep same conversation, just transition workflows
+			if (wsChat.isConnected) {
+				// Send transition request to backend
+				wsChat.sendWorkflowTransition(newWorkflow);
+				
+				// Update local state ONLY - keep same conversationId
+				setChatConfig(prev => ({ 
+					...prev, 
+					workflow: newWorkflow
+					// NO conversationId change! Context preserved by backend
+				}));
+			} else {
+				// Only if not connected, update config for next connection
+				setChatConfig(prev => ({ 
+					...prev, 
+					workflow: newWorkflow
+				}));
+			}
+		}, WORKFLOW_TRANSITION_DEBOUNCE_MS);
+	}, [chatConfig.workflow, wsChat]);
+	
+	// Watch for URL parameter changes (e.g., user navigates with browser back/forward)
+	useEffect(() => {
+		const params = new URLSearchParams(searchString);
+		const urlWorkflow = params.get('workflow');
+		// Only handle if it's a valid workflow AND different from current
+		// This prevents circular updates when we programmatically update the URL
+		if (urlWorkflow && 
+		    VALID_WORKFLOWS.includes(urlWorkflow as any) && 
+		    urlWorkflow !== chatConfig.workflow) {
+			// If connected, send transition message
+			if (wsChat.isConnected) {
+				wsChat.sendWorkflowTransition(urlWorkflow as WorkflowType);
+			}
+			// Mark as internal update to prevent URL update loop
+			isInternalUpdateRef.current = true;
+			// Update local state
+			setChatConfig(prev => ({ 
+				...prev, 
+				workflow: urlWorkflow as WorkflowType
+			}));
+		}
+	}, [searchString, wsChat.isConnected, wsChat.sendWorkflowTransition]); // Minimal deps to prevent loops
+	
+	// Cleanup workflow change timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (workflowChangeTimeoutRef.current) {
+				clearTimeout(workflowChangeTimeoutRef.current);
+			}
+		};
+	}, []);
 	
 	// Add OAuth callback handling
 	const handleOAuthSuccess = useCallback((params: any) => {
@@ -497,17 +587,8 @@ const SlackChat = () => {
 						<select
 							value={chatConfig.workflow || DEFAULT_WORKFLOW}
 							onChange={(e) => {
-								const newWorkflow = e.target.value as typeof VALID_WORKFLOWS[number];
-								// End current conversation if connected
-								if (wsChat.isConnected) {
-									wsChat.endConversation();
-								}
-								// Start new conversation with new workflow
-								setChatConfig(prev => ({ 
-									...prev, 
-									workflow: newWorkflow,
-									conversationId: uuidv4() // New conversation for new workflow
-								}));
+								const newWorkflow = e.target.value as WorkflowType;
+								handleWorkflowChange(newWorkflow);
 							}}
 							className="bg-gray-700 text-white text-sm px-3 py-1 rounded border border-gray-600 focus:border-blue-400 focus:outline-none hover:bg-gray-600 transition-colors"
 						>

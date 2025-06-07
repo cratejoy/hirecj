@@ -46,6 +46,14 @@ class WorkflowLoader:
     def list_workflows(self) -> List[str]:
         """List all available workflow names."""
         return list(self.workflows.keys())
+    
+    def workflow_exists(self, name: str) -> bool:
+        """Check if a workflow exists."""
+        return name in self.workflows
+    
+    def load_workflow(self, name: str) -> Dict[str, Any]:
+        """Load a workflow by name. Alias for get_workflow for compatibility."""
+        return self.get_workflow(name)
 
     def get_workflow_description(self, name: str) -> str:
         """Get just the workflow description."""

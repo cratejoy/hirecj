@@ -8,12 +8,16 @@
 3. **Phase 3.7: OAuth 2.0 Implementation** - Full OAuth flow with HMAC verification, token storage
 4. **Phase 4.0: True Environment Centralization** - Single .env pattern with automatic distribution
 5. **Phase 4.1: UI Actions Pattern** - Parser, workflow config, WebSocket integration
+6. **Phase 4.5: User Identity & Persistence** - PostgreSQL user identity, fact storage, session management
+7. **Phase 4.6: System Events Architecture** - YAML-based system event handling for OAuth responses
 
 ### 🎯 Current Priority
-**Phase 4.5: User Identity & Persistence** - Library complete, needs integration with services
+**Phase 4.7: Backend-Authoritative User Identity** - Fix user identity to be backend-only
+
+### 🔜 Next Phase
+**Phase 5: Quick Value Demo** - Show immediate value after Shopify connection
 
 ### 📅 Upcoming Phases
-- Phase 5: Quick Value Demo
 - Phase 6: Support System Connection
 - Phase 7: Notification & Polish
 - Phase 8: Testing & Refinement
@@ -386,25 +390,259 @@ get_user_facts(user_id) → [facts]   # Simple list return
 
 ---
 
-### Phase 5: Quick Value Demo 🎯 CURRENT PRIORITY
-**Goal:** Show immediate value after Shopify connection by providing quick insights about their store.
+### Phase 4.6: System Events Architecture & Workflow Transitions 🔄 BACKEND COMPLETE, FRONTEND PENDING
+**Goal:** Enable CJ to naturally respond to system events AND transition between workflows mid-conversation.
+
+**Problems Solved:**
+1. OAuth completion silence - CJ didn't know how to respond ✅
+2. Already-authenticated users stuck in onboarding workflow ✅ 
+3. No way to switch workflows based on conversation needs ✅
+4. Frontend destroys conversation on workflow change ⏳
+
+**Solution:** System event handling in workflow YAMLs + simple workflow transition mechanism.
+
+**Implementation Patterns:**
+
+**1. System Event Handling** ✅
+```yaml
+# In workflow YAML
+SYSTEM EVENT HANDLING:
+When you receive a message from sender "system", handle these patterns:
+
+For "New Shopify merchant authenticated from [store]":
+- Respond: "Perfect! I've successfully connected to your store at [store]."
+```
+
+**2. Workflow Transitions** 🔄
+```yaml
+# A. Already-authenticated detection (shopify_onboarding.yaml)
+For "Existing session detected: [shop] with workflow transition to [new_workflow]":
+- Respond: "Welcome back! I see you're already connected to [shop]."
+- Then: "I'll switch to support mode so I can help you right away."
+
+# B. User-initiated transitions (all workflows)
+For "User requested transition to [new_workflow] workflow":
+- Response: [Workflow-specific acknowledgment and goodbye]
+
+# C. Arrival acknowledgment (all workflows)  
+For "Transitioned from [previous_workflow] workflow":
+- Response: [Workflow-specific welcome without re-introduction]
+```
 
 **Deliverables:**
-- [ ] Quick insights service for Shopify data
-- [ ] Store snapshot queries (products, orders, customers)
-- [ ] Progressive data loading mechanism
-- [ ] Conversation UI showing real-time insights
-- [ ] CJ's value-driven responses post-OAuth
 
-**The Experience:**
+**1. System Events** *(30 minutes)* ✅
+- [x] OAuth completion responses
+- [x] Error handling patterns
+- [x] Future event placeholders
+
+**2. Workflow Transitions** *(90 minutes total)*
+
+**2a. Already-Authenticated Detection** *(40 minutes)*
+- [ ] Add transition patterns to shopify_onboarding.yaml
+- [ ] Add arrival pattern to ad_hoc_support.yaml
+- [ ] Implement `update_workflow()` in session_manager
+- [ ] Add authenticated detection in web_platform
+- [ ] Test smooth transition from onboarding → ad_hoc
+
+**2b. General Workflow Transitions** *(50 minutes)*
+- [ ] Add user-initiated transition patterns to ALL workflows
+- [ ] Add arrival patterns to ALL workflows
+- [ ] Frontend: Add workflow dropdown/selector
+- [ ] Frontend: Handle query string workflow changes
+- [ ] Backend: Add workflow_transition message handler
+- [ ] Test transitions between various workflows
+
+**Benefits:**
+- ✅ **Transparent**: All behavior visible in workflow YAML
+- ✅ **Simple**: Minimal code changes (< 30 lines)
+- ✅ **Flexible**: Can transition between any workflows
+- ✅ **Natural**: CJ acknowledges transitions conversationally
+- ✅ **Extensible**: Easy to add new transition triggers
+
+**Use Cases Enabled:**
+- Already authenticated → Skip onboarding automatically
+- User selects workflow → Smooth transition with acknowledgment
+- Crisis detected → Switch to crisis_response
+- "Show me metrics" → Switch to daily_briefing
+- Support spike → Focus on urgent tickets
+- Query string changes → Workflow follows URL
+
+**Timeline: 2 hours total** (System events: 30min + Transitions: 90min)
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.6-system-events.md)**
+
+### Phase 4.7: Backend-Authoritative User Identity 🔐 CRITICAL FIX
+**Goal:** Fix user identity generation to be backend-only, preventing ID mismatches and foreign key violations.
+
+**Problem:** User IDs are generated inconsistently:
+- Frontend creates: `shop_cratejoy-dev` (wrong)
+- Backend expects: `usr_2230c443` (correct SHA256-based)
+- Database rejects incorrect IDs → foreign key violations
+- Already-authenticated detection fails
+
+**Solution: Backend-Only Identity**
+- Frontend sends raw data only (shop_domain, merchant_id)
+- Backend is sole authority for ID generation
+- Uses consistent `get_or_create_user()` function
+- Clear documentation prevents future confusion
+
+**Deliverables:**
+1. **Frontend Updates** *(30 minutes)* ✅
+   - [x] Remove ALL user ID generation
+   - [x] Update session_update to send only raw data
+   - [x] Add clear comments explaining why
+
+2. **Backend Updates** *(45 minutes)* ✅
+   - [x] Update session_update handler - store raw data only
+   - [x] Update start_conversation - generate user_id from shop_domain
+   - [x] Add extensive comments about backend authority
+
+3. **Documentation** *(30 minutes)* ✅
+   - [x] Update agents/README.md with identity section
+   - [x] Update homepage/README.md about no ID generation
+   - [x] Add warnings in code about backend-only IDs
+
+4. **Testing & Cleanup** *(30 minutes)*
+   - [ ] Test already-authenticated detection
+   - [ ] Test new user creation flow
+   - [ ] Add database constraint for ID format
+   - [ ] Clean up any invalid user records
+
+**Benefits:**
+- ✅ **Single Source of Truth**: One place for ID generation
+- ✅ **Reliability**: Consistent IDs across all services  
+- ✅ **Simplicity**: Clear, documented pattern
+- ✅ **No More Errors**: Eliminates foreign key violations
+
+**Timeline: 2.25 hours total**
+
+📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-4.7-backend-authoritative-identity.md)**
+
+### Phase 5: Quick Value Demo 🎯 NEXT PRIORITY
+**Goal:** Show immediate value after Shopify connection by providing quick insights about their store WITHOUT requiring full data dumps or complex ETL.
+
+**Core Strategy: Progressive Data Disclosure**
+Instead of syncing all data, we fetch exactly what we need for the conversation using a three-tier approach:
+
+#### Tier 1: Instant Metrics (< 500ms)
+```python
+# Uses existing REST count endpoints - no pagination needed
+{
+    "customers": api.get_customer_count(),           # e.g., 1,234
+    "total_orders": api.get_order_count(),          # e.g., 5,678  
+    "active_orders": api.get_order_count("open")    # e.g., 12
+}
+```
+
+#### Tier 2: Quick Insights (< 2s) 
+```python
+# Single GraphQL query for rich data
+query = """
+{
+  shop { name, currencyCode }
+  orders(first: 10, reverse: true) {
+    edges { node {
+      createdAt
+      totalPriceSet { shopMoney { amount } }
+      lineItems(first: 5) { edges { node { title, quantity } } }
+    }}
+  }
+  products(first: 5, sortKey: INVENTORY_TOTAL, reverse: true) {
+    edges { node { title, totalInventory, priceRangeV2 {...} } }
+  }
+}
+"""
+```
+
+#### Tier 3: Deeper Analysis (< 5s)
+```python
+# Targeted REST queries with strict limits
+last_week_orders = api.get_orders(
+    updated_at_min=(datetime.now() - timedelta(days=7)).isoformat(),
+    limit=50  # Small, manageable dataset
+)
+```
+
+**Deliverables:**
+
+**1. GraphQL Client Extension** *(2 hours)*
+- [ ] Add `ShopifyGraphQL` class to `shopify_util.py`
+- [ ] Implement `get_store_pulse()` query method
+- [ ] Add proper error handling and rate limiting
+
+**2. Quick Insights Service** *(4 hours)*
+- [ ] Create `app/services/quick_insights.py`
+- [ ] Implement three-tier data fetching:
+  - [ ] `tier_1_snapshot()` - REST count endpoints
+  - [ ] `tier_2_insights()` - GraphQL store pulse
+  - [ ] `tier_3_analysis()` - Limited REST queries
+- [ ] Add 15-minute Redis caching for demo phase
+
+**3. Natural Language Generator** *(3 hours)*
+- [ ] Create `generate_quick_insights()` function
+- [ ] Transform data into conversational insights:
+  ```python
+  # Input: {"recent_revenue": 1234.56, "order_velocity": 3.2}
+  # Output: ["You've made $1,234.56 in the last 10 orders",
+  #          "Your store is averaging 3.2 orders per day"]
+  ```
+- [ ] Handle edge cases (new stores, no recent orders)
+
+**4. CJ Agent Integration** *(3 hours)*
+- [ ] Update `handle_oauth_complete()` in CJ agent
+- [ ] Implement progressive disclosure flow:
+  ```python
+  # 1. Instant gratification
+  yield "Great! I can see you have 1,234 customers in your store."
+  
+  # 2. Show we're analyzing
+  yield "Let me take a quick look at your recent activity..."
+  
+  # 3. Deliver insights naturally
+  for insight in insights:
+      yield insight
+      await asyncio.sleep(0.5)  # Natural pacing
+  
+  # 4. Transition to next phase
+  yield "I'm already seeing some patterns. Would you like me to connect..."
+  ```
+
+**5. Error Handling & Edge Cases** *(2 hours)*
+- [ ] Handle stores with no data gracefully
+- [ ] Manage API rate limits
+- [ ] Fallback messages for API failures
+- [ ] Test with various store sizes
+
+**The Enhanced Experience:**
 ```
 After OAuth:
-├── "Great! Taking a quick look at your store..."
-├── Progressive loading of insights
-├── Show key metrics (products, recent orders, etc.)
-├── Natural transition to support system connection
-└── Build trust through immediate value
+├── [0-500ms] "Great! I can see you have 1,234 customers"
+├── [500ms-2s] "Let me look at your recent activity..."
+├── [2-3s] "You've made $12,456 in the last 10 orders"
+├── [3-4s] "Your store is averaging 5.2 orders per day"  
+├── [4-5s] "'Blue Widget' is your best stocked product"
+├── [5-6s] "I'm seeing some interesting patterns..."
+└── [6s+] "Would you like me to connect your support system?"
 ```
+
+**Success Metrics:**
+- Time to first insight: < 500ms
+- Total onboarding time: < 30 seconds
+- Zero full data dumps during demo
+- API calls per session: < 5
+- Cache hit rate: > 80% during demos
+
+**Why This Approach:**
+- ✅ **No ETL Complexity**: Direct API calls, no sync infrastructure
+- ✅ **Instant Value**: First response in under 500ms
+- ✅ **Conversation-Driven**: Data follows dialogue naturally
+- ✅ **Efficient**: Never fetch more than needed
+- ✅ **Demo-Optimized**: 15-min cache perfect for onboarding
+
+**Timeline: 14 hours total** (2 days)
+- Day 1: GraphQL client, Quick Insights service
+- Day 2: Natural language, CJ integration, testing
 
 📄 **[Detailed Implementation Guide →](docs/shopify-onboarding/phase-5-quick-value.md)** *(TODO)*
 
