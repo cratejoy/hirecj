@@ -88,6 +88,42 @@ hirecj-homepage/
 - **Responsive Design**: Fully responsive design that works on all devices
 - **Modern Stack**: Built with React, TypeScript, Tailwind CSS, and Express
 
+## 🔐 User Identity Management
+
+**IMPORTANT: Frontend NEVER generates user IDs - this is backend's responsibility**
+
+### What Frontend Does
+1. **Stores** raw merchant data in localStorage:
+   - `merchantId`: The merchant's identifier (e.g., "merchant_cratejoy-dev")
+   - `shopDomain`: The Shopify domain (e.g., "cratejoy-dev.myshopify.com")
+
+2. **Sends** this data to backend via WebSocket `session_update`:
+   ```javascript
+   // ✅ CORRECT - Frontend sends raw data only
+   const sessionUpdate = {
+     type: 'session_update',
+     data: {
+       merchant_id: localStorage.getItem('merchantId'),
+       shop_domain: localStorage.getItem('shopDomain')
+       // NO user_id field!
+     }
+   };
+   ```
+
+### What Frontend MUST NOT Do
+```javascript
+// ❌ WRONG - Never generate IDs in frontend
+const userId = `shop_${shopDomain.replace('.myshopify.com', '')}`;  // NO!
+const userId = generateUserId(shopDomain);  // NO!
+const userId = hashShopDomain(shopDomain);  // NO!
+```
+
+### Why This Matters
+- User IDs must be consistent across all services
+- Backend uses SHA256-based generation (`usr_xxxxxxxx` format)
+- Frontend-generated IDs cause database foreign key violations
+- Single Source of Truth: Backend is the authority
+
 ## 🛠️ Technology Stack
 
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Vite

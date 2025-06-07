@@ -4,6 +4,13 @@ Simplified user identity for HireCJ - Phase 4.5
 Just 6 functions, ~140 lines. No over-engineering.
 Direct PostgreSQL connection for full control.
 Includes fact storage as JSONB documents.
+
+CRITICAL: This is the AUTHORITATIVE source for user identity generation.
+All user IDs MUST be generated through this module's functions.
+Frontend should NEVER attempt to generate user IDs.
+
+User ID Format: usr_xxxxxxxx (8 character hex from SHA256 of normalized domain)
+Example: cratejoy-dev.myshopify.com → usr_2230c443
 """
 
 import hashlib
