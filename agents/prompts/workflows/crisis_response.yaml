@@ -7,6 +7,11 @@ requirements:
   scenario: true       # Need business context
   authentication: true # Must be authenticated
 
+# Workflow behavior configuration
+behavior:
+  initiator: "merchant"  # These don't auto-start
+  initial_action: null
+
 # IMPORTANT: Workflows define WHAT happens, not HOW to communicate
 # - Define milestones, data to pull, topics to cover
 # - DO NOT include tone, style, or personality instructions

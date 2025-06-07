@@ -456,76 +456,83 @@ class WebPlatform(Platform):
                            f"user_id={getattr(session, 'user_id', 'NONE')}, "
                            f"existing_session={bool(existing_session)}")
                 
+                # Check for workflow transitions
+                workflow_behavior = self.workflow_loader.get_workflow_behavior(workflow)
+                transitions = workflow_behavior.get('transitions', {})
+                
                 # Check if user is already authenticated but trying a workflow that doesn't require auth
                 if not requirements.get('authentication', True) and session and session.user_id:
-                    # Get shop domain from session or OAuth metadata
-                    shop_domain = WorkflowConstants.DEFAULT_SHOP_DOMAIN
-                    if hasattr(session, 'oauth_metadata') and session.oauth_metadata:
-                        shop_domain = session.oauth_metadata.get('shop_domain', shop_domain)
-                    elif hasattr(session, 'shop_domain'):
-                        shop_domain = session.shop_domain
-                    elif session.merchant_name and session.merchant_name != "onboarding_user":
-                        shop_domain = session.merchant_name
-                    
-                    # Transition to a workflow that requires authentication (default to ad_hoc_support)
-                    target_workflow = "ad_hoc_support"  # TODO: Make this configurable
-                    logger.info(f"[ALREADY_AUTH] Detected authenticated user {session.user_id} starting {workflow} workflow, transitioning to {target_workflow}")
-                    
-                    # IMMEDIATE: Update workflow first for instant feedback
-                    success = self.session_manager.update_workflow(conversation_id, target_workflow)
-                    if success:
-                        # IMMEDIATE: Update the workflow in conversation_data for frontend
-                        conversation_data["workflow"] = target_workflow
+                    transition_config = transitions.get('already_authenticated')
+                    if transition_config:
+                        target_workflow = transition_config.get('target_workflow', 'ad_hoc_support')
+                        transition_message = transition_config.get('message')
                         
-                        # IMMEDIATE: Notify frontend of workflow change
-                        await websocket.send_json({
-                            "type": "workflow_updated",
-                            "data": {
-                                "workflow": target_workflow,
-                                "previous": workflow
-                            }
-                        })
+                        # Get shop domain from session or OAuth metadata
+                        shop_domain = WorkflowConstants.DEFAULT_SHOP_DOMAIN
+                        if hasattr(session, 'oauth_metadata') and session.oauth_metadata:
+                            shop_domain = session.oauth_metadata.get('shop_domain', shop_domain)
+                        elif hasattr(session, 'shop_domain'):
+                            shop_domain = session.shop_domain
+                        elif session.merchant_name and session.merchant_name != "onboarding_user":
+                            shop_domain = session.merchant_name
                         
-                        logger.info(f"[ALREADY_AUTH] Successfully transitioned {conversation_id} to {target_workflow}")
+                        logger.info(f"[ALREADY_AUTH] Detected authenticated user {session.user_id} starting {workflow} workflow, transitioning to {target_workflow}")
                         
-                        # ASYNC: Handle CJ's responses without blocking
-                        async def handle_auth_transition():
-                            try:
-                                # Send transition notification
-                                transition_msg = f"Existing session detected: {shop_domain} with workflow transition to ad_hoc_support"
-                                
-                                # Let CJ acknowledge the transition
-                                response = await self.message_processor.process_message(
-                                    session=session,
-                                    message=transition_msg,
-                                    sender="system"
-                                )
-                                
-                                # Send CJ's acknowledgment
-                                if response:
-                                    response_data = {
-                                        "content": response if isinstance(response, str) else response.get("content", response),
-                                        "factCheckStatus": "available",
-                                        "timestamp": datetime.now().isoformat(),
-                                    }
-                                    await websocket.send_json(
-                                        {"type": "cj_message", "data": response_data}
+                        # IMMEDIATE: Update workflow first for instant feedback
+                        success = self.session_manager.update_workflow(conversation_id, target_workflow)
+                        if success:
+                            # IMMEDIATE: Update the workflow in conversation_data for frontend
+                            conversation_data["workflow"] = target_workflow
+                            
+                            # IMMEDIATE: Notify frontend of workflow change
+                            await websocket.send_json({
+                                "type": "workflow_updated",
+                                "data": {
+                                    "workflow": target_workflow,
+                                    "previous": workflow
+                                }
+                            })
+                            
+                            logger.info(f"[ALREADY_AUTH] Successfully transitioned {conversation_id} to {target_workflow}")
+                            
+                            # ASYNC: Handle CJ's responses without blocking
+                            async def handle_auth_transition():
+                                try:
+                                    # Send transition notification
+                                    transition_msg = f"Existing session detected: {shop_domain} with workflow transition to {target_workflow}"
+                                    
+                                    # Let CJ acknowledge the transition
+                                    response = await self.message_processor.process_message(
+                                        session=session,
+                                        message=transition_msg,
+                                        sender="system"
                                     )
-                                
-                                # Notify the new workflow about the transition
-                                arrival_msg = "Transitioned from shopify_onboarding workflow"
-                                await self.message_processor.process_message(
-                                    session=session,
-                                    message=arrival_msg,
-                                    sender="system"
-                                )
-                            except Exception as e:
-                                logger.error(f"[ALREADY_AUTH] Error handling transition messages: {e}")
-                        
-                        # Create async task to handle messages without blocking
-                        asyncio.create_task(handle_auth_transition())
-                    else:
-                        logger.error(f"[ALREADY_AUTH] Failed to update workflow for {conversation_id}")
+                                    
+                                    # Send CJ's acknowledgment
+                                    if response:
+                                        response_data = {
+                                            "content": response if isinstance(response, str) else response.get("content", response),
+                                            "factCheckStatus": "available",
+                                            "timestamp": datetime.now().isoformat(),
+                                        }
+                                        await websocket.send_json(
+                                            {"type": "cj_message", "data": response_data}
+                                        )
+                                    
+                                    # Notify the new workflow about the transition
+                                    arrival_msg = f"Transitioned from {workflow} workflow"
+                                    await self.message_processor.process_message(
+                                        session=session,
+                                        message=arrival_msg,
+                                        sender="system"
+                                    )
+                                except Exception as e:
+                                    logger.error(f"[ALREADY_AUTH] Error handling transition messages: {e}")
+                            
+                            # Create async task to handle messages without blocking
+                            asyncio.create_task(handle_auth_transition())
+                        else:
+                            logger.error(f"[ALREADY_AUTH] Failed to update workflow for {conversation_id}")
 
                 # Register progress callback for this WebSocket connection (all workflows)
                 async def progress_callback(update):
@@ -548,61 +555,43 @@ class WebPlatform(Platform):
                 self.message_processor.clear_progress_callbacks()
                 self.message_processor.on_progress(progress_callback)
 
-                # TODO: Workflow initial messages should be defined in workflow YAML files
-                # For now, keeping the workflow-specific initial messages inline
-                # This is behavioral configuration, not requirements-based
+                # Get workflow behavior
+                workflow_behavior = self.workflow_loader.get_workflow_behavior(workflow)
+                initial_action = workflow_behavior.get('initial_action')
                 
-                # Generate initial message based on workflow
-                if workflow == "daily_briefing":
-                    response = await self.message_processor.process_message(
-                        session=session,
-                        message="Provide daily briefing using the get_support_dashboard tool to fetch current metrics",
-                        sender="merchant",
-                    )
-                elif workflow == "shopify_onboarding":
-                    # For onboarding, we want CJ to start with a natural greeting
-                    # The workflow details will guide CJ on what to say
-                    logger.info(f"[SHOPIFY_ONBOARDING] Triggering initial greeting for conversation {conversation_id}")
-                    # Use a clear instruction that won't appear in conversation history
-                    # Similar to how daily_briefing uses "Provide daily briefing"
-                    response = await self.message_processor.process_message(
-                        session=session,
-                        message="Begin onboarding introduction",
-                        sender="merchant",
-                    )
-                    greeting_preview = response["content"][:100] if isinstance(response, dict) and "content" in response else str(response)[:100] if response else 'None'
-                    logger.info(f"[SHOPIFY_ONBOARDING] Generated greeting: {greeting_preview}...")
+                if initial_action:
+                    action_type = initial_action.get('type')
                     
-                    # Don't add the trigger message to conversation history
-                    # Remove it so the conversation starts cleanly with CJ's greeting
-                    if session.conversation.messages and session.conversation.messages[-2].content == "Begin onboarding introduction":
-                        # Remove the trigger message (should be second to last, before CJ's response)
-                        session.conversation.messages.pop(-2)
-                        # Also remove from context window
-                        if session.conversation.state.context_window and len(session.conversation.state.context_window) > 1:
-                            session.conversation.state.context_window.pop(-2)
-                elif workflow == "support_daily":
-                    response = await self.message_processor.process_message(
-                        session=session,
-                        message="Show me the most recent open support ticket using the get_recent_ticket_from_db tool",
-                        sender="merchant",
-                    )
-                elif workflow == "ad_hoc_support":
-                    response = (
-                        "Hey boss, what's up? 👋 Need help with anything today?"
-                    )
-
-                    # Add greeting to conversation history so it's part of future context
-                    greeting_msg = Message(
-                        timestamp=datetime.utcnow(),
-                        sender="CJ",
-                        content=response,
-                    )
-                    session.conversation.add_message(greeting_msg)
+                    if action_type == 'process_message':
+                        response = await self.message_processor.process_message(
+                            session=session,
+                            message=initial_action.get('message'),
+                            sender=initial_action.get('sender', 'merchant'),
+                        )
+                        
+                        # Handle cleanup if specified
+                        if initial_action.get('cleanup_trigger') and session.conversation.messages:
+                            trigger_message = initial_action.get('message')
+                            if (len(session.conversation.messages) >= 2 and 
+                                session.conversation.messages[-2].content == trigger_message):
+                                session.conversation.messages.pop(-2)
+                                if session.conversation.state.context_window and len(session.conversation.state.context_window) > 1:
+                                    session.conversation.state.context_window.pop(-2)
+                    
+                    elif action_type == 'static_message':
+                        response = initial_action.get('content')
+                        
+                        if initial_action.get('add_to_history', False):
+                            greeting_msg = Message(
+                                timestamp=datetime.utcnow(),
+                                sender="CJ",
+                                content=response,
+                            )
+                            session.conversation.add_message(greeting_msg)
                 else:
                     response = None
-
-                    if response:
+                
+                if response:
                         # Handle structured response with UI elements
                         if isinstance(response, dict) and response.get("type") == "message_with_ui":
                             response_with_fact_check = {

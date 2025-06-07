@@ -7,6 +7,14 @@ requirements:
   scenario: true       # Need business context
   authentication: true # Must be authenticated
 
+# Workflow behavior configuration
+behavior:
+  initiator: "cj"
+  initial_action:
+    type: "process_message"
+    message: "Provide daily briefing using the get_support_dashboard tool to fetch current metrics"
+    sender: "merchant"
+
 # IMPORTANT: Workflows define WHAT happens, not HOW to communicate
 # - Define milestones, data to pull, topics to cover
 # - DO NOT include tone, style, or personality instructions

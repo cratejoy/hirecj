@@ -82,6 +82,15 @@ class WorkflowLoader:
             'scenario': True,
             'authentication': True
         })
+    
+    def get_workflow_behavior(self, name: str) -> Dict[str, Any]:
+        """Get workflow behavior configuration."""
+        workflow = self.get_workflow(name)
+        return workflow.get('behavior', {
+            'initiator': 'merchant',  # Default: merchant starts
+            'initial_action': None,
+            'transitions': {}
+        })
 
     def _get_ui_instructions(self, ui_config: Dict) -> str:
         """Generate UI instructions based on workflow config."""
