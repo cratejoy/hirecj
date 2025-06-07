@@ -1045,45 +1045,13 @@ class WebPlatform(Platform):
                 
                 logger.info(f"[WORKFLOW_TRANSITION] Transitioning {conversation_id} from {current_workflow} to {new_workflow}")
                 
-                # Send transition announcement to current workflow
-                if transition_data.get("user_initiated"):
-                    transition_msg = f"User requested transition to {new_workflow} workflow"
-                else:
-                    transition_msg = f"System requested transition to {new_workflow} workflow"
-                
-                # Let current workflow say goodbye
-                farewell_response = await self.message_processor.process_message(
-                    session=session,
-                    message=transition_msg,
-                    sender="system"
-                )
-                
-                # Send farewell message if any
-                if farewell_response:
-                    response_data = {
-                        "content": farewell_response if isinstance(farewell_response, str) else farewell_response.get("content", farewell_response),
-                        "factCheckStatus": "available",
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                    await websocket.send_json(
-                        {"type": "cj_message", "data": response_data}
-                    )
-                
-                # Update the workflow
+                # IMMEDIATE: Update the workflow first for instant feedback
                 success = self.session_manager.update_workflow(conversation_id, new_workflow)
                 if not success:
                     await self._send_error(websocket, "Failed to update workflow")
                     return
                 
-                # Let new workflow say hello
-                arrival_msg = f"Transitioned from {current_workflow} workflow"
-                await self.message_processor.process_message(
-                    session=session,
-                    message=arrival_msg,
-                    sender="system"
-                )
-                
-                # Notify frontend of successful transition
+                # IMMEDIATE: Notify frontend of successful transition
                 await websocket.send_json({
                     "type": "workflow_updated",
                     "data": {
@@ -1093,6 +1061,60 @@ class WebPlatform(Platform):
                 })
                 
                 logger.info(f"[WORKFLOW_TRANSITION] Successfully transitioned {conversation_id} to {new_workflow}")
+                
+                # ASYNC: Handle farewell and arrival messages without blocking
+                async def handle_transition_messages():
+                    try:
+                        # Prepare transition message
+                        if transition_data.get("user_initiated"):
+                            transition_msg = f"User requested transition to {new_workflow} workflow"
+                        else:
+                            transition_msg = f"System requested transition to {new_workflow} workflow"
+                        
+                        # Let current workflow say goodbye
+                        logger.info(f"[WORKFLOW_TRANSITION] Generating farewell from {current_workflow}")
+                        farewell_response = await self.message_processor.process_message(
+                            session=session,
+                            message=transition_msg,
+                            sender="system"
+                        )
+                        
+                        # Send farewell message if any
+                        if farewell_response:
+                            response_data = {
+                                "content": farewell_response if isinstance(farewell_response, str) else farewell_response.get("content", farewell_response),
+                                "factCheckStatus": "available",
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                            await websocket.send_json(
+                                {"type": "cj_message", "data": response_data}
+                            )
+                        
+                        # Let new workflow say hello
+                        logger.info(f"[WORKFLOW_TRANSITION] Generating arrival for {new_workflow}")
+                        arrival_msg = f"Transitioned from {current_workflow} workflow"
+                        arrival_response = await self.message_processor.process_message(
+                            session=session,
+                            message=arrival_msg,
+                            sender="system"
+                        )
+                        
+                        # Send arrival message if any
+                        if arrival_response:
+                            response_data = {
+                                "content": arrival_response if isinstance(arrival_response, str) else arrival_response.get("content", arrival_response),
+                                "factCheckStatus": "available",
+                                "timestamp": datetime.now().isoformat(),
+                            }
+                            await websocket.send_json(
+                                {"type": "cj_message", "data": response_data}
+                            )
+                            
+                    except Exception as e:
+                        logger.error(f"[WORKFLOW_TRANSITION] Error handling transition messages: {e}")
+                
+                # Create async task to handle messages without blocking
+                asyncio.create_task(handle_transition_messages())
 
             else:
                 logger.warning(f"Unknown message type from web client: {message_type}")
