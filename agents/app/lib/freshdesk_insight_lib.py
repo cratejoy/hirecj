@@ -1,17 +1,62 @@
 """Freshdesk insights library for querying and analyzing Freshdesk data from the database."""
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_, func
-from app.dbmodels.base import FreshdeskTicket, FreshdeskRating, Merchant
+from app.dbmodels.base import FreshdeskTicket, FreshdeskRating, Merchant, FreshdeskConversation
 
 logger = logging.getLogger(__name__)
 
-# Constants for Freshdesk rating values
-RATING_HAPPY = 103
-RATING_UNHAPPY = -103
+# Rating constants - raw Freshdesk values stored directly in parsed_rating field
+# CSAT calculation: only 103 (Extremely Happy) counts as satisfied
+# Everything under 102 is considered "unhappy" for CSAT purposes
+class Rating:
+    EXTREMELY_HAPPY = 103    # The only rating that counts for CSAT
+    VERY_HAPPY = 102         # Not counted for CSAT
+    HAPPY = 101              # Not counted for CSAT
+    NEUTRAL = 100            # Not counted for CSAT
+    UNHAPPY = -101           # Not counted for CSAT
+    VERY_UNHAPPY = -102      # Not counted for CSAT
+    EXTREMELY_UNHAPPY = -103 # Not counted for CSAT
+    
+    @classmethod
+    def get_all_values(cls) -> List[int]:
+        """Get all possible rating values."""
+        return [
+            cls.EXTREMELY_HAPPY,
+            cls.VERY_HAPPY,
+            cls.HAPPY,
+            cls.NEUTRAL,
+            cls.UNHAPPY,
+            cls.VERY_UNHAPPY,
+            cls.EXTREMELY_UNHAPPY
+        ]
+    
+    @classmethod
+    def get_name(cls, value: int) -> str:
+        """Get human-readable name for a rating value."""
+        names = {
+            cls.EXTREMELY_HAPPY: "extremely_happy",
+            cls.VERY_HAPPY: "very_happy",
+            cls.HAPPY: "happy",
+            cls.NEUTRAL: "neutral",
+            cls.UNHAPPY: "unhappy",
+            cls.VERY_UNHAPPY: "very_unhappy",
+            cls.EXTREMELY_UNHAPPY: "extremely_unhappy"
+        }
+        return names.get(value, f"unknown_{value}")
+    
+    @classmethod
+    def is_csat_satisfied(cls, value: int) -> bool:
+        """Check if a rating counts as satisfied for CSAT calculation."""
+        return value == cls.EXTREMELY_HAPPY
+    
+    @classmethod
+    def is_csat_unsatisfied(cls, value: int) -> bool:
+        """Check if a rating counts as unsatisfied for CSAT calculation."""
+        return value < cls.VERY_HAPPY
 
 
 
@@ -303,32 +348,34 @@ class FreshdeskInsights:
         
         # Calculate CSAT from unique user ratings
         total_unique_ratings = len(user_ratings)
-        happy_ratings = sum(1 for r in user_ratings.values() if r['rating'] == RATING_HAPPY)
-        unhappy_ratings = sum(1 for r in user_ratings.values() if r['rating'] == RATING_UNHAPPY)
+        # CSAT only counts 103 (Extremely Happy) as satisfied
+        satisfied_ratings = sum(1 for r in user_ratings.values() if r['rating'] == Rating.EXTREMELY_HAPPY)
+        # Everything under 102 is considered unsatisfied
+        unsatisfied_ratings = sum(1 for r in user_ratings.values() if r['rating'] and r['rating'] < Rating.VERY_HAPPY)
         
         if total_unique_ratings == 0:
             csat_percentage = 0.0
         else:
-            csat_percentage = (happy_ratings / total_unique_ratings) * 100
+            csat_percentage = (satisfied_ratings / total_unique_ratings) * 100
         
         return {
             "csat_percentage": csat_percentage,
             "total_unique_ratings": total_unique_ratings,
-            "happy_ratings": happy_ratings,
-            "unhappy_ratings": unhappy_ratings,
+            "satisfied_ratings": satisfied_ratings,
+            "unsatisfied_ratings": unsatisfied_ratings,
             "time_range": time_range,
             "merchant_info": merchant_info,
             "has_data": total_unique_ratings > 0
         }
     
     @staticmethod
-    def get_ticket_by_id(session: Session, ticket_id: int, merchant_id: int = 1) -> Optional[Dict[str, Any]]:
+    def get_ticket_by_id(session: Session, ticket_id: Union[int, str], merchant_id: int = 1) -> Optional[Dict[str, Any]]:
         """
         Get a specific ticket by ID with conversations and ratings.
         
         Args:
             session: SQLAlchemy database session
-            ticket_id: Freshdesk ticket ID
+            ticket_id: Freshdesk ticket ID (can be int or string)
             merchant_id: Merchant ID to filter by (default: 1)
             
         Returns:
@@ -336,10 +383,13 @@ class FreshdeskInsights:
         """
         logger.info(f"[INSIGHTS] Fetching ticket {ticket_id} for merchant_id={merchant_id}")
         
+        # Convert ticket_id to string since it's stored as string in database
+        ticket_id_str = str(ticket_id)
+        
         # Get the ticket
         ticket = session.query(FreshdeskTicket).filter(
             and_(
-                FreshdeskTicket.freshdesk_ticket_id == ticket_id,
+                FreshdeskTicket.freshdesk_ticket_id == ticket_id_str,
                 FreshdeskTicket.merchant_id == merchant_id
             )
         ).first()
@@ -348,14 +398,13 @@ class FreshdeskInsights:
             return None
         
         # Get conversations for this ticket
-        from app.dbmodels.base import FreshdeskConversation
         conversations = session.query(FreshdeskConversation).filter(
-            FreshdeskConversation.freshdesk_ticket_id == ticket_id
+            FreshdeskConversation.freshdesk_ticket_id == ticket_id_str
         ).order_by(FreshdeskConversation.parsed_created_at.asc()).all()
         
         # Get ratings for this ticket
         ratings = session.query(FreshdeskRating).filter(
-            FreshdeskRating.freshdesk_ticket_id == ticket_id
+            FreshdeskRating.freshdesk_ticket_id == ticket_id_str
         ).all()
         
         # Build result
@@ -365,23 +414,8 @@ class FreshdeskInsights:
             "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
             "updated_at": ticket.parsed_updated_at.isoformat() if ticket.parsed_updated_at else None,
             "data": ticket.data,
-            "conversations": [
-                {
-                    "conversation_id": conv.freshdesk_conversation_id,
-                    "created_at": conv.data.get('created_at'),
-                    "from_email": conv.data.get('from_email'),
-                    "body_text": conv.data.get('body_text'),
-                    "data": conv.data
-                } for conv in conversations
-            ],
-            "ratings": [
-                {
-                    "rating_id": rating.freshdesk_rating_id,
-                    "created_at": rating.data.get('created_at'),
-                    "ratings": rating.data.get('ratings', {}),
-                    "data": rating.data
-                } for rating in ratings
-            ]
+            "conversations": conversations[0].data if conversations else [],
+            "ratings": [ratings[0].data] if ratings else []
         }
         
         return result
@@ -426,21 +460,25 @@ class FreshdeskInsights:
     
     @staticmethod
     def get_tickets_by_rating(session: Session, 
-                             rating_type: str = "unhappy",
+                             rating_value: Optional[int] = None,
+                             rating_type: Optional[str] = None,
                              days: Optional[int] = None,
                              start_date: Optional[datetime] = None,
                              end_date: Optional[datetime] = None,
-                             merchant_id: int = 1) -> List[Dict[str, Any]]:
+                             merchant_id: int = 1,
+                             limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """
         Get all tickets with a particular rating in a time range.
         
         Args:
             session: SQLAlchemy database session
-            rating_type: "happy" or "unhappy"
+            rating_value: Numeric rating value (e.g., 3, -3) - takes precedence over rating_type
+            rating_type: String rating type (e.g., "happy", "unhappy") - for backwards compatibility
             days: Number of days to look back
             start_date: Start date for the time range
             end_date: End date for the time range
             merchant_id: Merchant ID to filter by
+            limit: Maximum number of results to return
             
         Returns:
             List of tickets with the specified rating
@@ -449,86 +487,115 @@ class FreshdeskInsights:
         if (start_date or end_date) and days is not None:
             raise ValueError("Cannot specify both days and date range.")
         
-        logger.info(f"[INSIGHTS] Fetching {rating_type} rated tickets")
-        
         # Determine rating value
-        rating_value = RATING_HAPPY if rating_type == "happy" else RATING_UNHAPPY
+        if rating_value is None:
+            if rating_type is None:
+                raise ValueError("Must specify either rating_value or rating_type")
+            # Map string types to values for backwards compatibility
+            rating_map = {
+                "extremely_happy": Rating.EXTREMELY_HAPPY,
+                "very_happy": Rating.VERY_HAPPY,
+                "happy": Rating.HAPPY,  # For backward compatibility, map to HAPPY not EXTREMELY_HAPPY
+                "neutral": Rating.NEUTRAL,
+                "unhappy": Rating.UNHAPPY,  # For backward compatibility, map to UNHAPPY not EXTREMELY_UNHAPPY
+                "very_unhappy": Rating.VERY_UNHAPPY,
+                "extremely_unhappy": Rating.EXTREMELY_UNHAPPY,
+                # Also support groupings
+                "positive": "positive",  # Special case - will handle below
+                "negative": "negative",  # Special case - will handle below
+                "satisfied": "satisfied",  # CSAT satisfied (103 only)
+                "unsatisfied": "unsatisfied"  # CSAT unsatisfied (<102)
+            }
+            
+            if rating_type not in rating_map:
+                raise ValueError(f"Unknown rating_type: {rating_type}")
+            
+            rating_value = rating_map[rating_type]
         
-        # Build base query
-        query = session.query(FreshdeskRating).join(
+        # Handle special cases for groupings
+        if rating_value == "positive":
+            logger.info("[INSIGHTS] Fetching tickets with positive ratings (>100)")
+            rating_filter = FreshdeskRating.parsed_rating > Rating.NEUTRAL
+            rating_name = "positive"
+        elif rating_value == "negative":
+            logger.info("[INSIGHTS] Fetching tickets with negative ratings (<100)")
+            rating_filter = FreshdeskRating.parsed_rating < Rating.NEUTRAL
+            rating_name = "negative"
+        elif rating_value == "satisfied":
+            logger.info("[INSIGHTS] Fetching tickets with satisfied CSAT ratings (103)")
+            rating_filter = FreshdeskRating.parsed_rating == Rating.EXTREMELY_HAPPY
+            rating_name = "satisfied"
+        elif rating_value == "unsatisfied":
+            logger.info("[INSIGHTS] Fetching tickets with unsatisfied CSAT ratings (<102)")
+            rating_filter = FreshdeskRating.parsed_rating < Rating.VERY_HAPPY
+            rating_name = "unsatisfied"
+        else:
+            rating_name = Rating.get_name(rating_value)
+            logger.info(f"[INSIGHTS] Fetching tickets with rating {rating_value} ({rating_name})")
+            rating_filter = FreshdeskRating.parsed_rating == rating_value
+        
+        # Build efficient query using joins and database filtering
+        query = session.query(
             FreshdeskTicket,
-            FreshdeskRating.freshdesk_ticket_id == FreshdeskTicket.freshdesk_ticket_id
+            FreshdeskRating,
+            func.cast(FreshdeskRating.data['created_at'].astext, DateTime).label('rating_created_at')
+        ).join(
+            FreshdeskRating,
+            FreshdeskTicket.freshdesk_ticket_id == FreshdeskRating.freshdesk_ticket_id
         ).filter(
             and_(
                 FreshdeskTicket.merchant_id == merchant_id,
-                FreshdeskRating.parsed_rating == rating_value
+                rating_filter
             )
         )
         
-        # Get all ratings with the specified rating value
-        # Note: We can't order by parsed_created_at since it doesn't exist on FreshdeskRating
-        all_ratings_query = query.all()
-        
-        # Filter by date and sort in Python
-        ratings_with_dates = []
-        for rating in all_ratings_query:
-            created_at_str = rating.data.get('created_at')
-            if not created_at_str:
-                continue
-                
-            # Parse the timestamp
-            try:
-                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
-                continue
-                
-            # Apply time filter
-            if start_date and end_date:
-                if start_date.tzinfo is None:
-                    start_date = start_date.replace(tzinfo=timezone.utc)
-                if end_date.tzinfo is None:
-                    end_date = end_date.replace(tzinfo=timezone.utc)
-                end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=end_date.tzinfo)
-                
-                if not (start_date <= created_at <= end_date):
-                    continue
-            elif days is not None and days > 0:
-                cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-                if created_at < cutoff_date:
-                    continue
+        # Apply date filters at database level
+        if start_date and end_date:
+            # Ensure timezone awareness
+            if start_date.tzinfo is None:
+                start_date = start_date.replace(tzinfo=timezone.utc)
+            if end_date.tzinfo is None:
+                end_date = end_date.replace(tzinfo=timezone.utc)
+            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
             
-            ratings_with_dates.append((rating, created_at))
+            query = query.filter(
+                func.cast(FreshdeskRating.data['created_at'].astext, DateTime).between(
+                    start_date, end_date
+                )
+            )
+        elif days is not None and days > 0:
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            query = query.filter(
+                func.cast(FreshdeskRating.data['created_at'].astext, DateTime) >= cutoff_date
+            )
         
-        # Sort by created_at descending
-        ratings_with_dates.sort(key=lambda x: x[1], reverse=True)
-        ratings = [r[0] for r in ratings_with_dates]
+        # Order by rating creation time descending
+        query = query.order_by(
+            func.cast(FreshdeskRating.data['created_at'].astext, DateTime).desc()
+        )
         
-        # Get unique tickets
-        seen_tickets = set()
+        # Apply limit if specified
+        if limit:
+            query = query.limit(limit)
+        
+        # Execute query
         results = []
+        for ticket, rating, rating_created_at in query.all():
+            results.append({
+                "ticket_id": ticket.freshdesk_ticket_id,
+                "subject": ticket.data.get('subject', 'No subject'),
+                "status": ticket.data.get('status'),
+                "priority": ticket.data.get('priority'),
+                "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
+                "rating_created_at": rating.data.get('created_at'),
+                "rating_value": rating.parsed_rating,
+                "rating_name": Rating.get_name(rating.parsed_rating),
+                "requester": ticket.data.get('requester', {}),
+                "feedback": rating.data.get('feedback'),
+                "data": ticket.data
+            })
         
-        for rating in ratings:
-            ticket_id = rating.freshdesk_ticket_id
-            if ticket_id not in seen_tickets:
-                seen_tickets.add(ticket_id)
-                # Get the ticket
-                ticket = session.query(FreshdeskTicket).filter(
-                    FreshdeskTicket.freshdesk_ticket_id == ticket_id
-                ).first()
-                
-                if ticket:
-                    results.append({
-                        "ticket_id": ticket_id,
-                        "subject": ticket.data.get('subject', 'No subject'),
-                        "status": ticket.data.get('status'),
-                        "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
-                        "rating_created_at": rating.data.get('created_at'),
-                        "rating": rating_type,
-                        "requester": ticket.data.get('requester', {}),
-                        "data": ticket.data
-                    })
-        
-        logger.info(f"[INSIGHTS] Found {len(results)} {rating_type} rated tickets")
+        logger.info(f"[INSIGHTS] Found {len(results)} tickets with rating {rating_value} ({rating_name})")
         return results
     
     @staticmethod
@@ -555,7 +622,7 @@ class FreshdeskInsights:
         ).filter(
             and_(
                 FreshdeskTicket.merchant_id == merchant_id,
-                FreshdeskRating.parsed_rating == RATING_UNHAPPY
+                FreshdeskRating.parsed_rating < Rating.VERY_HAPPY  # All unsatisfied ratings (<102)
             )
         ).all()
         
@@ -592,3 +659,103 @@ class FreshdeskInsights:
         
         logger.info(f"[INSIGHTS] Found {len(results)} bad CSAT tickets with full context")
         return results
+    
+    @staticmethod
+    def get_rating_statistics(session: Session,
+                             days: Optional[int] = None,
+                             start_date: Optional[datetime] = None,
+                             end_date: Optional[datetime] = None,
+                             merchant_id: int = 1) -> Dict[str, Any]:
+        """
+        Get rating statistics for all rating types in a time range.
+        
+        Args:
+            session: SQLAlchemy database session
+            days: Number of days to look back
+            start_date: Start date for the time range
+            end_date: End date for the time range
+            merchant_id: Merchant ID to filter by
+            
+        Returns:
+            Dictionary with rating statistics including counts and percentages
+        """
+        # Validate parameters
+        if (start_date or end_date) and days is not None:
+            raise ValueError("Cannot specify both days and date range.")
+        
+        logger.info("[INSIGHTS] Calculating rating statistics")
+        
+        # Build base query
+        query = session.query(
+            FreshdeskRating.parsed_rating,
+            func.count(FreshdeskRating.freshdesk_ticket_id).label('count')
+        ).join(
+            FreshdeskTicket,
+            FreshdeskRating.freshdesk_ticket_id == FreshdeskTicket.freshdesk_ticket_id
+        ).filter(
+            FreshdeskTicket.merchant_id == merchant_id
+        )
+        
+        # Apply date filters
+        if start_date and end_date:
+            if start_date.tzinfo is None:
+                start_date = start_date.replace(tzinfo=timezone.utc)
+            if end_date.tzinfo is None:
+                end_date = end_date.replace(tzinfo=timezone.utc)
+            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            query = query.filter(
+                func.cast(FreshdeskRating.data['created_at'].astext, DateTime).between(
+                    start_date, end_date
+                )
+            )
+        elif days is not None and days > 0:
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            query = query.filter(
+                func.cast(FreshdeskRating.data['created_at'].astext, DateTime) >= cutoff_date
+            )
+        
+        # Group by rating value
+        query = query.group_by(FreshdeskRating.parsed_rating)
+        
+        # Execute query and build results
+        stats = {
+            "total_ratings": 0,
+            "by_rating": {},
+            "csat_percentage": 0.0,
+            "period": {
+                "days": days,
+                "start_date": start_date.isoformat() if start_date else None,
+                "end_date": end_date.isoformat() if end_date else None
+            }
+        }
+        
+        satisfied_count = 0
+        for rating_value, count in query.all():
+            if rating_value is not None:
+                rating_name = Rating.get_name(rating_value)
+                stats["by_rating"][rating_name] = {
+                    "value": rating_value,
+                    "count": count,
+                    "percentage": 0.0  # Will calculate after
+                }
+                stats["total_ratings"] += count
+                
+                # Only count 103 (Extremely Happy) for CSAT
+                if rating_value == Rating.EXTREMELY_HAPPY:
+                    satisfied_count = count
+        
+        # Calculate percentages
+        if stats["total_ratings"] > 0:
+            for rating_name, rating_data in stats["by_rating"].items():
+                rating_data["percentage"] = round(
+                    (rating_data["count"] / stats["total_ratings"]) * 100, 2
+                )
+            
+            # CSAT percentage is only 103 ratings / total ratings
+            stats["csat_percentage"] = round((satisfied_count / stats["total_ratings"]) * 100, 2)
+        
+        logger.info(f"[INSIGHTS] Rating statistics: {stats['total_ratings']} total, "
+                   f"CSAT: {stats['csat_percentage']}%")
+        
+        return stats

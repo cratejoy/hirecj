@@ -118,7 +118,7 @@ class FreshdeskTicket(Base, TimestampMixin):
     parsed_created_at = Column(DateTime(timezone=True), nullable=True)  # Actual ticket creation time in Freshdesk
     parsed_updated_at = Column(DateTime(timezone=True), nullable=True)  # Actual last update time in Freshdesk
     parsed_email = Column(String(255), nullable=True)  # Customer email extracted from ticket data
-    parsed_shopify_id = Column(String(255), nullable=True)  # Shopify customer ID from custom fields
+    parsed_status = Column(Integer, nullable=True)  # Status code: 2=Open, 3=Pending, 4=Resolved, 5=Closed
     """
     Example data content:
     {
@@ -174,6 +174,7 @@ class FreshdeskTicket(Base, TimestampMixin):
         Index("idx_etl_freshdesk_tickets_freshdesk_ticket_id", "freshdesk_ticket_id"),
         Index("idx_etl_freshdesk_tickets_data_gin", "data", postgresql_using="gin"),
         Index("idx_etl_freshdesk_tickets_created_at", "created_at"),
+        Index("idx_etl_freshdesk_tickets_parsed_status", "parsed_status"),
     )
 
     def __repr__(self):
@@ -262,13 +263,13 @@ class FreshdeskRating(Base, TimestampMixin):
     # Parsed fields for quick access
     # This field contains the normalized rating value for easy querying
     # Use this field instead of digging into the JSONB data for AI agents and business logic
-    parsed_rating = Column(Integer, nullable=True)  # Rating converted from -103/103 to -3/3
+    parsed_rating = Column(Integer, nullable=True)  # Raw Freshdesk rating value (103 to -103)
     """
     Example data content:
     {
         "id": 43006810853,                                  # Rating ID
         "ratings": {
-            "default_question": 103                         # Rating value: 103=Happy, -103=Unhappy
+            "default_question": 103                         # Rating value: 103=Extremely Happy to -103=Extremely Unhappy
         },
         "user_id": 43028420064,                            # Customer who rated
         "agent_id": 43028290928,                           # Agent who handled ticket
@@ -280,10 +281,15 @@ class FreshdeskRating(Base, TimestampMixin):
         "updated_at": "2025-06-04T16:20:30Z"              # Last update
     }
     
-    Note: CSAT Score calculation:
-    - Rating value 103 = Happy/Positive (😊)
-    - Rating value -103 = Unhappy/Negative (😞)
-    - CSAT % = (Count of 103 ratings / Total ratings) × 100
+    Note: Freshdesk 7-point rating scale:
+    - 103 = Extremely Happy
+    - 102 = Very Happy  
+    - 101 = Happy
+    - 100 = Neutral
+    - -101 = Unhappy
+    - -102 = Very Unhappy
+    - -103 = Extremely Unhappy
+    - CSAT % = (Count of 103 ratings only / Total ratings) × 100
     """
 
     # Relationships

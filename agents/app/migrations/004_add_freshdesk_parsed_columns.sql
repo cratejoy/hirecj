@@ -6,8 +6,7 @@
 ALTER TABLE etl_freshdesk_tickets
     ADD COLUMN IF NOT EXISTS parsed_created_at TIMESTAMP WITH TIME ZONE,
     ADD COLUMN IF NOT EXISTS parsed_updated_at TIMESTAMP WITH TIME ZONE,
-    ADD COLUMN IF NOT EXISTS parsed_email VARCHAR(255),
-    ADD COLUMN IF NOT EXISTS parsed_shopify_id VARCHAR(255);
+    ADD COLUMN IF NOT EXISTS parsed_email VARCHAR(255);
 
 -- Add parsed columns to etl_freshdesk_conversations
 ALTER TABLE etl_freshdesk_conversations
@@ -25,8 +24,6 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_etl_freshdesk_tickets_parsed_updated
     ON etl_freshdesk_tickets(parsed_updated_at);
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_etl_freshdesk_tickets_parsed_email 
     ON etl_freshdesk_tickets(parsed_email);
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_etl_freshdesk_tickets_parsed_shopify_id 
-    ON etl_freshdesk_tickets(parsed_shopify_id);
 
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_etl_freshdesk_conversations_parsed_created_at 
     ON etl_freshdesk_conversations(parsed_created_at);

@@ -31,16 +31,18 @@ class FreshdeskETL:
             return None
     
     def _convert_rating_scale(self, rating_value: Optional[int]) -> Optional[int]:
-        """Convert rating from -103/103 scale to -3/3 scale."""
-        if rating_value is None:
-            return None
-        if rating_value == 103:
-            return 3
-        elif rating_value == -103:
-            return -3
-        else:
-            # Handle any intermediate values proportionally
-            return round(rating_value / 103 * 3)
+        """Pass through rating values without conversion.
+        
+        Freshdesk Rating Scale (stored as-is):
+        103 = Extremely Happy
+        102 = Very Happy
+        101 = Happy
+        100 = Neutral
+        -101 = Unhappy
+        -102 = Very Unhappy
+        -103 = Extremely Unhappy
+        """
+        return rating_value
     
     def get_last_sync_timestamp(self, resource_type: str) -> Optional[datetime]:
         """Get the last successful sync timestamp for a resource."""
@@ -169,9 +171,7 @@ class FreshdeskETL:
                             parsed_email = None
                             if ticket.get('requester') and isinstance(ticket['requester'], dict):
                                 parsed_email = ticket['requester'].get('email')
-                            parsed_shopify_id = None
-                            if ticket.get('custom_fields') and isinstance(ticket['custom_fields'], dict):
-                                parsed_shopify_id = ticket['custom_fields'].get('cf_shopify_customer_id')
+                            parsed_status = ticket.get('status')  # Status code: 2=Open, 3=Pending, 4=Resolved, 5=Closed
                             
                             # Upsert the ticket (without conversations)
                             stmt = insert(FreshdeskTicket).values(
@@ -181,7 +181,7 @@ class FreshdeskETL:
                                 parsed_created_at=parsed_created_at,
                                 parsed_updated_at=parsed_updated_at,
                                 parsed_email=parsed_email,
-                                parsed_shopify_id=parsed_shopify_id
+                                parsed_status=parsed_status
                             )
                             
                             if not force_reparse:
@@ -192,7 +192,7 @@ class FreshdeskETL:
                                         'parsed_created_at': stmt.excluded.parsed_created_at,
                                         'parsed_updated_at': stmt.excluded.parsed_updated_at,
                                         'parsed_email': stmt.excluded.parsed_email,
-                                        'parsed_shopify_id': stmt.excluded.parsed_shopify_id
+                                        'parsed_status': stmt.excluded.parsed_status
                                     },
                                     where=(FreshdeskTicket.data != stmt.excluded.data)  # Only update if data differs
                                 )
@@ -204,7 +204,7 @@ class FreshdeskETL:
                                         'parsed_created_at': stmt.excluded.parsed_created_at,
                                         'parsed_updated_at': stmt.excluded.parsed_updated_at,
                                         'parsed_email': stmt.excluded.parsed_email,
-                                        'parsed_shopify_id': stmt.excluded.parsed_shopify_id
+                                        'parsed_status': stmt.excluded.parsed_status
                                     }
                                 )
                             
@@ -396,11 +396,11 @@ class FreshdeskETL:
                             ticket_record = result.scalar_one_or_none()
                             
                             if ticket_record:
-                                # Parse rating value from -103/103 to -3/3 scale
+                                # Extract rating value (stored as-is, no conversion)
                                 parsed_rating = None
                                 if rating.get('ratings') and isinstance(rating['ratings'], dict):
                                     rating_value = rating['ratings'].get('default_question')
-                                    parsed_rating = self._convert_rating_scale(rating_value)
+                                    parsed_rating = self._convert_rating_scale(rating_value)  # Pass-through, no conversion
                                 
                                 # Store rating in separate table
                                 rating_stmt = insert(FreshdeskRating).values(
