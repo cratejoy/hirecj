@@ -289,7 +289,7 @@ class FreshdeskRating(Base, TimestampMixin):
     - -101 = Unhappy
     - -102 = Very Unhappy
     - -103 = Extremely Unhappy
-    - CSAT % = (Count of 103 ratings only / Total ratings) × 100
+    - CSAT % = (Count of 103 ratings only / Total ratings) x 100
     """
 
     # Relationships
@@ -371,37 +371,6 @@ class MerchantIntegration(Base, TimestampMixin):
 
     def __repr__(self):
         return f"<MerchantIntegration(merchant_id={self.merchant_id}, platform='{self.platform}', is_active={self.is_active})>"
-
-
-class DailyTicketSummary(Base, TimestampMixin):
-    """Daily aggregated ticket summaries for each merchant."""
-
-    __tablename__ = "daily_ticket_summaries"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    date = Column(
-        DateTime(timezone=True), nullable=False
-    )  # The date this summary covers
-    merchant_id = Column(
-        Integer, ForeignKey("merchants.id", ondelete="CASCADE"), nullable=False
-    )
-    message = Column(Text, nullable=False)  # The generated summary message
-
-    # Relationships
-    merchant = relationship("Merchant", backref="daily_summaries")
-
-    # Constraints and indexes
-    __table_args__ = (
-        UniqueConstraint("merchant_id", "date", name="uq_merchant_daily_summary"),
-        Index("idx_daily_ticket_summaries_merchant_id", "merchant_id"),
-        Index("idx_daily_ticket_summaries_date", "date"),
-        Index("idx_daily_ticket_summaries_merchant_date", "merchant_id", "date"),
-    )
-
-    def __repr__(self):
-        return (
-            f"<DailyTicketSummary(merchant_id={self.merchant_id}, date='{self.date}')>"
-        )
 
 
 # For backwards compatibility, create aliases

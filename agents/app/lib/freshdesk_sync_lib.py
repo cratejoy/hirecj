@@ -82,19 +82,27 @@ class FreshdeskETL:
             
             session.execute(stmt)
     
-    def sync_tickets(self, since: Optional[datetime] = None, max_pages: Optional[int] = None, force_reparse: bool = False) -> Dict[str, Any]:
-        """Sync Freshdesk tickets to database with conversations stored separately.
+    def sync_ticket_data(self, since: Optional[datetime] = None, max_pages: Optional[int] = None, force_reparse: bool = False) -> Dict[str, Any]:
+        """Sync ONLY Freshdesk ticket data (without conversations).
         
-        Tickets are stored in etl_freshdesk_tickets table.
-        Conversations are stored in etl_freshdesk_conversations table.
+        This method fetches and stores core ticket data only. Conversations
+        should be synced separately using sync_conversation_data().
         
         Args:
             since: Sync tickets updated since this datetime
             max_pages: Maximum number of pages to fetch (for testing)
+            force_reparse: Force re-parsing of all fields
+            
+        Returns:
+            Dict containing:
+                - status: "success" or "failed"
+                - total_synced: Number of tickets synced
+                - total_errors: Number of errors
+                - last_ticket_id: Last ticket ID processed
+                - updated_ticket_ids: List of ticket IDs that were updated
         """
-        print(f"🎫 Starting Freshdesk ticket sync for merchant {self.merchant_id}")
-        print("   📝 Storing tickets and conversations in separate tables")
-        print("   ✅ Tickets will be saved even if conversation fetch fails")
+        print(f"🎫 Starting Freshdesk ticket data sync for merchant {self.merchant_id}")
+        print("   📝 Syncing ticket data only (no conversations)")
         
         # Mark sync as in progress
         self.update_sync_metadata("freshdesk_tickets", "in_progress")
@@ -113,6 +121,7 @@ class FreshdeskETL:
         total_synced = 0
         total_errors = 0
         last_ticket_id = None
+        updated_ticket_ids = []  # Track which tickets were updated
         
         try:
             with get_db_session() as session:
@@ -126,7 +135,7 @@ class FreshdeskETL:
                     tickets, next_url = self.api.get_tickets(
                         updated_since=updated_since,
                         page=page,
-                        include="requester"  # Include contact data
+                        include="requester,stats"  # Include contact data and stats
                     )
                     
                     
@@ -157,6 +166,8 @@ class FreshdeskETL:
                                 # Store requester info directly in ticket
                                 'requester_id': requester_id,
                                 'requester': ticket.get('requester'),  # This includes email, name, etc.
+                                # Store stats data for resolution times
+                                'stats': ticket.get('stats'),  # Contains resolved_at, closed_at, first_responded_at, etc.
                                 # Store complete ticket data
                                 '_raw_data': ticket
                             }
@@ -208,75 +219,13 @@ class FreshdeskETL:
                                     }
                                 )
                             
-                            session.execute(stmt)
+                            result = session.execute(stmt)
+                            # Track if this ticket was actually updated
+                            if result.rowcount > 0:
+                                updated_ticket_ids.append(ticket_id)
+                            
                             total_synced += 1
                             last_ticket_id = ticket_id
-                            
-                            # Fetch and store conversations in separate table
-                            all_conversations = []
-                            try:
-                                conv_page = 1
-                                
-                                while True:
-                                    conversations, conv_next_url = self.api.get_conversations(
-                                        ticket_id=int(ticket_id),
-                                        page=conv_page
-                                    )
-                                    
-                                    if not conversations:
-                                        break
-                                        
-                                    all_conversations.extend(conversations)
-                                    
-                                    if not conv_next_url:
-                                        break
-                                    conv_page += 1
-                                
-                                # Store conversations in separate table if we got any
-                                if all_conversations:
-                                    # Parse first and last message timestamps
-                                    parsed_created_at = None
-                                    parsed_updated_at = None
-                                    if all_conversations:
-                                        # First message created_at
-                                        if all_conversations[0] and isinstance(all_conversations[0], dict):
-                                            parsed_created_at = self._parse_timestamp(all_conversations[0].get('created_at'))
-                                        # Last message created_at
-                                        if all_conversations[-1] and isinstance(all_conversations[-1], dict):
-                                            parsed_updated_at = self._parse_timestamp(all_conversations[-1].get('created_at'))
-                                    
-                                    conv_stmt = insert(FreshdeskConversation).values(
-                                        freshdesk_ticket_id=ticket_id,
-                                        data=all_conversations,  # Store as array
-                                        parsed_created_at=parsed_created_at,
-                                        parsed_updated_at=parsed_updated_at
-                                    )
-                                    
-                                    if not force_reparse:
-                                        conv_stmt = conv_stmt.on_conflict_do_update(
-                                            index_elements=['freshdesk_ticket_id'],
-                                            set_={
-                                                'data': conv_stmt.excluded.data,
-                                                'parsed_created_at': conv_stmt.excluded.parsed_created_at,
-                                                'parsed_updated_at': conv_stmt.excluded.parsed_updated_at
-                                            },
-                                            where=(FreshdeskConversation.data != conv_stmt.excluded.data)  # Only update if data differs
-                                        )
-                                    else:
-                                        conv_stmt = conv_stmt.on_conflict_do_update(
-                                            index_elements=['freshdesk_ticket_id'],
-                                            set_={
-                                                'data': conv_stmt.excluded.data,
-                                                'parsed_created_at': conv_stmt.excluded.parsed_created_at,
-                                                'parsed_updated_at': conv_stmt.excluded.parsed_updated_at
-                                            }
-                                        )
-                                    
-                                    session.execute(conv_stmt)
-                                
-                            except Exception as e:
-                                print(f"    ⚠️  Failed to fetch conversations for ticket {ticket_id}: {e}")
-                                # Continue - ticket is already saved
                             
                         except Exception as e:
                             print(f"  ❌ Error syncing ticket {ticket.get('id')}: {e}")
@@ -312,15 +261,17 @@ class FreshdeskETL:
                 last_successful_id=last_ticket_id
             )
             
-            print(f"\n✅ Ticket sync completed:")
+            print(f"\n✅ Ticket data sync completed:")
             print(f"   Total synced: {total_synced}")
+            print(f"   Tickets updated: {len(updated_ticket_ids)}")
             print(f"   Errors: {total_errors}")
             
             return {
                 "status": "success",
                 "total_synced": total_synced,
                 "total_errors": total_errors,
-                "last_ticket_id": last_ticket_id
+                "last_ticket_id": last_ticket_id,
+                "updated_ticket_ids": updated_ticket_ids
             }
             
         except Exception as e:
@@ -336,8 +287,204 @@ class FreshdeskETL:
                 "status": "failed",
                 "error": str(e),
                 "total_synced": total_synced,
+                "total_errors": total_errors,
+                "updated_ticket_ids": updated_ticket_ids
+            }
+    
+    def sync_conversations_for_tickets(self, ticket_ids: List[str], force_reparse: bool = False) -> Dict[str, Any]:
+        """Sync conversations for specific tickets.
+        
+        This method fetches and stores conversations for the provided ticket IDs.
+        Useful for updating conversations after ticket data has been synced.
+        
+        Args:
+            ticket_ids: List of Freshdesk ticket IDs to sync conversations for
+            force_reparse: Force re-parsing of all fields
+            
+        Returns:
+            Dict containing:
+                - status: "success" or "failed"
+                - total_synced: Number of conversations synced
+                - total_errors: Number of errors
+        """
+        if not ticket_ids:
+            return {
+                "status": "success",
+                "total_synced": 0,
+                "total_errors": 0
+            }
+            
+        print(f"💬 Starting conversation sync for {len(ticket_ids)} tickets")
+        
+        # Mark sync as in progress
+        self.update_sync_metadata("freshdesk_conversations", "in_progress")
+        
+        total_synced = 0
+        total_errors = 0
+        
+        try:
+            with get_db_session() as session:
+                # Process tickets in batches to avoid too many commits
+                batch_size = 50
+                for i in range(0, len(ticket_ids), batch_size):
+                    batch = ticket_ids[i:i + batch_size]
+                    print(f"  Processing batch {i//batch_size + 1} ({len(batch)} tickets)...")
+                    
+                    for ticket_id in batch:
+                        try:
+                            # Fetch all conversations for this ticket
+                            all_conversations = []
+                            conv_page = 1
+                            
+                            while True:
+                                conversations, conv_next_url = self.api.get_conversations(
+                                    ticket_id=int(ticket_id),
+                                    page=conv_page
+                                )
+                                
+                                if not conversations:
+                                    break
+                                    
+                                all_conversations.extend(conversations)
+                                
+                                if not conv_next_url:
+                                    break
+                                conv_page += 1
+                            
+                            # Store conversations if we got any
+                            if all_conversations:
+                                # Parse first and last message timestamps
+                                parsed_created_at = None
+                                parsed_updated_at = None
+                                
+                                # First message created_at
+                                if all_conversations[0] and isinstance(all_conversations[0], dict):
+                                    parsed_created_at = self._parse_timestamp(all_conversations[0].get('created_at'))
+                                # Last message created_at
+                                if all_conversations[-1] and isinstance(all_conversations[-1], dict):
+                                    parsed_updated_at = self._parse_timestamp(all_conversations[-1].get('created_at'))
+                                
+                                conv_stmt = insert(FreshdeskConversation).values(
+                                    freshdesk_ticket_id=ticket_id,
+                                    data=all_conversations,  # Store as array
+                                    parsed_created_at=parsed_created_at,
+                                    parsed_updated_at=parsed_updated_at
+                                )
+                                
+                                if not force_reparse:
+                                    conv_stmt = conv_stmt.on_conflict_do_update(
+                                        index_elements=['freshdesk_ticket_id'],
+                                        set_={
+                                            'data': conv_stmt.excluded.data,
+                                            'parsed_created_at': conv_stmt.excluded.parsed_created_at,
+                                            'parsed_updated_at': conv_stmt.excluded.parsed_updated_at
+                                        },
+                                        where=(FreshdeskConversation.data != conv_stmt.excluded.data)  # Only update if data differs
+                                    )
+                                else:
+                                    conv_stmt = conv_stmt.on_conflict_do_update(
+                                        index_elements=['freshdesk_ticket_id'],
+                                        set_={
+                                            'data': conv_stmt.excluded.data,
+                                            'parsed_created_at': conv_stmt.excluded.parsed_created_at,
+                                            'parsed_updated_at': conv_stmt.excluded.parsed_updated_at
+                                        }
+                                    )
+                                
+                                session.execute(conv_stmt)
+                                total_synced += 1
+                            else:
+                                print(f"    ⚠️  No conversations found for ticket {ticket_id}")
+                                
+                        except Exception as e:
+                            print(f"    ❌ Error syncing conversations for ticket {ticket_id}: {e}")
+                            total_errors += 1
+                    
+                    # Commit batch
+                    session.commit()
+                    
+            # Update sync metadata on success
+            self.update_sync_metadata("freshdesk_conversations", "success")
+            
+            print(f"\n✅ Conversation sync completed:")
+            print(f"   Total synced: {total_synced}")
+            print(f"   Errors: {total_errors}")
+            
+            return {
+                "status": "success",
+                "total_synced": total_synced,
                 "total_errors": total_errors
             }
+            
+        except Exception as e:
+            # Update sync metadata on failure
+            self.update_sync_metadata(
+                "freshdesk_conversations",
+                "failed",
+                error_message=str(e)
+            )
+            
+            print(f"\n❌ Conversation sync failed: {e}")
+            return {
+                "status": "failed",
+                "error": str(e),
+                "total_synced": total_synced,
+                "total_errors": total_errors
+            }
+    
+    def sync_tickets(self, since: Optional[datetime] = None, max_pages: Optional[int] = None, force_reparse: bool = False) -> Dict[str, Any]:
+        """Sync Freshdesk tickets with conversations using two-phase approach.
+        
+        Phase 1: Sync all ticket data that has been updated since last sync
+        Phase 2: Sync conversations for tickets that were updated
+        
+        This method combines sync_ticket_data and sync_conversations_for_tickets
+        for backward compatibility.
+        
+        Args:
+            since: Sync tickets updated since this datetime
+            max_pages: Maximum number of pages to fetch (for testing)
+            force_reparse: Force re-parsing of all fields
+            
+        Returns:
+            Combined results from both phases
+        """
+        print(f"🎫 Starting two-phase Freshdesk sync for merchant {self.merchant_id}")
+        print("=" * 60)
+        print("PHASE 1: SYNCING TICKET DATA")
+        print("=" * 60)
+        
+        # Phase 1: Sync ticket data
+        ticket_result = self.sync_ticket_data(since=since, max_pages=max_pages, force_reparse=force_reparse)
+        
+        if ticket_result['status'] != 'success':
+            return ticket_result
+        
+        updated_ticket_ids = ticket_result.get('updated_ticket_ids', [])
+        
+        if not updated_ticket_ids:
+            print("\n✅ No tickets were updated, skipping conversation sync")
+            return ticket_result
+        
+        print("\n" + "=" * 60)
+        print("PHASE 2: SYNCING CONVERSATIONS FOR UPDATED TICKETS")
+        print("=" * 60)
+        
+        # Phase 2: Sync conversations for updated tickets
+        conv_result = self.sync_conversations_for_tickets(
+            ticket_ids=updated_ticket_ids,
+            force_reparse=force_reparse
+        )
+        
+        # Combine results
+        return {
+            "status": "success" if conv_result['status'] == 'success' else "partial",
+            "total_synced": ticket_result['total_synced'],
+            "total_errors": ticket_result['total_errors'] + conv_result.get('total_errors', 0),
+            "tickets_updated": len(updated_ticket_ids),
+            "conversations_synced": conv_result.get('total_synced', 0),
+            "last_ticket_id": ticket_result.get('last_ticket_id')
+        }
     
     def sync_satisfaction_ratings(self, since: Optional[datetime] = None, max_pages: Optional[int] = None, force_reparse: bool = False) -> Dict[str, Any]:
         """Sync ALL satisfaction ratings to separate ratings table.
@@ -502,7 +649,7 @@ class FreshdeskETL:
             statuses = session.query(SyncMetadata).filter_by(
                 merchant_id=self.merchant_id
             ).filter(
-                SyncMetadata.resource_type.in_(['freshdesk_tickets', 'freshdesk_contacts', 'freshdesk_satisfaction_ratings'])
+                SyncMetadata.resource_type.in_(['freshdesk_tickets', 'freshdesk_conversations', 'freshdesk_contacts', 'freshdesk_satisfaction_ratings'])
             ).all()
             
             result = {}

@@ -36,50 +36,23 @@ def main():
         type=int,
         help="Maximum number of pages to fetch (for testing)"
     )
-    
-    # Component selection
-    parser.add_argument(
-        "--tickets-only",
-        action="store_true",
-        help="Sync only ticket data (no conversations or ratings)"
-    )
-    parser.add_argument(
-        "--conversations-only",
-        action="store_true",
-        help="Sync only conversation data for existing tickets"
-    )
-    parser.add_argument(
-        "--ratings-only",
-        action="store_true",
-        help="Sync only satisfaction ratings for existing tickets"
-    )
-    parser.add_argument(
-        "--skip-tickets",
-        action="store_true",
-        help="Skip ticket sync (useful with --conversations or --ratings)"
-    )
-    parser.add_argument(
-        "--skip-conversations",
-        action="store_true",
-        help="Skip conversation sync"
-    )
-    parser.add_argument(
-        "--skip-ratings",
-        action="store_true",
-        help="Skip ratings sync"
-    )
     parser.add_argument(
         "--force-reparse",
         action="store_true",
-        help="Force re-parsing of all records (updates parsed fields even if data hasn't changed)"
+        help="Force re-parsing of all parsed fields"
+    )
+    parser.add_argument(
+        "--tickets-only",
+        action="store_true",
+        help="Only sync ticket data without conversations"
+    )
+    parser.add_argument(
+        "--conversations-for",
+        nargs="+",
+        help="Sync conversations for specific ticket IDs"
     )
     
     args = parser.parse_args()
-    
-    # Determine what to sync (simplified for current implementation)
-    sync_tickets = not args.ratings_only
-    sync_conversations = False  # Always false - conversations sync with tickets
-    sync_ratings = not args.tickets_only
     
     # Calculate since date
     since = datetime.now() - timedelta(days=args.days)
@@ -96,12 +69,6 @@ def main():
     
     print(f"🚀 Freshdesk sync for merchant: {merchant_name}")
     print(f"   Components to sync:")
-    if sync_tickets:
-        print(f"   ✓ Tickets (from last {args.days} days)")
-    if sync_conversations:
-        print(f"   ✓ Conversations")
-    if sync_ratings:
-        print(f"   ✓ Satisfaction Ratings")
     if args.max_pages:
         print(f"   Limiting to {args.max_pages} pages per API")
     if args.force_reparse:
@@ -125,62 +92,95 @@ def main():
         'ratings': {'synced': 0, 'errors': 0}
     }
     
-    # Step 1: Sync tickets (core data only)
-    if sync_tickets:
+    # Check if we're only syncing specific conversations
+    if args.conversations_for:
         print("=" * 60)
-        print("STEP 1: SYNCING TICKETS (Core Data)")
+        print("SYNCING CONVERSATIONS FOR SPECIFIC TICKETS")
         print("=" * 60)
+        print(f"   Ticket IDs: {', '.join(args.conversations_for)}")
         
-        result = etl.sync_tickets(
-            since=since,
-            max_pages=args.max_pages,
+        result = etl.sync_conversations_for_tickets(
+            ticket_ids=args.conversations_for,
             force_reparse=args.force_reparse
         )
         
         if result['status'] == 'success':
-            print(f"✅ Tickets synced: {result['total_synced']}")
+            print(f"\n✅ Conversations synced: {result['total_synced']}")
             print(f"❌ Errors: {result['total_errors']}")
-            total_results['tickets'] = {
+            total_results['conversations'] = {
                 'synced': result['total_synced'],
                 'errors': result['total_errors']
             }
         else:
-            print(f"❌ Ticket sync failed: {result.get('error', 'Unknown error')}")
-            total_results['tickets']['errors'] = 1
+            print(f"❌ Conversation sync failed: {result.get('error', 'Unknown error')}")
+            total_results['conversations']['errors'] = 1
+        
+        # Skip other syncs
+        print("\n✨ Done!")
+        return
     
-    # Step 2: Sync conversations - SKIPPED (conversations are synced with tickets)
-    if sync_conversations:
-        print("\n" + "=" * 60)
-        print("STEP 2: SYNCING CONVERSATIONS")
-        print("=" * 60)
-        print("   ⚠️  Conversations are automatically synced with tickets in this implementation")
-        print("   ✅ Skipping separate conversation sync")
+    # Step 1: Sync tickets (and optionally conversations)
+    print("=" * 60)
+    if args.tickets_only:
+        print("STEP 1: SYNCING TICKETS ONLY (NO CONVERSATIONS)")
+        method = etl.sync_ticket_data
+    else:
+        print("STEP 1: SYNCING TICKETS AND CONVERSATIONS")
+        method = etl.sync_tickets
+    print("=" * 60)
     
-    # Step 3: Sync satisfaction ratings
-    if sync_ratings:
-        print("\n" + "=" * 60)
-        print("STEP 3: SYNCING SATISFACTION RATINGS")
-        print("=" * 60)
+    result = method(
+        since=since,
+        max_pages=args.max_pages,
+        force_reparse=args.force_reparse
+    )
+    
+    if result['status'] in ['success', 'partial']:
+        print(f"\n📊 Sync Results:")
+        print(f"✅ Tickets synced: {result['total_synced']}")
+        if 'tickets_updated' in result:
+            print(f"✅ Tickets updated: {result['tickets_updated']}")
+        if 'conversations_synced' in result:
+            print(f"✅ Conversations synced: {result['conversations_synced']}")
+        print(f"❌ Errors: {result['total_errors']}")
         
-        print(f"   Fetching ALL satisfaction ratings from Freshdesk")
-        
-        result = etl.sync_satisfaction_ratings(
-            since=None,  # Always get all ratings
-            max_pages=args.max_pages,
-            force_reparse=args.force_reparse
-        )
-        
-        if result['status'] == 'success':
-            print(f"\n✅ Ratings synced: {result['total_synced']}")
-            print(f"   Tickets with ratings: {result.get('tickets_updated', 0)}")
-            print(f"❌ Errors: {result['total_errors']}")
-            total_results['ratings'] = {
-                'synced': result['total_synced'],
-                'errors': result['total_errors']
+        total_results['tickets'] = {
+            'synced': result['total_synced'],
+            'errors': result.get('total_errors', 0)
+        }
+        if 'conversations_synced' in result:
+            total_results['conversations'] = {
+                'synced': result.get('conversations_synced', 0),
+                'errors': 0
             }
-        else:
-            print(f"\n❌ Ratings sync failed: {result.get('error', 'Unknown error')}")
-            total_results['ratings']['errors'] = 1
+    else:
+        print(f"❌ Ticket sync failed: {result.get('error', 'Unknown error')}")
+        total_results['tickets']['errors'] = 1
+    
+    # Step 2: Sync satisfaction ratings
+    print("\n" + "=" * 60)
+    print("STEP 2: SYNCING SATISFACTION RATINGS")
+    print("=" * 60)
+    
+    print(f"   Fetching ALL satisfaction ratings from Freshdesk")
+    
+    result = etl.sync_satisfaction_ratings(
+        since=None,  # Always get all ratings
+        max_pages=args.max_pages,
+        force_reparse=args.force_reparse
+    )
+    
+    if result['status'] == 'success':
+        print(f"\n✅ Ratings synced: {result['total_synced']}")
+        print(f"   Tickets with ratings: {result.get('tickets_updated', 0)}")
+        print(f"❌ Errors: {result['total_errors']}")
+        total_results['ratings'] = {
+            'synced': result['total_synced'],
+            'errors': result['total_errors']
+        }
+    else:
+        print(f"\n❌ Ratings sync failed: {result.get('error', 'Unknown error')}")
+        total_results['ratings']['errors'] = 1
     
     # Final summary
     print("\n" + "=" * 60)

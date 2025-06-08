@@ -136,17 +136,6 @@ CREATE TABLE IF NOT EXISTS merchant_integrations (
     UNIQUE(merchant_id, platform)
 );
 
--- Create daily_ticket_summaries table
-CREATE TABLE IF NOT EXISTS daily_ticket_summaries (
-    id SERIAL PRIMARY KEY,
-    merchant_id INTEGER NOT NULL REFERENCES merchants(id) ON DELETE CASCADE,
-    date DATE NOT NULL,
-    message TEXT NOT NULL,
-    context JSONB NOT NULL, -- Store all metrics for potential reuse
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT unique_merchant_date UNIQUE(merchant_id, date)
-);
 
 -- Add unique constraint on ticket ID (Freshdesk IDs are globally unique)
 -- Use DO block to handle case where constraint already exists
@@ -201,8 +190,6 @@ CREATE INDEX IF NOT EXISTS idx_freshdesk_conversations_ticket_id ON etl_freshdes
 CREATE INDEX IF NOT EXISTS idx_freshdesk_ratings_ticket_id ON etl_freshdesk_ratings(freshdesk_ticket_id);
 CREATE INDEX IF NOT EXISTS idx_freshdesk_ratings_rating ON etl_freshdesk_ratings((data->>'rating')) WHERE data->>'rating' IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_sync_metadata_merchant_resource ON sync_metadata(merchant_id, resource_type);
-CREATE INDEX IF NOT EXISTS idx_daily_summaries_merchant_date ON daily_ticket_summaries(merchant_id, date);
-CREATE INDEX IF NOT EXISTS idx_daily_summaries_date ON daily_ticket_summaries(date);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -279,14 +266,6 @@ BEGIN
             FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
     END IF;
     
-    -- Daily ticket summaries table
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_trigger WHERE tgname = 'update_daily_ticket_summaries_updated_at'
-    ) THEN
-        CREATE TRIGGER update_daily_ticket_summaries_updated_at 
-            BEFORE UPDATE ON daily_ticket_summaries
-            FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-    END IF;
 END $$;
 
 -- Create view for ticket analytics (joining all three tables)
@@ -350,9 +329,6 @@ COMMENT ON TABLE etl_freshdesk_conversations IS 'ETL table for Freshdesk ticket 
 COMMENT ON TABLE etl_freshdesk_ratings IS 'ETL table for Freshdesk satisfaction ratings (one per ticket max)';
 COMMENT ON TABLE sync_metadata IS 'Tracks ETL sync operations and status for each resource type';
 COMMENT ON TABLE merchant_integrations IS 'Stores API credentials and configuration for merchant integrations';
-COMMENT ON TABLE daily_ticket_summaries IS 'Stores daily support summaries for each merchant';
-COMMENT ON COLUMN daily_ticket_summaries.context IS 'JSONB storage of all metrics used to generate the summary';
-COMMENT ON COLUMN daily_ticket_summaries.message IS 'The formatted summary message displayed to users';
 
 COMMIT;
 
