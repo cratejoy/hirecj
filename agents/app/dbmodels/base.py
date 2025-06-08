@@ -24,14 +24,21 @@ Base = declarative_base()
 
 
 class TimestampMixin:
-    """Mixin for created_at and updated_at timestamps."""
+    """Mixin for created_at and updated_at timestamps.
+    
+    IMPORTANT: These timestamps track when records were inserted/updated in our database,
+    NOT when the actual events occurred in the source systems.
+    
+    These fields should NOT be used by or surfaced to AI agents - they are purely
+    for ETL tracking and database maintenance.
+    """
 
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
+    )  # When this record was inserted into our database
     updated_at = Column(
         DateTime(timezone=True), nullable=True
-    )  # onupdate is set via trigger
+    )  # When this record was last updated in our database (via trigger)
 
 
 class Merchant(Base, TimestampMixin):
@@ -106,10 +113,12 @@ class FreshdeskTicket(Base, TimestampMixin):
     data = Column(JSONB, nullable=False, default={})  # Core ticket data only
     
     # Parsed fields for quick access
-    parsed_created_at = Column(DateTime(timezone=True), nullable=True)
-    parsed_updated_at = Column(DateTime(timezone=True), nullable=True)
-    parsed_email = Column(String(255), nullable=True)
-    parsed_shopify_id = Column(String(255), nullable=True)
+    # These timestamps represent when the ticket was actually created/updated in Freshdesk
+    # Use these fields instead of created_at/updated_at for business logic and AI agents
+    parsed_created_at = Column(DateTime(timezone=True), nullable=True)  # Actual ticket creation time in Freshdesk
+    parsed_updated_at = Column(DateTime(timezone=True), nullable=True)  # Actual last update time in Freshdesk
+    parsed_email = Column(String(255), nullable=True)  # Customer email extracted from ticket data
+    parsed_shopify_id = Column(String(255), nullable=True)  # Shopify customer ID from custom fields
     """
     Example data content:
     {
@@ -185,8 +194,10 @@ class FreshdeskConversation(Base, TimestampMixin):
     data = Column(JSONB, nullable=False, default={})  # Array of conversation entries
     
     # Parsed fields for quick access
-    parsed_created_at = Column(DateTime(timezone=True), nullable=True)  # First message created_at
-    parsed_updated_at = Column(DateTime(timezone=True), nullable=True)  # Last message created_at
+    # These timestamps represent actual conversation times from Freshdesk
+    # Use these fields instead of created_at/updated_at for business logic and AI agents
+    parsed_created_at = Column(DateTime(timezone=True), nullable=True)  # First message creation time in conversation
+    parsed_updated_at = Column(DateTime(timezone=True), nullable=True)  # Last message creation time in conversation
     """
     Example data content (array of conversation entries):
     [
@@ -249,6 +260,8 @@ class FreshdeskRating(Base, TimestampMixin):
     data = Column(JSONB, nullable=False, default={})  # Rating data
     
     # Parsed fields for quick access
+    # This field contains the normalized rating value for easy querying
+    # Use this field instead of digging into the JSONB data for AI agents and business logic
     parsed_rating = Column(Integer, nullable=True)  # Rating converted from -103/103 to -3/3
     """
     Example data content:
