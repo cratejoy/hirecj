@@ -4,7 +4,7 @@
 import logging
 from collections import Counter
 from app.utils.supabase_util import get_db_session
-from app.dbmodels.base import FreshdeskTicket
+from app.dbmodels.etl_tables import FreshdeskTicket
 from sqlalchemy import func
 
 logging.basicConfig(level=logging.INFO)

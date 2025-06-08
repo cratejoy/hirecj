@@ -29,11 +29,10 @@ def fill_database():
     """Run migrations, seed data, and sync recent records."""
     print("🚀 Filling database with fresh data\n")
     
-    # Calculate date 90 days ago for tickets, 4 days for customers
-    ninety_days_ago = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%dT00:00:00Z')
-    four_days_ago = (datetime.now() - timedelta(days=4)).strftime('%Y-%m-%dT00:00:00Z')
-    print(f"Will sync tickets from: {ninety_days_ago} (90 days)")
-    print(f"Will sync customers from: {four_days_ago} (4 days)")
+    # Calculate date 1 day ago for limited data sync
+    one_day_ago = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT00:00:00Z')
+    print(f"Will sync tickets from: {one_day_ago} (1 day)")
+    print(f"Will sync customers from: {one_day_ago} (1 day)")
     
     base_dir = Path(__file__).parent.parent
     scripts_dir = base_dir / "scripts"
@@ -86,8 +85,8 @@ def fill_database():
     print("⚠️  Note: This fetches conversations individually and may take time")
     
     run_command(
-        f"cd {base_dir} && source venv/bin/activate && python scripts/sync_freshdesk.py --days 180",
-        "Smart sync of Freshdesk tickets"
+        f"cd {base_dir} && source venv/bin/activate && python scripts/sync_freshdesk.py --days 1 --max-pages 1",
+        "Limited sync of Freshdesk tickets (1 day, 1 page)"
     )
     
     # Step 5: Show summary
@@ -98,7 +97,8 @@ def fill_database():
     # Get counts using Python to avoid shell issues
     summary_cmd = f"""cd {base_dir} && source venv/bin/activate && python -c "
 from app.utils.supabase_util import get_db_session
-from app.dbmodels.base import Merchant, ShopifyCustomer, FreshdeskTicket, FreshdeskConversation, FreshdeskRating
+from app.dbmodels.base import Merchant
+from app.dbmodels.etl_tables import ShopifyCustomer, FreshdeskTicket, FreshdeskConversation, FreshdeskRating
 from sqlalchemy import text
 with get_db_session() as session:
     print(f'Merchants: {{session.query(Merchant).count()}}')

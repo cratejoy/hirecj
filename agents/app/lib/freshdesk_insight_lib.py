@@ -5,7 +5,8 @@ from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_, func
-from app.dbmodels.base import FreshdeskTicket, FreshdeskRating, Merchant, FreshdeskConversation
+from app.dbmodels.base import Merchant
+from app.dbmodels.etl_tables import FreshdeskTicket, FreshdeskRating, FreshdeskConversation
 
 logger = logging.getLogger(__name__)
 

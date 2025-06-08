@@ -8,7 +8,8 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.utils.freshdesk_util import FreshdeskAPI
 from app.utils.supabase_util import get_db_session
-from app.dbmodels.base import Merchant, FreshdeskTicket, FreshdeskConversation, FreshdeskRating, SyncMetadata
+from app.dbmodels.base import Merchant, SyncMetadata
+from app.dbmodels.etl_tables import FreshdeskTicket, FreshdeskConversation, FreshdeskRating
 
 
 class FreshdeskETL:
@@ -29,20 +30,6 @@ class FreshdeskETL:
             return datetime.fromisoformat(timestamp_str)
         except (ValueError, AttributeError):
             return None
-    
-    def _convert_rating_scale(self, rating_value: Optional[int]) -> Optional[int]:
-        """Pass through rating values without conversion.
-        
-        Freshdesk Rating Scale (stored as-is):
-        103 = Extremely Happy
-        102 = Very Happy
-        101 = Happy
-        100 = Neutral
-        -101 = Unhappy
-        -102 = Very Unhappy
-        -103 = Extremely Unhappy
-        """
-        return rating_value
     
     def get_last_sync_timestamp(self, resource_type: str) -> Optional[datetime]:
         """Get the last successful sync timestamp for a resource."""
@@ -176,34 +163,18 @@ class FreshdeskETL:
                             if len(tickets) > 20 and idx % 10 == 0:
                                 print(f"    Processing ticket {idx}/{len(tickets)}...")
                             
-                            # Parse fields for quick access
-                            parsed_created_at = self._parse_timestamp(ticket.get('created_at'))
-                            parsed_updated_at = self._parse_timestamp(ticket.get('updated_at'))
-                            parsed_email = None
-                            if ticket.get('requester') and isinstance(ticket['requester'], dict):
-                                parsed_email = ticket['requester'].get('email')
-                            parsed_status = ticket.get('status')  # Status code: 2=Open, 3=Pending, 4=Resolved, 5=Closed
-                            
                             # Upsert the ticket (without conversations)
                             stmt = insert(FreshdeskTicket).values(
                                 freshdesk_ticket_id=ticket_id,
                                 merchant_id=self.merchant_id,
-                                data=ticket_data,
-                                parsed_created_at=parsed_created_at,
-                                parsed_updated_at=parsed_updated_at,
-                                parsed_email=parsed_email,
-                                parsed_status=parsed_status
+                                data=ticket_data
                             )
                             
                             if not force_reparse:
                                 stmt = stmt.on_conflict_do_update(
                                     index_elements=['merchant_id', 'freshdesk_ticket_id'],
                                     set_={
-                                        'data': stmt.excluded.data,
-                                        'parsed_created_at': stmt.excluded.parsed_created_at,
-                                        'parsed_updated_at': stmt.excluded.parsed_updated_at,
-                                        'parsed_email': stmt.excluded.parsed_email,
-                                        'parsed_status': stmt.excluded.parsed_status
+                                        'data': stmt.excluded.data
                                     },
                                     where=(FreshdeskTicket.data != stmt.excluded.data)  # Only update if data differs
                                 )
@@ -211,11 +182,7 @@ class FreshdeskETL:
                                 stmt = stmt.on_conflict_do_update(
                                     index_elements=['merchant_id', 'freshdesk_ticket_id'],
                                     set_={
-                                        'data': stmt.excluded.data,
-                                        'parsed_created_at': stmt.excluded.parsed_created_at,
-                                        'parsed_updated_at': stmt.excluded.parsed_updated_at,
-                                        'parsed_email': stmt.excluded.parsed_email,
-                                        'parsed_status': stmt.excluded.parsed_status
+                                        'data': stmt.excluded.data
                                     }
                                 )
                             
@@ -353,31 +320,16 @@ class FreshdeskETL:
                             
                             # Store conversations if we got any
                             if all_conversations:
-                                # Parse first and last message timestamps
-                                parsed_created_at = None
-                                parsed_updated_at = None
-                                
-                                # First message created_at
-                                if all_conversations[0] and isinstance(all_conversations[0], dict):
-                                    parsed_created_at = self._parse_timestamp(all_conversations[0].get('created_at'))
-                                # Last message created_at
-                                if all_conversations[-1] and isinstance(all_conversations[-1], dict):
-                                    parsed_updated_at = self._parse_timestamp(all_conversations[-1].get('created_at'))
-                                
                                 conv_stmt = insert(FreshdeskConversation).values(
                                     freshdesk_ticket_id=ticket_id,
-                                    data=all_conversations,  # Store as array
-                                    parsed_created_at=parsed_created_at,
-                                    parsed_updated_at=parsed_updated_at
+                                    data=all_conversations  # Store as array
                                 )
                                 
                                 if not force_reparse:
                                     conv_stmt = conv_stmt.on_conflict_do_update(
                                         index_elements=['freshdesk_ticket_id'],
                                         set_={
-                                            'data': conv_stmt.excluded.data,
-                                            'parsed_created_at': conv_stmt.excluded.parsed_created_at,
-                                            'parsed_updated_at': conv_stmt.excluded.parsed_updated_at
+                                            'data': conv_stmt.excluded.data
                                         },
                                         where=(FreshdeskConversation.data != conv_stmt.excluded.data)  # Only update if data differs
                                     )
@@ -385,9 +337,7 @@ class FreshdeskETL:
                                     conv_stmt = conv_stmt.on_conflict_do_update(
                                         index_elements=['freshdesk_ticket_id'],
                                         set_={
-                                            'data': conv_stmt.excluded.data,
-                                            'parsed_created_at': conv_stmt.excluded.parsed_created_at,
-                                            'parsed_updated_at': conv_stmt.excluded.parsed_updated_at
+                                            'data': conv_stmt.excluded.data
                                         }
                                     )
                                 
@@ -543,25 +493,17 @@ class FreshdeskETL:
                             ticket_record = result.scalar_one_or_none()
                             
                             if ticket_record:
-                                # Extract rating value (stored as-is, no conversion)
-                                parsed_rating = None
-                                if rating.get('ratings') and isinstance(rating['ratings'], dict):
-                                    rating_value = rating['ratings'].get('default_question')
-                                    parsed_rating = self._convert_rating_scale(rating_value)  # Pass-through, no conversion
-                                
                                 # Store rating in separate table
                                 rating_stmt = insert(FreshdeskRating).values(
                                     freshdesk_ticket_id=ticket_id,
-                                    data=rating,  # Store the rating data
-                                    parsed_rating=parsed_rating
+                                    data=rating  # Store the rating data
                                 )
                                 
                                 if not force_reparse:
                                     rating_stmt = rating_stmt.on_conflict_do_update(
                                         index_elements=['freshdesk_ticket_id'],
                                         set_={
-                                            'data': rating_stmt.excluded.data,
-                                            'parsed_rating': rating_stmt.excluded.parsed_rating
+                                            'data': rating_stmt.excluded.data
                                         },
                                         where=(FreshdeskRating.data != rating_stmt.excluded.data)  # Only update if data differs
                                     )
@@ -569,8 +511,7 @@ class FreshdeskETL:
                                     rating_stmt = rating_stmt.on_conflict_do_update(
                                         index_elements=['freshdesk_ticket_id'],
                                         set_={
-                                            'data': rating_stmt.excluded.data,
-                                            'parsed_rating': rating_stmt.excluded.parsed_rating
+                                            'data': rating_stmt.excluded.data
                                         }
                                     )
                                 

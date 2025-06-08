@@ -6,7 +6,8 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from app.utils.supabase_util import get_db_session
-from app.dbmodels.base import Merchant, FreshdeskTicket, FreshdeskConversation, FreshdeskRating
+from app.dbmodels.base import Merchant
+from app.dbmodels.etl_tables import FreshdeskTicket, FreshdeskConversation, FreshdeskRating
 import subprocess
 
 
