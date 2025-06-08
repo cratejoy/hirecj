@@ -29,7 +29,7 @@ def fill_database():
     """Run migrations, seed data, and sync recent records."""
     print("🚀 Filling database with fresh data\n")
     
-    # Calculate date 1 day ago for limited data sync
+    # Calculate date 1 day ago for quick test sync
     one_day_ago = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT00:00:00Z')
     print(f"Will sync tickets from: {one_day_ago} (1 day)")
     print(f"Will sync customers from: {one_day_ago} (1 day)")
@@ -80,16 +80,23 @@ def fill_database():
     
     # Step 4: Sync Freshdesk tickets with conversations
     print("\n" + "="*60)
-    print("STEP 4: Syncing Freshdesk tickets with conversations")
+    print("STEP 4: Syncing Freshdesk tickets with conversations (1 day)")
     print("="*60)
-    print("⚠️  Note: This fetches conversations individually and may take time")
+    print("⚠️  Note: This will fetch tickets from the last 1 day including stats data")
+    print("⚠️  Limited to 1 page for quick testing")
     
     run_command(
         f"cd {base_dir} && source venv/bin/activate && python scripts/sync_freshdesk.py --days 1 --max-pages 1",
-        "Limited sync of Freshdesk tickets (1 day, 1 page)"
+        "Quick sync of Freshdesk tickets (1 day, 1 page with stats)"
     )
     
-    # Step 5: Show summary
+    # Step 5: Skip satisfaction ratings for quick test
+    print("\n" + "="*60)
+    print("STEP 5: Skipping satisfaction ratings sync for quick test")
+    print("="*60)
+    print("⚠️  Note: Ratings sync is included in the ticket sync above")
+    
+    # Step 6: Show summary
     print("\n" + "="*60)
     print("SUMMARY")
     print("="*60)

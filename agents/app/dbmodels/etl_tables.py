@@ -89,36 +89,81 @@ class FreshdeskTicket(Base, ETLTimestampMixin):
     data = Column(JSONB, nullable=False, default={})  # Core ticket data only
     
     """
-    Example data content:
+    Example data content (realistic example from production):
     {
-        "freshdesk_id": "385450",                           # Internal reference
-        "subject": "New Vendor",                            # Ticket title
-        "description": "Hi, I'm interested in...",          # Initial message (text)
-        "status": 5,                                        # Status codes: 2=Open, 3=Pending, 4=Resolved, 5=Closed
-        "priority": 1,                                      # Priority: 1=Low, 2=Medium, 3=High, 4=Urgent
-        "type": "Question",                                 # Ticket type (Question, Problem, etc.)
-        "tags": ["vendor", "new"],                          # Tags array
-        "created_at": "2025-06-04T14:22:45Z",              # When ticket was created in Freshdesk
-        "updated_at": "2025-06-04T16:20:30Z",              # Last update time in Freshdesk
-        "due_by": "2025-06-09T14:22:45Z",                 # SLA due date
-        "fr_due_by": "2025-06-05T14:22:45Z",              # First response due
+        "freshdesk_id": "385660",                           # Internal reference
+        "subject": "subscription question",                 # Ticket title
+        "description": null,                                # Description often comes from conversations
+        "status": 5,                                        # Status codes: 2=Open, 3=Pending, 4=Resolved, 5=Closed, 10=Waiting on 3rd Party, 12=Waiting on Customer
+        "priority": 2,                                      # Priority: 1=Low, 2=Medium, 3=High, 4=Urgent
+        "type": null,                                       # Type can be null, "How To's", etc.
+        "tags": [                                           # Tags array - often automation rules
+            "#PROCESS_CANCELLATION_PAYWHIRL"
+        ],
+        "created_at": "2025-06-05T13:47:56Z",              # When ticket was created in Freshdesk
+        "updated_at": "2025-06-08T14:20:23Z",              # Last update time in Freshdesk
+        "due_by": "2025-06-11T23:00:00Z",                 # SLA due date
+        "fr_due_by": "2025-06-05T23:00:00Z",              # First response due
         "is_escalated": false,                              # Escalation status
-        "custom_fields": {                                  # Merchant-specific fields
-            "cf_shopify_customer_id": "12345678901"        # Shopify customer reference
-        },
-        "requester_id": 43028420064,                       # Freshdesk contact ID
+        "requester_id": 43256742939,                       # Freshdesk contact ID
         "requester": {                                      # Contact details
-            "id": 43028420064,
-            "email": "customer@example.com",
-            "name": "John Doe",
-            "phone": "+1234567890"
+            "id": 43256742939,
+            "name": "Anna Brown",
+            "email": "apalastro823@gmail.com",
+            "phone": null,
+            "mobile": null
         },
-        "stats": {                                          # Ticket statistics
-            "resolved_at": "2025-06-04T16:20:30Z",
-            "closed_at": "2025-06-04T16:20:30Z",
-            "first_responded_at": "2025-06-04T14:35:12Z"
+        "stats": {                                          # Comprehensive ticket statistics
+            "closed_at": "2025-06-08T14:20:23Z",           # When ticket was closed
+            "reopened_at": null,                            # If/when ticket was reopened
+            "resolved_at": "2025-06-08T14:20:23Z",         # When ticket was resolved
+            "pending_since": null,                          # When ticket entered pending state
+            "status_updated_at": "2025-06-08T14:20:23Z",   # Last status change
+            "agent_responded_at": "2025-06-05T13:48:16Z",  # Last agent response
+            "first_responded_at": "2025-06-05T13:48:07Z",  # First agent response
+            "requester_responded_at": null                  # Last customer response
         },
-        "_raw_data": {...}                                  # Complete API response
+        "custom_fields": {                                  # Merchant-specific fields - many can be null
+            "cf_ai_state": null,
+            "cf_store_id": null,
+            "cf_sub_category": null,
+            "cf_github_issues": null,
+            "cf_mintgithublink": null,
+            "cf_sf_mp_breakout": null,
+            "cf_store_id953865": null,
+            "cf_subscription_id": null,
+            "cf_disposition_code": null,
+            "cf_escalated_status": null,
+            "cf_primary_admin_id": null,
+            "cf_t2checkedforgithub": false,
+            "cf_product_segment_section": null,
+            "cf_product_segment_category": null
+        },
+        "_raw_data": {                                      # Complete API response with additional fields
+            "id": 385660,
+            "spam": false,
+            "source": 1,                                    # Source: 1=Email, 2=Portal, 9=Chat, etc.
+            "group_id": 43000623702,                        # Support group ID
+            "cc_emails": [],
+            "to_emails": ["support@cratejoy.com"],
+            "company_id": null,
+            "fwd_emails": [],
+            "product_id": null,
+            "responder_id": null,                           # Agent assigned (can be null)
+            "support_email": "cratejoycomsupport@cratejoy.freshdesk.com",
+            "email_config_id": 43000134781,
+            "reply_cc_emails": [],
+            "association_type": null,
+            "ticket_cc_emails": [],
+            "internal_agent_id": null,
+            "internal_group_id": null,
+            "ticket_bcc_emails": [],
+            "structured_description": null,
+            "associated_tickets_count": null,
+            "nr_due_by": null,                              # Next response due
+            "fr_escalated": false,
+            "nr_escalated": false
+        }
     }
     """
 
