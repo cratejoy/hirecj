@@ -59,13 +59,18 @@
     - **Important**: Simplified away the tier1/tier2/tier3 system as unnecessary complexity
     - All analysis/insights generation moved to CJ agent
 
-### ⏳ In Progress
+12. **Phase 5.3: Atomic Shopify Tools** ✅
+    - Refactored `get_shopify_data` into atomic tools (`get_shopify_store_counts`, etc.)
+    - Created `agents/app/agents/shopify_tools.py` to house new tools
+    - Updated `ShopifyDataFetcher` to use synchronous methods
+    - Aligned documentation with new, simplified tool structure
 
-**Phase 5.3.5: PostgreSQL-Only Token Storage** (1 hour) - **NEW**
-- Create test token storage script for PostgreSQL
-- Implement PostgreSQL-only token retrieval (no Redis)
-- Enables immediate testing with clean architecture
-- **Why**: Simpler, cleaner - no compatibility shims or dual paths
+13. **Phase 5.3.5: PostgreSQL-Only Token Storage** ✅
+    - Created `store_test_shopify_token.py` script to seed tokens
+    - Implemented `MerchantService` for PostgreSQL-only token retrieval
+    - Removed Redis dependency for tokens in the `agents` service
+
+### ⏳ In Progress
 
 ### 📅 Upcoming Phases
 
