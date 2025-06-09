@@ -14,7 +14,7 @@ behavior:
   initiator: "cj"
   initial_action:
     type: "process_message"
-    message: "Show me the most recent open support ticket using the get_recent_ticket_from_db tool"
+    message: "Give me a brief summary of open tickets, a full view of the CSAT scores from yesterday, and tell me how many tickets we responded to in under 1minute in the last 7 days"
     sender: "merchant"
 
 data_requirements:

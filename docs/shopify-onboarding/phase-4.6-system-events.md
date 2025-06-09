@@ -222,7 +222,7 @@ SYSTEM EVENT HANDLING:
   
   6. Scheduled Events:
      - Pattern: "Daily summary ready for [date]"
-       Response: "I've prepared your daily summary for [date]. Here's what stood out..."
+       Response: "I've prepared your daily report for [date]. Here's what stood out..."
 ```
 
 ## Developer Guidelines: Prompt Transparency

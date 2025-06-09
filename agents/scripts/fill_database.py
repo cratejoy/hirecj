@@ -29,11 +29,10 @@ def fill_database():
     """Run migrations, seed data, and sync recent records."""
     print("🚀 Filling database with fresh data\n")
     
-    # Calculate date 90 days ago for tickets, 4 days for customers
-    ninety_days_ago = (datetime.now() - timedelta(days=90)).strftime('%Y-%m-%dT00:00:00Z')
-    four_days_ago = (datetime.now() - timedelta(days=4)).strftime('%Y-%m-%dT00:00:00Z')
-    print(f"Will sync tickets from: {ninety_days_ago} (90 days)")
-    print(f"Will sync customers from: {four_days_ago} (4 days)")
+    # Calculate date 180 days ago for comprehensive sync
+    one_hundred_eighty_days_ago = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%dT00:00:00Z')
+    print(f"Will sync tickets from: {one_hundred_eighty_days_ago} (180 days)")
+    print(f"Will sync customers from: {one_hundred_eighty_days_ago} (180 days)")
     
     base_dir = Path(__file__).parent.parent
     scripts_dir = base_dir / "scripts"
@@ -81,16 +80,23 @@ def fill_database():
     
     # Step 4: Sync Freshdesk tickets with conversations
     print("\n" + "="*60)
-    print("STEP 4: Syncing Freshdesk tickets with conversations")
+    print("STEP 4: Syncing Freshdesk tickets with conversations (180 days)")
     print("="*60)
-    print("⚠️  Note: This fetches conversations individually and may take time")
+    print("⚠️  Note: This will fetch ALL tickets from the last 180 days including stats data")
+    print("⚠️  This may take several minutes depending on the number of tickets")
     
     run_command(
         f"cd {base_dir} && source venv/bin/activate && python scripts/sync_freshdesk.py --days 180",
-        "Smart sync of Freshdesk tickets"
+        "Full sync of Freshdesk tickets (180 days with stats)"
     )
     
-    # Step 5: Show summary
+    # Step 5: Skip satisfaction ratings for quick test
+    print("\n" + "="*60)
+    print("STEP 5: Skipping satisfaction ratings sync for quick test")
+    print("="*60)
+    print("⚠️  Note: Ratings sync is included in the ticket sync above")
+    
+    # Step 6: Show summary
     print("\n" + "="*60)
     print("SUMMARY")
     print("="*60)
@@ -98,7 +104,8 @@ def fill_database():
     # Get counts using Python to avoid shell issues
     summary_cmd = f"""cd {base_dir} && source venv/bin/activate && python -c "
 from app.utils.supabase_util import get_db_session
-from app.dbmodels.base import Merchant, ShopifyCustomer, FreshdeskTicket, FreshdeskConversation, FreshdeskRating
+from app.dbmodels.base import Merchant
+from app.dbmodels.etl_tables import ShopifyCustomer, FreshdeskTicket, FreshdeskConversation, FreshdeskRating
 from sqlalchemy import text
 with get_db_session() as session:
     print(f'Merchants: {{session.query(Merchant).count()}}')

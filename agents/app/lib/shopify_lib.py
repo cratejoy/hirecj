@@ -8,7 +8,8 @@ from sqlalchemy.dialects.postgresql import insert
 
 from app.utils.shopify_util import ShopifyAPI
 from app.utils.supabase_util import get_db_session
-from app.dbmodels.base import Merchant, ShopifyCustomer, SyncMetadata
+from app.dbmodels.base import Merchant, SyncMetadata
+from app.dbmodels.etl_tables import ShopifyCustomer
 
 
 class ShopifyETL:
