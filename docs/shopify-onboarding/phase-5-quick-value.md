@@ -60,14 +60,14 @@ During implementation, we simplified away the complex three-tier system in favor
   - [x] Add Redis caching with TTL
   - [x] Implement error handling and graceful degradation
 
-- [ ] **Phase 5.3.5: PostgreSQL-Only Token Storage** ⭐ NEW - Clean Architecture
-  - [ ] Create store_test_shopify_token.py script
-  - [ ] Script stores tokens in PostgreSQL merchant_integrations table
-  - [ ] Add PostgreSQL-only MerchantService (no Redis at all)
-  - [ ] Test token storage and retrieval works correctly
+- [x] **Phase 5.3.5: PostgreSQL-Only Token Storage** ✅ COMPLETED
+  - [x] Create store_test_shopify_token.py script
+  - [x] Script stores tokens in PostgreSQL merchant_integrations table
+  - [x] Add PostgreSQL-only MerchantService (no Redis at all)
+  - [x] Test token storage and retrieval works correctly
 
-- [ ] **Phase 5.3: Tool Creation** (Blocked until 5.3.5)
-  - [ ] Create shopify_data tool in universe_tools.py (Step 3)
+- [x] **Phase 5.3: Atomic Tool Creation** ✅ COMPLETED
+  - [x] Create atomic Shopify tools in a new `shopify_tools.py` file (Step 3)
   - [ ] Implement progressive disclosure logic in agent
   - [ ] Use PostgreSQL-only token retrieval from Phase 5.3.5
   - [ ] Return structured JSON for CJ to process
