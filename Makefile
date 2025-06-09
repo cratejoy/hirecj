@@ -329,19 +329,21 @@ migrate-agents:
 # Sync Freshdesk data
 sync-freshdesk:
 	@echo "🔄 Syncing Freshdesk data (all components)..."
-	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk.py
 
 sync-tickets:
 	@echo "🎫 Syncing Freshdesk tickets only..."
-	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py --tickets-only
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk.py --tickets-only
 
 sync-conversations:
-	@echo "💬 Syncing Freshdesk conversations only..."
-	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py --conversations-only
+	@echo "💬 Syncing Freshdesk conversations for specific tickets..."
+	@echo "Usage: make sync-conversations TICKETS='ticket_id1 ticket_id2'"
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk.py --conversations-for $(TICKETS)
 
 sync-ratings:
 	@echo "⭐ Syncing Freshdesk ratings only..."
-	cd agents && . venv/bin/activate && python scripts/sync_freshdesk_refactored.py --ratings-only
+	@echo "Note: Ratings are synced as part of the regular sync"
+	cd agents && . venv/bin/activate && python scripts/sync_freshdesk.py
 
 test-freshdesk-sync:
 	@echo "🧪 Testing Freshdesk sync functionality..."

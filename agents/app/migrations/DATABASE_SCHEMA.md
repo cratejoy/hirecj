@@ -33,23 +33,47 @@ Shopify customer records with flexible JSONB storage.
 | merchant_id | INTEGER | Foreign key to merchants (part of PK) |
 | shopify_customer_id | VARCHAR(255) | Shopify customer ID (part of PK) |
 | data | JSONB | All customer data (profile, metrics, orders, etc.) |
-| created_at | TIMESTAMP WITH TIME ZONE | Record creation time |
-| updated_at | TIMESTAMP WITH TIME ZONE | Last modification time |
+| etl_created_at | TIMESTAMP WITH TIME ZONE | ETL record creation time |
+| etl_updated_at | TIMESTAMP WITH TIME ZONE | ETL last modification time |
 
 **Primary Key**: (merchant_id, shopify_customer_id)
 
 ### etl_freshdesk_tickets
-Freshdesk ticket records with flexible JSONB storage.
+Core Freshdesk ticket data (excluding conversations and ratings).
 
 | Column | Type | Description |
 |--------|------|-------------|
 | merchant_id | INTEGER | Foreign key to merchants (part of PK) |
 | freshdesk_ticket_id | VARCHAR(255) | Freshdesk ticket ID (part of PK) |
-| data | JSONB | All ticket data (conversations, status, etc.) |
-| created_at | TIMESTAMP WITH TIME ZONE | Record creation time |
-| updated_at | TIMESTAMP WITH TIME ZONE | Last modification time |
+| data | JSONB | Core ticket data only |
+| etl_created_at | TIMESTAMP WITH TIME ZONE | ETL record creation time |
+| etl_updated_at | TIMESTAMP WITH TIME ZONE | ETL last modification time |
 
 **Primary Key**: (merchant_id, freshdesk_ticket_id)
+
+### etl_freshdesk_conversations
+Ticket conversation history stored separately for performance.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| freshdesk_ticket_id | VARCHAR(255) | Foreign key to tickets (PK) |
+| data | JSONB | Array of conversation entries |
+| etl_created_at | TIMESTAMP WITH TIME ZONE | ETL record creation time |
+| etl_updated_at | TIMESTAMP WITH TIME ZONE | ETL last modification time |
+
+**Primary Key**: freshdesk_ticket_id
+
+### etl_freshdesk_ratings
+Customer satisfaction ratings (one per ticket maximum).
+
+| Column | Type | Description |
+|--------|------|-------------|
+| freshdesk_ticket_id | VARCHAR(255) | Foreign key to tickets (PK) |
+| data | JSONB | Rating data including score and feedback |
+| etl_created_at | TIMESTAMP WITH TIME ZONE | ETL record creation time |
+| etl_updated_at | TIMESTAMP WITH TIME ZONE | ETL last modification time |
+
+**Primary Key**: freshdesk_ticket_id
 
 ### sync_metadata
 Tracks ETL sync operations for incremental updates.
@@ -87,17 +111,23 @@ Stores API keys and configurations for merchant integrations.
 ## Indexes
 
 ### Performance Indexes
-- `idx_shopify_customers_merchant_id`: Fast merchant filtering
-- `idx_freshdesk_tickets_merchant_id`: Fast merchant filtering
-- `idx_shopify_customers_created_at`: Time-based queries
-- `idx_freshdesk_tickets_created_at`: Time-based queries
+- `idx_etl_shopify_customers_merchant_id`: Fast merchant filtering
+- `idx_etl_shopify_customers_shopify_customer_id`: Customer ID lookups
+- `idx_etl_freshdesk_tickets_merchant_id`: Fast merchant filtering  
+- `idx_etl_freshdesk_tickets_freshdesk_ticket_id`: Ticket ID lookups
+- `idx_etl_freshdesk_tickets_etl_created_at`: Time-based queries
+- `idx_freshdesk_conversations_ticket_id`: Join optimization
+- `idx_freshdesk_ratings_ticket_id`: Join optimization
 - `idx_sync_metadata_merchant_id`: Sync status lookups
 - `idx_sync_metadata_resource_type`: Resource type filtering
 - `idx_merchant_integrations_merchant_id`: Integration lookups
 
 ### JSONB GIN Indexes
-- `idx_shopify_customers_data_gin`: Efficient JSONB queries
-- `idx_freshdesk_tickets_data_gin`: Efficient JSONB queries
+- `idx_etl_shopify_customers_data_gin`: Efficient JSONB queries
+- `idx_etl_freshdesk_tickets_data_gin`: Efficient JSONB queries
+
+### Specialized Indexes
+- `idx_freshdesk_ratings_rating`: Filtered index on rating scores for CSAT queries
 
 ## Support Analytics
 
@@ -109,10 +139,88 @@ Stores API keys and configurations for merchant integrations.
 - `compare_support_periods(...)`: Compares metrics between two time periods
 
 ### Views
-- `current_queue_status`: Real-time view of open/pending tickets
+
+#### current_queue_status
+Real-time view of open/pending tickets (deprecated - use v_freshdesk_unified_tickets instead).
+
+#### v_freshdesk_unified_tickets
+Comprehensive view combining ticket, conversation, and rating data into a single queryable interface.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| merchant_id | INTEGER | Foreign key to merchants |
+| freshdesk_ticket_id | VARCHAR(255) | Freshdesk ticket ID |
+| ticket_id_numeric | BIGINT | Numeric ticket ID extracted from string |
+| subject | TEXT | Ticket subject |
+| description | TEXT | HTML ticket description (usually NULL - actual content in conversations) |
+| type | VARCHAR | Ticket type |
+| source | INTEGER | Source (1=Email, 2=Portal, 9=Chat, etc.) |
+| spam | BOOLEAN | Spam flag |
+| status | INTEGER | Status code (2=Open, 3=Pending, 4=Resolved, 5=Closed) |
+| priority | INTEGER | Priority (1=Low, 2=Medium, 3=High, 4=Urgent) |
+| is_escalated | BOOLEAN | General escalation flag |
+| fr_escalated | BOOLEAN | First response escalation |
+| nr_escalated | BOOLEAN | Next response escalation |
+| requester_id | BIGINT | Freshdesk contact ID |
+| requester_name | VARCHAR | Contact name |
+| requester_email | VARCHAR | Contact email |
+| responder_id | BIGINT | Assigned agent ID |
+| company_id | BIGINT | Company ID |
+| group_id | BIGINT | Support group ID |
+| created_at | TIMESTAMP | Ticket creation time |
+| updated_at | TIMESTAMP | Last update time |
+| due_by | TIMESTAMP | Resolution due date |
+| fr_due_by | TIMESTAMP | First response due |
+| nr_due_by | TIMESTAMP | Next response due |
+| first_responded_at | TIMESTAMP | First response time |
+| agent_responded_at | TIMESTAMP | Last agent response |
+| requester_responded_at | TIMESTAMP | Last customer response |
+| closed_at | TIMESTAMP | Closure time |
+| resolved_at | TIMESTAMP | Resolution time |
+| reopened_at | TIMESTAMP | Reopen time if applicable |
+| pending_since | TIMESTAMP | When entered pending state |
+| status_updated_at | TIMESTAMP | Last status change |
+| tags | JSONB | Array of tags |
+| custom_fields | JSONB | All custom field values |
+| conversation_count | INTEGER | Number of conversations |
+| last_conversation_at | TIMESTAMP | Most recent conversation |
+| has_agent_response | BOOLEAN | Whether agent has responded |
+| has_rating | BOOLEAN | Whether customer rated |
+| rating_score | INTEGER | Rating value (103=Happy, -103=Unhappy) |
+| rating_feedback | TEXT | Customer feedback text |
+| rating_created_at | TIMESTAMP | When rating was given |
+
+This view is the primary interface for all ticket queries and should be used instead of joining the ETL tables directly.
 
 ## JSONB Query Examples
 
+### Using the Unified View (Recommended)
+```sql
+-- Find high-priority unresolved tickets
+SELECT * FROM v_freshdesk_unified_tickets
+WHERE priority >= 3 AND status IN (2, 3);
+
+-- Get tickets with poor ratings
+SELECT freshdesk_ticket_id, subject, rating_score, rating_feedback
+FROM v_freshdesk_unified_tickets
+WHERE has_rating = true AND rating_score < 0;
+
+-- Find tickets missing first response
+SELECT * FROM v_freshdesk_unified_tickets
+WHERE status = 2 AND first_responded_at IS NULL
+ORDER BY created_at;
+
+-- Analyze response times by priority
+SELECT 
+    priority,
+    COUNT(*) as ticket_count,
+    AVG(EXTRACT(EPOCH FROM (first_responded_at - created_at))/3600) as avg_response_hours
+FROM v_freshdesk_unified_tickets
+WHERE first_responded_at IS NOT NULL
+GROUP BY priority;
+```
+
+### Direct Table Queries (Legacy)
 ```sql
 -- Find VIP customers
 SELECT * FROM etl_shopify_customers 
@@ -120,9 +228,9 @@ WHERE data->'tags' ? 'vip';
 
 -- Find high-priority tickets
 SELECT * FROM etl_freshdesk_tickets 
-WHERE extract_ticket_priority(data) = 'high';
+WHERE (data->>'priority')::int >= 3;
 
--- Count tickets by category
+-- Count tickets by tag
 SELECT 
     tag,
     COUNT(*) 
@@ -133,10 +241,6 @@ GROUP BY tag;
 -- Find customers by order count
 SELECT * FROM etl_shopify_customers 
 WHERE (data->>'orders_count')::int > 10;
-
--- Find tickets with conversations
-SELECT * FROM etl_freshdesk_tickets
-WHERE data ? 'conversations';
 ```
 
 ## ETL Patterns

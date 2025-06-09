@@ -29,10 +29,10 @@ def fill_database():
     """Run migrations, seed data, and sync recent records."""
     print("🚀 Filling database with fresh data\n")
     
-    # Calculate date 1 day ago for quick test sync
-    one_day_ago = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT00:00:00Z')
-    print(f"Will sync tickets from: {one_day_ago} (1 day)")
-    print(f"Will sync customers from: {one_day_ago} (1 day)")
+    # Calculate date 180 days ago for comprehensive sync
+    one_hundred_eighty_days_ago = (datetime.now() - timedelta(days=180)).strftime('%Y-%m-%dT00:00:00Z')
+    print(f"Will sync tickets from: {one_hundred_eighty_days_ago} (180 days)")
+    print(f"Will sync customers from: {one_hundred_eighty_days_ago} (180 days)")
     
     base_dir = Path(__file__).parent.parent
     scripts_dir = base_dir / "scripts"
@@ -80,14 +80,14 @@ def fill_database():
     
     # Step 4: Sync Freshdesk tickets with conversations
     print("\n" + "="*60)
-    print("STEP 4: Syncing Freshdesk tickets with conversations (1 day)")
+    print("STEP 4: Syncing Freshdesk tickets with conversations (180 days)")
     print("="*60)
-    print("⚠️  Note: This will fetch tickets from the last 1 day including stats data")
-    print("⚠️  Limited to 1 page for quick testing")
+    print("⚠️  Note: This will fetch ALL tickets from the last 180 days including stats data")
+    print("⚠️  This may take several minutes depending on the number of tickets")
     
     run_command(
-        f"cd {base_dir} && source venv/bin/activate && python scripts/sync_freshdesk.py --days 1 --max-pages 1",
-        "Quick sync of Freshdesk tickets (1 day, 1 page with stats)"
+        f"cd {base_dir} && source venv/bin/activate && python scripts/sync_freshdesk.py --days 180",
+        "Full sync of Freshdesk tickets (180 days with stats)"
     )
     
     # Step 5: Skip satisfaction ratings for quick test

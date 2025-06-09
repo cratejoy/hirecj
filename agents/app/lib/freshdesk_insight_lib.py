@@ -4,9 +4,9 @@ import logging
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_, func
+from sqlalchemy import desc, and_, func, String, or_, case
 from app.dbmodels.base import Merchant
-from app.dbmodels.etl_tables import FreshdeskTicket, FreshdeskRating, FreshdeskConversation
+from app.dbmodels.etl_tables import FreshdeskTicket, FreshdeskRating, FreshdeskConversation, FreshdeskUnifiedTicketView
 
 logger = logging.getLogger(__name__)
 
@@ -78,22 +78,24 @@ class FreshdeskInsights:
         """
         logger.info(f"[INSIGHTS] Fetching most recent ticket for merchant_id={merchant_id}")
         
-        # Build query
-        query = session.query(FreshdeskTicket).filter(FreshdeskTicket.merchant_id == merchant_id)
-        
-        # Get the most recent tickets by parsed_created_at
-        most_recent = query.order_by(FreshdeskTicket.parsed_created_at.desc()).first()
+        # Use unified view for simpler query
+        most_recent = session.query(FreshdeskUnifiedTicketView).filter(
+            FreshdeskUnifiedTicketView.merchant_id == merchant_id
+        ).order_by(FreshdeskUnifiedTicketView.created_at.desc()).first()
         
         if not most_recent:
             return None
         
-        # Build result including metadata
+        # Build result using view fields
         result = {
             "ticket_id": most_recent.freshdesk_ticket_id,
             "merchant_id": most_recent.merchant_id,
-            "created_at": most_recent.parsed_created_at.isoformat() if most_recent.parsed_created_at else None,
-            "updated_at": most_recent.parsed_updated_at.isoformat() if most_recent.parsed_updated_at else None,
-            "data": most_recent.data
+            "created_at": most_recent.created_at.isoformat() if most_recent.created_at else None,
+            "updated_at": most_recent.updated_at.isoformat() if most_recent.updated_at else None,
+            "subject": most_recent.subject,
+            "status": most_recent.status,
+            "priority": most_recent.priority,
+            "requester_email": most_recent.requester_email
         }
         
         return result
@@ -112,43 +114,30 @@ class FreshdeskInsights:
         """
         logger.info(f"[INSIGHTS] Fetching support dashboard for merchant_id={merchant_id}")
         
-        # Build base query
-        query = session.query(FreshdeskTicket)
-        query = query.filter(FreshdeskTicket.merchant_id == merchant_id).order_by(FreshdeskTicket.parsed_created_at.desc()).limit(500)
+        # Use unified view to get ticket counts by status
+        from sqlalchemy import case
         
-        # Get all tickets
-        all_tickets = query.all()
-        total_tickets = len(all_tickets)
-        
-        # Count by status
-        status_counts = {
-            'open': 0,
-            'in_progress': 0,
-            'resolved': 0,
-            'closed': 0,
-            'pending': 0
-        }
-        
-        for ticket in all_tickets:
-            # Get status (can be string or int)
-            status = ticket.data.get('status', '')
-            if isinstance(status, str):
-                status = status.lower()
-            elif isinstance(status, int):
-                # Map Freshdesk status codes to string values
-                # 2=Open, 3=Pending, 4=Resolved, 5=Closed
-                status_map = {2: 'open', 3: 'pending', 4: 'resolved', 5: 'closed'}
-                status = status_map.get(status, 'open')
-            
-            if status in status_counts:
-                status_counts[status] += 1
-            elif status in ['completed', 'done']:
-                status_counts['resolved'] += 1
+        # Map Freshdesk status codes: 2=Open, 3=Pending, 4=Resolved, 5=Closed
+        status_counts = session.query(
+            func.sum(case((FreshdeskUnifiedTicketView.status == 2, 1), else_=0)).label('open'),
+            func.sum(case((FreshdeskUnifiedTicketView.status == 3, 1), else_=0)).label('pending'),
+            func.sum(case((FreshdeskUnifiedTicketView.status == 4, 1), else_=0)).label('resolved'),
+            func.sum(case((FreshdeskUnifiedTicketView.status == 5, 1), else_=0)).label('closed'),
+            func.count(FreshdeskUnifiedTicketView.freshdesk_ticket_id).label('total')
+        ).filter(
+            FreshdeskUnifiedTicketView.merchant_id == merchant_id
+        ).first()
         
         return {
             "merchant_id": merchant_id,
-            "total_tickets": total_tickets,
-            "status_counts": status_counts,
+            "total_tickets": status_counts.total or 0,
+            "status_counts": {
+                'open': status_counts.open or 0,
+                'pending': status_counts.pending or 0,
+                'resolved': status_counts.resolved or 0,
+                'closed': status_counts.closed or 0,
+                'in_progress': 0  # Freshdesk doesn't have this status
+            },
         }
     
     @staticmethod
@@ -166,57 +155,50 @@ class FreshdeskInsights:
         """
         logger.info(f"[INSIGHTS] Searching tickets for query='{search_query}', merchant={merchant_name}")
         
-        # Build base query
-        db_query = session.query(FreshdeskTicket)
+        # Build base query using unified view
+        query = session.query(FreshdeskUnifiedTicketView)
         
         # Filter by merchant if provided
+        merchant_id = 1  # Default
         if merchant_name:
             merchant = session.query(Merchant).filter_by(name=merchant_name).first()
             if merchant:
-                db_query = db_query.filter(FreshdeskTicket.merchant_id == merchant.id)
-        else:
-            # Default to merchant_id=1 for now
-            db_query = db_query.filter(FreshdeskTicket.merchant_id == 1)
+                merchant_id = merchant.id
         
-        # Get all tickets and filter in Python (since JSONB search is complex)
-        all_tickets = db_query.all()
+        query = query.filter(FreshdeskUnifiedTicketView.merchant_id == merchant_id)
         
-        # Search in ticket data
-        matching_tickets = []
-        search_term = search_query.lower()
+        # Use database search capabilities on indexed fields
+        search_term = f"%{search_query}%"
+        from sqlalchemy import or_
         
-        for ticket in all_tickets:
-            ticket_data = ticket.data
-            # Search in common fields
-            searchable_text = ' '.join([
-                str(ticket_data.get('subject', '')),
-                str(ticket_data.get('description', '')),
-                str(ticket_data.get('category', '')),
-                str(ticket_data.get('priority', '')),
-                str(ticket_data.get('tags', [])),
-                str(ticket.freshdesk_ticket_id)
-            ]).lower()
-            
-            if search_term in searchable_text:
-                matching_tickets.append({
-                    "ticket_id": ticket.freshdesk_ticket_id,
-                    "subject": ticket_data.get('subject', 'No subject'),
-                    "category": ticket_data.get('category', 'uncategorized'),
-                    "status": ticket_data.get('status', 'unknown'),
-                    "priority": ticket_data.get('priority', 'normal'),
-                    "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
-                    "data": ticket_data
-                })
-        
-        # Sort by parsed_created_at (most recent first)
-        sorted_tickets = sorted(
-            matching_tickets,
-            key=lambda t: t['created_at'] if t['created_at'] else '',
-            reverse=True
+        query = query.filter(
+            or_(
+                FreshdeskUnifiedTicketView.subject.ilike(search_term),
+                FreshdeskUnifiedTicketView.description_text.ilike(search_term),
+                FreshdeskUnifiedTicketView.freshdesk_ticket_id.ilike(search_term),
+                FreshdeskUnifiedTicketView.requester_email.ilike(search_term),
+                func.cast(FreshdeskUnifiedTicketView.tags, String).ilike(search_term)
+            )
         )
         
+        # Order by created_at descending
+        tickets = query.order_by(FreshdeskUnifiedTicketView.created_at.desc()).all()
+        
+        # Build results using view fields
+        matching_tickets = []
+        for ticket in tickets:
+            matching_tickets.append({
+                "ticket_id": ticket.freshdesk_ticket_id,
+                "subject": ticket.subject or 'No subject',
+                "status": ticket.status,
+                "priority": ticket.priority,
+                "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+                "requester_email": ticket.requester_email,
+                "tags": ticket.tags or []
+            })
+        
         logger.info(f"[INSIGHTS] Found {len(matching_tickets)} matching tickets")
-        return sorted_tickets
+        return matching_tickets
     
     @staticmethod
     def calculate_csat(session: Session, 
@@ -249,28 +231,27 @@ class FreshdeskInsights:
         else:
             logger.info(f"[INSIGHTS] Calculating CSAT for all time, merchant={merchant_name}")
         
-        # Build base query joining ratings with tickets
-        query = session.query(FreshdeskRating).join(
-            FreshdeskTicket,
-            FreshdeskRating.freshdesk_ticket_id == FreshdeskTicket.freshdesk_ticket_id
+        # Build base query using unified view
+        query = session.query(FreshdeskUnifiedTicketView).filter(
+            FreshdeskUnifiedTicketView.has_rating == True
         )
         
         # Filter by merchant
         merchant_info = None
+        merchant_id = 1  # Default
         if merchant_name:
             merchant = session.query(Merchant).filter_by(name=merchant_name).first()
             if merchant:
-                query = query.filter(FreshdeskTicket.merchant_id == merchant.id)
+                merchant_id = merchant.id
                 merchant_info = merchant_name
             else:
                 merchant_info = "merchant not found"
         else:
-            # Default to merchant_id=1
-            query = query.filter(FreshdeskTicket.merchant_id == 1)
             merchant_info = "Merchant ID: 1"
         
-        # Note: We can't efficiently filter ratings by date without a parsed_created_at field
-        # For now, we'll get all ratings and filter in Python
+        query = query.filter(FreshdeskUnifiedTicketView.merchant_id == merchant_id)
+        
+        # Apply date filters using the view's rating_created_at
         if start_date and end_date:
             # Ensure timezone awareness
             if start_date.tzinfo is None:
@@ -279,72 +260,37 @@ class FreshdeskInsights:
                 end_date = end_date.replace(tzinfo=timezone.utc)
             
             # Add time to end_date to make it inclusive of the whole day
-            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=end_date.tzinfo)
+            end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+            query = query.filter(
+                FreshdeskUnifiedTicketView.rating_created_at.between(start_date, end_date)
+            )
             time_range = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
         elif days is not None and days > 0:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            query = query.filter(
+                FreshdeskUnifiedTicketView.rating_created_at >= cutoff_date
+            )
             time_range = f"last {days} days"
         else:
             time_range = "all time"
-            start_date = None
-            end_date = None
-            cutoff_date = None
         
-        # Get all ratings (we'll filter by date in Python)
-        all_ratings_query = query.all()
+        # Get all rated tickets
+        rated_tickets = query.all()
+        logger.info(f"[INSIGHTS] Found {len(rated_tickets)} total ratings in {time_range}")
         
-        # Filter by date in Python if needed
-        all_ratings = []
-        for rating in all_ratings_query:
-            created_at_str = rating.data.get('created_at')
-            if not created_at_str:
-                continue
-                
-            # Parse the timestamp
-            try:
-                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
-                continue
-                
-            # Apply date filter if specified
-            if start_date and end_date:
-                if start_date <= created_at <= end_date:
-                    all_ratings.append(rating)
-            elif 'cutoff_date' in locals() and cutoff_date:
-                if created_at >= cutoff_date:
-                    all_ratings.append(rating)
-            else:
-                all_ratings.append(rating)
-        
-        logger.info(f"[INSIGHTS] Found {len(all_ratings)} total ratings in {time_range}")
-        
-        # Group by user to get most recent rating per user
+        # Group by requester_email to get most recent rating per user
         user_ratings = {}
-        for rating in all_ratings:
-            # Extract user_id from the JSONB data
-            user_id = rating.data.get('user_id')
-            if not user_id:
+        for ticket in rated_tickets:
+            email = ticket.requester_email
+            if not email:
                 continue
                 
-            # Get the rating value and timestamp
-            rating_value = rating.data.get('ratings', {}).get('default_question')
-            # Get created_at from the rating's JSONB data
-            created_at_str = rating.data.get('created_at')
-            if not created_at_str:
-                continue
-            
-            # Parse the timestamp string to datetime for comparison
-            try:
-                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
-                continue
-            
             # Keep only the most recent rating per user
-            if user_id not in user_ratings or created_at > user_ratings[user_id]['created_at']:
-                user_ratings[user_id] = {
-                    'rating': rating_value,
-                    'created_at': created_at,
-                    'ticket_id': rating.freshdesk_ticket_id
+            if email not in user_ratings or ticket.rating_created_at > user_ratings[email]['created_at']:
+                user_ratings[email] = {
+                    'rating': ticket.rating_score,
+                    'created_at': ticket.rating_created_at,
+                    'ticket_id': ticket.freshdesk_ticket_id
                 }
         
         # Calculate CSAT from unique user ratings
@@ -387,36 +333,39 @@ class FreshdeskInsights:
         # Convert ticket_id to string since it's stored as string in database
         ticket_id_str = str(ticket_id)
         
-        # Get the ticket
-        ticket = session.query(FreshdeskTicket).filter(
+        # Get ticket from unified view
+        ticket = session.query(FreshdeskUnifiedTicketView).filter(
             and_(
-                FreshdeskTicket.freshdesk_ticket_id == ticket_id_str,
-                FreshdeskTicket.merchant_id == merchant_id
+                FreshdeskUnifiedTicketView.freshdesk_ticket_id == ticket_id_str,
+                FreshdeskUnifiedTicketView.merchant_id == merchant_id
             )
         ).first()
         
         if not ticket:
             return None
         
-        # Get conversations for this ticket
-        conversations = session.query(FreshdeskConversation).filter(
+        # Get conversations for this ticket (still need raw table for full conversation data)
+        conversation = session.query(FreshdeskConversation).filter(
             FreshdeskConversation.freshdesk_ticket_id == ticket_id_str
-        ).order_by(FreshdeskConversation.parsed_created_at.asc()).all()
+        ).first()
         
-        # Get ratings for this ticket
-        ratings = session.query(FreshdeskRating).filter(
-            FreshdeskRating.freshdesk_ticket_id == ticket_id_str
-        ).all()
-        
-        # Build result
+        # Build result using view fields
         result = {
             "ticket_id": ticket.freshdesk_ticket_id,
             "merchant_id": ticket.merchant_id,
-            "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
-            "updated_at": ticket.parsed_updated_at.isoformat() if ticket.parsed_updated_at else None,
-            "data": ticket.data,
-            "conversations": conversations[0].data if conversations else [],
-            "ratings": [ratings[0].data] if ratings else []
+            "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+            "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
+            "subject": ticket.subject,
+            "description": ticket.description_text,
+            "status": ticket.status,
+            "priority": ticket.priority,
+            "requester_name": ticket.requester_name,
+            "requester_email": ticket.requester_email,
+            "has_rating": ticket.has_rating,
+            "rating_score": ticket.rating_score,
+            "rating_feedback": ticket.rating_feedback,
+            "conversations": conversation.data if conversation else [],
+            "conversation_count": ticket.conversation_count or 0
         }
         
         return result
@@ -436,24 +385,26 @@ class FreshdeskInsights:
         """
         logger.info(f"[INSIGHTS] Fetching tickets for email {email}, merchant_id={merchant_id}")
         
-        # Query tickets where requester email matches
-        tickets = session.query(FreshdeskTicket).filter(
+        # Query tickets using unified view
+        tickets = session.query(FreshdeskUnifiedTicketView).filter(
             and_(
-                FreshdeskTicket.merchant_id == merchant_id,
-                func.lower(FreshdeskTicket.parsed_email) == email.lower()
+                FreshdeskUnifiedTicketView.merchant_id == merchant_id,
+                func.lower(FreshdeskUnifiedTicketView.requester_email) == email.lower()
             )
-        ).order_by(FreshdeskTicket.parsed_created_at.desc()).all()
+        ).order_by(FreshdeskUnifiedTicketView.created_at.desc()).all()
         
         results = []
         for ticket in tickets:
             results.append({
                 "ticket_id": ticket.freshdesk_ticket_id,
-                "subject": ticket.data.get('subject', 'No subject'),
-                "status": ticket.data.get('status'),
-                "priority": ticket.data.get('priority'),
-                "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
-                "requester": ticket.data.get('requester', {}),
-                "data": ticket.data
+                "subject": ticket.subject or 'No subject',
+                "status": ticket.status,
+                "priority": ticket.priority,
+                "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+                "requester_name": ticket.requester_name,
+                "requester_email": ticket.requester_email,
+                "has_rating": ticket.has_rating,
+                "rating_score": ticket.rating_score if ticket.has_rating else None
             })
         
         logger.info(f"[INSIGHTS] Found {len(results)} tickets for email {email}")
@@ -513,44 +464,37 @@ class FreshdeskInsights:
             
             rating_value = rating_map[rating_type]
         
+        # Build query using unified view
+        query = session.query(FreshdeskUnifiedTicketView).filter(
+            and_(
+                FreshdeskUnifiedTicketView.merchant_id == merchant_id,
+                FreshdeskUnifiedTicketView.has_rating == True
+            )
+        )
+        
         # Handle special cases for groupings
         if rating_value == "positive":
             logger.info("[INSIGHTS] Fetching tickets with positive ratings (>100)")
-            rating_filter = FreshdeskRating.parsed_rating > Rating.NEUTRAL
+            query = query.filter(FreshdeskUnifiedTicketView.rating_score > Rating.NEUTRAL)
             rating_name = "positive"
         elif rating_value == "negative":
             logger.info("[INSIGHTS] Fetching tickets with negative ratings (<100)")
-            rating_filter = FreshdeskRating.parsed_rating < Rating.NEUTRAL
+            query = query.filter(FreshdeskUnifiedTicketView.rating_score < Rating.NEUTRAL)
             rating_name = "negative"
         elif rating_value == "satisfied":
             logger.info("[INSIGHTS] Fetching tickets with satisfied CSAT ratings (103)")
-            rating_filter = FreshdeskRating.parsed_rating == Rating.EXTREMELY_HAPPY
+            query = query.filter(FreshdeskUnifiedTicketView.rating_score == Rating.EXTREMELY_HAPPY)
             rating_name = "satisfied"
         elif rating_value == "unsatisfied":
             logger.info("[INSIGHTS] Fetching tickets with unsatisfied CSAT ratings (<102)")
-            rating_filter = FreshdeskRating.parsed_rating < Rating.VERY_HAPPY
+            query = query.filter(FreshdeskUnifiedTicketView.rating_score < Rating.VERY_HAPPY)
             rating_name = "unsatisfied"
         else:
             rating_name = Rating.get_name(rating_value)
             logger.info(f"[INSIGHTS] Fetching tickets with rating {rating_value} ({rating_name})")
-            rating_filter = FreshdeskRating.parsed_rating == rating_value
+            query = query.filter(FreshdeskUnifiedTicketView.rating_score == rating_value)
         
-        # Build efficient query using joins and database filtering
-        query = session.query(
-            FreshdeskTicket,
-            FreshdeskRating,
-            func.cast(FreshdeskRating.data['created_at'].astext, DateTime).label('rating_created_at')
-        ).join(
-            FreshdeskRating,
-            FreshdeskTicket.freshdesk_ticket_id == FreshdeskRating.freshdesk_ticket_id
-        ).filter(
-            and_(
-                FreshdeskTicket.merchant_id == merchant_id,
-                rating_filter
-            )
-        )
-        
-        # Apply date filters at database level
+        # Apply date filters using view's rating_created_at
         if start_date and end_date:
             # Ensure timezone awareness
             if start_date.tzinfo is None:
@@ -560,40 +504,36 @@ class FreshdeskInsights:
             end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
             
             query = query.filter(
-                func.cast(FreshdeskRating.data['created_at'].astext, DateTime).between(
-                    start_date, end_date
-                )
+                FreshdeskUnifiedTicketView.rating_created_at.between(start_date, end_date)
             )
         elif days is not None and days > 0:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             query = query.filter(
-                func.cast(FreshdeskRating.data['created_at'].astext, DateTime) >= cutoff_date
+                FreshdeskUnifiedTicketView.rating_created_at >= cutoff_date
             )
         
         # Order by rating creation time descending
-        query = query.order_by(
-            func.cast(FreshdeskRating.data['created_at'].astext, DateTime).desc()
-        )
+        query = query.order_by(FreshdeskUnifiedTicketView.rating_created_at.desc())
         
         # Apply limit if specified
         if limit:
             query = query.limit(limit)
         
-        # Execute query
+        # Execute query and build results
         results = []
-        for ticket, rating, rating_created_at in query.all():
+        for ticket in query.all():
             results.append({
                 "ticket_id": ticket.freshdesk_ticket_id,
-                "subject": ticket.data.get('subject', 'No subject'),
-                "status": ticket.data.get('status'),
-                "priority": ticket.data.get('priority'),
-                "created_at": ticket.parsed_created_at.isoformat() if ticket.parsed_created_at else None,
-                "rating_created_at": rating.data.get('created_at'),
-                "rating_value": rating.parsed_rating,
-                "rating_name": Rating.get_name(rating.parsed_rating),
-                "requester": ticket.data.get('requester', {}),
-                "feedback": rating.data.get('feedback'),
-                "data": ticket.data
+                "subject": ticket.subject or 'No subject',
+                "status": ticket.status,
+                "priority": ticket.priority,
+                "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+                "rating_created_at": ticket.rating_created_at.isoformat() if ticket.rating_created_at else None,
+                "rating_value": ticket.rating_score,
+                "rating_name": Rating.get_name(ticket.rating_score),
+                "requester_name": ticket.requester_name,
+                "requester_email": ticket.requester_email,
+                "feedback": ticket.rating_feedback
             })
         
         logger.info(f"[INSIGHTS] Found {len(results)} tickets with rating {rating_value} ({rating_name})")
@@ -616,46 +556,30 @@ class FreshdeskInsights:
         """
         logger.info(f"[INSIGHTS] Fetching {limit} most recent bad CSAT tickets")
         
-        # Get recent unhappy ratings
-        bad_ratings = session.query(FreshdeskRating).join(
-            FreshdeskTicket,
-            FreshdeskRating.freshdesk_ticket_id == FreshdeskTicket.freshdesk_ticket_id
-        ).filter(
+        # Use unified view to get recent bad CSAT tickets efficiently
+        bad_tickets = session.query(FreshdeskUnifiedTicketView).filter(
             and_(
-                FreshdeskTicket.merchant_id == merchant_id,
-                FreshdeskRating.parsed_rating < Rating.VERY_HAPPY  # All unsatisfied ratings (<102)
+                FreshdeskUnifiedTicketView.merchant_id == merchant_id,
+                FreshdeskUnifiedTicketView.has_rating == True,
+                FreshdeskUnifiedTicketView.rating_score < Rating.VERY_HAPPY  # All unsatisfied ratings (<102)
             )
-        ).all()
-        
-        # Sort by created_at from JSONB data and limit in Python
-        ratings_with_dates = []
-        for rating in bad_ratings:
-            created_at_str = rating.data.get('created_at')
-            if not created_at_str:
-                continue
-            try:
-                created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                ratings_with_dates.append((rating, created_at))
-            except (ValueError, AttributeError):
-                continue
-        
-        # Sort by created_at descending and take the limit
-        ratings_with_dates.sort(key=lambda x: x[1], reverse=True)
-        bad_ratings = [r[0] for r in ratings_with_dates[:limit]]
+        ).order_by(
+            FreshdeskUnifiedTicketView.rating_created_at.desc()
+        ).limit(limit).all()
         
         results = []
-        for rating in bad_ratings:
+        for ticket in bad_tickets:
             # Get full ticket details with conversations
             ticket_details = FreshdeskInsights.get_ticket_by_id(
                 session, 
-                rating.freshdesk_ticket_id, 
+                ticket.freshdesk_ticket_id, 
                 merchant_id
             )
             
             if ticket_details:
                 # Add rating info to the top level for easy access
-                ticket_details['bad_rating_date'] = rating.data.get('created_at')
-                ticket_details['rating_comment'] = rating.data.get('comments', {}).get('default_question')
+                ticket_details['bad_rating_date'] = ticket.rating_created_at.isoformat() if ticket.rating_created_at else None
+                ticket_details['rating_comment'] = ticket.rating_feedback
                 results.append(ticket_details)
         
         logger.info(f"[INSIGHTS] Found {len(results)} bad CSAT tickets with full context")
@@ -686,15 +610,15 @@ class FreshdeskInsights:
         
         logger.info("[INSIGHTS] Calculating rating statistics")
         
-        # Build base query
+        # Build base query using unified view
         query = session.query(
-            FreshdeskRating.parsed_rating,
-            func.count(FreshdeskRating.freshdesk_ticket_id).label('count')
-        ).join(
-            FreshdeskTicket,
-            FreshdeskRating.freshdesk_ticket_id == FreshdeskTicket.freshdesk_ticket_id
+            FreshdeskUnifiedTicketView.rating_score,
+            func.count(FreshdeskUnifiedTicketView.freshdesk_ticket_id).label('count')
         ).filter(
-            FreshdeskTicket.merchant_id == merchant_id
+            and_(
+                FreshdeskUnifiedTicketView.merchant_id == merchant_id,
+                FreshdeskUnifiedTicketView.has_rating == True
+            )
         )
         
         # Apply date filters
@@ -706,18 +630,16 @@ class FreshdeskInsights:
             end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
             
             query = query.filter(
-                func.cast(FreshdeskRating.data['created_at'].astext, DateTime).between(
-                    start_date, end_date
-                )
+                FreshdeskUnifiedTicketView.rating_created_at.between(start_date, end_date)
             )
         elif days is not None and days > 0:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             query = query.filter(
-                func.cast(FreshdeskRating.data['created_at'].astext, DateTime) >= cutoff_date
+                FreshdeskUnifiedTicketView.rating_created_at >= cutoff_date
             )
         
-        # Group by rating value
-        query = query.group_by(FreshdeskRating.parsed_rating)
+        # Group by rating score
+        query = query.group_by(FreshdeskUnifiedTicketView.rating_score)
         
         # Execute query and build results
         stats = {

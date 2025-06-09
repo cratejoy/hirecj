@@ -29,8 +29,8 @@ def main():
     parser.add_argument(
         "--days",
         type=int,
-        default=90,
-        help="Sync tickets from last N days (default: 90)"
+        default=180,
+        help="Sync tickets from last N days (default: 180)"
     )
     parser.add_argument(
         "--max-pages",
