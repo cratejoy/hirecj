@@ -13,27 +13,78 @@
 
 ## Overview
 
-Phase 5 delivers immediate value after Shopify OAuth by showing merchants quick insights about their store. Instead of complex ETL pipelines, we use a progressive disclosure pattern with targeted API calls.
+Phase 5 delivers immediate value after Shopify OAuth by showing merchants quick insights about their store. This is implemented through our workflow-driven architecture using system events and tools, maintaining consistency with our YAML-configured approach.
 
 ## Core Architecture: Three-Tier Progressive Loading
 
 ### Tier 1: Instant Metrics (< 500ms)
 Use existing REST count endpoints for immediate gratification:
-- Customer count
-- Total orders
-- Active orders
+- Customer count (REST: /admin/api/2025-01/customers/count.json)
+- Total orders (REST: /admin/api/2025-01/orders/count.json)
+- Active orders (REST: /admin/api/2025-01/orders/count.json?status=open)
 
 ### Tier 2: Quick Insights (< 2 seconds)
 Single GraphQL query for rich contextual data:
-- Recent orders with revenue
-- Top products by inventory
-- Store configuration
+- Recent orders with revenue (last 10 orders)
+- Top products by inventory (top 5)
+- Store configuration and currency
 
 ### Tier 3: Deeper Analysis (< 5 seconds)
 Targeted REST queries with strict limits:
-- Last week's order patterns
+- Last week's order patterns (max 50 orders)
 - Customer segmentation hints
 - Revenue velocity
+- Note: Default access is limited to last 60 days of orders
+
+## Implementation Architecture
+
+### Key Changes from Original Design
+
+1. **OAuth Completion via System Events**: Instead of hardcoded OAuth handling, we use system events in the shopify_onboarding workflow YAML
+2. **Shopify Insights Tool**: Replace CJ agent method with a dedicated tool that CJ can call
+3. **Workflow-Driven Progressive Disclosure**: Insights behavior configured in YAML, not code
+4. **Consistent Pattern**: Follows our established workflow and tool patterns
+5. **Latest Shopify API**: Using GraphQL Admin API version 2025-01 with proper authentication headers
+
+## Implementation Checklist
+
+### Phase Order (Linear Dependencies)
+
+**⚠️ Important**: Each phase depends on the previous one. Complete them in order.
+
+- [x] **Phase 5.1: API Infrastructure** ✅ COMPLETED
+  - [x] Extend Shopify API client with GraphQL support (Step 1)
+  - [x] Implement authentication and error handling
+  - [x] Test with real Shopify store (cratejoy-dev)
+
+- [ ] **Phase 5.2: Data Service Layer**
+  - [ ] Create QuickShopifyInsights service (Step 2)
+  - [ ] Implement three-tier data fetching (Tier 1, 2, 3)
+  - [ ] Add Redis caching with TTL
+  - [ ] Implement error handling and graceful degradation
+
+- [ ] **Phase 5.3: Tool Creation**
+  - [ ] Create shopify_insights tool in universe_tools.py (Step 3)
+  - [ ] Implement progressive disclosure logic
+  - [ ] Add merchant token retrieval from database
+  - [ ] Return structured JSON for CJ to process
+
+- [ ] **Phase 5.4: Workflow Integration**
+  - [ ] Update shopify_onboarding.yaml with system events (Step 4)
+  - [ ] Configure OAuth completion handler
+  - [ ] Add CJ prompts for progressive disclosure behavior
+  - [ ] Define transition to ad_hoc_support
+
+- [ ] **Phase 5.5: Agent Registration**
+  - [ ] Register shopify_insights tool with CJ agent (Step 5)
+  - [ ] Ensure tool is available in CJ's tool registry
+  - [ ] Verify context passing works correctly
+
+- [ ] **Phase 5.6: Testing & Validation**
+  - [ ] Unit tests for each component
+  - [ ] Integration test for OAuth → insights flow
+  - [ ] Manual testing with different store types
+  - [ ] Performance validation (< 500ms first insight)
 
 ## Implementation Steps
 
@@ -53,12 +104,13 @@ class ShopifyGraphQL:
     def __init__(self, shop_domain: str, access_token: str):
         self.shop_domain = shop_domain.replace("https://", "").replace("http://", "")
         self.access_token = access_token
-        self.endpoint = f"https://{self.shop_domain}/admin/api/2024-01/graphql.json"
+        # Using the latest stable API version (2025-01)
+        self.endpoint = f"https://{self.shop_domain}/admin/api/2025-01/graphql.json"
         
         self.session = requests.Session()
         self.session.headers.update({
             "X-Shopify-Access-Token": self.access_token,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json"  # Required for 2025-01
         })
     
     def execute(self, query: str, variables: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -85,10 +137,11 @@ class ShopifyGraphQL:
             currencyCode
             primaryDomain {
               url
+              host
             }
           }
           
-          orders(first: 10, reverse: true) {
+          orders(first: 10, sortKey: CREATED_AT, reverse: true) {
             edges {
               node {
                 id
@@ -108,12 +161,14 @@ class ShopifyGraphQL:
                       title
                       quantity
                       variant {
+                        id
                         price
                       }
                     }
                   }
                 }
                 customer {
+                  id
                   displayName
                   ordersCount
                 }
@@ -209,6 +264,7 @@ class QuickShopifyInsights:
             return cached
         
         try:
+            # Using REST API 2025-01 count endpoints
             data = {
                 "customers": self.rest_api.get_customer_count(),
                 "total_orders": self.rest_api.get_order_count(status="any"),
@@ -332,6 +388,7 @@ class QuickShopifyInsights:
         
         try:
             # Get last week's orders with strict limit
+            # Note: Only last 60 days of orders are accessible by default
             since = (datetime.now() - timedelta(days=7)).isoformat()
             recent_orders, _ = self.rest_api.get_orders(
                 updated_at_min=since,
@@ -476,120 +533,199 @@ def generate_quick_insights(data: Dict[str, Any]) -> List[str]:
     return insights
 ```
 
-### Step 3: Update CJ Agent for Progressive Disclosure
+### Step 3: Create Shopify Insights Tool
 
-**File:** `agents/app/agents/cj_agent.py`
+**File:** `agents/app/agents/universe_tools.py`
 
-Add this method to the CJAgent class:
+Add a new tool that CJ can call to get Shopify insights:
 
 ```python
-async def handle_shopify_insights(self, session: Session) -> AsyncGenerator[str, None]:
-    """Progressive disclosure of Shopify insights after OAuth."""
+@tool("shopify_insights")
+async def get_shopify_insights(self, tier: str = "all") -> str:
+    """
+    Get Shopify store insights with progressive disclosure.
     
-    # Get merchant details from session
-    merchant_id = session.merchant_id
-    shop_domain = session.context.get("shop_domain")
-    access_token = await self._get_shopify_token(merchant_id)
+    Args:
+        tier: Which tier of insights to fetch ("tier1", "tier2", "tier3", or "all")
     
-    if not shop_domain or not access_token:
-        yield "I'm having trouble accessing your store data. Let me try again..."
-        return
+    Returns:
+        JSON string with insights data
+    """
+    # Get merchant details from context
+    merchant_id = self.context.get("merchant_id")
+    shop_domain = self.context.get("shop_domain")
+    
+    if not merchant_id or not shop_domain:
+        return json.dumps({
+            "error": "No Shopify store connected",
+            "insights": []
+        })
+    
+    # Get access token from database
+    access_token = await self._get_merchant_token(merchant_id)
+    if not access_token:
+        return json.dumps({
+            "error": "Unable to access store data",
+            "insights": []
+        })
     
     # Initialize insights service
     insights_service = QuickShopifyInsights(merchant_id, shop_domain, access_token)
     
-    # Tier 1: Instant gratification (< 500ms)
-    tier_1 = await insights_service.tier_1_snapshot()
+    result = {"insights": [], "raw_data": {}}
     
-    # Generate and yield first insights
-    tier_1_insights = generate_quick_insights(tier_1)
-    if tier_1_insights:
-        yield tier_1_insights[0]  # Customer count
-        await asyncio.sleep(0.5)
-    
-    # Show we're looking deeper
-    yield "Let me take a quick look at your recent activity..."
-    await asyncio.sleep(1.0)
-    
-    # Tier 2: Quick insights (< 2s)
-    tier_2 = await insights_service.tier_2_insights()
-    
-    # Merge data for insights
-    all_data = {**tier_1, **tier_2}
-    all_insights = generate_quick_insights(all_data)
-    
-    # Yield insights with natural pacing
-    for i, insight in enumerate(all_insights[1:5]):  # Skip first, show next 4
-        yield insight
-        await asyncio.sleep(0.8)
-    
-    # Check if we should go deeper
-    if tier_2.get("recent_orders") and len(tier_2["recent_orders"]) > 5:
-        yield "I'm seeing some interesting patterns in your data..."
-        await asyncio.sleep(1.0)
+    try:
+        # Tier 1: Always fetch instant metrics
+        if tier in ["tier1", "all"]:
+            tier_1 = await insights_service.tier_1_snapshot()
+            result["raw_data"]["tier1"] = tier_1
+            result["insights"].extend(generate_quick_insights(tier_1)[:2])
         
-        # Tier 3: Deeper analysis (< 5s)
-        tier_3 = await insights_service.tier_3_analysis()
-        final_data = {**all_data, **tier_3}
+        # Tier 2: Quick insights
+        if tier in ["tier2", "all"]:
+            tier_2 = await insights_service.tier_2_insights()
+            result["raw_data"]["tier2"] = tier_2
+            
+            # Merge with tier 1 for better insights
+            all_data = {**result["raw_data"].get("tier1", {}), **tier_2}
+            new_insights = generate_quick_insights(all_data)
+            
+            # Add new insights not already in results
+            for insight in new_insights:
+                if insight not in result["insights"]:
+                    result["insights"].append(insight)
         
-        # Show 1-2 more insights
-        final_insights = generate_quick_insights(final_data)
-        for insight in final_insights[5:7]:
-            yield insight
-            await asyncio.sleep(0.8)
+        # Tier 3: Deeper analysis
+        if tier in ["tier3", "all"]:
+            tier_3 = await insights_service.tier_3_analysis()
+            result["raw_data"]["tier3"] = tier_3
+            
+            # Final insights with all data
+            final_data = {**result["raw_data"].get("tier1", {}),
+                         **result["raw_data"].get("tier2", {}),
+                         **tier_3}
+            final_insights = generate_quick_insights(final_data)
+            
+            for insight in final_insights:
+                if insight not in result["insights"]:
+                    result["insights"].append(insight)
+        
+        # Limit insights based on tier
+        if tier == "tier1":
+            result["insights"] = result["insights"][:2]
+        elif tier == "tier2":
+            result["insights"] = result["insights"][:5]
+        
+        result["success"] = True
+        
+    except Exception as e:
+        logger.error(f"Error fetching Shopify insights: {e}")
+        result["error"] = str(e)
+        result["success"] = False
     
-    # Natural transition
-    await asyncio.sleep(1.0)
-    yield "Based on what I'm seeing, I can help you provide even better customer support. Would you like to connect your support system so I can give you personalized insights?"
+    return json.dumps(result)
 
-async def _get_shopify_token(self, merchant_id: str) -> Optional[str]:
-    """Get Shopify access token from storage."""
-    # Implementation depends on your token storage
-    # This is a placeholder
-    return None
+async def _get_merchant_token(self, merchant_id: str) -> Optional[str]:
+    """Get Shopify access token from database."""
+    async with get_db() as db:
+        merchant = await db.query(
+            "SELECT shopify_access_token FROM merchants WHERE id = ?",
+            merchant_id
+        ).fetch_one()
+        return merchant["shopify_access_token"] if merchant else None
 ```
 
-### Step 4: Update OAuth Complete Handler
+### Step 4: Update Workflow YAML for OAuth System Event
 
-**File:** `agents/app/services/message_processor.py`
+**File:** `agents/prompts/workflows/shopify_onboarding.yaml`
 
-Update the oauth_complete handler:
+Add system event handling for OAuth completion:
 
-```python
-async def handle_oauth_complete(self, data: Dict[str, Any]) -> None:
-    """Handle OAuth completion with progressive insights."""
-    
-    # Existing OAuth handling...
-    
-    # After successful OAuth
-    if data.get("provider") == "shopify" and data.get("success"):
-        # Update session with shop details
-        self.session.context["shop_domain"] = data.get("shop_domain")
-        self.session.context["is_new_merchant"] = data.get("is_new", True)
-        
-        # Trigger insights flow
-        insights_generator = self.cj_agent.handle_shopify_insights(self.session)
-        
-        async for insight in insights_generator:
-            await self._send_message({
-                "type": "message",
-                "data": {
-                    "conversation_id": self.session.conversation_id,
-                    "message": {
-                        "role": "assistant",
-                        "content": insight,
-                        "timestamp": datetime.now().isoformat()
-                    }
-                }
-            })
+```yaml
+name: shopify_onboarding
+description: Guides merchants through Shopify OAuth connection
+
+# Requirements configuration
+requirements:
+  - shopify_oauth: true
+
+# Behavior configuration
+behavior:
+  initiator: "cj"
+  initial_action:
+    type: "process_message"
+    message: "Ready to connect your Shopify store"
+    sender: "merchant"
+    cleanup_trigger: true
+  transitions:
+    already_authenticated:
+      target_workflow: "ad_hoc_support"
+      message: "I see you're already connected! Let me help you with your store."
+
+# System events for OAuth handling
+system_events:
+  oauth_complete:
+    condition: "provider == 'shopify' and success == true"
+    actions:
+      - type: "update_context"
+        data:
+          shop_domain: "{{shop_domain}}"
+          shopify_connected: true
+          merchant_id: "{{merchant_id}}"
+      - type: "process_message"
+        message: "show_shopify_insights"
+        sender: "system"
+        metadata:
+          command: "progressive_disclosure"
+          start_tier: "tier1"
+
+# CJ's prompts with insights behavior
+prompts:
+  cj:
+    system: |
+      You are CJ, a customer support AI assistant helping a merchant connect their Shopify store.
+      
+      When you receive a system message with "show_shopify_insights", use the shopify_insights tool
+      to progressively reveal store data:
+      
+      1. First call: get_shopify_insights(tier="tier1") - Show 1-2 instant metrics
+      2. Pause briefly, then mention you're looking deeper
+      3. Second call: get_shopify_insights(tier="tier2") - Show 3-4 more insights
+      4. If the store has good data, mention interesting patterns
+      5. Third call: get_shopify_insights(tier="tier3") - Show 1-2 deep insights
+      6. Transition naturally to offering support system connection
+      
+      Make the insights feel natural and conversational, not like a data dump.
+      Use appropriate pauses between insights for a human feel.
 ```
 
-### Step 5: Error Handling and Edge Cases
+### Step 5: Tool Registration
 
-Add these handlers to the QuickShopifyInsights class:
+**File:** `agents/app/agents/cj_agent.py`
+
+Ensure the shopify_insights tool is available to CJ:
 
 ```python
-def handle_new_store(self, tier_1_data: Dict) -> List[str]:
+class CJAgent:
+    def __init__(self):
+        # Existing initialization...
+        
+        # Register tools
+        self.tools = {
+            "search_universe_data": universe_tools.search_universe_data,
+            "get_customer_info": universe_tools.get_customer_info,
+            "calculate_metrics": universe_tools.calculate_metrics,
+            "shopify_insights": universe_tools.get_shopify_insights,  # Add this
+        }
+```
+
+### Step 6: Error Handling in Tool
+
+The shopify_insights tool should handle edge cases gracefully:
+
+```python
+# Inside the get_shopify_insights tool
+def _handle_new_store(self, tier_1_data: Dict) -> List[str]:
     """Special handling for brand new stores."""
     if tier_1_data.get("total_orders", 0) == 0:
         return [
@@ -599,7 +735,7 @@ def handle_new_store(self, tier_1_data: Dict) -> List[str]:
         ]
     return []
 
-def handle_api_errors(self, error: Exception) -> List[str]:
+def _handle_api_errors(self, error: Exception) -> List[str]:
     """Graceful error handling."""
     if "rate limit" in str(error).lower():
         return ["Give me just a moment - I'm fetching your store data..."]
@@ -634,19 +770,58 @@ def test_tier_1_snapshot():
     assert result["customers"] == 100
     assert result["total_orders"] == 50
 
-def test_generate_insights():
-    """Test natural language generation."""
-    data = {
-        "customers": 1234,
-        "recent_revenue": 5678.90,
-        "order_velocity": 3.2
+def test_shopify_insights_tool():
+    """Test the shopify_insights tool."""
+    # Mock context
+    mock_context = {
+        "merchant_id": "test_merchant",
+        "shop_domain": "test.myshopify.com"
     }
     
-    insights = generate_quick_insights(data)
+    # Test tool execution
+    result = await get_shopify_insights(mock_context, tier="tier1")
+    data = json.loads(result)
     
-    assert "1,234 customers" in insights[0]
-    assert "$5,678.90" in insights[1]
-    assert "3.2 orders per day" in insights[2]
+    assert data["success"] is True
+    assert len(data["insights"]) <= 2  # Tier 1 returns max 2 insights
+```
+
+### 2. Workflow Integration Tests
+
+```yaml
+# tests/shopify_insights/oauth_complete_flow.yaml
+name: test_shopify_oauth_insights_flow
+description: Test OAuth completion triggers insights
+
+steps:
+  - action: simulate_oauth_complete
+    data:
+      provider: shopify
+      success: true
+      shop_domain: test.myshopify.com
+      merchant_id: test_123
+  
+  - expect: context_update
+    values:
+      shopify_connected: true
+      shop_domain: test.myshopify.com
+  
+  - expect: cj_tool_call
+    tool: shopify_insights
+    params:
+      tier: tier1
+  
+  - expect: cj_message
+    contains: "customers in your store"
+  
+  - expect: cj_tool_call
+    tool: shopify_insights
+    params:
+      tier: tier2
+    min_delay: 1.0
+  
+  - expect: cj_message
+    contains: "recent activity"
 ```
 
 ### 2. Integration Tests
@@ -677,6 +852,9 @@ async def test_full_insights_flow():
 
 ### 3. Manual Testing Checklist
 
+- [ ] Test OAuth flow triggers system event
+- [ ] Verify context updates with shop domain
+- [ ] Test progressive disclosure timing
 - [ ] Test with brand new store (0 orders)
 - [ ] Test with small store (< 10 orders)
 - [ ] Test with medium store (100+ orders)
@@ -684,8 +862,8 @@ async def test_full_insights_flow():
 - [ ] Test API rate limit handling
 - [ ] Test cache behavior (second load < 100ms)
 - [ ] Test error scenarios (invalid token, network issues)
-- [ ] Test natural pacing of insights delivery
-- [ ] Verify smooth transition to Phase 6
+- [ ] Verify natural conversation flow
+- [ ] Test transition to ad_hoc_support workflow
 
 ## Performance Optimization
 
@@ -720,45 +898,89 @@ async def with_rate_limit_retry(func, max_retries=3):
     raise Exception("Max retries exceeded")
 ```
 
+## Implementation Timeline
+
+### Phase 5.1: Core Infrastructure (2 hours)
+1. Implement Shopify GraphQL client
+2. Create QuickShopifyInsights service
+3. Build shopify_insights tool
+4. Update workflow YAML
+
+### Phase 5.2: Integration (1 hour)
+1. Register tool with CJ agent
+2. Test OAuth → insights flow
+3. Verify progressive disclosure timing
+
+### Phase 5.3: Polish & Testing (1 hour)
+1. Add comprehensive error handling
+2. Implement caching strategy
+3. Run full test suite
+4. Manual testing with real stores
+
 ## Production Considerations
 
 ### 1. Monitoring
 
 Add these metrics:
-- Time to first insight (p50, p95, p99)
+- Tool execution time by tier
 - API call success rate
 - Cache hit rate
-- Error rate by type
+- OAuth → first insight latency
 
-### 2. Feature Flags
+### 2. Configuration
 
-```python
-FEATURE_FLAGS = {
-    "enable_tier_3_analysis": True,
-    "enable_graphql_insights": True,
-    "max_orders_to_analyze": 50,
-}
+```yaml
+# In workflow YAML
+config:
+  insights:
+    enable_tier_3: true
+    max_orders_analyze: 50
+    cache_ttl:
+      tier_1: 900
+      tier_2: 600
+      tier_3: 300
+    api_version: "2025-01"  # Latest stable API version
 ```
 
 ### 3. Graceful Degradation
 
-If any tier fails, continue with available data:
-- Tier 1 fails: Use generic welcome message
-- Tier 2 fails: Show only count-based insights
-- Tier 3 fails: Skip pattern analysis
+The tool handles failures gracefully:
+- Returns partial data if available
+- Provides helpful error messages
+- Never blocks the conversation flow
 
-## Next Steps
+## Key Differences from Original Design
 
-After Phase 5 is complete:
-1. Gather metrics on insight quality
-2. A/B test different insight ordering
-3. Add more sophisticated analysis in Tier 3
-4. Prepare for Phase 6 (Support System Connection)
+1. **No Hardcoded Methods**: Everything is tool and workflow-driven
+2. **System Events**: OAuth completion handled via YAML configuration
+3. **Consistent Pattern**: Uses same tool pattern as universe data
+4. **Backend Authority**: All configuration in workflow YAMLs
+5. **Latest API Version**: Using Shopify GraphQL API 2025-01 (latest stable)
+
+## API Version Notes
+
+- Using Shopify API version **2025-01** (latest stable as of January 2025)
+- GraphQL endpoint: `/admin/api/2025-01/graphql.json`
+- REST endpoints: `/admin/api/2025-01/{resource}.json`
+- Required header: `Content-Type: application/json` (breaking change in 2025-01)
+- Authentication: `X-Shopify-Access-Token` header
 
 ## Success Criteria
 
+- [ ] OAuth completion triggers system event
+- [ ] CJ uses shopify_insights tool (not hardcoded method)
+- [ ] Progressive disclosure feels natural
 - [ ] Time to first insight < 500ms (p95)
 - [ ] Complete flow < 10 seconds
-- [ ] Zero full data syncs during demo
-- [ ] Natural conversation flow maintained
-- [ ] Smooth handoff to Phase 6
+- [ ] Zero hardcoded workflow logic
+- [ ] Smooth transition to ad_hoc_support
+- [ ] Proper handling of 60-day order limit
+
+## Next Steps
+
+After Phase 5 implementation:
+1. Monitor tool performance metrics
+2. Gather feedback on insight quality
+3. Consider adding more sophisticated Tier 3 analysis
+4. Plan migration strategy for future API versions (quarterly releases)
+5. Prepare for future phases (Support System Connection)

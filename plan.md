@@ -53,11 +53,27 @@ None - ready for next phase!
 
 ### 📅 Upcoming Phases
 
-1. **Phase 5: Quick Value Demo** (4 hours)
-   - Show immediate value after Shopify connection
-   - Progressive data disclosure
-   - Smooth transition to support systems
-   - [📄 Detailed Documentation](docs/shopify-onboarding/phase-5-quick-value.md)
+1. **Phase 5: Quick Value Demo** (4 hours) - **UPDATED FOR WORKFLOW ARCHITECTURE**
+   - Show immediate value after Shopify connection via workflow-driven insights
+   - OAuth completion handled through system events in YAML
+   - Progressive data disclosure using shopify_insights tool (not hardcoded methods)
+   - Workflow-driven behavior configuration for natural pacing
+   - Smooth transition to ad_hoc_support workflow
+   - [📄 Detailed Documentation](docs/shopify-onboarding/phase-5-quick-value.md) ✨ Updated
+
+---
+
+## 🏗️ Phase 5 Architecture Update Summary
+
+Phase 5 has been redesigned to fully integrate with our workflow-driven architecture:
+
+1. **System Events for OAuth**: OAuth completion triggers insights through workflow YAML configuration
+2. **Tool-Based Approach**: Created `shopify_insights` tool instead of hardcoded CJ agent methods
+3. **Progressive Disclosure in YAML**: CJ's behavior for revealing insights is configured in the workflow
+4. **Consistent Pattern**: Follows the same pattern as our universe data tools
+5. **Zero Hardcoded Logic**: All behavior driven by YAML configuration
+
+This maintains our commitment to backend-driven, workflow-configured architecture while delivering immediate value to merchants.
 
 ---
 
