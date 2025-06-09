@@ -67,7 +67,7 @@ class ShopifyDataFetcher:
         except Exception as e:
             logger.error(f"Cache set error: {e}")
     
-    async def get_counts(self) -> Dict[str, int]:
+    def get_counts(self) -> Dict[str, int]:
         """Get basic counts."""
         # Check cache first
         cached = self._get_cached("counts")
@@ -89,7 +89,7 @@ class ShopifyDataFetcher:
             logger.error(f"Failed to fetch counts: {e}")
             raise Exception(f"Failed to fetch counts: {str(e)}")
     
-    async def get_recent_orders(self, limit: int = 10) -> List[Dict]:
+    def get_recent_orders(self, limit: int = 10) -> List[Dict]:
         """Get recent orders."""
         cache_key = f"orders_{limit}"
         cached = self._get_cached(cache_key)
@@ -104,7 +104,7 @@ class ShopifyDataFetcher:
             logger.error(f"Failed to fetch orders: {e}")
             raise Exception(f"Failed to fetch orders: {str(e)}")
     
-    async def get_store_overview(self) -> Dict[str, Any]:
+    def get_store_overview(self) -> Dict[str, Any]:
         """Get shop info, recent orders, and top products in one query."""
         cached = self._get_cached("store_overview")
         if cached:
@@ -118,9 +118,9 @@ class ShopifyDataFetcher:
             logger.error(f"Failed to fetch store overview: {e}")
             raise Exception(f"Failed to fetch store overview: {str(e)}")
     
-    async def get_week_orders(self) -> List[Dict]:
+    def get_orders_last_week(self) -> List[Dict]:
         """Get last week's orders for deeper analysis."""
-        cached = self._get_cached("week_orders")
+        cached = self._get_cached("orders_last_week")
         if cached:
             return cached
         
@@ -133,12 +133,12 @@ class ShopifyDataFetcher:
                 limit=50
             )
             
-            self._set_cached("week_orders", orders)
+            self._set_cached("orders_last_week", orders)
             return orders
             
         except Exception as e:
-            logger.error(f"Failed to fetch week orders: {e}")
-            raise Exception(f"Failed to fetch week orders: {str(e)}")
+            logger.error(f"Failed to fetch orders from last week: {e}")
+            raise Exception(f"Failed to fetch orders from last week: {str(e)}")
     
     def clear_cache(self, data_type: Optional[str] = None) -> None:
         """Clear cached data."""
