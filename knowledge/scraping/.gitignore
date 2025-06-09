@@ -1,0 +1,13 @@
+# Authentication state
+stratechery_auth_state.json
+
+# Scraped content
+stratechery_content/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env

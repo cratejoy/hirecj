@@ -165,3 +165,4 @@ third-party/*/venv/
 third-party/*/node_modules/
 
 .ngrok.yml
+.aider*

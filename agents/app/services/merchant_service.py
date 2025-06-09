@@ -20,11 +20,12 @@ class MerchantService:
         
         try:
             with get_db_session() as session:
-                result = session.query(MerchantIntegration.api_key).join(Merchant).filter(
+                query = session.query(MerchantIntegration.api_key).join(Merchant).filter(
                     Merchant.name == merchant_name,
                     MerchantIntegration.platform == 'shopify',
                     MerchantIntegration.is_active == True
-                ).scalar_one_or_none()
+                )
+                result = query.scalar()
                 
                 if result:
                     logger.info(f"Got token from PostgreSQL for {shop_domain}")
