@@ -55,6 +55,7 @@ interface UseWebSocketChatProps {
   workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | 'support_daily';
   onError?: (error: string) => void;
   onWorkflowUpdated?: (newWorkflow: string, previousWorkflow: string) => void;
+  onOAuthProcessed?: (data: any) => void;
 }
 
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'closed';
@@ -76,7 +77,8 @@ export function useWebSocketChat({
   scenario,
   workflow,
   onError,
-  onWorkflowUpdated
+  onWorkflowUpdated,
+  onOAuthProcessed
 }: UseWebSocketChatProps) {
   // Debug initial props
   wsLogger.debug('🎯 useWebSocketChat initialized', {
@@ -99,6 +101,8 @@ export function useWebSocketChat({
   const abortControllerRef = useRef<AbortController | null>(null);
   const messageQueueRef = useRef<string[]>([]);
   const onErrorRef = useRef(onError);
+  const onWorkflowUpdatedRef = useRef(onWorkflowUpdated);
+  const onOAuthProcessedRef = useRef(onOAuthProcessed);
   const lastMessageTimeRef = useRef<number>(0);
   const sendTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const workflowRef = useRef(workflow);
@@ -128,10 +132,12 @@ export function useWebSocketChat({
     return 'ws://localhost:8000';
   }, []);
   
-  // Update onError ref when it changes
+  // Update callback refs when they change
   useEffect(() => {
     onErrorRef.current = onError;
-  }, [onError]);
+    onWorkflowUpdatedRef.current = onWorkflowUpdated;
+    onOAuthProcessedRef.current = onOAuthProcessed;
+  }, [onError, onWorkflowUpdated, onOAuthProcessed]);
   
   // Keep workflow ref updated
   useEffect(() => {
@@ -300,8 +306,15 @@ export function useWebSocketChat({
             to: updatedWorkflow 
           });
           // Trigger callback to parent component
-          if (onWorkflowUpdated) {
-            onWorkflowUpdated(updatedWorkflow, previous);
+          if (onWorkflowUpdatedRef.current) {
+            onWorkflowUpdatedRef.current(updatedWorkflow, previous);
+          }
+          break;
+        
+        case 'oauth_processed':
+          wsLogger.info('OAuth processed by backend', data.data);
+          if (onOAuthProcessedRef.current) {
+            onOAuthProcessedRef.current(data.data);
           }
           break;
         

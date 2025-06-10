@@ -3,7 +3,6 @@ import { Link, useLocation, useSearch } from 'wouter';
 import { motion } from 'framer-motion';
 import { useChat } from '@/hooks/useChat';
 import { useWebSocketChat } from '@/hooks/useWebSocketChat';
-import { useOAuthCallback } from '@/hooks/useOAuthCallback';
 import { useUserSession } from '@/hooks/useUserSession';
 import DemoScriptFlow from '@/components/DemoScriptFlow';
 import { ConfigurationModal } from '@/components/ConfigurationModal';
@@ -232,6 +231,22 @@ const SlackChat = () => {
 				to: newWorkflow,
 				url: newUrl 
 			});
+		},
+		onOAuthProcessed: (data) => {
+			if (data.success && data.merchant_id && data.shop_domain) {
+				userSession.setMerchant(data.merchant_id, data.shop_domain);
+				toast({
+					title: "Connected to Shopify!",
+					description: data.is_new ? "Welcome! Let me take a look at your store..." : "Welcome back! Good to see you again.",
+					duration: 5000,
+				});
+			} else {
+				toast({
+					title: "Authentication Failed",
+					description: "Failed to finalize Shopify connection.",
+					variant: "destructive"
+				});
+			}
 		}
 	});
 	
@@ -319,136 +334,22 @@ const SlackChat = () => {
 		};
 	}, []);
 	
-	// Add OAuth callback handling
-	const handleOAuthSuccess = useCallback((params: any) => {
-		console.log('[SlackChat] OAuth success:', params);
-		
-		// Debug: Log what we received
-		console.log('[SlackChat] OAuth params received:', {
-			merchant_id: params.merchant_id,
-			shop: params.shop,
-			is_new: params.is_new,
-			current_merchantId: chatConfig.merchantId,
-			conversation_id: params.conversation_id
-		});
-		
-		// PHASE 1 FIX: Clean up sessionStorage
-		sessionStorage.removeItem('shopify_oauth_conversation_id');
-		console.log('🧹 Cleaned up sessionStorage');
-		
-		// Update user session with OAuth data
-		if (params.merchant_id && params.shop) {
-			console.log('[SlackChat] Updating user session:', params.merchant_id, params.shop);
-			userSession.setMerchant(params.merchant_id, params.shop);
-		} else {
-			console.warn('[SlackChat] Missing merchant_id or shop in OAuth params!');
+	// The OAuth callback is now handled by the backend after WebSocket connection.
+	// The frontend just needs to ensure it connects with the right conversation_id from the URL.
+	// The backend will send an 'oauth_processed' message, which is handled by onOAuthProcessed.
+	useEffect(() => {
+		const params = new URLSearchParams(window.location.search);
+		if (params.has('conversation_id') && params.get('conversation_id') !== chatConfig.conversationId) {
+			// If URL has a conversation ID that differs from state, it's likely an OAuth redirect.
+			// Update our state to use it.
+			setChatConfig(prev => ({ ...prev, conversationId: params.get('conversation_id')! }));
 		}
-		
-		// DEBUG TRAP 3: OAuth success handler
-		console.error('🚨 DEBUG TRAP 3: OAuth success handler called!', {
-			currentConversationId: chatConfig.conversationId,
-			oauthConversationId: params.conversation_id,
-			willSendConversationId: params.conversation_id || chatConfig.conversationId,
-			wsConnected: wsChat.isConnected
-		});
-		
-		// Send system_event to WebSocket with retry logic
-		const sendSystemEvent = async () => {
-			const eventData = {
-				event_type: 'oauth_complete',
-				provider: 'shopify',
-				is_new: params.is_new === 'true',
-				merchant_id: params.merchant_id,
-				shop_domain: params.shop,
-				// Pass the original conversation ID back to the backend
-				conversation_id: params.conversation_id || chatConfig.conversationId,
-			};
-			
-			// DEBUG TRAP 4: System event data
-			console.error('🚨 DEBUG TRAP 4: Sending system_event', {
-				type: 'system_event',
-				data: eventData,
-				wsConnected: wsChat.isConnected
-			});
-			
-			if (wsChat.isConnected) {
-				wsChat.sendSpecialMessage({
-					type: 'system_event',
-					data: eventData
-				});
-				return true;
-			}
-			// If not connected, wait a bit and retry
-			console.log('[SlackChat] WebSocket not ready, retrying in 500ms...');
-			return false;
-		};
-		
-		// Try immediately, then retry if needed
-		sendSystemEvent().then(sent => {
-			if (!sent) {
-				// Retry up to 5 times with 500ms delay
-				let retries = 0;
-				const retryInterval = setInterval(() => {
-					sendSystemEvent().then(sent => {
-						if (sent || ++retries >= 5) {
-							clearInterval(retryInterval);
-							if (!sent) {
-								console.error('[SlackChat] Failed to send system_event after 5 retries');
-							}
-						}
-					});
-				}, 500);
-			}
-		});
-		
-		toast({
-			title: "Connected to Shopify!",
-			description: params.is_new === 'true' ? "Welcome! Let me take a look at your store..." : "Welcome back! Good to see you again.",
-			duration: 5000,
-		});
-	}, [wsChat, toast, userSession, chatConfig.conversationId]);
-	
-	const handleOAuthError = useCallback((error: string) => {
-		console.error('[SlackChat] OAuth error:', error);
-		
-		// Map error codes to user-friendly messages
-		let title = "Authentication Failed";
-		let description = "Unable to connect to Shopify. Please try again.";
-		
-		switch (error) {
-			case 'internal_error':
-				description = "An unexpected error occurred. Please try again or contact support if the issue persists.";
-				break;
-			case 'shopify_not_configured':
-				title = "Shopify Integration Not Available";
-				description = "The Shopify integration is not properly configured. Please contact support.";
-				break;
-			case 'invalid_hmac':
-			case 'invalid_state':
-			case 'state_verification_failed':
-				description = "Security verification failed. Please try connecting again.";
-				break;
-			case 'missing_code':
-				description = "Authorization was cancelled or incomplete. Please try again.";
-				break;
-			case 'token_exchange_failed':
-				description = "Failed to complete authentication with Shopify. Please try again.";
-				break;
-			default:
-				if (error) {
-					description = error;
-				}
+		// Clean up URL params after processing
+		if (params.has('conversation_id')) {
+			const newUrl = `${window.location.pathname}`;
+			window.history.replaceState({}, '', newUrl);
 		}
-		
-		toast({
-			title,
-			description,
-			variant: "destructive"
-		});
-	}, [toast]);
-	
-	// Use the OAuth callback hook
-	useOAuthCallback(handleOAuthSuccess, handleOAuthError);
+	}, [location, searchString, chatConfig.conversationId]); // Rerun if location changes.
 
 	// Debug
 	console.log('[SlackChat] Messages length:', messages.length, 'isTyping:', isTyping);

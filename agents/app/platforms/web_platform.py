@@ -9,6 +9,8 @@ from typing import Dict, Any
 from datetime import datetime
 import uuid
 import asyncio
+import json
+import redis
 
 from fastapi import WebSocket
 
@@ -66,6 +68,13 @@ class WebPlatform(Platform):
         self.message_processor = MessageProcessor()
         self.conversation_storage = ConversationStorage()
         self.workflow_loader = WorkflowLoader()
+        try:
+            self.redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+            self.redis_client.ping()
+            logger.info("WebPlatform connected to Redis for OAuth status checks.")
+        except Exception as e:
+            logger.warning(f"Redis not available for WebPlatform: {e}")
+            self.redis_client = None
 
     async def connect(self) -> None:
         """Initialize web platform (no external connections needed)"""
@@ -406,6 +415,27 @@ class WebPlatform(Platform):
                             reason="Internal error",
                         )
                         return
+                
+                # Check for OAuth completion status in Redis before proceeding
+                if self.redis_client:
+                    oauth_status_key = f"oauth_complete:{conversation_id}"
+                    try:
+                        oauth_data_json = self.redis_client.get(oauth_status_key)
+                        if oauth_data_json:
+                            logger.info(f"[OAUTH_CHECK] Found OAuth completion data in Redis for {conversation_id}")
+                            oauth_data = json.loads(oauth_data_json)
+                            # Delete the key so it's only processed once
+                            self.redis_client.delete(oauth_status_key)
+                            
+                            # Process the OAuth completion logic
+                            await self._process_oauth_completion(websocket, session, oauth_data)
+                            
+                            # Return early to avoid running the original workflow's initial action.
+                            # The post-auth workflow has been triggered instead.
+                            return
+                    except Exception as e:
+                        logger.error(f"[OAUTH_CHECK] Error checking Redis for OAuth status: {e}")
+
 
                 # Get workflow requirements
                 workflow_data = self.workflow_loader.get_workflow(workflow)
@@ -871,18 +901,6 @@ class WebPlatform(Platform):
                 logger.info(f"[SESSION_UPDATE] Data: merchant_id={update_data.get('merchant_id')}, "
                            f"shop_domain={update_data.get('shop_domain')}")
 
-            elif message_type == "system_event":
-                # Handle system-level events triggered by the frontend
-                event_data = data.get("data", {})
-                event_type = event_data.get("event_type")
-
-                if event_type == "oauth_complete":
-                    await self._handle_oauth_system_event(
-                        websocket, conversation_id, event_data
-                    )
-                else:
-                    logger.warning(f"Unknown system event type: {event_type}")
-
             elif message_type == "debug_request":
                 # Handle debug information requests
                 debug_type = data.get("data", {}).get("type", "snapshot")
@@ -1099,35 +1117,18 @@ class WebPlatform(Platform):
 
             await self._send_error(websocket, error_msg)
 
-    async def _handle_oauth_system_event(
-        self, websocket: WebSocket, conversation_id: str, event_data: Dict[str, Any]
+    async def _process_oauth_completion(
+        self, websocket: WebSocket, session: Any, oauth_data: Dict[str, Any]
     ):
-        """Handle OAuth completion as a system event.
-
-        This is triggered by the frontend after the OAuth redirect returns.
-        It uses the original conversation_id preserved through the state parameter.
-        """
-        original_conversation_id = event_data.get("conversation_id")
-        if not original_conversation_id:
-            logger.error("[OAUTH_SYSTEM_EVENT] Missing conversation_id in event data")
-            await self._send_error(websocket, "OAuth failed: Missing context")
-            return
-
-        session = self.session_manager.get_session(original_conversation_id)
-        if not session:
-            logger.error(f"[OAUTH_SYSTEM_EVENT] Session expired or not found for conversation: {original_conversation_id}")
-            await self._send_error(websocket, "Session expired. Please start a new conversation.")
-            return
+        """Process OAuth completion data retrieved from Redis."""
+        conversation_id = session.conversation.id
+        logger.info(f"[OAUTH_PROCESS] Processing for conversation {conversation_id}: {oauth_data}")
 
         # Update session with OAuth data
-        provider = event_data.get("provider", "shopify")
-        is_new = event_data.get("is_new", True)
-        merchant_id = event_data.get("merchant_id")
-        shop_domain = event_data.get("shop_domain")
-
-        logger.info(f"[OAUTH_SYSTEM_EVENT] Processing for conversation {original_conversation_id}: "
-                   f"provider={provider}, is_new={is_new}, merchant_id={merchant_id}, "
-                   f"shop_domain={shop_domain}")
+        provider = oauth_data.get("provider", "shopify")
+        is_new = oauth_data.get("is_new", True)
+        merchant_id = oauth_data.get("merchant_id")
+        shop_domain = oauth_data.get("shop_domain")
 
         # Store OAuth metadata in the session
         session.oauth_metadata = {
@@ -1137,24 +1138,24 @@ class WebPlatform(Platform):
             "authenticated": True,
             "authenticated_at": datetime.now().isoformat()
         }
-        session.merchant_name = merchant_id or shop_domain.replace(".myshopify.com", "")
+        session.merchant_name = merchant_id or (shop_domain.replace(".myshopify.com", "") if shop_domain else 'unknown')
         
         # Backend authority for user ID generation
         if shop_domain:
             try:
                 user_id, _ = get_or_create_user(shop_domain)
                 session.user_id = user_id
-                logger.info(f"[OAUTH_SYSTEM_EVENT] Updated session with user_id: {user_id}")
+                logger.info(f"[OAUTH_PROCESS] Updated session with user_id: {user_id}")
             except Exception as e:
-                logger.error(f"[OAUTH_SYSTEM_EVENT] Failed to get/create user: {e}")
+                logger.error(f"[OAUTH_PROCESS] Failed to get/create user: {e}")
 
         # Transition to the post-auth workflow
         target_workflow = "shopify_post_auth"
         previous_workflow = session.conversation.workflow
-        success = self.session_manager.update_workflow(original_conversation_id, target_workflow)
+        success = self.session_manager.update_workflow(conversation_id, target_workflow)
 
         if not success:
-            logger.error(f"[OAUTH_SYSTEM_EVENT] Failed to transition workflow for {original_conversation_id}")
+            logger.error(f"[OAUTH_PROCESS] Failed to transition workflow for {conversation_id}")
             await self._send_error(websocket, "Failed to update workflow state")
             return
             
@@ -1198,7 +1199,7 @@ class WebPlatform(Platform):
         # Send confirmation that OAuth was processed by the backend
         await websocket.send_json({
             "type": "oauth_processed",
-            "data": {"success": True, "merchant_id": merchant_id, "is_new": is_new}
+            "data": {"success": True, "merchant_id": merchant_id, "shop_domain": shop_domain, "is_new": is_new}
         })
 
     async def _monitor_fact_check(
