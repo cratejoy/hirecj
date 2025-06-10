@@ -27,30 +27,44 @@ docs/oauth-flow-fix/
 
 ## 📊 Current Flow (Broken)
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant WS as WebSocket
-    participant A as Auth Service
-    participant S as Shopify
-    participant B as Backend
-
-    U->>F: Click "Connect Shopify"
-    F->>F: Store conversation_id in sessionStorage
-    Note over F: conversation_id = "web_session_abc123"
-    F->>A: Redirect to /api/v1/shopify/install
-    A->>S: OAuth Authorization
-    S->>A: Callback with code
-    A->>F: Redirect to /chat?oauth=complete
-    Note over F: Page reload, new WebSocket connection
-    F->>WS: New connection
-    WS->>B: Create NEW conversation_id
-    Note over B: conversation_id = "web_session_xyz789"
-    F->>WS: Send oauth_complete message
-    Note over B: Message sent to WRONG conversation
-    B->>B: Debug halt code NEVER FIRES
-    Note over B: No system event generated
+```
+User        Frontend         WebSocket      Auth Service    Shopify      Backend
+  |              |                |              |             |             |
+  |--Click------>|                |              |             |             |
+  |  "Connect"   |                |              |             |             |
+  |              |                |              |             |             |
+  |              |--Store         |              |             |             |
+  |              |  conversation_id|              |             |             |
+  |              |  "abc123"      |              |             |             |
+  |              |                |              |             |             |
+  |              |--Redirect----->|              |             |             |
+  |              |                | /install     |             |             |
+  |              |                |              |             |             |
+  |              |                |--OAuth------>|             |             |
+  |              |                |              |--Auth------>|             |
+  |              |                |              |             |             |
+  |              |                |<--Callback---|             |             |
+  |              |                |   with code  |             |             |
+  |              |                |              |             |             |
+  |              |<--Redirect-----|              |             |             |
+  |              | /chat?oauth=   |              |             |             |
+  |              | complete       |              |             |             |
+  |              |                |              |             |             |
+  |              | PAGE RELOAD!   |              |             |             |
+  |              |                |              |             |             |
+  |              |--New---------->|              |             |             |
+  |              |  Connection    |              |             |             |
+  |              |                |--Create------|------------>|
+  |              |                |  NEW conversation_id       |
+  |              |                |  "xyz789" ❌               |
+  |              |                |              |             |             |
+  |              |--Send--------->|              |             |             |
+  |              | oauth_complete |--Forward-----|------------>|
+  |              |                |  to WRONG conversation ❌  |
+  |              |                |              |             |             |
+  |              |                |              |             | Debug code  |
+  |              |                |              |             | NEVER FIRES!|
+  |              |                |              |             | ❌          |
 ```
 
 ### Key Problems
@@ -62,33 +76,60 @@ sequenceDiagram
 
 ## 📊 Target Flow (Fixed)
 
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant F as Frontend
-    participant WS as WebSocket
-    participant A as Auth Service
-    participant S as Shopify
-    participant B as Backend
-    participant W as Workflow
-
-    U->>F: Click "Connect Shopify"
-    F->>F: Store conversation_id in sessionStorage
-    Note over F: conversation_id = "web_session_abc123"
-    F->>A: Redirect with ?conversation_id=abc123
-    A->>S: OAuth Authorization
-    S->>A: Callback with code
-    A->>F: Redirect with conversation_id preserved
-    F->>F: Retrieve conversation_id from callback
-    F->>WS: Wait for connection
-    WS->>B: Reuse existing conversation
-    Note over B: conversation_id = "web_session_abc123"
-    F->>WS: Send system_event message
-    B->>B: Generate system message
-    Note over B: "New Shopify merchant authenticated from X"
-    B->>W: Process system message
-    W->>B: Return insights response
-    B->>WS: Send response to frontend
+```
+User        Frontend         WebSocket      Auth Service    Shopify      Backend      Workflow
+  |              |                |              |             |             |            |
+  |--Click------>|                |              |             |             |            |
+  |  "Connect"   |                |              |             |             |            |
+  |              |                |              |             |             |            |
+  |              |--Store         |              |             |             |            |
+  |              |  conversation_id|              |             |             |            |
+  |              |  "abc123"      |              |             |             |            |
+  |              |                |              |             |             |            |
+  |              |--Redirect----->|              |             |             |            |
+  |              |   with         | /install     |             |             |            |
+  |              |   ?conv_id=    | ?conv_id=    |             |             |            |
+  |              |   abc123       | abc123       |             |             |            |
+  |              |                |              |             |             |            |
+  |              |                |--OAuth------>|             |             |            |
+  |              |                |              |--Auth------>|             |            |
+  |              |                |              |             |             |            |
+  |              |                |<--Callback---|             |             |            |
+  |              |                |   with code  |             |             |            |
+  |              |                |              |             |             |            |
+  |              |<--Redirect-----|              |             |             |            |
+  |              | /chat?oauth=   |              |             |             |            |
+  |              | complete&      |              |             |             |            |
+  |              | conv_id=abc123 |              |             |             |            |
+  |              |                |              |             |             |            |
+  |              |--Retrieve      |              |             |             |            |
+  |              |  conv_id       |              |             |             |            |
+  |              |  "abc123" ✓    |              |             |             |            |
+  |              |                |              |             |             |            |
+  |              |--Wait for----->|              |             |             |            |
+  |              |  Connection    |              |             |             |            |
+  |              |                |--Reuse-------|------------>|            |
+  |              |                |  existing conversation      |            |
+  |              |                |  "abc123" ✓                |            |
+  |              |                |              |             |            |
+  |              |--Send--------->|              |             |            |
+  |              | system_event   |--Forward-----|------------>|            |
+  |              |                |              |             |            |
+  |              |                |              |             |--Generate->|
+  |              |                |              |             |  "New      |
+  |              |                |              |             |  Shopify   |
+  |              |                |              |             |  merchant  |
+  |              |                |              |             |  authen-   |
+  |              |                |              |             |  ticated"  |
+  |              |                |              |             |            |
+  |              |                |              |             |--System--->|
+  |              |                |              |             |  Message   |
+  |              |                |              |             |            |
+  |              |                |              |             |<--Insights-|
+  |              |                |              |             |  Response  |
+  |              |                |              |             |            |
+  |              |<--Response-----|<--Send-------|<------------|            |
+  |              |   with insights |              |             |            |
 ```
 
 ### Key Improvements
