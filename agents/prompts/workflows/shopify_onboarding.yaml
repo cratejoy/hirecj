@@ -7,7 +7,7 @@ active: true
 requirements:
   merchant: false      # Don't need merchant context
   scenario: false      # Don't need scenario context
-  authentication: false # Can start without auth
+  authentication: true # This flow's main purpose is to get the user authenticated
 
 # Available tools for this workflow
 available_tools:
