@@ -295,6 +295,11 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[tuple[str, s
     
     # Build the same redirect URI that was used in the authorization request
     redirect_uri = f"{settings.oauth_redirect_base_url}/api/v1/shopify/callback"
+
+    if settings.debug:
+        logger.info("[TOKEN_EXCHANGE] Preparing to exchange code for token:")
+        logger.info(f"  - Using Client ID: '{settings.shopify_client_id}'")
+        logger.info(f"  - Using Client Secret: '{settings.shopify_client_secret}'")
     
     try:
         async with httpx.AsyncClient() as client:
