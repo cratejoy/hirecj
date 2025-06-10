@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict
 
 import httpx
+import redis
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import urlencode
@@ -17,6 +18,17 @@ from shared.user_identity import get_or_create_user
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+try:
+    redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+    redis_client.ping()
+    logger.info("Successfully connected to Redis for OAuth state management.")
+except Exception as e:
+    logger.error(f"Failed to connect to Redis for OAuth state management: {e}")
+    # This is a critical failure for OAuth, so we can't proceed.
+    # A middleware or dependency injection would be better to handle this.
+    # For now, we'll let it fail at runtime if Redis is needed.
+    redis_client = None
 
 # Redis keys
 STATE_PREFIX = "oauth_state:"
@@ -105,7 +117,9 @@ async def initiate_oauth(
     
     # Store state with shop domain in Redis
     try:
-        merchant_storage.redis_client.setex(
+        if not redis_client:
+            raise ConnectionError("Redis client not available")
+        redis_client.setex(
             state_key,
             STATE_TTL,
             shop
@@ -178,7 +192,9 @@ async def handle_oauth_callback(
     if state:
         state_key = f"{STATE_PREFIX}{state}"
         try:
-            stored_shop = merchant_storage.redis_client.get(state_key)
+            if not redis_client:
+                raise ConnectionError("Redis client not available")
+            stored_shop = redis_client.get(state_key)
             
             if not stored_shop or stored_shop != shop:
                 logger.error(f"[OAUTH_CALLBACK] Invalid state for shop: {shop}")
@@ -188,7 +204,7 @@ async def handle_oauth_callback(
                 )
             
             # Delete used state
-            merchant_storage.redis_client.delete(state_key)
+            redis_client.delete(state_key)
         except Exception as e:
             logger.error(f"[OAUTH_CALLBACK] Failed to verify state: {e}")
             return RedirectResponse(
@@ -206,7 +222,7 @@ async def handle_oauth_callback(
     
     # Exchange code for access token
     try:
-        access_token = await exchange_code_for_token(shop, code)
+        access_token, scopes = await exchange_code_for_token(shop, code)
         
         if not access_token:
             return RedirectResponse(
@@ -215,10 +231,9 @@ async def handle_oauth_callback(
             )
         
         # Store merchant data
-        merchant_id = store_merchant_token(shop, access_token)
-        is_new = merchant_id.startswith("new_")
-        if is_new:
-            merchant_id = merchant_id[4:]  # Remove "new_" prefix
+        store_result = store_merchant_token(shop, access_token, scopes)
+        merchant_id = store_result["merchant_id"]
+        is_new = store_result["is_new"]
         
         # Create or get user identity
         try:
@@ -252,7 +267,7 @@ async def handle_oauth_callback(
         )
 
 
-async def exchange_code_for_token(shop: str, code: str) -> Optional[str]:
+async def exchange_code_for_token(shop: str, code: str) -> Optional[tuple[str, str]]:
     """
     Exchange authorization code for access token.
     
@@ -261,14 +276,14 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[str]:
         code: Authorization code from Shopify
         
     Returns:
-        Access token if successful, None otherwise
+        Tuple of (access token, scopes) if successful, None otherwise
     """
     # Check if Shopify credentials are configured
     if not settings.shopify_client_id or not settings.shopify_client_secret:
         logger.error("[TOKEN_EXCHANGE] Shopify credentials not configured!")
         logger.error(f"[TOKEN_EXCHANGE] Client ID present: {bool(settings.shopify_client_id)}")
         logger.error(f"[TOKEN_EXCHANGE] Client Secret present: {bool(settings.shopify_client_secret)}")
-        return None
+        return None, None
     
     token_url = f"https://{shop}/admin/oauth/access_token"
     
@@ -293,7 +308,7 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[str]:
                     f"[TOKEN_EXCHANGE] Failed for shop {shop}: "
                     f"{response.status_code} - {response.text}"
                 )
-                return None
+                return None, None
             
             token_data = response.json()
             access_token = token_data.get("access_token")
@@ -301,51 +316,32 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[str]:
             
             if not access_token:
                 logger.error(f"[TOKEN_EXCHANGE] No access token in response for shop: {shop}")
-                return None
+                return None, None
             
             logger.info(f"[TOKEN_EXCHANGE] Success for shop: {shop}, scopes: {scope}")
-            return access_token
+            return access_token, scope
             
     except httpx.RequestError as e:
         logger.error(f"[TOKEN_EXCHANGE] Network error for shop {shop}: {e}")
-        return None
+        return None, None
     except Exception as e:
         logger.error(f"[TOKEN_EXCHANGE] Unexpected error for shop {shop}: {e}")
-        return None
+        return None, None
 
 
-def store_merchant_token(shop: str, access_token: str) -> str:
+def store_merchant_token(shop: str, access_token: str, scopes: str) -> Dict[str, Any]:
     """
-    Store merchant access token in Redis.
+    Store merchant access token using the merchant_storage service.
     
     Args:
         shop: Shop domain
         access_token: Access token from Shopify
+        scopes: Granted scopes
         
     Returns:
-        Merchant ID, prefixed with "new_" if newly created
+        Dict with merchant_id and is_new status
     """
-    # Check if merchant exists
-    merchant = merchant_storage.get_merchant(shop)
-    is_new = merchant is None
-    
-    if is_new:
-        # Create new merchant
-        merchant_id = f"merchant_{shop.replace('.myshopify.com', '')}"
-        merchant_storage.create_merchant({
-            "merchant_id": merchant_id,
-            "shop_domain": shop,
-            "access_token": access_token,
-            "created_at": datetime.utcnow()  # Pass as datetime object, not string
-        })
-        logger.info(f"[STORE_TOKEN] Created new merchant: {shop}")
-        return f"new_{merchant_id}"
-    else:
-        # Update existing merchant
-        merchant_storage.update_token(shop, access_token)
-        merchant_id = merchant.get("merchant_id", f"merchant_{shop.replace('.myshopify.com', '')}")
-        logger.info(f"[STORE_TOKEN] Updated existing merchant: {shop}")
-        return merchant_id
+    return merchant_storage.store_token(shop, access_token, scopes)
 
 
 @router.get("/test-shop")

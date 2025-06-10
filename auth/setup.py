@@ -21,5 +21,6 @@ setup(
         "asyncpg>=0.29.0",
         "sqlalchemy>=2.0.25",
         "alembic>=1.13.1",
+        "redis>=5.0.0",
     ],
 )
