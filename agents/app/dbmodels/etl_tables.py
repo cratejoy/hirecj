@@ -389,7 +389,21 @@ class FreshdeskUnifiedTicketView(Base):
     
     # Tags & Custom Fields
     tags = Column(JSONB)  # Array of string tags applied to ticket (e.g., ["#PROCESS_CANCELLATION_PAYWHIRL"])
-    custom_fields = Column(JSONB)  # Merchant-specific custom fields as key-value pairs (e.g., {"cf_store_id": "12345", "cf_subscription_id": null})
+    custom_fields = Column(JSONB)  # Merchant-specific custom fields as key-value pairs. Common fields in our dataset:
+                                   # - cf_store_id: Shopify store ID associated with the ticket
+                                   # - cf_store_id953865: Alternative store ID field (likely merchant-specific variant)
+                                   # - cf_subscription_id: Subscription/recurring order ID if ticket relates to subscription
+                                   # - cf_primary_admin_id: ID of the primary admin user for the merchant
+                                   # - cf_ai_state: AI processing state/status for the ticket
+                                   # - cf_disposition_code: Resolution/outcome code for categorizing how ticket was resolved
+                                   # - cf_escalated_status: Additional escalation tracking beyond standard is_escalated
+                                   # - cf_sub_category: Sub-category for more granular ticket classification
+                                   # - cf_product_segment_category: Product area category (e.g., "Billing", "Technical", etc.)
+                                   # - cf_product_segment_section: More specific product section within category
+                                   # - cf_github_issues: GitHub issue numbers linked to this ticket
+                                   # - cf_mintgithublink: URL to GitHub issue (legacy field name)
+                                   # - cf_sf_mp_breakout: Salesforce marketplace breakout tracking
+                                   # - cf_t2checkedforgithub: Boolean flag if T2 support checked for related GitHub issues
     
     # Conversation Summary
     conversation_count = Column(Integer)  # Total number of conversation entries (messages) on this ticket
