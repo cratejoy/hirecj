@@ -187,19 +187,16 @@ class Settings(BaseSettings):
     def get_oauth_callback_url(self, provider: str) -> str:
         """Get the full OAuth callback URL for a provider."""
         base_url = self.oauth_redirect_base_url.rstrip("/")
-        # Determine if it's a login provider or data provider
-        login_providers = ["shopify", "google"]
-        if provider.lower() in login_providers:
-            return f"{base_url}{self.api_prefix}/auth/callback/{provider}"
-        else:
-            return f"{base_url}{self.api_prefix}/oauth/callback/{provider}"
+        # The path should be /api/v1/{provider}/callback to match router prefixes
+        return f"{base_url}{self.api_prefix}/{provider}/callback"
     
     def log_oauth_urls(self):
         """Log all OAuth callback URLs for easy copying."""
         if self.debug:
             logger.info("🔐 OAuth Callback URLs:")
             logger.info(f"  Base URL: {self.oauth_redirect_base_url}")
-            for provider in ["shopify", "google", "klaviyo", "freshdesk"]:
+            # Removed "google" from the list of providers
+            for provider in ["shopify", "klaviyo", "freshdesk"]:
                 logger.info(f"  {provider.title()}: {self.get_oauth_callback_url(provider)}")
     
     def __init__(self, **kwargs):
