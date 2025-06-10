@@ -60,12 +60,7 @@ async def debug_oauth_config():
 
 
 @router.get("/install")
-async def initiate_oauth(
-    shop: Optional[str] = Query(None, description="Shop domain"),
-    hmac: Optional[str] = Query(None, description="HMAC for verification"),
-    timestamp: Optional[str] = Query(None, description="Request timestamp"),
-    conversation_id: Optional[str] = Query(None, description="Conversation ID to preserve context")
-):
+async def initiate_oauth(request: Request):
     """
     Initiate OAuth flow by redirecting to Shopify authorization page.
     
@@ -73,11 +68,16 @@ async def initiate_oauth(
     1. Initial app installation (from Shopify with HMAC)
     2. Re-authorization (from our frontend)
     """
+    params = dict(request.query_params)
+    shop = params.get("shop")
+    hmac = params.get("hmac")
+    conversation_id = params.get("conversation_id")
+
     # For frontend requests, shop might be in different param
     if not shop:
-        return JSONResponse(
+        raise HTTPException(
             status_code=400,
-            content={"error": "Missing shop parameter"}
+            detail="Missing shop parameter"
         )
     
     logger.info(f"[OAUTH_INSTALL] Initiating OAuth for shop: {shop}")
@@ -102,10 +102,6 @@ async def initiate_oauth(
     
     # If HMAC provided, verify it (initial install from Shopify)
     if hmac:
-        params = {"shop": shop, "hmac": hmac}
-        if timestamp:
-            params["timestamp"] = timestamp
-            
         if not shopify_auth.verify_hmac(params.copy()):
             logger.error(f"[OAUTH_INSTALL] Invalid HMAC for shop: {shop}")
             raise HTTPException(
@@ -157,32 +153,18 @@ async def initiate_oauth(
 
 
 @router.get("/callback")
-async def handle_oauth_callback(
-    code: Optional[str] = Query(None, description="Authorization code"),
-    shop: str = Query(..., description="Shop domain"),
-    hmac: str = Query(..., description="HMAC for verification"),
-    state: Optional[str] = Query(None, description="State for CSRF protection"),
-    timestamp: str = Query(..., description="Request timestamp"),
-    host: Optional[str] = Query(None, description="Base64 encoded host")
-):
+async def handle_oauth_callback(request: Request):
     """
     Handle OAuth callback from Shopify with authorization code.
     Exchange code for access token and store it.
     """
+    # Get all query parameters from the request for robust HMAC validation
+    params = dict(request.query_params)
+    shop = params.get("shop")
+    code = params.get("code")
+    state = params.get("state")
+
     logger.info(f"[OAUTH_CALLBACK] Received callback for shop: {shop}")
-    
-    # Build params dict for HMAC verification
-    params = {
-        "shop": shop,
-        "hmac": hmac,
-        "timestamp": timestamp
-    }
-    if code:
-        params["code"] = code
-    if state:
-        params["state"] = state
-    if host:
-        params["host"] = host
     
     # Verify HMAC
     if not shopify_auth.verify_hmac(params.copy()):
