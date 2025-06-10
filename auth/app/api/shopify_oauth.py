@@ -87,18 +87,17 @@ async def initiate_oauth(
     # Check if Shopify credentials are configured
     if not settings.shopify_client_id or not settings.shopify_client_secret:
         logger.error("[OAUTH_INSTALL] Shopify credentials not configured!")
-        logger.error(f"[OAUTH_INSTALL] Will redirect to: {settings.frontend_url}/chat?error=shopify_not_configured")
-        return RedirectResponse(
-            url=f"{settings.frontend_url}/chat?error=shopify_not_configured",
-            status_code=302
+        raise HTTPException(
+            status_code=500,
+            detail="Shopify credentials not configured on the auth server."
         )
     
     # Validate shop domain
     if not shopify_auth.validate_shop_domain(shop):
         logger.error(f"[OAUTH_INSTALL] Invalid shop domain: {shop}")
-        return JSONResponse(
+        raise HTTPException(
             status_code=400,
-            content={"error": "Invalid shop domain format"}
+            detail=f"Invalid shop domain format: {shop}"
         )
     
     # If HMAC provided, verify it (initial install from Shopify)
@@ -109,9 +108,9 @@ async def initiate_oauth(
             
         if not shopify_auth.verify_hmac(params.copy()):
             logger.error(f"[OAUTH_INSTALL] Invalid HMAC for shop: {shop}")
-            return JSONResponse(
+            raise HTTPException(
                 status_code=401,
-                content={"error": "Invalid HMAC signature"}
+                detail=f"Invalid HMAC signature for shop {shop}"
             )
     
     # Generate and store state with conversation_id
@@ -131,9 +130,9 @@ async def initiate_oauth(
         )
     except Exception as e:
         logger.error(f"[OAUTH_INSTALL] Failed to store state in Redis: {e}")
-        return JSONResponse(
+        raise HTTPException(
             status_code=500,
-            content={"error": "Failed to initialize OAuth flow"}
+            detail=f"Failed to initialize OAuth flow, could not store state in Redis: {e}"
         )
     
     logger.info(f"[OAUTH_INSTALL] Generated state for shop {shop}: {state[:10]}...")
@@ -188,9 +187,10 @@ async def handle_oauth_callback(
     # Verify HMAC
     if not shopify_auth.verify_hmac(params.copy()):
         logger.error(f"[OAUTH_CALLBACK] Invalid HMAC for shop: {shop}")
-        return RedirectResponse(
-            url=f"{settings.frontend_url}/chat?error=invalid_hmac",
-            status_code=302
+        # HARD PANIC
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid HMAC signature for shop {shop} on callback."
         )
     
     # Verify state if provided
@@ -204,9 +204,10 @@ async def handle_oauth_callback(
             stored_data_json = redis_client.get(state_key)
             if not stored_data_json:
                 logger.error(f"[OAUTH_CALLBACK] State not found in Redis for shop: {shop}")
-                return RedirectResponse(
-                    url=f"{settings.frontend_url}/chat?error=invalid_state",
-                    status_code=302
+                # HARD PANIC
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid state: not found in Redis for shop {shop}."
                 )
 
             stored_data = json.loads(stored_data_json)
@@ -215,26 +216,29 @@ async def handle_oauth_callback(
             
             if not stored_shop or stored_shop != shop:
                 logger.error(f"[OAUTH_CALLBACK] Invalid state for shop: {shop}. Expected {stored_shop}")
-                return RedirectResponse(
-                    url=f"{settings.frontend_url}/chat?error=invalid_state",
-                    status_code=302
+                # HARD PANIC
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid state: shop mismatch. Got {shop}, expected {stored_shop}."
                 )
             
             # Delete used state
             redis_client.delete(state_key)
         except Exception as e:
             logger.error(f"[OAUTH_CALLBACK] Failed to verify state: {e}")
-            return RedirectResponse(
-                url=f"{settings.frontend_url}/chat?error=state_verification_failed",
-                status_code=302
+            # HARD PANIC
+            raise HTTPException(
+                status_code=500,
+                detail=f"State verification failed with an exception: {e}"
             )
     
     # Check if we have authorization code
     if not code:
         logger.error(f"[OAUTH_CALLBACK] Missing authorization code for shop: {shop}")
-        return RedirectResponse(
-            url=f"{settings.frontend_url}/chat?error=missing_code",
-            status_code=302
+        # HARD PANIC
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing authorization code for shop: {shop}"
         )
     
     # Exchange code for access token
@@ -242,9 +246,10 @@ async def handle_oauth_callback(
         access_token, scopes = await exchange_code_for_token(shop, code)
         
         if not access_token:
-            return RedirectResponse(
-                url=f"{settings.frontend_url}/chat?error=token_exchange_failed",
-                status_code=302
+            # HARD PANIC
+            raise HTTPException(
+                status_code=500,
+                detail="Token exchange failed. No access token received from Shopify."
             )
         
         # Store merchant data
@@ -279,10 +284,10 @@ async def handle_oauth_callback(
         import traceback
         logger.error(f"[OAUTH_CALLBACK] Unexpected error: {e}")
         logger.error(f"[OAUTH_CALLBACK] Traceback: {traceback.format_exc()}")
-        logger.error(f"[OAUTH_CALLBACK] Will redirect to: {settings.frontend_url}/chat?error=internal_error")
-        return RedirectResponse(
-            url=f"{settings.frontend_url}/chat?error=internal_error",
-            status_code=302
+        # HARD PANIC
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred during OAuth callback: {e}"
         )
 
 
