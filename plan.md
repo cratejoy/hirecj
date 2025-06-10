@@ -88,14 +88,16 @@
 
 ### ⏳ In Progress
 
-**Phase 5.6: Agent Registration** (1 hour)
-- Register Shopify tools with CJ agent
-- Ensure tools are available in CJ's tool registry
-- Verify context passing and data analysis
+**Phase 5.5.6: OAuth Flow Alignment** (12 hours) 🚨 CRITICAL
+- Fix conversation continuity during OAuth redirect
+- Implement proper system event generation
+- Align WebSocket implementation with workflow spec
+- Ensure OAuth completion triggers expected system messages
+- [📄 Documentation](docs/oauth-flow-fix/README.md)
 
 ### 📅 Upcoming Phases
 
-1. **Phase 5: Quick Value Demo** (Total: 13.5 hours)
+1. **Phase 5: Quick Value Demo** (Total: 25.5 hours)
    - **Phase 5.1**: API Infrastructure ✅ COMPLETED
    - **Phase 5.2**: Data Service Layer ✅ COMPLETED
    - **Phase 5.3**: Atomic Shopify Tools ✅ COMPLETED
@@ -103,10 +105,39 @@
    - **Phase 5.4**: Auth Service Migration ✅ COMPLETED
    - **Phase 5.5**: Workflow Integration ✅ COMPLETED
    - **Phase 5.5.5**: Post-OAuth Workflow ✅ COMPLETED
+   - **Phase 5.5.6**: OAuth Flow Alignment (12 hours) 🚨 IN PROGRESS
    - **Phase 5.6**: Agent Registration (1 hour)
    - **Phase 5.7**: Testing & Validation (3 hours)
    - [📄 Detailed Documentation](docs/shopify-onboarding/phase-5-quick-value.md)
 
+
+---
+
+## 🚨 Critical Issue: OAuth Flow Misalignment
+
+### Discovery (Phase 5.5.6)
+
+During testing of the OAuth flow, we discovered a fundamental architectural issue:
+
+**The Problem:**
+1. OAuth redirect loses conversation context (new WebSocket connection)
+2. Implementation uses WebSocket messages but workflow expects system events
+3. Conversation ID isn't preserved through the OAuth flow
+4. Debug code in `oauth_complete` handler never fires due to context mismatch
+
+**The Impact:**
+- OAuth completion doesn't trigger expected workflow responses
+- Users get stuck after connecting Shopify
+- System can't provide immediate value with insights
+
+**The Solution:**
+Phase 5.5.6 implements a comprehensive fix that:
+- Preserves conversation state through OAuth redirect
+- Converts WebSocket messages to proper system events
+- Aligns implementation with workflow specification
+- Ensures seamless user experience
+
+This is a **CRITICAL** fix that blocks all OAuth-dependent functionality.
 
 ---
 
