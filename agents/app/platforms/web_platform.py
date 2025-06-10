@@ -933,15 +933,38 @@ class WebPlatform(Platform):
                     "authenticated_at": datetime.now().isoformat()
                 })
                 
-                # Process the OAuth completion with CJ
-                # Generate a response based on whether it's a new or returning merchant
+                # --- NEW LOGIC FOR PHASE 5.5.5 ---
+                
+                # Transition to the dedicated post-auth workflow
+                target_workflow = "shopify_post_auth"
+                current_workflow = session.conversation.workflow
+                
+                logger.info(f"[OAUTH_COMPLETE] Transitioning workflow from {current_workflow} to {target_workflow}")
+                
+                success = self.session_manager.update_workflow(conversation_id, target_workflow)
+                
+                if not success:
+                    logger.error(f"[OAUTH_ERROR] Failed to transition workflow for {conversation_id}")
+                    await self._send_error(websocket, "Failed to update workflow state")
+                    return
+                    
+                # Notify frontend of the workflow transition
+                await websocket.send_json({
+                    "type": "workflow_updated",
+                    "data": {
+                        "workflow": target_workflow,
+                        "previous": current_workflow
+                    }
+                })
+                
+                # Process the OAuth completion with CJ in the new workflow
                 if is_new:
-                    oauth_context = f"New Shopify merchant authenticated from {shop_domain}"
+                    oauth_context = f"SYSTEM_EVENT: New Shopify merchant authenticated from {shop_domain}"
                 else:
-                    oauth_context = f"Returning Shopify merchant authenticated from {shop_domain}"
+                    oauth_context = f"SYSTEM_EVENT: Returning Shopify merchant authenticated from {shop_domain}"
                 
                 logger.info(f"[OAUTH_CONTEXT] Processing with context: {oauth_context}")
-                
+
                 # Let CJ respond to the OAuth completion naturally
                 response = await self.message_processor.process_message(
                     session=session,

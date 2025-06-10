@@ -88,15 +88,10 @@
 
 ### ⏳ In Progress
 
-**Phase 5.5.5: Post-OAuth Workflow** (2 hours)
-- Create dedicated `shopify_post_auth` workflow for OAuth return
-- Workflow triggered by system event when OAuth completes
-- Provides immediate value using Shopify tools:
-  - Shows store overview
-  - Recent order summary  
-  - Key metrics
-- Transitions to appropriate next workflow (daily_briefing or ad_hoc)
-- Prevents constant redirect to ad_hoc workflow
+**Phase 5.6: Agent Registration** (1 hour)
+- Register Shopify tools with CJ agent
+- Ensure tools are available in CJ's tool registry
+- Verify context passing and data analysis
 
 ### 📅 Upcoming Phases
 
@@ -107,7 +102,7 @@
    - **Phase 5.3.5**: PostgreSQL-Only Token Storage ✅ COMPLETED
    - **Phase 5.4**: Auth Service Migration ✅ COMPLETED
    - **Phase 5.5**: Workflow Integration ✅ COMPLETED
-   - **Phase 5.5.5**: Post-OAuth Workflow (2 hours) 🆕
+   - **Phase 5.5.5**: Post-OAuth Workflow ✅ COMPLETED
    - **Phase 5.6**: Agent Registration (1 hour)
    - **Phase 5.7**: Testing & Validation (3 hours)
    - [📄 Detailed Documentation](docs/shopify-onboarding/phase-5-quick-value.md)
