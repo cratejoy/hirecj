@@ -30,6 +30,7 @@ SERVICE_VARS = {
             # Database
             "AUTH_DATABASE_URL",
             "REDIS_URL",
+            "SUPABASE_CONNECTION_STRING",
             
             # Security
             "SECRET_KEY", "JWT_SECRET_KEY", "JWT_SECRET", "JWT_ALGORITHM", 

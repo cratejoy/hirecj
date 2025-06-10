@@ -1,4 +1,9 @@
-"""Shopify API utilities for raw API calls."""
+"""Shopify API utilities for raw API calls.
+
+This module provides both REST and GraphQL clients for Shopify API v2025-01.
+- ShopifyAPI: REST API client with pagination support
+- ShopifyGraphQL: GraphQL client optimized for quick insights
+"""
 
 import os
 import time
@@ -14,17 +19,18 @@ from shared.env_loader import get_env
 class ShopifyAPI:
     """Low-level Shopify API client using REST API."""
     
-    def __init__(self):
-        self.api_token = get_env("SHOPIFY_API_TOKEN")
-        self.shop_domain = get_env("SHOPIFY_SHOP_DOMAIN")
+    def __init__(self, shop_domain: Optional[str] = None, access_token: Optional[str] = None):
+        # Allow passing credentials or fall back to env vars
+        self.api_token = access_token or get_env("SHOPIFY_API_TOKEN")
+        self.shop_domain = shop_domain or get_env("SHOPIFY_SHOP_DOMAIN")
         
         if not self.api_token or not self.shop_domain:
-            raise ValueError("SHOPIFY_API_TOKEN and SHOPIFY_SHOP_DOMAIN must be set")
+            raise ValueError("shop_domain and access_token must be provided or set in environment")
         
         # Ensure shop domain doesn't include protocol
         self.shop_domain = self.shop_domain.replace("https://", "").replace("http://", "")
         
-        self.base_url = f"https://{self.shop_domain}/admin/api/2024-01"
+        self.base_url = f"https://{self.shop_domain}/admin/api/2025-01"
         self.session = requests.Session()
         self.session.headers.update({
             "X-Shopify-Access-Token": self.api_token,
@@ -217,6 +223,144 @@ class ShopifyAPI:
         except Exception as e:
             print(f"❌ Shopify connection failed: {e}")
             return False
+
+
+class ShopifyGraphQL:
+    """Minimal GraphQL client for quick insights."""
+    
+    def __init__(self, shop_domain: str, access_token: str):
+        self.shop_domain = shop_domain.replace("https://", "").replace("http://", "")
+        self.access_token = access_token
+        # Using the latest stable API version (2025-01)
+        self.endpoint = f"https://{self.shop_domain}/admin/api/2025-01/graphql.json"
+        
+        self.session = requests.Session()
+        self.session.headers.update({
+            "X-Shopify-Access-Token": self.access_token,
+            "Content-Type": "application/json"  # Required for 2025-01
+        })
+    
+    def execute(self, query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Execute a GraphQL query with comprehensive error handling."""
+        payload = {"query": query}
+        if variables:
+            payload["variables"] = variables
+        
+        try:
+            response = self.session.post(self.endpoint, json=payload)
+            
+            # Handle rate limiting
+            if response.status_code == 429:
+                retry_after = float(response.headers.get("Retry-After", 2.0))
+                print(f"Rate limited. Waiting {retry_after} seconds...")
+                time.sleep(retry_after)
+                # Retry the request
+                response = self.session.post(self.endpoint, json=payload)
+            
+            # Handle authentication errors
+            if response.status_code == 401:
+                raise Exception("Authentication failed. Access token may be invalid or expired.")
+            
+            # Handle other HTTP errors
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            # Handle GraphQL errors
+            if "errors" in result:
+                error_messages = []
+                for error in result['errors']:
+                    msg = error.get('message', 'Unknown error')
+                    if 'extensions' in error:
+                        code = error['extensions'].get('code', '')
+                        if code:
+                            msg = f"{msg} (code: {code})"
+                    error_messages.append(msg)
+                raise Exception(f"GraphQL errors: {'; '.join(error_messages)}")
+                
+            return result.get("data", {})
+            
+        except requests.exceptions.ConnectionError:
+            raise Exception(f"Failed to connect to Shopify API at {self.endpoint}")
+        except requests.exceptions.Timeout:
+            raise Exception("Request to Shopify API timed out")
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Request failed: {str(e)}")
+    
+    def get_store_pulse(self) -> Dict[str, Any]:
+        """Get quick store overview in one query."""
+        query = """
+        query StoreOverview {
+          shop {
+            name
+            currencyCode
+            primaryDomain {
+              url
+              host
+            }
+          }
+          
+          orders(first: 10, sortKey: CREATED_AT, reverse: true) {
+            edges {
+              node {
+                id
+                name
+                createdAt
+                displayFinancialStatus
+                displayFulfillmentStatus
+                totalPriceSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
+                }
+                lineItems(first: 5) {
+                  edges {
+                    node {
+                      title
+                      quantity
+                      variant {
+                        id
+                        price
+                      }
+                    }
+                  }
+                }
+                customer {
+                  id
+                  displayName
+                }
+              }
+            }
+          }
+          
+          products(first: 5, sortKey: INVENTORY_TOTAL, reverse: true) {
+            edges {
+              node {
+                id
+                title
+                description
+                totalInventory
+                priceRangeV2 {
+                  minVariantPrice {
+                    amount
+                    currencyCode
+                  }
+                  maxVariantPrice {
+                    amount
+                    currencyCode
+                  }
+                }
+                featuredImage {
+                  url
+                }
+              }
+            }
+          }
+        }
+        """
+        
+        return self.execute(query)
 
 
 if __name__ == "__main__":

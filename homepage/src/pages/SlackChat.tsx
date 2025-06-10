@@ -493,7 +493,7 @@ const SlackChat = () => {
 		console.group('%c👤 User Session (Persistent)', 'color: #4CAF50; font-size: 12px');
 		console.log('Merchant ID:', userSession.merchantId || 'None');
 		console.log('Shop Domain:', userSession.shopDomain || 'None');
-		console.log('Connected:', userSession.isConnected ? '✅ Yes' : '❌ No');
+		console.log('Shopify Authenticated:', userSession.isConnected ? '✅ Yes' : '❌ No');
 		console.groupEnd();
 		
 		// Show ephemeral conversation data

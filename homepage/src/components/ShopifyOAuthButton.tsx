@@ -62,7 +62,13 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
 
   if (showShopInput) {
     return (
-      <div className="space-y-3 p-4 bg-gray-800 rounded-lg border border-gray-700">
+      <form
+        className="space-y-3 p-4 bg-gray-800 rounded-lg border border-gray-700"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleShopSubmit();
+        }}
+      >
         <div className="text-sm text-gray-300 font-medium">
           Enter your Shopify store domain:
         </div>
@@ -72,18 +78,11 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
           value={shopDomain}
           onChange={(e) => setShopDomain(e.target.value)}
           className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-shopify-green focus:border-transparent text-white placeholder-gray-500 transition-all"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault(); // Prevent form submission
-              handleShopSubmit();
-            }
-          }}
           autoFocus
         />
         <div className="flex gap-2">
           <button
-            type="button"
-            onClick={handleShopSubmit}
+            type="submit"
             disabled={!shopDomain || isConnecting}
             className="flex-1 bg-shopify-green hover:bg-shopify-green-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
           >
@@ -100,7 +99,7 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
             Cancel
           </button>
         </div>
-      </div>
+      </form>
     );
   }
 

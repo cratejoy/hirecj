@@ -13,27 +13,102 @@
 
 ## Overview
 
-Phase 5 delivers immediate value after Shopify OAuth by showing merchants quick insights about their store. Instead of complex ETL pipelines, we use a progressive disclosure pattern with targeted API calls.
+Phase 5 delivers immediate value after Shopify OAuth by showing merchants quick insights about their store. This is implemented through our workflow-driven architecture using system events and tools, maintaining consistency with our YAML-configured approach.
 
-## Core Architecture: Three-Tier Progressive Loading
+## Core Architecture: Simplified Data Fetching
 
-### Tier 1: Instant Metrics (< 500ms)
-Use existing REST count endpoints for immediate gratification:
-- Customer count
-- Total orders
-- Active orders
+### Key Architectural Decisions (Phase 5.2 Implementation)
 
-### Tier 2: Quick Insights (< 2 seconds)
-Single GraphQL query for rich contextual data:
-- Recent orders with revenue
-- Top products by inventory
-- Store configuration
+During implementation, we simplified away the complex three-tier system in favor of direct data methods:
 
-### Tier 3: Deeper Analysis (< 5 seconds)
-Targeted REST queries with strict limits:
-- Last week's order patterns
-- Customer segmentation hints
-- Revenue velocity
+1. **Pure Data Fetching**: ShopifyDataFetcher provides simple methods like `get_counts()`, `get_recent_orders()`, etc.
+2. **No Analysis in Service**: All intelligence and progressive disclosure logic moved to the CJ agent
+3. **Redis Caching**: Simple caching with TTL for expensive operations
+4. **Token Storage**: Access tokens are stored in PostgreSQL `merchant_integrations` table (single source of truth)
+
+### Data Methods Available
+
+- `get_counts()`: Basic metrics (customers, orders)
+- `get_recent_orders()`: Recent order data
+- `get_store_overview()`: Store info via GraphQL
+- `get_week_orders()`: Orders from the past week
+
+## Implementation Architecture
+
+### Key Changes from Original Design
+
+1. **OAuth Completion via System Events**: Instead of hardcoded OAuth handling, we use system events in the shopify_onboarding workflow YAML
+2. **Shopify Insights Tool**: Replace CJ agent method with a dedicated tool that CJ can call
+3. **Workflow-Driven Progressive Disclosure**: Insights behavior configured in YAML, not code
+4. **Consistent Pattern**: Follows our established workflow and tool patterns
+5. **Latest Shopify API**: Using GraphQL Admin API version 2025-01 with proper authentication headers
+
+## Implementation Checklist
+
+### Phase Order (Linear Dependencies)
+
+**⚠️ Important**: Each phase depends on the previous one. Complete them in order.
+
+- [x] **Phase 5.1: API Infrastructure** ✅ COMPLETED
+  - [x] Extend Shopify API client with GraphQL support (Step 1)
+  - [x] Implement authentication and error handling
+  - [x] Test with real Shopify store (cratejoy-dev)
+
+- [x] **Phase 5.2: Data Service Layer** ✅ COMPLETED
+  - [x] Create ShopifyDataFetcher service (simplified from QuickShopifyInsights)
+  - [x] Implement direct data fetching methods (no tier complexity)
+  - [x] Add Redis caching with TTL
+  - [x] Implement error handling and graceful degradation
+
+- [x] **Phase 5.3.5: PostgreSQL-Only Token Storage** ✅ COMPLETED
+  - [x] Create store_test_shopify_token.py script
+  - [x] Script stores tokens in PostgreSQL merchant_integrations table
+  - [x] Add PostgreSQL-only MerchantService (no Redis at all)
+  - [x] Test token storage and retrieval works correctly
+
+- [x] **Phase 5.3: Atomic Tool Creation** ✅ COMPLETED
+  - [x] Create atomic Shopify tools in a new `shopify_tools.py` file (Step 3)
+  - [x] Created 4 atomic tools:
+    - [x] `get_shopify_store_counts` - Basic store metrics
+    - [x] `get_shopify_store_overview` - GraphQL-powered overview
+    - [x] `get_shopify_recent_orders` - Recent order data
+    - [x] `get_shopify_orders_last_week` - Weekly order analysis
+  - [x] Tools dynamically loaded when OAuth metadata indicates Shopify connection
+  - [x] All tools return raw JSON for agent analysis (no pre-processing)
+
+- [x] **Phase 5.4: Auth Service Migration** ✅ COMPLETED
+  - [x] Update auth service to store tokens in PostgreSQL during OAuth
+  - [x] Tokens now stored in `merchant_integrations` table (single source of truth)
+  - [x] Redis still used for OAuth state management (ephemeral data) - intentional design
+  - [x] Auth service has its own database models (no cross-service imports)
+
+- [x] **Phase 5.5: Workflow Integration** ✅ COMPLETED
+  - [x] Update shopify_onboarding.yaml with system events (Step 4)
+  - [x] Configure OAuth completion handler
+  - [x] Integrate Shopify tools into workflow
+  - [x] Prevent premature workflow transitions during OAuth
+  - [x] Fix UI to prevent page reloads during Shopify connection
+
+- [ ] **Phase 5.5.5: Post-OAuth Workflow** 🆕
+  - [ ] Create dedicated `shopify_post_auth` workflow for OAuth return
+  - [ ] Workflow triggered by system event when OAuth completes
+  - [ ] Provides immediate value using Shopify tools:
+    - [ ] Shows store overview
+    - [ ] Recent order summary  
+    - [ ] Key metrics
+  - [ ] Transitions to appropriate next workflow (daily_briefing or ad_hoc)
+  - [ ] Prevents constant redirect to ad_hoc workflow
+
+- [ ] **Phase 5.6: Agent Registration**
+  - [ ] Register shopify_data tool with CJ agent (Step 5)
+  - [ ] Ensure tool is available in CJ's tool registry
+  - [ ] Verify context passing works correctly
+
+- [ ] **Phase 5.7: Testing & Validation**
+  - [ ] Unit tests for each component
+  - [ ] Integration test for OAuth → insights flow
+  - [ ] Manual testing with different store types
+  - [ ] Performance validation (< 500ms first insight)
 
 ## Implementation Steps
 
@@ -53,12 +128,13 @@ class ShopifyGraphQL:
     def __init__(self, shop_domain: str, access_token: str):
         self.shop_domain = shop_domain.replace("https://", "").replace("http://", "")
         self.access_token = access_token
-        self.endpoint = f"https://{self.shop_domain}/admin/api/2024-01/graphql.json"
+        # Using the latest stable API version (2025-01)
+        self.endpoint = f"https://{self.shop_domain}/admin/api/2025-01/graphql.json"
         
         self.session = requests.Session()
         self.session.headers.update({
             "X-Shopify-Access-Token": self.access_token,
-            "Content-Type": "application/json"
+            "Content-Type": "application/json"  # Required for 2025-01
         })
     
     def execute(self, query: str, variables: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -85,10 +161,11 @@ class ShopifyGraphQL:
             currencyCode
             primaryDomain {
               url
+              host
             }
           }
           
-          orders(first: 10, reverse: true) {
+          orders(first: 10, sortKey: CREATED_AT, reverse: true) {
             edges {
               node {
                 id
@@ -108,12 +185,14 @@ class ShopifyGraphQL:
                       title
                       quantity
                       variant {
+                        id
                         price
                       }
                     }
                   }
                 }
                 customer {
+                  id
                   displayName
                   ordersCount
                 }
@@ -209,6 +288,7 @@ class QuickShopifyInsights:
             return cached
         
         try:
+            # Using REST API 2025-01 count endpoints
             data = {
                 "customers": self.rest_api.get_customer_count(),
                 "total_orders": self.rest_api.get_order_count(status="any"),
@@ -332,6 +412,7 @@ class QuickShopifyInsights:
         
         try:
             # Get last week's orders with strict limit
+            # Note: Only last 60 days of orders are accessible by default
             since = (datetime.now() - timedelta(days=7)).isoformat()
             recent_orders, _ = self.rest_api.get_orders(
                 updated_at_min=since,
@@ -476,137 +557,584 @@ def generate_quick_insights(data: Dict[str, Any]) -> List[str]:
     return insights
 ```
 
-### Step 3: Update CJ Agent for Progressive Disclosure
+### Step 2.5: PostgreSQL-Only Token Storage (Phase 5.3.5)
+
+This step implements clean PostgreSQL-only token storage. No Redis fallback - we're making a clean break.
+
+**File:** `agents/scripts/store_test_shopify_token.py`
+
+```python
+#!/usr/bin/env python3
+"""Store test Shopify tokens in PostgreSQL for development."""
+
+import asyncio
+import asyncpg
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+
+# Add parent directories to path
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from shared.env_loader import get_env
+
+async def store_test_token(shop_domain: str, access_token: str):
+    """Store a test token in PostgreSQL merchant_integrations table."""
+    
+    db_url = get_env("SUPABASE_CONNECTION_STRING")
+    if not db_url:
+        print("❌ SUPABASE_CONNECTION_STRING not set")
+        return
+    
+    async with asyncpg.create_pool(db_url) as pool:
+        async with pool.acquire() as conn:
+            # Create/update merchant
+            merchant_name = shop_domain.replace('.myshopify.com', '')
+            merchant = await conn.fetchrow(
+                "INSERT INTO merchants (name) VALUES ($1) "
+                "ON CONFLICT (name) DO UPDATE SET updated_at = NOW() "
+                "RETURNING id",
+                merchant_name
+            )
+            
+            # Store token in merchant_integrations
+            await conn.execute("""
+                INSERT INTO merchant_integrations 
+                (merchant_id, type, api_key, config, is_active)
+                VALUES ($1, 'shopify', $2, $3, true)
+                ON CONFLICT (merchant_id, type) 
+                DO UPDATE SET 
+                    api_key = EXCLUDED.api_key,
+                    config = EXCLUDED.config,
+                    updated_at = NOW()
+            """, merchant['id'], access_token, json.dumps({
+                'shop_domain': shop_domain,
+                'stored_at': datetime.utcnow().isoformat(),
+                'source': 'test_script',
+                'scopes': 'read_customers,read_orders,read_products'
+            }))
+            
+            print(f"✅ Stored token for {shop_domain} (merchant_id: {merchant['id']})")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print("Usage: python store_test_shopify_token.py <shop_domain> <access_token>")
+        print("Example: python store_test_shopify_token.py cratejoy-dev.myshopify.com shpat_xxxxx")
+        sys.exit(1)
+    
+    shop_domain = sys.argv[1]
+    access_token = sys.argv[2]
+    
+    asyncio.run(store_test_token(shop_domain, access_token))
+```
+
+**File:** `agents/app/services/merchant_service.py`
+
+Create a clean PostgreSQL-only service:
+
+```python
+"""Service for merchant data access - PostgreSQL only, no Redis."""
+
+from typing import Optional
+import asyncpg
+import logging
+
+from app.config import settings
+
+logger = logging.getLogger(__name__)
+
+
+class MerchantService:
+    """Service for merchant data access - single source of truth."""
+    
+    def __init__(self):
+        self.pool = None
+    
+    async def initialize(self):
+        """Initialize connection pool at startup."""
+        if not self.pool:
+            self.pool = await asyncpg.create_pool(
+                settings.supabase_connection_string,
+                min_size=1,
+                max_size=10
+            )
+            logger.info("MerchantService: PostgreSQL connection pool initialized")
+    
+    async def close(self):
+        """Close connection pool on shutdown."""
+        if self.pool:
+            await self.pool.close()
+            self.pool = None
+    
+    async def get_shopify_token(self, shop_domain: str) -> Optional[str]:
+        """Get Shopify access token from PostgreSQL only."""
+        if not self.pool:
+            await self.initialize()
+        
+        merchant_name = shop_domain.replace('.myshopify.com', '')
+        
+        try:
+            async with self.pool.acquire() as conn:
+                result = await conn.fetchrow("""
+                    SELECT mi.api_key 
+                    FROM merchants m
+                    JOIN merchant_integrations mi ON m.id = mi.merchant_id
+                    WHERE m.name = $1 
+                    AND mi.type = 'shopify' 
+                    AND mi.is_active = true
+                """, merchant_name)
+                
+                if result:
+                    logger.info(f"Got token from PostgreSQL for {shop_domain}")
+                    return result['api_key']
+                else:
+                    logger.warning(f"No token found for {shop_domain}")
+                    return None
+                    
+        except Exception as e:
+            logger.error(f"Failed to get token from PostgreSQL: {e}")
+            return None
+
+
+# Singleton instance
+merchant_service = MerchantService()
+```
+
+### Step 3: Create Shopify Data Tool
+
+**File:** `agents/app/agents/universe_tools.py`
+
+Add a new tool that CJ can call to get Shopify data:
+
+```python
+@tool("shopify_data")
+async def get_shopify_data(self, data_type: str = "overview") -> str:
+    """
+    Get Shopify store data. All analysis and insights are generated by the agent.
+    
+    Args:
+        data_type: Type of data to fetch ("counts", "recent_orders", "overview", "week_orders")
+    
+    Returns:
+        JSON string with raw data for agent to analyze
+    """
+    # Get merchant details from context
+    shop_domain = self.context.get("shop_domain")
+    
+    if not shop_domain:
+        return json.dumps({
+            "error": "No Shopify store connected",
+            "insights": []
+        })
+    
+    # Get access token from Redis (where auth service stores it)
+    access_token = await self._get_merchant_token(shop_domain)
+    if not access_token:
+        return json.dumps({
+            "error": "Unable to access store data",
+            "insights": []
+        })
+    
+    # Initialize data fetcher
+    data_fetcher = ShopifyDataFetcher(shop_domain, access_token)
+    
+    try:
+        # Fetch the requested data type
+        if data_type == "counts":
+            data = await data_fetcher.get_counts()
+        elif data_type == "recent_orders":
+            data = await data_fetcher.get_recent_orders()
+        elif data_type == "overview":
+            data = await data_fetcher.get_store_overview()
+        elif data_type == "week_orders":
+            data = await data_fetcher.get_week_orders()
+        else:
+            return json.dumps({
+                "error": f"Unknown data type: {data_type}",
+                "available_types": ["counts", "recent_orders", "overview", "week_orders"]
+            })
+        
+        return json.dumps({
+            "success": True,
+            "data_type": data_type,
+            "data": data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching Shopify data: {e}")
+        return json.dumps({
+            "success": False,
+            "error": str(e),
+            "data_type": data_type
+        })
+
+async def _get_merchant_token(self, shop_domain: str) -> Optional[str]:
+    """Get Shopify access token from PostgreSQL.
+    
+    Phase 5.3.5: Clean PostgreSQL-only implementation.
+    No Redis fallback - single source of truth.
+    """
+    from app.services.merchant_service import merchant_service
+    
+    return await merchant_service.get_shopify_token(shop_domain)
+```
+
+### Step 4: Update Workflow YAML for OAuth System Event
+
+**File:** `agents/prompts/workflows/shopify_onboarding.yaml`
+
+Add system event handling for OAuth completion:
+
+```yaml
+name: shopify_onboarding
+description: Guides merchants through Shopify OAuth connection
+
+# Requirements configuration
+requirements:
+  - shopify_oauth: true
+
+# Behavior configuration
+behavior:
+  initiator: "cj"
+  initial_action:
+    type: "process_message"
+    message: "Ready to connect your Shopify store"
+    sender: "merchant"
+    cleanup_trigger: true
+  transitions:
+    already_authenticated:
+      target_workflow: "ad_hoc_support"
+      message: "I see you're already connected! Let me help you with your store."
+
+# System events for OAuth handling
+system_events:
+  oauth_complete:
+    condition: "provider == 'shopify' and success == true"
+    actions:
+      - type: "update_context"
+        data:
+          shop_domain: "{{shop_domain}}"
+          shopify_connected: true
+          merchant_id: "{{merchant_id}}"
+      - type: "process_message"
+        message: "show_shopify_insights"
+        sender: "system"
+        metadata:
+          command: "progressive_disclosure"
+          start_tier: "tier1"
+
+# CJ's prompts with data analysis behavior
+prompts:
+  cj:
+    system: |
+      You are CJ, a customer support AI assistant helping a merchant connect their Shopify store.
+      
+      When you receive a system message with "show_shopify_insights", use the shopify_data tool
+      to fetch data and generate insights:
+      
+      1. First call: get_shopify_data(data_type="counts") - Analyze basic metrics
+      2. Pause briefly, then mention you're looking at recent activity
+      3. Second call: get_shopify_data(data_type="recent_orders") - Analyze order patterns
+      4. If relevant, fetch overview data for more context
+      5. Generate insights based on the data patterns you observe
+      6. Transition naturally to offering support system connection
+      
+      You analyze the raw data and create insights. The tool just provides data.
+      Make your analysis conversational and helpful, not a raw data dump.
+```
+
+### Step 4.5: Complete Token Migration (Phase 5.4)
+
+This completes the architectural improvement started in Phase 5.3.5.
+
+#### What Phase 5.3.5 Does
+- Creates PostgreSQL-only token storage in agents service
+- Clean implementation with no Redis fallback
+- Enables testing with proper architecture from the start
+
+#### What Phase 5.4 Completes
+- Updates auth service to store all new tokens in PostgreSQL
+- Removes ALL Redis token code from auth service
+- One-time migration for critical production tokens (optional)
+- Clean break: existing users may need to re-authenticate
+
+**File:** `agents/app/migrations/002_add_shopify_token_storage.sql`
+
+```sql
+-- merchant_integrations table already exists with perfect schema
+-- Just need to start using it for Shopify tokens
+-- No migration needed, table already has:
+-- - merchant_id (FK to merchants)
+-- - type ('shopify')
+-- - api_key (for access token)
+-- - config (JSONB for shop_domain, scopes, etc.)
+```
+
+**File:** `auth/app/services/merchant_storage.py`
+
+Replace Redis storage with PostgreSQL:
+
+```python
+import asyncpg
+from app.config import settings
+
+class MerchantStorage:
+    """Store merchant data in PostgreSQL instead of Redis."""
+    
+    def __init__(self):
+        self.db_url = settings.database_url
+    
+    async def store_shopify_token(self, shop_domain: str, access_token: str, scopes: str):
+        """Store Shopify OAuth token in merchant_integrations table."""
+        
+        async with asyncpg.create_pool(self.db_url) as pool:
+            async with pool.acquire() as conn:
+                # Get or create merchant
+                merchant_name = shop_domain.replace('.myshopify.com', '')
+                merchant = await conn.fetchrow(
+                    "INSERT INTO merchants (name) VALUES ($1) "
+                    "ON CONFLICT (name) DO UPDATE SET updated_at = NOW() "
+                    "RETURNING id",
+                    merchant_name
+                )
+                
+                # Upsert integration
+                await conn.execute("""
+                    INSERT INTO merchant_integrations 
+                    (merchant_id, type, api_key, config, is_active)
+                    VALUES ($1, 'shopify', $2, $3, true)
+                    ON CONFLICT (merchant_id, type) 
+                    DO UPDATE SET 
+                        api_key = EXCLUDED.api_key,
+                        config = EXCLUDED.config,
+                        updated_at = NOW()
+                """, merchant['id'], access_token, json.dumps({
+                    'shop_domain': shop_domain,
+                    'scopes': scopes,
+                    'installed_at': datetime.utcnow().isoformat()
+                }))
+```
+
+**File:** `agents/app/services/merchant_service.py`
+
+Create service for token retrieval:
+
+```python
+from typing import Optional
+import asyncpg
+from app.config import settings
+
+class MerchantService:
+    """Service for merchant data access."""
+    
+    async def get_shopify_token(self, shop_domain: str) -> Optional[str]:
+        """Get Shopify access token from merchant_integrations."""
+        
+        merchant_name = shop_domain.replace('.myshopify.com', '')
+        
+        async with asyncpg.create_pool(settings.database_url) as pool:
+            async with pool.acquire() as conn:
+                result = await conn.fetchrow("""
+                    SELECT mi.api_key 
+                    FROM merchants m
+                    JOIN merchant_integrations mi ON m.id = mi.merchant_id
+                    WHERE m.name = $1 
+                    AND mi.type = 'shopify' 
+                    AND mi.is_active = true
+                """, merchant_name)
+                
+                return result['api_key'] if result else None
+
+# Singleton instance
+merchant_service = MerchantService()
+```
+
+**Migration Script:** `scripts/migrate_redis_tokens_to_postgres.py`
+
+```python
+#!/usr/bin/env python3
+import asyncio
+import redis
+import json
+import asyncpg
+from shared.env_loader import get_env
+
+async def migrate_tokens():
+    """One-time migration from Redis to PostgreSQL."""
+    
+    # Connect to Redis
+    redis_client = redis.from_url(get_env("REDIS_URL"), decode_responses=True)
+    
+    # Connect to PostgreSQL
+    pool = await asyncpg.create_pool(get_env("DATABASE_URL"))
+    
+    # Get all merchant tokens from Redis
+    merchant_keys = redis_client.keys("merchant:*")
+    migrated = 0
+    
+    async with pool.acquire() as conn:
+        for key in merchant_keys:
+            try:
+                data = json.loads(redis_client.get(key))
+                shop_domain = data['shop_domain']
+                access_token = data['access_token']
+                
+                # Create/get merchant
+                merchant_name = shop_domain.replace('.myshopify.com', '')
+                merchant = await conn.fetchrow(
+                    "INSERT INTO merchants (name) VALUES ($1) "
+                    "ON CONFLICT (name) DO UPDATE SET updated_at = NOW() "
+                    "RETURNING id",
+                    merchant_name
+                )
+                
+                # Store integration
+                await conn.execute("""
+                    INSERT INTO merchant_integrations 
+                    (merchant_id, type, api_key, config, is_active)
+                    VALUES ($1, 'shopify', $2, $3, true)
+                    ON CONFLICT (merchant_id, type) 
+                    DO UPDATE SET 
+                        api_key = EXCLUDED.api_key,
+                        config = EXCLUDED.config,
+                        updated_at = NOW()
+                """, merchant['id'], access_token, json.dumps({
+                    'shop_domain': shop_domain,
+                    'migrated_from_redis': True,
+                    'migrated_at': datetime.utcnow().isoformat()
+                }))
+                
+                migrated += 1
+                print(f"✅ Migrated {shop_domain}")
+                
+            except Exception as e:
+                print(f"❌ Failed to migrate {key}: {e}")
+    
+    await pool.close()
+    print(f"\n🎉 Migration complete: {migrated}/{len(merchant_keys)} merchants migrated")
+
+if __name__ == "__main__":
+    asyncio.run(migrate_tokens())
+```
+
+### Step 4.7: Create Post-OAuth Workflow (Phase 5.5.5)
+
+Create a dedicated workflow for handling the return from Shopify OAuth that provides immediate value.
+
+**File:** `agents/prompts/workflows/shopify_post_auth.yaml`
+
+```yaml
+name: shopify_post_auth
+display_name: "Shopify Store Insights"
+description: "Shows immediate insights after Shopify connection"
+version: "1.0.0"
+
+# Triggered by system event when OAuth completes
+system_events:
+  - shopify_oauth_complete
+
+ui_components:
+  - type: title
+    text: "✨ Your Shopify Store is Connected!"
+    
+  - type: description
+    text: "Let me show you some quick insights about your store..."
+
+steps:
+  - name: show_store_overview
+    description: "Display store overview and key metrics"
+    ui_actions:
+      - type: show_loading
+        message: "Analyzing your store data..."
+    tools:
+      - get_shopify_store_overview
+      - get_shopify_store_counts
+    response_template: |
+      Here's what I found about your store:
+      
+      **{store_name}**
+      - Total Customers: {customer_count}
+      - Total Orders: {order_count}
+      - Currency: {currency_code}
+      
+  - name: show_recent_activity
+    description: "Show recent order activity"
+    tools:
+      - get_shopify_recent_orders
+      - get_shopify_orders_last_week
+    response_template: |
+      📊 **Recent Activity:**
+      - Orders this week: {week_order_count}
+      - Average order value: {avg_order_value}
+      - Most popular products: {top_products}
+
+  - name: transition_to_next
+    description: "Transition to appropriate workflow"
+    ui_actions:
+      - type: button
+        text: "Go to Daily Briefing"
+        action: transition_workflow
+        data:
+          workflow: daily_briefing
+      - type: button
+        text: "Explore More"
+        action: transition_workflow
+        data:
+          workflow: ad_hoc_support
+
+# Prevent premature transitions
+allow_transitions: false
+```
+
+Update the workflow configuration to include this new workflow:
+
+**File:** `agents/data/workflow_definitions.yaml`
+
+Add to the workflows list:
+```yaml
+- shopify_post_auth:
+    path: prompts/workflows/shopify_post_auth.yaml
+    requires_auth: true
+    platform: shopify
+```
+
+### Step 5: Tool Registration
 
 **File:** `agents/app/agents/cj_agent.py`
 
-Add this method to the CJAgent class:
+Ensure the shopify_data tool is available to CJ:
 
 ```python
-async def handle_shopify_insights(self, session: Session) -> AsyncGenerator[str, None]:
-    """Progressive disclosure of Shopify insights after OAuth."""
-    
-    # Get merchant details from session
-    merchant_id = session.merchant_id
-    shop_domain = session.context.get("shop_domain")
-    access_token = await self._get_shopify_token(merchant_id)
-    
-    if not shop_domain or not access_token:
-        yield "I'm having trouble accessing your store data. Let me try again..."
-        return
-    
-    # Initialize insights service
-    insights_service = QuickShopifyInsights(merchant_id, shop_domain, access_token)
-    
-    # Tier 1: Instant gratification (< 500ms)
-    tier_1 = await insights_service.tier_1_snapshot()
-    
-    # Generate and yield first insights
-    tier_1_insights = generate_quick_insights(tier_1)
-    if tier_1_insights:
-        yield tier_1_insights[0]  # Customer count
-        await asyncio.sleep(0.5)
-    
-    # Show we're looking deeper
-    yield "Let me take a quick look at your recent activity..."
-    await asyncio.sleep(1.0)
-    
-    # Tier 2: Quick insights (< 2s)
-    tier_2 = await insights_service.tier_2_insights()
-    
-    # Merge data for insights
-    all_data = {**tier_1, **tier_2}
-    all_insights = generate_quick_insights(all_data)
-    
-    # Yield insights with natural pacing
-    for i, insight in enumerate(all_insights[1:5]):  # Skip first, show next 4
-        yield insight
-        await asyncio.sleep(0.8)
-    
-    # Check if we should go deeper
-    if tier_2.get("recent_orders") and len(tier_2["recent_orders"]) > 5:
-        yield "I'm seeing some interesting patterns in your data..."
-        await asyncio.sleep(1.0)
+class CJAgent:
+    def __init__(self):
+        # Existing initialization...
         
-        # Tier 3: Deeper analysis (< 5s)
-        tier_3 = await insights_service.tier_3_analysis()
-        final_data = {**all_data, **tier_3}
-        
-        # Show 1-2 more insights
-        final_insights = generate_quick_insights(final_data)
-        for insight in final_insights[5:7]:
-            yield insight
-            await asyncio.sleep(0.8)
-    
-    # Natural transition
-    await asyncio.sleep(1.0)
-    yield "Based on what I'm seeing, I can help you provide even better customer support. Would you like to connect your support system so I can give you personalized insights?"
-
-async def _get_shopify_token(self, merchant_id: str) -> Optional[str]:
-    """Get Shopify access token from storage."""
-    # Implementation depends on your token storage
-    # This is a placeholder
-    return None
+        # Register tools
+        self.tools = {
+            "search_universe_data": universe_tools.search_universe_data,
+            "get_customer_info": universe_tools.get_customer_info,
+            "calculate_metrics": universe_tools.calculate_metrics,
+            "shopify_data": universe_tools.get_shopify_data,  # Add this
+        }
 ```
 
-### Step 4: Update OAuth Complete Handler
+### Step 6: Error Handling
 
-**File:** `agents/app/services/message_processor.py`
-
-Update the oauth_complete handler:
+The tool returns errors in a structured format. CJ should handle these gracefully:
 
 ```python
-async def handle_oauth_complete(self, data: Dict[str, Any]) -> None:
-    """Handle OAuth completion with progressive insights."""
-    
-    # Existing OAuth handling...
-    
-    # After successful OAuth
-    if data.get("provider") == "shopify" and data.get("success"):
-        # Update session with shop details
-        self.session.context["shop_domain"] = data.get("shop_domain")
-        self.session.context["is_new_merchant"] = data.get("is_new", True)
-        
-        # Trigger insights flow
-        insights_generator = self.cj_agent.handle_shopify_insights(self.session)
-        
-        async for insight in insights_generator:
-            await self._send_message({
-                "type": "message",
-                "data": {
-                    "conversation_id": self.session.conversation_id,
-                    "message": {
-                        "role": "assistant",
-                        "content": insight,
-                        "timestamp": datetime.now().isoformat()
-                    }
-                }
-            })
+# CJ's behavior when receiving error responses:
+# If error contains "rate limit" -> pause and retry
+# If error contains "unauthorized" -> suggest reconnecting
+# For other errors -> acknowledge and continue conversation
+
+# The ShopifyDataFetcher already handles:
+# - Redis caching to minimize API calls
+# - Graceful fallbacks for missing data
+# - Proper error messages in responses
 ```
-
-### Step 5: Error Handling and Edge Cases
-
-Add these handlers to the QuickShopifyInsights class:
-
-```python
-def handle_new_store(self, tier_1_data: Dict) -> List[str]:
-    """Special handling for brand new stores."""
-    if tier_1_data.get("total_orders", 0) == 0:
-        return [
-            "I see you're just getting started - that's exciting!",
-            "Your store is all set up and ready for your first customers",
-            "Once you start getting orders, I'll be able to provide detailed insights"
-        ]
-    return []
-
-def handle_api_errors(self, error: Exception) -> List[str]:
-    """Graceful error handling."""
-    if "rate limit" in str(error).lower():
-        return ["Give me just a moment - I'm fetching your store data..."]
-    elif "unauthorized" in str(error).lower():
-        return ["I need to reconnect to your store. Let me help you with that..."]
-    else:
-        return ["I'm having a small technical issue accessing your data. Let's continue..."]
 ```
 
 ## Testing Guide
@@ -634,19 +1162,57 @@ def test_tier_1_snapshot():
     assert result["customers"] == 100
     assert result["total_orders"] == 50
 
-def test_generate_insights():
-    """Test natural language generation."""
-    data = {
-        "customers": 1234,
-        "recent_revenue": 5678.90,
-        "order_velocity": 3.2
+def test_shopify_data_tool():
+    """Test the shopify_data tool."""
+    # Mock context
+    mock_context = {
+        "shop_domain": "test.myshopify.com"
     }
     
-    insights = generate_quick_insights(data)
+    # Test tool execution
+    result = await get_shopify_data(mock_context, data_type="counts")
+    data = json.loads(result)
     
-    assert "1,234 customers" in insights[0]
-    assert "$5,678.90" in insights[1]
-    assert "3.2 orders per day" in insights[2]
+    assert data["success"] is True
+    assert len(data["insights"]) <= 2  # Tier 1 returns max 2 insights
+```
+
+### 2. Workflow Integration Tests
+
+```yaml
+# tests/shopify_data/oauth_complete_flow.yaml
+name: test_shopify_oauth_data_flow
+description: Test OAuth completion triggers data fetch
+
+steps:
+  - action: simulate_oauth_complete
+    data:
+      provider: shopify
+      success: true
+      shop_domain: test.myshopify.com
+      merchant_id: test_123
+  
+  - expect: context_update
+    values:
+      shopify_connected: true
+      shop_domain: test.myshopify.com
+  
+  - expect: cj_tool_call
+    tool: shopify_data
+    params:
+      data_type: counts
+  
+  - expect: cj_message
+    contains: "customers in your store"
+  
+  - expect: cj_tool_call
+    tool: shopify_data
+    params:
+      data_type: recent_orders
+    min_delay: 1.0
+  
+  - expect: cj_message
+    contains: "recent activity"
 ```
 
 ### 2. Integration Tests
@@ -677,6 +1243,9 @@ async def test_full_insights_flow():
 
 ### 3. Manual Testing Checklist
 
+- [ ] Test OAuth flow triggers system event
+- [ ] Verify context updates with shop domain
+- [ ] Test progressive disclosure timing
 - [ ] Test with brand new store (0 orders)
 - [ ] Test with small store (< 10 orders)
 - [ ] Test with medium store (100+ orders)
@@ -684,8 +1253,8 @@ async def test_full_insights_flow():
 - [ ] Test API rate limit handling
 - [ ] Test cache behavior (second load < 100ms)
 - [ ] Test error scenarios (invalid token, network issues)
-- [ ] Test natural pacing of insights delivery
-- [ ] Verify smooth transition to Phase 6
+- [ ] Verify natural conversation flow
+- [ ] Test transition to ad_hoc_support workflow
 
 ## Performance Optimization
 
@@ -720,45 +1289,159 @@ async def with_rate_limit_retry(func, max_retries=3):
     raise Exception("Max retries exceeded")
 ```
 
+## Implementation Timeline
+
+### Phase 5.1: Core Infrastructure (2 hours)
+1. Implement Shopify GraphQL client
+2. Create QuickShopifyInsights service
+3. Build shopify_data tool
+4. Update workflow YAML
+
+### Phase 5.2: Integration (1 hour)
+1. Register tool with CJ agent
+2. Test OAuth → insights flow
+3. Verify progressive disclosure timing
+
+### Phase 5.3: Polish & Testing (1 hour)
+1. Add comprehensive error handling
+2. Implement caching strategy
+3. Run full test suite
+4. Manual testing with real stores
+
 ## Production Considerations
 
 ### 1. Monitoring
 
 Add these metrics:
-- Time to first insight (p50, p95, p99)
+- Tool execution time by tier
 - API call success rate
 - Cache hit rate
-- Error rate by type
+- OAuth → first insight latency
 
-### 2. Feature Flags
+### 2. Configuration
 
-```python
-FEATURE_FLAGS = {
-    "enable_tier_3_analysis": True,
-    "enable_graphql_insights": True,
-    "max_orders_to_analyze": 50,
-}
+```yaml
+# In workflow YAML
+config:
+  insights:
+    enable_tier_3: true
+    max_orders_analyze: 50
+    cache_ttl:
+      tier_1: 900
+      tier_2: 600
+      tier_3: 300
+    api_version: "2025-01"  # Latest stable API version
 ```
 
 ### 3. Graceful Degradation
 
-If any tier fails, continue with available data:
-- Tier 1 fails: Use generic welcome message
-- Tier 2 fails: Show only count-based insights
-- Tier 3 fails: Skip pattern analysis
+The tool handles failures gracefully:
+- Returns partial data if available
+- Provides helpful error messages
+- Never blocks the conversation flow
 
-## Next Steps
+## Key Differences from Original Design
 
-After Phase 5 is complete:
-1. Gather metrics on insight quality
-2. A/B test different insight ordering
-3. Add more sophisticated analysis in Tier 3
-4. Prepare for Phase 6 (Support System Connection)
+1. **No Hardcoded Methods**: Everything is tool and workflow-driven
+2. **System Events**: OAuth completion handled via YAML configuration
+3. **Consistent Pattern**: Uses same tool pattern as universe data
+4. **Backend Authority**: All configuration in workflow YAMLs
+5. **Latest API Version**: Using Shopify GraphQL API 2025-01 (latest stable)
+
+## API Version Notes
+
+- Using Shopify API version **2025-01** (latest stable as of January 2025)
+- GraphQL endpoint: `/admin/api/2025-01/graphql.json`
+- REST endpoints: `/admin/api/2025-01/{resource}.json`
+- Required header: `Content-Type: application/json` (breaking change in 2025-01)
+- Authentication: `X-Shopify-Access-Token` header
 
 ## Success Criteria
 
-- [ ] Time to first insight < 500ms (p95)
+### Phase 5.3.5: PostgreSQL-Only Token Storage
+- [ ] store_test_shopify_token.py script works correctly
+- [ ] Tokens stored in PostgreSQL merchant_integrations table
+- [ ] MerchantService uses PostgreSQL exclusively (no Redis)
+- [ ] Connection pool properly initialized and reused
+- [ ] Clean architecture with single source of truth
+
+### Phase 5.3: Tool Creation
+- [ ] CJ uses shopify_data tool (not hardcoded method)
+- [ ] Tool returns raw data, not insights
+- [ ] Agent generates all analysis and insights
+- [ ] Tool works with PostgreSQL-stored test tokens
+
+### Phase 5.4: Auth Service Migration
+- [ ] Auth service stores tokens in PostgreSQL merchant_integrations
+- [ ] ALL Redis token code removed from auth service
+- [ ] ALL Redis token code removed from agents service
+- [ ] Zero Redis dependencies for token storage anywhere
+- [ ] Single source of truth achieved
+- [ ] Accept that users may need to re-authenticate
+
+### Phase 5.5-5.7: Complete Integration
+- [ ] OAuth completion triggers system event
+- [ ] Progressive disclosure feels natural
+- [ ] Time to first data fetch < 500ms (p95)
 - [ ] Complete flow < 10 seconds
-- [ ] Zero full data syncs during demo
-- [ ] Natural conversation flow maintained
-- [ ] Smooth handoff to Phase 6
+- [ ] Zero hardcoded workflow logic
+- [ ] Smooth transition to ad_hoc_support
+- [ ] Proper handling of 60-day order limit
+
+## Architecture Summary: What We Learned
+
+### Token Storage Reality (Current State)
+- Shopify access tokens are stored in **Redis** by the auth service
+- Tokens are **NOT** in PostgreSQL (no shopify_access_token column exists)
+- Key format: `merchant:{shop_domain}`
+- TTL: 24 hours
+- **Problem**: Bifurcated storage pattern violates Single Source of Truth
+
+### Phase 5.3.5: Clean Break Approach
+- PostgreSQL-only token storage - no Redis fallback
+- Use store_test_shopify_token.py to add test tokens
+- **Important**: Existing Redis tokens won't work - this is intentional
+- Clean architecture from the start - no compatibility shims
+
+### Phase 5.4: Complete Auth Service Migration
+- Update auth service to store all new tokens in PostgreSQL
+- One-time migration for critical production tokens
+- Remove ALL Redis token code from auth service
+- Existing users may need to re-authenticate (clean break)
+
+### Simplified Implementation (Phase 5.2 Achievement)
+- Removed unnecessary tier1/tier2/tier3 complexity
+- Created pure data fetching service (ShopifyDataFetcher)
+- All intelligence and analysis moved to CJ agent
+- Tool just provides raw data, agent generates insights
+
+### Testing Approach (Phase 5.3.5 Onwards)
+- Store test tokens in PostgreSQL using provided script
+- Tool uses PostgreSQL exclusively - no Redis checks
+- Clean, simple testing with single data source
+- Production tokens require Phase 5.4 migration
+
+## Next Steps
+
+### Immediate Actions (Phase 5.3.5)
+1. Create store_test_shopify_token.py script
+2. Implement PostgreSQL-only MerchantService (no Redis)
+3. Store test token in PostgreSQL using script
+4. Verify token retrieval works from PostgreSQL
+
+### Then Continue (Phase 5.3)
+1. Implement shopify_data tool using MerchantService
+2. Register tool with CJ agent
+3. Test with PostgreSQL-stored tokens
+4. Verify data fetching and caching
+
+### Complete Migration (Phase 5.4)
+1. Update auth service to use PostgreSQL for all new tokens
+2. One-time migration script for critical production tokens
+3. Remove ALL Redis token code from auth service
+4. Accept that existing users may need to re-authenticate
+
+### Future Work
+1. Monitor tool performance metrics
+2. Gather feedback on data quality and agent analysis
+3. Prepare for Support System Connection phases
