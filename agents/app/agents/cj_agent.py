@@ -162,6 +162,19 @@ class CJAgent:
             except Exception as e:
                 logger.warning(f"[CJ_AGENT] Could not load database tools: {e}")
 
+        # Conditionally load Shopify tools if OAuth metadata is present
+        if self.oauth_metadata and self.oauth_metadata.get("provider") == "shopify":
+            try:
+                from app.agents.shopify_tools import create_shopify_tools
+
+                shopify_tools = create_shopify_tools()
+                tools.extend(shopify_tools)
+                logger.info(f"[CJ_AGENT] Loaded {len(shopify_tools)} Shopify tools")
+                shopify_tool_names = [tool.name for tool in shopify_tools]
+                logger.info(f"[CJ_AGENT] Shopify tools: {', '.join(shopify_tool_names)}")
+            except Exception as e:
+                logger.warning(f"[CJ_AGENT] Could not load Shopify tools: {e}")
+
         if not self.data_agent:
             logger.debug("[CJ_AGENT] No data agent provided, skipping universe tools")
             return tools
