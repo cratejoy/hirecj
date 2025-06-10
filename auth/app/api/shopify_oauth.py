@@ -1,6 +1,8 @@
 """Shopify OAuth API routes with full security implementation."""
 
 import logging
+import json
+import base64
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
@@ -61,7 +63,8 @@ async def debug_oauth_config():
 async def initiate_oauth(
     shop: Optional[str] = Query(None, description="Shop domain"),
     hmac: Optional[str] = Query(None, description="HMAC for verification"),
-    timestamp: Optional[str] = Query(None, description="Request timestamp")
+    timestamp: Optional[str] = Query(None, description="Request timestamp"),
+    conversation_id: Optional[str] = Query(None, description="Conversation ID to preserve context")
 ):
     """
     Initiate OAuth flow by redirecting to Shopify authorization page.
@@ -111,18 +114,20 @@ async def initiate_oauth(
                 content={"error": "Invalid HMAC signature"}
             )
     
-    # Generate and store state
-    state = shopify_auth.generate_state()
+    # Generate and store state with conversation_id
+    nonce = shopify_auth.generate_state()
+    state_data = {"nonce": nonce, "conversation_id": conversation_id}
+    state = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
     state_key = f"{STATE_PREFIX}{state}"
-    
-    # Store state with shop domain in Redis
+
+    # Store state with shop domain and conversation_id in Redis
     try:
         if not redis_client:
             raise ConnectionError("Redis client not available")
         redis_client.setex(
             state_key,
             STATE_TTL,
-            shop
+            json.dumps({"shop": shop, "conversation_id": conversation_id})
         )
     except Exception as e:
         logger.error(f"[OAUTH_INSTALL] Failed to store state in Redis: {e}")
@@ -189,15 +194,27 @@ async def handle_oauth_callback(
         )
     
     # Verify state if provided
+    conversation_id = None
     if state:
         state_key = f"{STATE_PREFIX}{state}"
         try:
             if not redis_client:
                 raise ConnectionError("Redis client not available")
-            stored_shop = redis_client.get(state_key)
+            
+            stored_data_json = redis_client.get(state_key)
+            if not stored_data_json:
+                logger.error(f"[OAUTH_CALLBACK] State not found in Redis for shop: {shop}")
+                return RedirectResponse(
+                    url=f"{settings.frontend_url}/chat?error=invalid_state",
+                    status_code=302
+                )
+
+            stored_data = json.loads(stored_data_json)
+            stored_shop = stored_data.get("shop")
+            conversation_id = stored_data.get("conversation_id")
             
             if not stored_shop or stored_shop != shop:
-                logger.error(f"[OAUTH_CALLBACK] Invalid state for shop: {shop}")
+                logger.error(f"[OAUTH_CALLBACK] Invalid state for shop: {shop}. Expected {stored_shop}")
                 return RedirectResponse(
                     url=f"{settings.frontend_url}/chat?error=invalid_state",
                     status_code=302
@@ -249,8 +266,10 @@ async def handle_oauth_callback(
             "oauth": "complete",
             "is_new": str(is_new).lower(),
             "merchant_id": merchant_id,
-            "shop": shop
+            "shop": shop,
         }
+        if conversation_id:
+            redirect_params["conversation_id"] = conversation_id
         
         redirect_url = f"{settings.frontend_url}/chat?{urlencode(redirect_params)}"
         logger.info(f"[OAUTH_CALLBACK] Redirecting to: {redirect_url}")

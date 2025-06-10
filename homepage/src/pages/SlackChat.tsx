@@ -297,16 +297,19 @@ const SlackChat = () => {
 			console.warn('[SlackChat] Missing merchant_id or shop in OAuth params!');
 		}
 		
-		// Send OAuth complete to WebSocket
+		// Send system_event to WebSocket
 		if (wsChat.isConnected) {
 			wsChat.sendSpecialMessage({
-				type: 'oauth_complete',
+				type: 'system_event',
 				data: {
+					event_type: 'oauth_complete',
 					provider: 'shopify',
 					is_new: params.is_new === 'true',
 					merchant_id: params.merchant_id,
-					shop_domain: params.shop
-				}
+					shop_domain: params.shop,
+					// Pass the original conversation ID back to the backend
+					conversation_id: params.conversation_id,
+				},
 			});
 		}
 		

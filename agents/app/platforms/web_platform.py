@@ -276,7 +276,7 @@ class WebPlatform(Platform):
                 "fact_check",
                 "ping",
                 "session_update",
-                "oauth_complete",
+                "system_event",
                 "debug_request",
                 "workflow_transition",
             ]
@@ -871,155 +871,17 @@ class WebPlatform(Platform):
                 logger.info(f"[SESSION_UPDATE] Data: merchant_id={update_data.get('merchant_id')}, "
                            f"shop_domain={update_data.get('shop_domain')}")
 
-            elif message_type == "oauth_complete":
-                # Handle OAuth completion from Shopify
-                oauth_data = data.get("data", {})
-                if not isinstance(oauth_data, dict):
-                    await self._send_error(websocket, "Invalid oauth_complete data format")
-                    return
-                
-                provider = oauth_data.get("provider")
-                is_new = oauth_data.get("is_new", True)
-                merchant_id = oauth_data.get("merchant_id")
-                shop_domain = oauth_data.get("shop_domain")
-                
-                logger.info(f"[OAUTH_COMPLETE] Processing OAuth completion for {conversation_id}: "
-                           f"provider={provider}, is_new={is_new}, merchant_id={merchant_id}, "
-                           f"shop_domain={shop_domain}")
-                
-                # Get the current session
-                session = self.session_manager.get_session(conversation_id)
-                if not session:
-                    logger.error(f"[OAUTH_ERROR] No session found for conversation {conversation_id}")
-                    await self._send_error(websocket, "No active session for OAuth completion")
-                    return
+            elif message_type == "system_event":
+                # Handle system-level events triggered by the frontend
+                event_data = data.get("data", {})
+                event_type = event_data.get("event_type")
 
-                # --- DEBUG: DUMP AND HALT ON OAUTH RETURN ---
-                import json
-                logger.critical("! " * 20)
-                logger.critical("!!! OAUTH RETURN DETECTED - DUMPING STATE AND HALTING !!!")
-                logger.critical(f"OAuth Data: {json.dumps(oauth_data, indent=2)}")
-                logger.critical(f"Session ID: {session.id}")
-                logger.critical(f"Session Merchant: {session.merchant_name}")
-                logger.critical(f"Session Workflow: {session.conversation.workflow}")
-                logger.critical(f"Session User ID: {session.user_id}")
-                logger.critical(f"Session OAuth Metadata: {getattr(session, 'oauth_metadata', 'Not set')}")
-                logger.critical("! " * 20)
-                raise SystemExit("Halting execution as requested on OAuth return.")
-                # --- END DEBUG ---
-                
-                # Update session with real merchant information
-                if merchant_id and merchant_id != "onboarding_user":
-                    logger.info(f"[OAUTH_UPDATE] Updating session merchant from {session.merchant_name} to {merchant_id}")
-                    session.merchant_name = merchant_id
-                    
-                    # Update the conversation's merchant context
-                    if hasattr(session.conversation, 'merchant_name'):
-                        session.conversation.merchant_name = merchant_id
-                
-                # Generate user_id from shop_domain using backend authority
-                # OAuth flow also uses the SAME user identity generation as everywhere else
-                if shop_domain:
-                    try:
-                        user_id, _ = get_or_create_user(shop_domain)
-                        logger.info(f"[OAUTH_UPDATE] Backend generated user_id={user_id} from shop={shop_domain}")
-                        
-                        # Update WebSocket session with shop_domain (NOT user_id)
-                        if conversation_id in self.sessions:
-                            self.sessions[conversation_id]["shop_domain"] = shop_domain
-                            # Do NOT store user_id in WebSocket session - it's backend-only
-                        
-                        # Update SessionManager session with generated user_id
-                        session.user_id = user_id
-                        logger.info(f"[OAUTH_UPDATE] Updated backend session with user_id: {user_id}")
-                    except Exception as e:
-                        logger.error(f"[OAUTH_UPDATE] Failed to get/create user: {e}")
-                
-                # Store OAuth metadata in session for context
-                if not hasattr(session, 'oauth_metadata'):
-                    session.oauth_metadata = {}
-                
-                session.oauth_metadata.update({
-                    "provider": provider,
-                    "is_new_merchant": is_new,
-                    "shop_domain": shop_domain,
-                    "authenticated": True,
-                    "authenticated_at": datetime.now().isoformat()
-                })
-                
-                # --- NEW LOGIC FOR PHASE 5.5.5 ---
-                
-                # Transition to the dedicated post-auth workflow
-                target_workflow = "shopify_post_auth"
-                current_workflow = session.conversation.workflow
-                
-                logger.info(f"[OAUTH_COMPLETE] Transitioning workflow from {current_workflow} to {target_workflow}")
-                
-                success = self.session_manager.update_workflow(conversation_id, target_workflow)
-                
-                if not success:
-                    logger.error(f"[OAUTH_ERROR] Failed to transition workflow for {conversation_id}")
-                    await self._send_error(websocket, "Failed to update workflow state")
-                    return
-                    
-                # Notify frontend of the workflow transition
-                await websocket.send_json({
-                    "type": "workflow_updated",
-                    "data": {
-                        "workflow": target_workflow,
-                        "previous": current_workflow
-                    }
-                })
-                
-                # Process the OAuth completion with CJ in the new workflow
-                if is_new:
-                    oauth_context = f"SYSTEM_EVENT: New Shopify merchant authenticated from {shop_domain}"
+                if event_type == "oauth_complete":
+                    await self._handle_oauth_system_event(
+                        websocket, conversation_id, event_data
+                    )
                 else:
-                    oauth_context = f"SYSTEM_EVENT: Returning Shopify merchant authenticated from {shop_domain}"
-                
-                logger.info(f"[OAUTH_CONTEXT] Processing with context: {oauth_context}")
-
-                # Let CJ respond to the OAuth completion naturally
-                response = await self.message_processor.process_message(
-                    session=session,
-                    message=oauth_context,
-                    sender="system",  # System message so CJ knows it's context, not user input
-                )
-                
-                # Send CJ's response
-                if response:
-                    # Handle structured response with UI elements
-                    if isinstance(response, dict) and response.get("type") == "message_with_ui":
-                        response_data = {
-                            "content": response["content"],
-                            "factCheckStatus": "available",
-                            "timestamp": datetime.now().isoformat(),
-                            "ui_elements": response.get("ui_elements", [])
-                        }
-                        logger.info(f"[OAUTH_RESPONSE] Sent CJ response with UI elements after OAuth: {response['content'][:100]}...")
-                    else:
-                        # Regular text response
-                        response_data = {
-                            "content": response,
-                            "factCheckStatus": "available",
-                            "timestamp": datetime.now().isoformat(),
-                        }
-                        logger.info(f"[OAUTH_RESPONSE] Sent CJ response after OAuth: {response[:100]}...")
-                    
-                    await websocket.send_json({
-                        "type": "cj_message",
-                        "data": response_data
-                    })
-                
-                # Also send confirmation that OAuth was processed
-                await websocket.send_json({
-                    "type": "oauth_processed",
-                    "data": {
-                        "success": True,
-                        "merchant_id": merchant_id,
-                        "is_new": is_new
-                    }
-                })
+                    logger.warning(f"Unknown system event type: {event_type}")
 
             elif message_type == "debug_request":
                 # Handle debug information requests
@@ -1236,6 +1098,108 @@ class WebPlatform(Platform):
                 error_msg = "Configuration file missing. Please check server setup."
 
             await self._send_error(websocket, error_msg)
+
+    async def _handle_oauth_system_event(
+        self, websocket: WebSocket, conversation_id: str, event_data: Dict[str, Any]
+    ):
+        """Handle OAuth completion as a system event.
+
+        This is triggered by the frontend after the OAuth redirect returns.
+        It uses the original conversation_id preserved through the state parameter.
+        """
+        original_conversation_id = event_data.get("conversation_id")
+        if not original_conversation_id:
+            logger.error("[OAUTH_SYSTEM_EVENT] Missing conversation_id in event data")
+            await self._send_error(websocket, "OAuth failed: Missing context")
+            return
+
+        session = self.session_manager.get_session(original_conversation_id)
+        if not session:
+            logger.error(f"[OAUTH_SYSTEM_EVENT] Session expired or not found for conversation: {original_conversation_id}")
+            await self._send_error(websocket, "Session expired. Please start a new conversation.")
+            return
+
+        # Update session with OAuth data
+        provider = event_data.get("provider", "shopify")
+        is_new = event_data.get("is_new", True)
+        merchant_id = event_data.get("merchant_id")
+        shop_domain = event_data.get("shop_domain")
+
+        logger.info(f"[OAUTH_SYSTEM_EVENT] Processing for conversation {original_conversation_id}: "
+                   f"provider={provider}, is_new={is_new}, merchant_id={merchant_id}, "
+                   f"shop_domain={shop_domain}")
+
+        # Store OAuth metadata in the session
+        session.oauth_metadata = {
+            "provider": provider,
+            "is_new_merchant": is_new,
+            "shop_domain": shop_domain,
+            "authenticated": True,
+            "authenticated_at": datetime.now().isoformat()
+        }
+        session.merchant_name = merchant_id or shop_domain.replace(".myshopify.com", "")
+        
+        # Backend authority for user ID generation
+        if shop_domain:
+            try:
+                user_id, _ = get_or_create_user(shop_domain)
+                session.user_id = user_id
+                logger.info(f"[OAUTH_SYSTEM_EVENT] Updated session with user_id: {user_id}")
+            except Exception as e:
+                logger.error(f"[OAUTH_SYSTEM_EVENT] Failed to get/create user: {e}")
+
+        # Transition to the post-auth workflow
+        target_workflow = "shopify_post_auth"
+        previous_workflow = session.conversation.workflow
+        success = self.session_manager.update_workflow(original_conversation_id, target_workflow)
+
+        if not success:
+            logger.error(f"[OAUTH_SYSTEM_EVENT] Failed to transition workflow for {original_conversation_id}")
+            await self._send_error(websocket, "Failed to update workflow state")
+            return
+            
+        # Notify frontend of the workflow transition
+        await websocket.send_json({
+            "type": "workflow_updated",
+            "data": {"workflow": target_workflow, "previous": previous_workflow }
+        })
+        
+        # Generate the system message that the workflow expects
+        if is_new:
+            system_message = f"SYSTEM_EVENT: New Shopify merchant authenticated from {shop_domain}"
+        else:
+            system_message = f"SYSTEM_EVENT: Returning Shopify merchant authenticated from {shop_domain}"
+        
+        # Process the system message to get CJ's response
+        response = await self.message_processor.process_message(
+            session=session,
+            message=system_message,
+            sender="system",
+        )
+        
+        # Send CJ's response back to the user
+        if response:
+            if isinstance(response, dict) and response.get("type") == "message_with_ui":
+                response_data = {
+                    "content": response["content"],
+                    "factCheckStatus": "available",
+                    "timestamp": datetime.now().isoformat(),
+                    "ui_elements": response.get("ui_elements", [])
+                }
+            else:
+                response_data = {
+                    "content": response,
+                    "factCheckStatus": "available",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            
+            await websocket.send_json({"type": "cj_message", "data": response_data})
+        
+        # Send confirmation that OAuth was processed by the backend
+        await websocket.send_json({
+            "type": "oauth_processed",
+            "data": {"success": True, "merchant_id": merchant_id, "is_new": is_new}
+        })
 
     async def _monitor_fact_check(
         self, websocket: WebSocket, conversation_id: str, message_index: int
