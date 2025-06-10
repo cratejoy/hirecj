@@ -5,15 +5,9 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 import logging
 
-# This is a bit of a hack to import from the agents service.
-# Ideally, dbmodels would be in a shared library.
-import sys
-from pathlib import Path
-project_root = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(project_root / 'agents'))
-
-from app.utils.supabase_util import get_db_session
-from app.dbmodels.base import Merchant, MerchantIntegration
+# Import database utilities and models
+from app.utils.database import get_db_session
+from app.models.db import Merchant, MerchantIntegration
 from sqlalchemy.dialects.postgresql import insert
 
 logger = logging.getLogger(__name__)

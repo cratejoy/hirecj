@@ -38,6 +38,11 @@ class Settings(BaseSettings):
         env="AUTH_DATABASE_URL"
     )
     
+    # Supabase connection for shared tables
+    supabase_connection_string: str = Field(
+        env="SUPABASE_CONNECTION_STRING"
+    )
+    
     # Security Configuration
     jwt_secret: str = Field(
         "dev-secret-change-in-production",
