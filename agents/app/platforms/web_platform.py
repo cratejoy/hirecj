@@ -893,6 +893,20 @@ class WebPlatform(Platform):
                     logger.error(f"[OAUTH_ERROR] No session found for conversation {conversation_id}")
                     await self._send_error(websocket, "No active session for OAuth completion")
                     return
+
+                # --- DEBUG: DUMP AND HALT ON OAUTH RETURN ---
+                import json
+                logger.critical("! " * 20)
+                logger.critical("!!! OAUTH RETURN DETECTED - DUMPING STATE AND HALTING !!!")
+                logger.critical(f"OAuth Data: {json.dumps(oauth_data, indent=2)}")
+                logger.critical(f"Session ID: {session.id}")
+                logger.critical(f"Session Merchant: {session.merchant_name}")
+                logger.critical(f"Session Workflow: {session.conversation.workflow}")
+                logger.critical(f"Session User ID: {session.user_id}")
+                logger.critical(f"Session OAuth Metadata: {getattr(session, 'oauth_metadata', 'Not set')}")
+                logger.critical("! " * 20)
+                raise SystemExit("Halting execution as requested on OAuth return.")
+                # --- END DEBUG ---
                 
                 # Update session with real merchant information
                 if merchant_id and merchant_id != "onboarding_user":
