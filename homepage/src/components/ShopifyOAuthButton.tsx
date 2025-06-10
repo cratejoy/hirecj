@@ -81,23 +81,23 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
           autoFocus
         />
         <div className="flex gap-2">
-          <button
+          <Button
             type="submit"
             disabled={!shopDomain || isConnecting}
-            className="flex-1 bg-shopify-green hover:bg-shopify-green-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
+            className="flex-1 bg-shopify-green hover:bg-shopify-green-dark"
           >
             {isConnecting ? 'Redirecting...' : 'Connect'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => {
               setShowShopInput(false);
               setShopDomain('');
             }}
-            className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium rounded-lg transition-colors"
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     );
