@@ -10,7 +10,6 @@ from datetime import datetime
 import uuid
 import asyncio
 import json
-import redis
 
 from fastapi import WebSocket
 
@@ -30,6 +29,9 @@ from app.constants import WebSocketCloseCodes, WorkflowConstants
 from app.config import settings
 from app.models import Message
 from app.workflows.loader import WorkflowLoader
+from app.utils.supabase_util import get_db_session
+from shared.db_models import OAuthCompletionState
+from sqlalchemy import and_
 # WARNING: Do NOT import generate_user_id directly
 # Always use get_or_create_user() for user identity management
 # This ensures users are properly created in the database
@@ -68,13 +70,6 @@ class WebPlatform(Platform):
         self.message_processor = MessageProcessor()
         self.conversation_storage = ConversationStorage()
         self.workflow_loader = WorkflowLoader()
-        try:
-            self.redis_client = redis.from_url(settings.redis_url, decode_responses=True)
-            self.redis_client.ping()
-            logger.info("WebPlatform connected to Redis for OAuth status checks.")
-        except Exception as e:
-            logger.warning(f"Redis not available for WebPlatform: {e}")
-            self.redis_client = None
 
     async def connect(self) -> None:
         """Initialize web platform (no external connections needed)"""
@@ -416,16 +411,23 @@ class WebPlatform(Platform):
                         )
                         return
                 
-                # Check for OAuth completion status in Redis before proceeding
-                if self.redis_client:
-                    oauth_status_key = f"oauth_complete:{conversation_id}"
-                    try:
-                        oauth_data_json = self.redis_client.get(oauth_status_key)
-                        if oauth_data_json:
-                            logger.info(f"[OAUTH_CHECK] Found OAuth completion data in Redis for {conversation_id}")
-                            oauth_data = json.loads(oauth_data_json)
-                            # Delete the key so it's only processed once
-                            self.redis_client.delete(oauth_status_key)
+                # Check for OAuth completion status in Database before proceeding
+                try:
+                    with get_db_session() as db_session:
+                        # Find an unprocessed, non-expired record for this conversation
+                        oauth_record = db_session.query(OAuthCompletionState).filter(
+                            OAuthCompletionState.conversation_id == conversation_id,
+                            OAuthCompletionState.processed == False,
+                            OAuthCompletionState.expires_at > datetime.utcnow()
+                        ).first()
+
+                        if oauth_record:
+                            logger.info(f"[OAUTH_CHECK] Found OAuth completion data in DB for {conversation_id}")
+                            oauth_data = oauth_record.data
+                            
+                            # Mark as processed to prevent reuse
+                            oauth_record.processed = True
+                            db_session.commit()
                             
                             # Process the OAuth completion logic
                             await self._process_oauth_completion(websocket, session, oauth_data)
@@ -433,8 +435,8 @@ class WebPlatform(Platform):
                             # Return early to avoid running the original workflow's initial action.
                             # The post-auth workflow has been triggered instead.
                             return
-                    except Exception as e:
-                        logger.error(f"[OAUTH_CHECK] Error checking Redis for OAuth status: {e}")
+                except Exception as e:
+                    logger.error(f"[OAUTH_CHECK] Error checking DB for OAuth status: {e}")
 
 
                 # Get workflow requirements

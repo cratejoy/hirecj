@@ -7,7 +7,6 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
 import httpx
-import redis
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import urlencode
@@ -16,24 +15,15 @@ from app.config import settings
 from app.services.merchant_storage import merchant_storage
 from app.services.shopify_auth import shopify_auth
 from shared.user_identity import get_or_create_user
+from app.utils.database import get_db_session
+from shared.db_models import OAuthCompletionState, OAuthCSRFState
+from sqlalchemy.dialects.postgresql import insert
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-try:
-    redis_client = redis.from_url(settings.redis_url, decode_responses=True)
-    redis_client.ping()
-    logger.info("Successfully connected to Redis for OAuth state management.")
-except Exception as e:
-    logger.error(f"Failed to connect to Redis for OAuth state management: {e}")
-    # This is a critical failure for OAuth, so we can't proceed.
-    # A middleware or dependency injection would be better to handle this.
-    # For now, we'll let it fail at runtime if Redis is needed.
-    redis_client = None
-
-# Redis keys
-STATE_PREFIX = "oauth_state:"
+# Constants
 STATE_TTL = 600  # 10 minutes
 
 # Constants
@@ -113,25 +103,26 @@ async def initiate_oauth(request: Request):
     nonce = shopify_auth.generate_state()
     state_data = {"nonce": nonce, "conversation_id": conversation_id}
     state = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
-    state_key = f"{STATE_PREFIX}{state}"
     
     logger.info(f"[OAUTH_INSTALL] State data to encode: {state_data}")
     logger.info(f"[OAUTH_INSTALL] Encoded state: {state[:20]}...")
 
-    # Store state with shop domain and conversation_id in Redis
+    # Store state with shop domain and conversation_id in Database
     try:
-        if not redis_client:
-            raise ConnectionError("Redis client not available")
-        redis_client.setex(
-            state_key,
-            STATE_TTL,
-            json.dumps({"shop": shop, "conversation_id": conversation_id})
-        )
+        with get_db_session() as session:
+            csrf_state = OAuthCSRFState(
+                state=state,
+                shop=shop,
+                conversation_id=conversation_id,
+                expires_at=datetime.utcnow() + timedelta(minutes=10)
+            )
+            session.add(csrf_state)
+            session.commit()
     except Exception as e:
-        logger.error(f"[OAUTH_INSTALL] Failed to store state in Redis: {e}")
+        logger.error(f"[OAUTH_INSTALL] Failed to store state in Database: {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to initialize OAuth flow, could not store state in Redis: {e}"
+            detail=f"Failed to initialize OAuth flow, could not store state in DB: {e}"
         )
     
     logger.info(f"[OAUTH_INSTALL] Generated state for shop {shop}: {state[:10]}...")
@@ -181,42 +172,38 @@ async def handle_oauth_callback(request: Request):
     # Verify state if provided
     conversation_id = None
     if state:
-        state_key = f"{STATE_PREFIX}{state}"
         try:
-            if not redis_client:
-                raise ConnectionError("Redis client not available")
-            
-            stored_data_json = redis_client.get(state_key)
-            if not stored_data_json:
-                logger.error(f"[OAUTH_CALLBACK] State not found in Redis for shop: {shop}")
-                # HARD PANIC
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid state: not found in Redis for shop {shop}."
-                )
+            with get_db_session() as session:
+                csrf_record = session.query(OAuthCSRFState).filter(
+                    OAuthCSRFState.state == state
+                ).first()
 
-            stored_data = json.loads(stored_data_json)
-            stored_shop = stored_data.get("shop")
-            conversation_id = stored_data.get("conversation_id")
-            
-            logger.info(f"[OAUTH_CALLBACK] State data retrieved: shop={stored_shop}, conversation_id={conversation_id}")
-            
-            if not stored_shop or stored_shop != shop:
-                logger.error(f"[OAUTH_CALLBACK] Invalid state for shop: {shop}. Expected {stored_shop}")
-                # HARD PANIC
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid state: shop mismatch. Got {shop}, expected {stored_shop}."
-                )
-            
-            # Delete used state
-            redis_client.delete(state_key)
+                if not csrf_record:
+                    logger.error(f"[OAUTH_CALLBACK] State not found in DB for shop: {shop}")
+                    raise HTTPException(status_code=400, detail="Invalid state: not found.")
+                
+                # Clean up used state immediately
+                session.delete(csrf_record)
+                session.commit()
+
+                if csrf_record.expires_at < datetime.utcnow():
+                    logger.error(f"[OAUTH_CALLBACK] Expired state for shop: {shop}")
+                    raise HTTPException(status_code=400, detail="Invalid state: expired.")
+
+                stored_shop = csrf_record.shop
+                conversation_id = csrf_record.conversation_id
+
+                logger.info(f"[OAUTH_CALLBACK] State data retrieved from DB: shop={stored_shop}, conversation_id={conversation_id}")
+
+                if not stored_shop or stored_shop != shop:
+                    logger.error(f"[OAUTH_CALLBACK] Invalid state for shop: {shop}. Expected {stored_shop}")
+                    raise HTTPException(status_code=400, detail="Invalid state: shop mismatch.")
+        
         except Exception as e:
-            logger.error(f"[OAUTH_CALLBACK] Failed to verify state: {e}")
-            # HARD PANIC
+            logger.error(f"[OAUTH_CALLBACK] Failed to verify state from DB: {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"State verification failed with an exception: {e}"
+                detail=f"State verification from DB failed: {e}"
             )
     
     # Check if we have authorization code
@@ -253,15 +240,48 @@ async def handle_oauth_callback(request: Request):
         
         logger.info(f"[OAUTH_CALLBACK] Successfully authenticated shop: {shop}, is_new: {is_new}")
         
-        # Redirect to frontend with success
-        redirect_params = {
-            "oauth": "complete",
-            "is_new": str(is_new).lower(),
-            "merchant_id": merchant_id,
-            "shop": shop,
-        }
+        # PHASE 2: Write OAuth completion to Database instead of complex redirect
+        if conversation_id:
+            try:
+                oauth_status_data = {
+                    "provider": "shopify",
+                    "merchant_id": merchant_id,
+                    "shop_domain": shop,
+                    "is_new": is_new,
+                    "timestamp": datetime.now().isoformat()
+                }
+
+                with get_db_session() as session:
+                    # Upsert to handle retries or race conditions
+                    stmt = insert(OAuthCompletionState).values(
+                        conversation_id=conversation_id,
+                        data=oauth_status_data,
+                        expires_at=datetime.utcnow() + timedelta(minutes=10)
+                    )
+                    stmt = stmt.on_conflict_do_update(
+                        index_elements=['conversation_id'],
+                        set_={
+                            'data': stmt.excluded.data,
+                            'processed': False, # Reset processed flag
+                            'expires_at': stmt.excluded.expires_at
+                        }
+                    )
+                    session.execute(stmt)
+                    session.commit()
+                
+                logger.info(f"[OAUTH_CALLBACK] Wrote OAuth status to DB for conversation {conversation_id}")
+
+            except Exception as e:
+                logger.error(f"[OAUTH_CALLBACK] Failed to write OAuth status to DB: {e}")
+                # Don't fail the entire auth flow, but log it as a critical error. 
+                # The backend will handle it as a normal onboarding.
+
+        # PHASE 3: Redirect to frontend with only conversation_id
+        redirect_params = {}
         if conversation_id:
             redirect_params["conversation_id"] = conversation_id
+        else:
+            logger.warning("[OAUTH_CALLBACK] No conversation_id available for redirect.")
         
         redirect_url = f"{settings.frontend_url}/chat?{urlencode(redirect_params)}"
         logger.info(f"[OAUTH_CALLBACK] Redirecting to: {redirect_url}")

@@ -47,10 +47,6 @@ class Settings(BaseSettings):
     app_port: int = Field(8000, env="AGENTS_SERVICE_PORT")
     websocket_port: int = Field(8001, env="WEBSOCKET_PORT")
 
-    # Redis Configuration
-    redis_host: str = Field("localhost", env="REDIS_HOST")
-    redis_port: int = Field(6379, env="REDIS_PORT")
-    redis_db: int = Field(0, env="REDIS_DB")
 
     # Paths
     base_dir: str = Field(".", env="BASE_DIR")
