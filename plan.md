@@ -60,23 +60,32 @@
     - All analysis/insights generation moved to CJ agent
 
 12. **Phase 5.3: Atomic Shopify Tools** ✅
-    - Refactored `get_shopify_data` into atomic tools (`get_shopify_store_counts`, etc.)
-    - Created `agents/app/agents/shopify_tools.py` to house new tools
-    - Updated `ShopifyDataFetcher` to use synchronous methods
-    - Aligned documentation with new, simplified tool structure
+    - Created 4 atomic tools in `agents/app/agents/shopify_tools.py`:
+      - `get_shopify_store_counts` - Basic store metrics
+      - `get_shopify_store_overview` - GraphQL-powered overview
+      - `get_shopify_recent_orders` - Recent order data
+      - `get_shopify_orders_last_week` - Weekly order analysis
+    - Tools dynamically loaded when OAuth metadata indicates Shopify connection
+    - All tools return raw JSON for agent analysis (no pre-processing)
 
 13. **Phase 5.3.5: PostgreSQL-Only Token Storage** ✅
-    - Created `store_test_shopify_token.py` script to seed tokens
-    - Implemented `MerchantService` for PostgreSQL-only token retrieval
-    - Removed Redis dependency for tokens in the `agents` service
+    - Created `store_test_shopify_token.py` script for testing token storage
+    - Implemented `MerchantService` for PostgreSQL-only token retrieval in agents
+    - Tokens stored in `merchant_integrations` table
+    - No Redis dependency for token storage in agents service
 
-14. **Phase 5.4: Auth Service Migration** ✅
-    - Updated `auth` service to store tokens in PostgreSQL during OAuth
-    - Removed all Redis token storage code from `auth` service
-    - Achieved single source of truth for tokens
-    - Retained Redis for ephemeral OAuth state only
+14. **Phase 5.4: Auth Service Migration** ✅ (PARTIAL)
+    - Updated `auth` service to store tokens in PostgreSQL via `merchant_storage`
+    - Tokens now stored in `merchant_integrations` table (single source of truth)
+    - **IMPORTANT**: Redis still used for OAuth state management (ephemeral data)
+    - This hybrid approach is intentional: persistent tokens in PostgreSQL, temporary OAuth state in Redis
 
 ### ⏳ In Progress
+
+**Phase 5.5: Workflow Integration** (2 hours)
+- Integrate Shopify tools into `shopify_onboarding` workflow
+- Update workflow YAML to leverage Shopify data
+- Test end-to-end onboarding flow with real data
 
 ### 📅 Upcoming Phases
 
@@ -91,12 +100,6 @@
    - **Phase 5.7**: Testing & Validation (3 hours)
    - [📄 Detailed Documentation](docs/shopify-onboarding/phase-5-quick-value.md)
 
-2. **Phase 5.4: Auth Service Migration** (2 hours) - **SIMPLIFIED** ✅ COMPLETED
-   - Update auth service to store tokens in PostgreSQL during OAuth
-   - Migrate any critical production tokens from Redis
-   - Remove ALL Redis token storage code
-   - **Why**: Complete migration to single source of truth
-   - **Note**: Existing Redis tokens will stop working - requires re-auth
 
 ---
 
@@ -134,30 +137,37 @@ The original plan called for a complex three-tier progressive loading system wit
 
 ---
 
-## 🔍 Architecture Discovery: Token Storage
+## 🔍 Phase 5 Implementation Summary
 
-### Important Finding
-During Phase 5.2 implementation, we discovered that Shopify access tokens are stored in **Redis**, not PostgreSQL:
+### What We Built vs Original Plan
 
-**Actual Architecture:**
-- Auth service stores tokens in Redis during OAuth completion
-- Key format: `merchant:{shop_domain}`
-- TTL: 24 hours
-- PostgreSQL merchants table only has: id, name, is_test, created_at, updated_at
-- No `shopify_access_token` column exists in PostgreSQL
+**Original Vision:**
+- Complex QuickShopifyInsights service with tier1/tier2/tier3 progressive loading
+- Analysis and insights generation in the service layer
+- Complete removal of Redis from the system
 
-**Solution: Phase 5.3.5 (PostgreSQL-Only)**
-- Can't easily test with Redis-only tokens
-- PostgreSQL `merchant_integrations` table already exists with perfect schema
-- Phase 5.3.5 uses PostgreSQL exclusively - no Redis fallback
-- Clean break: existing Redis tokens won't work until migrated
-- **This is the right approach**: No compatibility shims, just move forward
+**What We Actually Built (Better!):**
+- Simple ShopifyDataFetcher with direct data methods
+- 4 atomic Shopify tools that return raw JSON
+- All intelligence in the CJ agent (where it belongs)
+- Hybrid storage: tokens in PostgreSQL, OAuth state in Redis
 
-**Phase 5.4 Completes Migration**
-- Auth service starts storing all new tokens in PostgreSQL
-- One-time migration for critical production tokens
-- Remove ALL Redis token code
-- Single source of truth achieved
+### Current Architecture
+
+**Token Storage:**
+- Tokens stored in PostgreSQL `merchant_integrations` table
+- Both auth and agents services use PostgreSQL for tokens
+- Single source of truth achieved ✅
+
+**OAuth Flow:**
+- Redis still used for ephemeral OAuth state (nonces, etc.)
+- This is intentional and correct - OAuth state is temporary
+- Clean separation: persistent data in PostgreSQL, ephemeral in Redis
+
+**Tools:**
+- Shopify tools dynamically loaded when OAuth metadata present
+- Tools follow existing patterns (return simple JSON)
+- No async/sync mixing or other anti-patterns
 
 ---
 
