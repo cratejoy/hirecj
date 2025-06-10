@@ -189,6 +189,24 @@ export function useWebSocketChat({
   const flushMessageQueue = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN && messageQueueRef.current.length > 0) {
       wsLogger.debug('Flushing message queue', { count: messageQueueRef.current.length });
+      
+      // DEBUG TRAP 10: Check if system_event is in queue
+      const hasSystemEvent = messageQueueRef.current.some(msg => {
+        try {
+          const parsed = JSON.parse(msg);
+          return parsed.type === 'system_event';
+        } catch {
+          return false;
+        }
+      });
+      
+      if (hasSystemEvent) {
+        console.error('🚨 DEBUG TRAP 10: Flushing message queue WITH system_event!', {
+          queueLength: messageQueueRef.current.length,
+          messages: messageQueueRef.current
+        });
+      }
+      
       messageQueueRef.current.forEach(msg => {
         console.log('[WebSocket] Sending queued message:', msg);
         wsRef.current!.send(msg);
@@ -471,6 +489,20 @@ export function useWebSocketChat({
           workflow: currentWorkflow,
         };
         
+        // DEBUG TRAP 5: start_conversation on WebSocket connect
+        const urlParams = new URLSearchParams(window.location.search);
+        const isOAuthReturn = urlParams.get('oauth') === 'complete';
+        if (isOAuthReturn) {
+          console.error('🚨 DEBUG TRAP 5: Starting conversation after OAuth!', {
+            conversationId,
+            merchantId: merchantId,
+            workflow: currentWorkflow,
+            urlParams: Object.fromEntries(urlParams.entries()),
+            reason: 'WebSocket onopen handler'
+          });
+          alert(`DEBUG: Starting NEW conversation after OAuth!\nConversation ID: ${conversationId}`);
+        }
+        
         // Debug: Log what we're sending
         wsLogger.info('📤 start_conversation data:', startData);
         wsLogger.info('📤 Current user session:', {
@@ -514,6 +546,19 @@ export function useWebSocketChat({
     };
 
     wsRef.current.onclose = (event) => {
+      // DEBUG TRAP 6: WebSocket close
+      const urlParams = new URLSearchParams(window.location.search);
+      const isOAuthReturn = urlParams.get('oauth') === 'complete';
+      if (isOAuthReturn) {
+        console.error('🚨 DEBUG TRAP 6: WebSocket CLOSED after OAuth!', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+          conversationId,
+          urlParams: Object.fromEntries(urlParams.entries())
+        });
+      }
+      
       if (signal.aborted) {
         wsLogger.debug('Connection aborted - ignoring close');
         return;
@@ -657,12 +702,37 @@ export function useWebSocketChat({
   const sendSpecialMessage = useCallback((message: any) => {
     const wsMessage = typeof message === 'string' ? message : JSON.stringify(message);
     
+    // DEBUG TRAP 7: Special message send attempt
+    if (message.type === 'system_event') {
+      console.error('🚨 DEBUG TRAP 7: sendSpecialMessage called for system_event!', {
+        message,
+        wsReadyState: wsRef.current?.readyState,
+        wsReadyStateText: wsRef.current ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][wsRef.current.readyState] : 'NO WS',
+        wsRef: !!wsRef.current
+      });
+    }
+    
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsLogger.info('📤 Sending special message', { message });
       wsRef.current.send(wsMessage);
+      
+      // DEBUG TRAP 8: Confirm send
+      if (message.type === 'system_event') {
+        console.error('🚨 DEBUG TRAP 8: system_event SENT to WebSocket!', {
+          sentData: wsMessage
+        });
+      }
     } else {
       wsLogger.warn('WebSocket not connected, queueing special message');
       messageQueueRef.current.push(wsMessage);
+      
+      // DEBUG TRAP 9: Message queued
+      if (message.type === 'system_event') {
+        console.error('🚨 DEBUG TRAP 9: system_event QUEUED (WebSocket not ready)!', {
+          readyState: wsRef.current?.readyState,
+          queueLength: messageQueueRef.current.length
+        });
+      }
     }
   }, []);
 

@@ -84,12 +84,54 @@ const SlackChat = () => {
 	}, [searchString]);
 	
 	// Initialize chatConfig with URL workflow (merchant now in userSession)
-	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => ({
-		scenarioId: null,
-		merchantId: userSession.merchantId, // Get from user session
-		conversationId: uuidv4(),
-		workflow: getWorkflowFromUrl()
-	}));
+	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => {
+		// PHASE 1 FIX: Check if we have an OAuth callback with conversation_id
+		const params = new URLSearchParams(searchString);
+		const oauthConversationId = params.get('conversation_id');
+		const isOAuthCallback = params.get('oauth') === 'complete';
+		
+		// DEBUG TRAP 1: OAuth callback detection
+		if (isOAuthCallback) {
+			console.error('🚨 DEBUG TRAP 1: OAuth callback detected!', {
+				url: window.location.href,
+				params: Object.fromEntries(params.entries()),
+				oauthConversationId,
+				sessionStorageId: sessionStorage.getItem('shopify_oauth_conversation_id')
+			});
+		}
+		
+		// If we have an OAuth callback conversation ID, use it
+		// Otherwise, check sessionStorage (in case of page reload during OAuth)
+		// Finally, generate a new one
+		let conversationId = oauthConversationId || 
+			sessionStorage.getItem('shopify_oauth_conversation_id') || 
+			uuidv4();
+		
+		// DEBUG TRAP 2: Conversation ID mismatch
+		if (isOAuthCallback && !oauthConversationId) {
+			console.error('🚨 DEBUG TRAP 2: OAuth callback WITHOUT conversation_id!', {
+				expected: 'conversation_id in URL params',
+				got: 'null',
+				willUse: conversationId,
+				source: oauthConversationId ? 'oauth' : sessionStorage.getItem('shopify_oauth_conversation_id') ? 'session' : 'new uuid'
+			});
+			alert('DEBUG: OAuth callback missing conversation_id!');
+		}
+		
+		console.log('[SlackChat] Conversation ID resolution:', {
+			isOAuthCallback,
+			fromOAuth: oauthConversationId,
+			fromSession: sessionStorage.getItem('shopify_oauth_conversation_id'),
+			final: conversationId
+		});
+		
+		return {
+			scenarioId: null,
+			merchantId: userSession.merchantId, // Get from user session
+			conversationId,
+			workflow: getWorkflowFromUrl()
+		};
+	});
 	
 	// Track if we're updating internally to prevent loops
 	const isInternalUpdateRef = useRef(false);
@@ -286,8 +328,13 @@ const SlackChat = () => {
 			merchant_id: params.merchant_id,
 			shop: params.shop,
 			is_new: params.is_new,
-			current_merchantId: chatConfig.merchantId
+			current_merchantId: chatConfig.merchantId,
+			conversation_id: params.conversation_id
 		});
+		
+		// PHASE 1 FIX: Clean up sessionStorage
+		sessionStorage.removeItem('shopify_oauth_conversation_id');
+		console.log('🧹 Cleaned up sessionStorage');
 		
 		// Update user session with OAuth data
 		if (params.merchant_id && params.shop) {
@@ -297,28 +344,69 @@ const SlackChat = () => {
 			console.warn('[SlackChat] Missing merchant_id or shop in OAuth params!');
 		}
 		
-		// Send system_event to WebSocket
-		if (wsChat.isConnected) {
-			wsChat.sendSpecialMessage({
+		// DEBUG TRAP 3: OAuth success handler
+		console.error('🚨 DEBUG TRAP 3: OAuth success handler called!', {
+			currentConversationId: chatConfig.conversationId,
+			oauthConversationId: params.conversation_id,
+			willSendConversationId: params.conversation_id || chatConfig.conversationId,
+			wsConnected: wsChat.isConnected
+		});
+		
+		// Send system_event to WebSocket with retry logic
+		const sendSystemEvent = async () => {
+			const eventData = {
+				event_type: 'oauth_complete',
+				provider: 'shopify',
+				is_new: params.is_new === 'true',
+				merchant_id: params.merchant_id,
+				shop_domain: params.shop,
+				// Pass the original conversation ID back to the backend
+				conversation_id: params.conversation_id || chatConfig.conversationId,
+			};
+			
+			// DEBUG TRAP 4: System event data
+			console.error('🚨 DEBUG TRAP 4: Sending system_event', {
 				type: 'system_event',
-				data: {
-					event_type: 'oauth_complete',
-					provider: 'shopify',
-					is_new: params.is_new === 'true',
-					merchant_id: params.merchant_id,
-					shop_domain: params.shop,
-					// Pass the original conversation ID back to the backend
-					conversation_id: params.conversation_id,
-				},
+				data: eventData,
+				wsConnected: wsChat.isConnected
 			});
-		}
+			
+			if (wsChat.isConnected) {
+				wsChat.sendSpecialMessage({
+					type: 'system_event',
+					data: eventData
+				});
+				return true;
+			}
+			// If not connected, wait a bit and retry
+			console.log('[SlackChat] WebSocket not ready, retrying in 500ms...');
+			return false;
+		};
+		
+		// Try immediately, then retry if needed
+		sendSystemEvent().then(sent => {
+			if (!sent) {
+				// Retry up to 5 times with 500ms delay
+				let retries = 0;
+				const retryInterval = setInterval(() => {
+					sendSystemEvent().then(sent => {
+						if (sent || ++retries >= 5) {
+							clearInterval(retryInterval);
+							if (!sent) {
+								console.error('[SlackChat] Failed to send system_event after 5 retries');
+							}
+						}
+					});
+				}, 500);
+			}
+		});
 		
 		toast({
 			title: "Connected to Shopify!",
 			description: params.is_new === 'true' ? "Welcome! Let me take a look at your store..." : "Welcome back! Good to see you again.",
 			duration: 5000,
 		});
-	}, [wsChat, toast, userSession]);
+	}, [wsChat, toast, userSession, chatConfig.conversationId]);
 	
 	const handleOAuthError = useCallback((error: string) => {
 		console.error('[SlackChat] OAuth error:', error);

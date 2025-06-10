@@ -114,6 +114,9 @@ async def initiate_oauth(request: Request):
     state_data = {"nonce": nonce, "conversation_id": conversation_id}
     state = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
     state_key = f"{STATE_PREFIX}{state}"
+    
+    logger.info(f"[OAUTH_INSTALL] State data to encode: {state_data}")
+    logger.info(f"[OAUTH_INSTALL] Encoded state: {state[:20]}...")
 
     # Store state with shop domain and conversation_id in Redis
     try:
@@ -195,6 +198,8 @@ async def handle_oauth_callback(request: Request):
             stored_data = json.loads(stored_data_json)
             stored_shop = stored_data.get("shop")
             conversation_id = stored_data.get("conversation_id")
+            
+            logger.info(f"[OAUTH_CALLBACK] State data retrieved: shop={stored_shop}, conversation_id={conversation_id}")
             
             if not stored_shop or stored_shop != shop:
                 logger.error(f"[OAUTH_CALLBACK] Invalid state for shop: {shop}. Expected {stored_shop}")
