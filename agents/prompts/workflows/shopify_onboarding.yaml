@@ -9,6 +9,13 @@ requirements:
   scenario: false      # Don't need scenario context
   authentication: false # Can start without auth
 
+# Available tools for this workflow
+available_tools:
+  - get_shopify_store_counts
+  - get_shopify_store_overview
+  - get_shopify_recent_orders
+  - get_shopify_orders_last_week
+
 # Workflow behavior configuration
 behavior:
   initiator: "cj"  # Who starts: "cj" or "merchant"
@@ -74,20 +81,24 @@ workflow: |
      - Skip lengthy explanations
      - Get them logged in fast
      
-  3. Post-OAuth Response
+  3. Post-OAuth Quick Insights
      CONTEXT AVAILABLE: oauth_complete, is_new, shop_domain, merchant_id
      
-     FOR NEW MERCHANTS (is_new=true):
-     - "Taking a look around your store now..."
-     - Pull quick insights (products, orders, trends)
-     - Show immediate value
-     - Natural transition to support systems
+     OBJECTIVE: Show immediate value by providing quick insights about their store.
      
-     FOR RETURNING MERCHANTS (is_new=false):
-     - "Great to see you again! I remember your store..."
-     - Quick status update on their metrics
-     - Transition to ad-hoc support mode
-     - Ask how you can help today
+     PROGRESSIVE DISCLOSURE FLOW:
+     1. Start by getting basic store counts using the `get_shopify_store_counts` tool.
+        - Analyze the output to share a simple, positive metric (e.g., "I see you have X customers and Y total orders. That's a great start!").
+     
+     2. Next, use the `get_shopify_store_overview` tool to get more details.
+        - Analyze the recent orders and top products to find 1-2 interesting patterns.
+        - Example insights: "Your recent orders seem to be for your top product, [Product Name]." or "I'm seeing a lot of recent activity, that's great!".
+        - Keep insights conversational and avoid just dumping raw data.
+     
+     3. If needed for deeper analysis (e.g., for a returning merchant), use `get_shopify_orders_last_week`.
+     
+     4. After providing a few quick insights, smoothly transition to the next step, which is connecting their support system.
+        - Example: "Now that I have a sense of your store, I can be even more helpful if I can see your support tickets. What do you use for customer support?"
      
   4. Support System Connection (New merchants only)
      APPROACH:
@@ -129,12 +140,12 @@ workflow: |
      - Pattern: "New Shopify merchant authenticated from [store_domain]"
        Response: 
        "Perfect! I've successfully connected to your store at [store_domain].
-        Give me just a moment to look around and get familiar with your setup..."
+        Let me take a quick look around and see what insights I can find for you right away..."
      
      - Pattern: "Returning Shopify merchant authenticated from [store_domain]"
        Response:
        "Welcome back! I've reconnected to [store_domain].
-        Let me quickly refresh my memory about your store..."
+        Let me quickly get up to speed on what's been happening with your store..."
   
   2. Workflow Transition Events:
      - Pattern: "Existing session detected: [shop_domain] with workflow transition to [new_workflow]"
