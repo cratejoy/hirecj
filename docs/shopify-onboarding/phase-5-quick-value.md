@@ -24,7 +24,7 @@ During implementation, we simplified away the complex three-tier system in favor
 1. **Pure Data Fetching**: ShopifyDataFetcher provides simple methods like `get_counts()`, `get_recent_orders()`, etc.
 2. **No Analysis in Service**: All intelligence and progressive disclosure logic moved to the CJ agent
 3. **Redis Caching**: Simple caching with TTL for expensive operations
-4. **Token Storage**: Access tokens are stored in Redis by the auth service (NOT in PostgreSQL)
+4. **Token Storage**: Access tokens are stored in PostgreSQL `merchant_integrations` table (single source of truth)
 
 ### Data Methods Available
 
@@ -68,22 +68,36 @@ During implementation, we simplified away the complex three-tier system in favor
 
 - [x] **Phase 5.3: Atomic Tool Creation** ✅ COMPLETED
   - [x] Create atomic Shopify tools in a new `shopify_tools.py` file (Step 3)
-  - [ ] Implement progressive disclosure logic in agent
-  - [ ] Use PostgreSQL-only token retrieval from Phase 5.3.5
-  - [ ] Return structured JSON for CJ to process
+  - [x] Created 4 atomic tools:
+    - [x] `get_shopify_store_counts` - Basic store metrics
+    - [x] `get_shopify_store_overview` - GraphQL-powered overview
+    - [x] `get_shopify_recent_orders` - Recent order data
+    - [x] `get_shopify_orders_last_week` - Weekly order analysis
+  - [x] Tools dynamically loaded when OAuth metadata indicates Shopify connection
+  - [x] All tools return raw JSON for agent analysis (no pre-processing)
 
-- [ ] **Phase 5.4: Auth Service Migration** (Simplified)
-  - [ ] Update auth service to store tokens in PostgreSQL during OAuth
-  - [ ] One-time migration script for critical production tokens
-  - [ ] Remove ALL Redis token code from auth service
-  - [ ] Update all documentation
-  - [ ] Note: Existing Redis tokens will require re-authentication
+- [x] **Phase 5.4: Auth Service Migration** ✅ COMPLETED
+  - [x] Update auth service to store tokens in PostgreSQL during OAuth
+  - [x] Tokens now stored in `merchant_integrations` table (single source of truth)
+  - [x] Redis still used for OAuth state management (ephemeral data) - intentional design
+  - [x] Auth service has its own database models (no cross-service imports)
 
-- [ ] **Phase 5.5: Workflow Integration**
-  - [ ] Update shopify_onboarding.yaml with system events (Step 4)
-  - [ ] Configure OAuth completion handler
-  - [ ] Add CJ prompts for progressive disclosure behavior
-  - [ ] Define transition to ad_hoc_support
+- [x] **Phase 5.5: Workflow Integration** ✅ COMPLETED
+  - [x] Update shopify_onboarding.yaml with system events (Step 4)
+  - [x] Configure OAuth completion handler
+  - [x] Integrate Shopify tools into workflow
+  - [x] Prevent premature workflow transitions during OAuth
+  - [x] Fix UI to prevent page reloads during Shopify connection
+
+- [ ] **Phase 5.5.5: Post-OAuth Workflow** 🆕
+  - [ ] Create dedicated `shopify_post_auth` workflow for OAuth return
+  - [ ] Workflow triggered by system event when OAuth completes
+  - [ ] Provides immediate value using Shopify tools:
+    - [ ] Shows store overview
+    - [ ] Recent order summary  
+    - [ ] Key metrics
+  - [ ] Transitions to appropriate next workflow (daily_briefing or ad_hoc)
+  - [ ] Prevents constant redirect to ad_hoc workflow
 
 - [ ] **Phase 5.6: Agent Registration**
   - [ ] Register shopify_data tool with CJ agent (Step 5)
@@ -1003,6 +1017,87 @@ async def migrate_tokens():
 
 if __name__ == "__main__":
     asyncio.run(migrate_tokens())
+```
+
+### Step 4.7: Create Post-OAuth Workflow (Phase 5.5.5)
+
+Create a dedicated workflow for handling the return from Shopify OAuth that provides immediate value.
+
+**File:** `agents/prompts/workflows/shopify_post_auth.yaml`
+
+```yaml
+name: shopify_post_auth
+display_name: "Shopify Store Insights"
+description: "Shows immediate insights after Shopify connection"
+version: "1.0.0"
+
+# Triggered by system event when OAuth completes
+system_events:
+  - shopify_oauth_complete
+
+ui_components:
+  - type: title
+    text: "✨ Your Shopify Store is Connected!"
+    
+  - type: description
+    text: "Let me show you some quick insights about your store..."
+
+steps:
+  - name: show_store_overview
+    description: "Display store overview and key metrics"
+    ui_actions:
+      - type: show_loading
+        message: "Analyzing your store data..."
+    tools:
+      - get_shopify_store_overview
+      - get_shopify_store_counts
+    response_template: |
+      Here's what I found about your store:
+      
+      **{store_name}**
+      - Total Customers: {customer_count}
+      - Total Orders: {order_count}
+      - Currency: {currency_code}
+      
+  - name: show_recent_activity
+    description: "Show recent order activity"
+    tools:
+      - get_shopify_recent_orders
+      - get_shopify_orders_last_week
+    response_template: |
+      📊 **Recent Activity:**
+      - Orders this week: {week_order_count}
+      - Average order value: {avg_order_value}
+      - Most popular products: {top_products}
+
+  - name: transition_to_next
+    description: "Transition to appropriate workflow"
+    ui_actions:
+      - type: button
+        text: "Go to Daily Briefing"
+        action: transition_workflow
+        data:
+          workflow: daily_briefing
+      - type: button
+        text: "Explore More"
+        action: transition_workflow
+        data:
+          workflow: ad_hoc_support
+
+# Prevent premature transitions
+allow_transitions: false
+```
+
+Update the workflow configuration to include this new workflow:
+
+**File:** `agents/data/workflow_definitions.yaml`
+
+Add to the workflows list:
+```yaml
+- shopify_post_auth:
+    path: prompts/workflows/shopify_post_auth.yaml
+    requires_auth: true
+    platform: shopify
 ```
 
 ### Step 5: Tool Registration

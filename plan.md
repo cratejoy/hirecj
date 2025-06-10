@@ -74,28 +74,40 @@
     - Tokens stored in `merchant_integrations` table
     - No Redis dependency for token storage in agents service
 
-14. **Phase 5.4: Auth Service Migration** ✅ (PARTIAL)
+14. **Phase 5.4: Auth Service Migration** ✅
     - Updated `auth` service to store tokens in PostgreSQL via `merchant_storage`
     - Tokens now stored in `merchant_integrations` table (single source of truth)
     - **IMPORTANT**: Redis still used for OAuth state management (ephemeral data)
     - This hybrid approach is intentional: persistent tokens in PostgreSQL, temporary OAuth state in Redis
 
+15. **Phase 5.5: Workflow Integration** ✅
+    - Integrated Shopify tools into `shopify_onboarding` workflow
+    - Updated workflow YAML to leverage Shopify data
+    - Prevented premature workflow transitions during OAuth
+    - Fixed UI to prevent page reloads during Shopify connection
+
 ### ⏳ In Progress
 
-**Phase 5.5: Workflow Integration** (2 hours)
-- Integrate Shopify tools into `shopify_onboarding` workflow
-- Update workflow YAML to leverage Shopify data
-- Test end-to-end onboarding flow with real data
+**Phase 5.5.5: Post-OAuth Workflow** (2 hours)
+- Create dedicated `shopify_post_auth` workflow for OAuth return
+- Workflow triggered by system event when OAuth completes
+- Provides immediate value using Shopify tools:
+  - Shows store overview
+  - Recent order summary  
+  - Key metrics
+- Transitions to appropriate next workflow (daily_briefing or ad_hoc)
+- Prevents constant redirect to ad_hoc workflow
 
 ### 📅 Upcoming Phases
 
-1. **Phase 5: Quick Value Demo** (Total: 11.5 hours)
+1. **Phase 5: Quick Value Demo** (Total: 13.5 hours)
    - **Phase 5.1**: API Infrastructure ✅ COMPLETED
    - **Phase 5.2**: Data Service Layer ✅ COMPLETED
    - **Phase 5.3**: Atomic Shopify Tools ✅ COMPLETED
    - **Phase 5.3.5**: PostgreSQL-Only Token Storage ✅ COMPLETED
    - **Phase 5.4**: Auth Service Migration ✅ COMPLETED
-   - **Phase 5.5**: Workflow Integration (2 hours)
+   - **Phase 5.5**: Workflow Integration ✅ COMPLETED
+   - **Phase 5.5.5**: Post-OAuth Workflow (2 hours) 🆕
    - **Phase 5.6**: Agent Registration (1 hour)
    - **Phase 5.7**: Testing & Validation (3 hours)
    - [📄 Detailed Documentation](docs/shopify-onboarding/phase-5-quick-value.md)
