@@ -70,6 +70,12 @@
     - Implemented `MerchantService` for PostgreSQL-only token retrieval
     - Removed Redis dependency for tokens in the `agents` service
 
+14. **Phase 5.4: Auth Service Migration** ✅
+    - Updated `auth` service to store tokens in PostgreSQL during OAuth
+    - Removed all Redis token storage code from `auth` service
+    - Achieved single source of truth for tokens
+    - Retained Redis for ephemeral OAuth state only
+
 ### ⏳ In Progress
 
 ### 📅 Upcoming Phases
@@ -79,13 +85,13 @@
    - **Phase 5.2**: Data Service Layer ✅ COMPLETED
    - **Phase 5.3**: Atomic Shopify Tools ✅ COMPLETED
    - **Phase 5.3.5**: PostgreSQL-Only Token Storage ✅ COMPLETED
-   - **Phase 5.4**: Auth Service Migration (2 hours) - Reduced scope
+   - **Phase 5.4**: Auth Service Migration ✅ COMPLETED
    - **Phase 5.5**: Workflow Integration (2 hours)
    - **Phase 5.6**: Agent Registration (1 hour)
    - **Phase 5.7**: Testing & Validation (3 hours)
    - [📄 Detailed Documentation](docs/shopify-onboarding/phase-5-quick-value.md)
 
-2. **Phase 5.4: Auth Service Migration** (2 hours) - **SIMPLIFIED**
+2. **Phase 5.4: Auth Service Migration** (2 hours) - **SIMPLIFIED** ✅ COMPLETED
    - Update auth service to store tokens in PostgreSQL during OAuth
    - Migrate any critical production tokens from Redis
    - Remove ALL Redis token storage code
