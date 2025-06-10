@@ -6,7 +6,8 @@ from datetime import datetime, timezone, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_, func, String, or_, case
 from app.dbmodels.base import Merchant
-from app.dbmodels.etl_tables import FreshdeskTicket, FreshdeskRating, FreshdeskConversation, FreshdeskUnifiedTicketView
+from app.dbmodels.etl_tables import FreshdeskTicket, FreshdeskRating, FreshdeskConversation
+from app.dbmodels.view_models import FreshdeskUnifiedTicketView
 
 logger = logging.getLogger(__name__)
 
