@@ -204,7 +204,7 @@ This plan breaks down the architectural change into small, manageable, and testa
     - [x] Add `httpx` call to Agent Service's `/internal/session/initiate` endpoint.
     - [x] Added error handling to gracefully degrade if the handoff fails.
 - [x] **Phase 6.4**: Deprecate & Remove Old DB Handoff Flow.
-- [ ] **Phase 6.5**: Update the WebSocket handler for pre-warmed sessions.
+- [x] **Phase 6.5**: Update the WebSocket handler for pre-warmed sessions.
 - [ ] **Phase 6.6**: Final Testing & Cleanup.
 
 ### Phase 6.1: Create Internal API Endpoint
@@ -253,9 +253,9 @@ This plan breaks down the architectural change into small, manageable, and testa
 
 -   **Goal**: Adapt the WebSocket connection logic to use the pre-warmed sessions.
 -   **Tasks**:
-    1.  In `agents/app/platforms/web/session_handlers.py`, inside `handle_start_conversation`, add logic to check the `SessionInitiator` cache for a pre-warmed session.
-    2.  If a session is found, it should be loaded, the pre-generated message sent, and the normal session creation flow bypassed.
-    3.  If no pre-warmed session is found, the handler should proceed with the normal, non-authenticated flow.
+    1.  [x] In `agents/app/platforms/web/session_handlers.py`, inside `handle_start_conversation`, added logic to check the `SessionInitiator` cache for a pre-warmed session.
+    2.  [x] If a session is found, it is loaded, the pre-generated message sent, and the normal session creation flow is bypassed.
+    3.  [x] If no pre-warmed session is found, the handler proceeds with the normal, non-authenticated flow.
 
 ### Phase 6.6: Final Testing & Cleanup
 

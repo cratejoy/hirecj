@@ -8,6 +8,7 @@ from fastapi import WebSocket
 from app.logging_config import get_logger
 from app.models import Message
 from app.constants import WebSocketCloseCodes
+from app.services.session_initiator import session_initiator
 
 from .session_handler import SessionHandler
 
