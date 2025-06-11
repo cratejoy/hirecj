@@ -188,11 +188,12 @@ class Settings(BaseSettings):
             origins.add(oauth_url)
         
         # Add reserved domains if detected
-        if frontend_url and "hirecj.ai" in frontend_url:
-            origins.update([
+        reserved_frontend = values.get("frontend_url")
+        if reserved_frontend and "hirecj.ai" in reserved_frontend:
+            origins.update({
                 "https://amir.hirecj.ai",
                 "https://amir-auth.hirecj.ai",
-            ])
+            })
         
         # Filter out empty strings and return as list
         return list(filter(None, origins))
