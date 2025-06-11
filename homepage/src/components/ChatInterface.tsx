@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
@@ -299,6 +300,7 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 									) : (
 										<div className="text-sm prose prose-sm max-w-none prose-invert">
 											<ReactMarkdown 
+												remarkPlugins={[remarkBreaks]}
 												components={{
 													// Customize paragraph styling to match existing
 													p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,

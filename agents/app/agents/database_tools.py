@@ -6,7 +6,7 @@ from typing import List, Any, Optional
 from datetime import datetime
 from crewai.tools import tool
 from app.utils.supabase_util import get_db_session
-from app.lib.freshdesk_insight_lib import FreshdeskInsights
+from app.lib.freshdesk_analytics_lib import FreshdeskAnalytics, FreshdeskInsights
 
 logger = logging.getLogger(__name__)
 
@@ -379,6 +379,170 @@ Data Source: Live database query with full conversation context"""
             logger.error(f"[TOOL ERROR] analyze_bad_csat_tickets() - Error: {str(e)}")
             return f"Error analyzing bad CSAT tickets: {str(e)}"
 
+    @tool
+    def get_daily_snapshot(date_str: Optional[str] = None) -> str:
+        """Get comprehensive daily health metrics for support operations.
+        
+        Args:
+            date_str: Date in YYYY-MM-DD format (defaults to yesterday if not provided)
+            
+        Returns daily metrics including ticket volumes, response times, CSAT, and SLA performance.
+        """
+        # Handle CrewAI dict args
+        if isinstance(date_str, dict):
+            date_str = date_str.get('date_str')
+        
+        logger.info(f"[TOOL CALL] get_daily_snapshot(date_str='{date_str}')")
+        
+        try:
+            # Parse date or use yesterday as default
+            if date_str:
+                from datetime import date as date_type
+                target_date = date_type.fromisoformat(date_str)
+            else:
+                from datetime import date as date_type, timedelta
+                target_date = date_type.today() - timedelta(days=1)
+            
+            # Get merchant_id - hardcoded to 1 for now
+            merchant_id = 1
+            
+            # Get the daily snapshot
+            snapshot = FreshdeskAnalytics.get_daily_snapshot(merchant_id, target_date)
+            
+            # Format time helper
+            def format_minutes(minutes):
+                if minutes < 60:
+                    return f"{int(minutes)} min"
+                hours = int(minutes // 60)
+                mins = int(minutes % 60)
+                return f"{hours}h {mins}m"
+            
+            # Format the output
+            output = f"""📊 Daily Support Snapshot for {snapshot['date']}:
+
+📥 **Volume Metrics:**
+• New Tickets: {snapshot['new_tickets']}
+• Closed Tickets: {snapshot['closed_tickets']}
+• Open at EOD: {snapshot['open_eod']}
+
+⏱️ **Response Times:**
+• Median First Agent Response: {format_minutes(snapshot['median_first_response_min'])}
+• Median Resolution: {format_minutes(snapshot['median_resolution_min'])}
+• Quick Closes (<10min): {snapshot['quick_close_count']}
+
+😊 **Customer Satisfaction:**
+• New Ratings: {snapshot['new_csat_count']}
+• CSAT Score: {snapshot['csat_percentage']}% (perfect scores)
+• Bad Ratings (<Very Happy): {snapshot['bad_csat_count']}
+
+🚨 **SLA Performance:**
+• Breaches: {snapshot['sla_breaches']}
+
+Data Source: Live database analytics"""
+            
+            logger.info(f"[TOOL RESULT] get_daily_snapshot() - Retrieved metrics for {target_date}")
+            return output
+            
+        except Exception as e:
+            logger.error(f"[TOOL ERROR] get_daily_snapshot() - Error: {str(e)}")
+            return f"Error fetching daily snapshot: {str(e)}"
+
+    @tool
+    def get_csat_detail_log(date_str: Optional[str] = None, rating_threshold: int = 102) -> str:
+        """Get detailed CSAT survey data including all ratings, feedback, and response times for a specific date.
+        
+        Args:
+            date_str: Date in YYYY-MM-DD format (defaults to yesterday if not provided)
+            rating_threshold: Ratings below this are considered negative (default 102 = Very Happy)
+            
+        Returns detailed breakdown of each CSAT survey including customer feedback and ticket metrics.
+        """
+        # Handle CrewAI dict args
+        if isinstance(date_str, dict):
+            args_dict = date_str
+            date_str = args_dict.get('date_str')
+            rating_threshold = args_dict.get('rating_threshold', 102)
+        
+        logger.info(f"[TOOL CALL] get_csat_detail_log(date_str='{date_str}', rating_threshold={rating_threshold})")
+        
+        try:
+            # Parse date or use yesterday as default
+            if date_str:
+                from datetime import date as date_type
+                target_date = date_type.fromisoformat(date_str)
+            else:
+                from datetime import date as date_type, timedelta
+                target_date = date_type.today() - timedelta(days=1)
+            
+            # Get merchant_id - hardcoded to 1 for now
+            merchant_id = 1
+            
+            # Get the CSAT detail log
+            csat_data = FreshdeskAnalytics.get_csat_detail_log(merchant_id, target_date, rating_threshold)
+            
+            # Format time helper
+            def format_minutes(minutes):
+                if minutes is None:
+                    return "N/A"
+                if minutes < 60:
+                    return f"{int(minutes)} min"
+                hours = int(minutes // 60)
+                mins = int(minutes % 60)
+                return f"{hours}h {mins}m"
+            
+            # Format the output
+            output = f"""📊 Detailed CSAT Log for {target_date}:
+            
+**Summary:**
+• Total Surveys: {csat_data['total_count']}
+• Average Rating: {csat_data['avg_rating']} 
+• Below Threshold (<{rating_threshold}): {csat_data['below_threshold_count']} ({csat_data['below_threshold_count']/csat_data['total_count']*100:.1f}% if csat_data['total_count'] > 0 else 0})
+
+**Individual Survey Details:**
+"""
+            
+            if not csat_data['surveys']:
+                output += "\nNo CSAT surveys received on this date."
+            else:
+                # Group by rating for better readability
+                unhappy_surveys = [s for s in csat_data['surveys'] if s['rating'] < rating_threshold]
+                happy_surveys = [s for s in csat_data['surveys'] if s['rating'] >= rating_threshold]
+                
+                if unhappy_surveys:
+                    output += "\n❌ **Negative Ratings:**\n"
+                    for survey in unhappy_surveys:
+                        output += f"""
+Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
+• Customer: {survey['customer_email']}
+• Agent: {survey['agent']}
+• Response Time: {format_minutes(survey['first_response_min'])}
+• Resolution Time: {format_minutes(survey['resolution_min'])}
+• Conversations: {survey['conversation_count']}
+• Tags: {', '.join(survey['tags']) if survey['tags'] else 'None'}
+• Feedback: "{survey['feedback'] or 'No feedback provided'}"
+"""
+                
+                if happy_surveys:
+                    output += "\n✅ **Positive Ratings:**\n"
+                    # Show first 5 happy ratings for brevity
+                    for survey in happy_surveys[:5]:
+                        output += f"""
+Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
+• Customer: {survey['customer_email']}
+• Response: {format_minutes(survey['first_response_min'])} | Resolution: {format_minutes(survey['resolution_min'])}
+"""
+                    if len(happy_surveys) > 5:
+                        output += f"\n... and {len(happy_surveys) - 5} more positive ratings"
+            
+            output += "\n\nData Source: Live database analytics"
+            
+            logger.info(f"[TOOL RESULT] get_csat_detail_log() - Retrieved {csat_data['total_count']} surveys for {target_date}")
+            return output
+            
+        except Exception as e:
+            logger.error(f"[TOOL ERROR] get_csat_detail_log() - Error: {str(e)}")
+            return f"Error fetching CSAT detail log: {str(e)}"
+
     # Return the tools created with @tool decorator
     tools = [
         get_recent_ticket_from_db,
@@ -389,6 +553,8 @@ Data Source: Live database query with full conversation context"""
         get_customer_history,
         get_tickets_with_rating,
         analyze_bad_csat_tickets,
+        get_daily_snapshot,
+        get_csat_detail_log,
     ]
 
     return tools

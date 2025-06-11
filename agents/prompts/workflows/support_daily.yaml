@@ -14,7 +14,7 @@ behavior:
   initiator: "cj"
   initial_action:
     type: "process_message"
-    message: "Give me a brief summary of open tickets, a full view of the CSAT scores from yesterday, and tell me how many tickets we responded to in under 1minute in the last 7 days"
+    message: "Start by showing me the daily support snapshot for yesterday, then give me a brief summary of open tickets and CSAT scores"
     sender: "merchant"
 
 data_requirements:
@@ -22,6 +22,7 @@ data_requirements:
     refresh: "on_start"
 
 available_tools:
+  - get_daily_snapshot
   - get_recent_ticket
   - get_recent_ticket_from_db
   - get_support_dashboard_from_db
@@ -35,22 +36,40 @@ available_tools:
 workflow: |
   # Support Daily Review - Enhanced Version with Database Support
 
+  ## CRITICAL INSTRUCTION
+  When you see the message "Start by showing me the daily support snapshot", you MUST use the `get_daily_snapshot` tool IMMEDIATELY. Do NOT generate placeholder content or generic messages. The tool returns REAL metrics from the database.
+
   ## Goal
-  Show the merchant the most recent open support ticket from the live database
+  Provide a comprehensive daily support metrics overview starting with the daily snapshot
 
   ## Workflow Steps
 
-  ### 1. Greeting
-  Simple greeting to start the day
-
-  ### 2. Fetch Recent Ticket
-  Use the `get_recent_ticket_from_db` tool to fetch the most recent open ticket from the database
+  ### 1. Start with Daily Snapshot
+  **CRITICAL**: When you receive the initial message requesting the daily support snapshot, you MUST:
+  1. IMMEDIATELY use the `get_daily_snapshot` tool (do NOT generate generic content)
+  2. Present the ACTUAL metrics returned by the tool
+  3. The tool will return real data like: new_tickets, closed_tickets, median_response_min, etc.
   
-  ### 3. Display Results
-  Show the raw JSON data of the ticket
+  The daily snapshot includes:
+  - Ticket volumes (new, closed, open)
+  - Response times and quick resolutions
+  - CSAT scores and ratings
+  - SLA performance
 
-  ### 4. Offer Help
-  Ask if they need help with this ticket or want to see anything else
+  ### 2. Follow-up Analysis
+  Based on the snapshot, offer to dig deeper into:
+  - Bad CSAT tickets if there were any
+  - SLA breaches for investigation
+  - Open ticket details
+  
+  ### 3. Proactive Insights
+  Look for patterns and provide recommendations:
+  - If response times are slow, suggest staffing adjustments
+  - If CSAT is low, analyze the bad ratings
+  - If there's a spike in volume, investigate root causes
+
+  ### 4. Offer Additional Help
+  Ask if they want to see specific tickets or other analytics
 
   ## Additional Tools Available
   - `get_support_dashboard_from_db`: Get overview of all tickets
@@ -60,14 +79,19 @@ workflow: |
   ## Example Flow
 
   ```
-  Morning! Let me pull up the most recent open support ticket from your database.
+  Good morning! Let me start with your daily support snapshot to see how yesterday went.
 
-  [Uses get_recent_ticket_from_db tool]
+  [Uses get_daily_snapshot tool]
 
-  Here's the most recent open ticket:
-  [Displays JSON data]
+  Here's your daily support metrics for yesterday:
+  [Displays formatted metrics]
 
-  Need me to help with this one or want to see something else? I can also show you the full support dashboard or search for specific tickets.
+  I notice you had 3 bad CSAT ratings yesterday. Would you like me to analyze those tickets to understand what went wrong?
+
+  I can also:
+  - Show you the current open ticket queue
+  - Dig into any SLA breaches
+  - Search for specific customer issues
   ```
 
   > **Note:** This workflow now pulls live data from the Supabase database for real-time ticket information.
