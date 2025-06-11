@@ -174,7 +174,10 @@ This plan breaks down the architectural change into small, manageable, and testa
 
 ### Implementation Checklist
 
-- [ ] **Phase 6.1**: Create a new internal API endpoint in the Agent Service.
+- [ ] **Phase 6.1**: Create Internal API Endpoint in Agent Service.
+    - [x] Create internal API request models in `shared/models/api.py`.
+    - [x] Create internal router and endpoint in `agents/app/api/routes/internal.py`.
+    - [ ] Register internal router in `agents/app/main.py`.
 - [ ] **Phase 6.2**: Implement a `SessionInitiator` service to handle the session pre-preparation logic.
 - [ ] **Phase 6.3**: Update the Auth Service to call the new internal endpoint.
 - [ ] **Phase 6.4**: Deprecate & Remove Old DB Handoff Flow.
@@ -186,7 +189,7 @@ This plan breaks down the architectural change into small, manageable, and testa
 -   **Goal**: Create a new, non-public API endpoint in the Agent Service for the Auth Service to call.
 -   **Tasks**:
     1.  Create a new router file: `agents/app/api/routes/internal.py`.
-    2.  Define a Pydantic model for the request body: `OAuthHandoffRequest`.
+    2.  Define a Pydantic model for the request body: `OAuthHandoffRequest` in `shared/models/api.py`.
     3.  Add a `POST /api/v1/internal/session/initiate` endpoint.
     4.  For now, the endpoint will only log the received data and return a `200 OK` response.
     5.  Include the new router in `agents/app/main.py`.
