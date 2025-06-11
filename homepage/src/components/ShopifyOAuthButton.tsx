@@ -28,31 +28,42 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
     setShowShopInput(true);
   };
 
-  const initiateOAuth = (shop: string) => {
+  const initiateOAuth = async (shop: string) => {
     setIsConnecting(true);
 
-    // Validate shop domain format
-    if (!shop.endsWith('.myshopify.com')) {
-      shop = `${shop}.myshopify.com`;
+    try {
+      // Normalize shop domain
+      if (!shop.endsWith('.myshopify.com')) {
+        shop = `${shop}.myshopify.com`;
+      }
+
+      const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
+      const params = new URLSearchParams({
+        shop,
+        conversation_id: conversationId,
+        mode: 'json', // ask backend for JSON instead of 302
+      });
+
+      const res = await fetch(`${authUrl}/api/v1/shopify/install?${params}`, {
+        credentials: 'include',
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+      });
+
+      if (!res.ok) {
+        throw new Error(`OAuth init failed: ${res.status} ${await res.text()}`);
+      }
+
+      const { redirect_url } = await res.json();
+
+      console.log('🛍️ Shopify OAuth Debug (ShopifyOAuthButton):');
+      console.log('  Redirect URL:', redirect_url);
+
+      // Single navigation straight to Shopify (no extra history entry)
+      window.location.replace(redirect_url);
+    } catch (err) {
+      console.error(err);
+      setIsConnecting(false);
     }
-
-    // Redirect to auth service install endpoint, passing the conversation_id
-    const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
-    const params = new URLSearchParams({
-      shop: shop,
-      conversation_id: conversationId,
-    });
-    const installUrl = `${authUrl}/api/v1/shopify/install?${params.toString()}`;
-
-    // Log OAuth details for debugging
-    console.log('🛍️ Shopify OAuth Debug (ShopifyOAuthButton):');
-    console.log('  Auth URL:', authUrl);
-    console.log('  Install URL:', installUrl);
-    console.log('  Expected Redirect URI:', `${authUrl}/api/v1/shopify/callback`);
-    console.log('  Shop Domain:', shop);
-
-    // Redirect to start OAuth flow
-    window.location.href = installUrl;
   };
 
   const handleShopSubmit = () => {
@@ -112,7 +123,32 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
       className={`bg-shopify-green hover:bg-shopify-green-dark text-white ${className}`}
       size="lg"
     >
-      {isConnecting ? 'Redirecting to Shopify...' : text}
+      {isConnecting ? (
+        <>
+          <svg
+            className="animate-spin h-4 w-4 mr-2"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8H4z"
+            />
+          </svg>
+          Connecting…
+        </>
+      ) : (
+        text
+      )}
     </Button>
   );
 };

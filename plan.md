@@ -90,7 +90,12 @@
     - WebSocket `handle_start_conversation` now detects cached sessions from SessionInitiator
     - First CJ message is delivered instantly after OAuth hand-off
 
-17. **Phase 6.6: Final Testing & Cleanup** ⏳
+17. **Phase 6.55: Seamless Shopify Redirect** ✅
+    - `/shopify/install` now supports `mode=json`, returning the final Shopify OAuth URL
+    - Frontend fetches this URL, displays a spinner, and navigates directly to Shopify
+    - Removes visible intermediate hop and prevents double-submission
+
+18. **Phase 6.6: Final Testing & Cleanup** ⏳
 
 ### ⏳ In Progress
 

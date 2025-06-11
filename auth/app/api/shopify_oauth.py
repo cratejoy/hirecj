@@ -140,7 +140,12 @@ async def initiate_oauth(request: Request):
         logger.warning(f"[OAUTH_INSTALL] MISMATCH! Expected: '{expected_uri}', Got: '{redirect_uri}'")
     
     auth_url = shopify_auth.build_auth_url(shop, state, redirect_uri)
-    
+
+    # NEW: allow SPA to request the final URL as JSON to avoid an extra
+    # browser navigation hop (mode=json)
+    if request.query_params.get("mode") == "json":
+        return {"redirect_url": auth_url}
+
     logger.info(f"[OAUTH_INSTALL] Redirecting shop {shop} to authorization")
     return RedirectResponse(url=auth_url, status_code=302)
 
