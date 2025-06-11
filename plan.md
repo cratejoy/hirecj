@@ -86,6 +86,12 @@
     - Prevented premature workflow transitions during OAuth
     - Fixed UI to prevent page reloads during Shopify connection
 
+16. **Phase 6.5: Pre-warmed Session WebSocket Integration** ✅
+    - WebSocket `handle_start_conversation` now detects cached sessions from SessionInitiator
+    - First CJ message is delivered instantly after OAuth hand-off
+
+17. **Phase 6.6: Final Testing & Cleanup** ⏳
+
 ### ⏳ In Progress
 
 **Phase 5.5.5: Fix Page Refresh on Shopify Domain Entry**
