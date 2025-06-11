@@ -32,6 +32,8 @@ interface ChatConfig {
 }
 
 // Workflow display names with emojis for UI
+const LS_CONV_ID = 'cj_conversation_id';          // persistent key
+
 const WORKFLOW_NAMES: Record<WorkflowType, string> = {
 	'support_daily': '📋 Support Daily',
 	'ad_hoc_support': '💬 Ad Hoc Support',
@@ -102,9 +104,11 @@ const SlackChat = () => {
 		// If we have an OAuth callback conversation ID, use it
 		// Otherwise, check sessionStorage (in case of page reload during OAuth)
 		// Finally, generate a new one
-		let conversationId = oauthConversationId || 
-			sessionStorage.getItem('shopify_oauth_conversation_id') || 
-			uuidv4();
+		let conversationId =
+			localStorage.getItem(LS_CONV_ID) ||               // ↩️ reuse persistent
+			oauthConversationId ||                            // id returned from OAuth
+			sessionStorage.getItem('shopify_oauth_conversation_id') || // legacy hop
+			uuidv4();                                         // brand-new
 		
 		// DEBUG TRAP 2: Conversation ID mismatch
 		if (isOAuthCallback && !oauthConversationId) {
@@ -149,6 +153,13 @@ const SlackChat = () => {
 		isInternalUpdateRef.current = false;
 	}, [chatConfig.workflow, location, searchString, setLocation]);
 	
+	// Persist conversation id
+	useEffect(() => {
+	  if (chatConfig.conversationId) {
+	    localStorage.setItem(LS_CONV_ID, chatConfig.conversationId);
+	  }
+	}, [chatConfig.conversationId]);
+
 	// Sync userSession.merchantId to chatConfig when it changes
 	useEffect(() => {
 		setChatConfig(prev => ({
@@ -640,6 +651,7 @@ const SlackChat = () => {
 						<button
 							onClick={() => {
 								wsChat.endConversation();
+								localStorage.removeItem(LS_CONV_ID); // clear id
 								toast({
 									title: "Chat ended",
 									description: "Your conversation has been ended.",
