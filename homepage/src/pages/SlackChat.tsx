@@ -105,9 +105,8 @@ const SlackChat = () => {
 		// Otherwise, check sessionStorage (in case of page reload during OAuth)
 		// Finally, generate a new one
 		let conversationId =
-			localStorage.getItem(LS_CONV_ID) ||               // ↩️ reuse persistent
+			localStorage.getItem(LS_CONV_ID) ||               // reuse persistent
 			oauthConversationId ||                            // id returned from OAuth
-			sessionStorage.getItem('shopify_oauth_conversation_id') || // legacy hop
 			uuidv4();                                         // brand-new
 		
 		// DEBUG TRAP 2: Conversation ID mismatch
