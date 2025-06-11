@@ -104,6 +104,12 @@
 Implementation complete through Phase 6.5.  Remaining work: **Phase 6.6** (final testing & documentation cleanup).
 - **Why**: The current "dead drop" database method is fragile and complex. A direct API call will be more robust, simpler to maintain, and provide a better user experience.
 
+### 🛠️ Current Issue Fix
+
+**OAuth Tables Missing**: The `oauth_csrf_state` table was introduced in commit 526c604 when Redis was replaced with database storage, but no SQL migration was created.
+- **Fix**: Created migration 007_create_oauth_tables.sql to add both `oauth_csrf_state` and `oauth_completion_state` tables
+- **Status**: Migration file created, needs to be run
+
 ### 📅 Upcoming Phases
 
 1.  **Phase 6: Server-Side OAuth Handoff (Implementation)**
@@ -363,3 +369,28 @@ The original plan called for a complex three-tier progressive loading system wit
 - **No** special cases or exceptions
 
 Focus: Backend-driven, YAML-configured, simple and elegant solutions.
+
+---
+
+## 🚨 Hotfix: Missing OAuth Database Tables (2025-01-11)
+
+### Issue
+After the Phase 5.2 refactor (commit 526c604), we moved OAuth state management from Redis to PostgreSQL but forgot to create the corresponding database migration. This causes the error:
+```
+relation "oauth_csrf_state" does not exist
+```
+
+### Root Cause
+- Commit 526c604 added SQLAlchemy models for `OAuthCSRFState` and `OAuthCompletionState` in `shared/db_models.py`
+- No corresponding SQL migration was created to add these tables to the database
+
+### Fix
+- [x] Created migration file: `agents/app/migrations/007_create_oauth_tables.sql`
+- [x] Run migration: `cd agents && python scripts/run_migration.py app/migrations/007_create_oauth_tables.sql`
+
+### Migration Contents
+Creates two tables:
+1. `oauth_csrf_state` - For CSRF protection during OAuth flow
+2. `oauth_completion_state` - For OAuth completion handoff between services
+
+Both tables include appropriate indexes for performance and cleanup operations.
