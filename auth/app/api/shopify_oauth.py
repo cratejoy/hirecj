@@ -16,8 +16,7 @@ from app.services.merchant_storage import merchant_storage
 from app.services.shopify_auth import shopify_auth
 from shared.user_identity import get_or_create_user
 from app.utils.database import get_db_session
-from shared.db_models import OAuthCompletionState, OAuthCSRFState
-from sqlalchemy.dialects.postgresql import insert
+from shared.db_models import OAuthCSRFState
 
 logger = logging.getLogger(__name__)
 
@@ -240,41 +239,36 @@ async def handle_oauth_callback(request: Request):
         
         logger.info(f"[OAUTH_CALLBACK] Successfully authenticated shop: {shop}, is_new: {is_new}")
         
-        # PHASE 2: Write OAuth completion to Database instead of complex redirect
+        # PHASE 6.3: Call Agent service's internal API to pre-warm session
         if conversation_id:
             try:
-                oauth_status_data = {
-                    "provider": "shopify",
-                    "merchant_id": merchant_id,
+                # Prepare payload for the agent service
+                handoff_request = {
                     "shop_domain": shop,
                     "is_new": is_new,
-                    "timestamp": datetime.now().isoformat()
+                    "conversation_id": conversation_id,
+                    "email": None  # We don't have email at this stage, can be added later
                 }
 
-                with get_db_session() as session:
-                    # Upsert to handle retries or race conditions
-                    stmt = insert(OAuthCompletionState).values(
-                        conversation_id=conversation_id,
-                        data=oauth_status_data,
-                        expires_at=datetime.utcnow() + timedelta(minutes=10)
-                    )
-                    stmt = stmt.on_conflict_do_update(
-                        index_elements=['conversation_id'],
-                        set_={
-                            'data': stmt.excluded.data,
-                            'processed': False, # Reset processed flag
-                            'expires_at': stmt.excluded.expires_at
-                        }
-                    )
-                    session.execute(stmt)
-                    session.commit()
+                agents_url = f"{settings.agents_service_url}/api/v1/internal/session/initiate"
                 
-                logger.info(f"[OAUTH_CALLBACK] Wrote OAuth status to DB for conversation {conversation_id}")
-
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    response = await client.post(agents_url, json=handoff_request)
+                
+                if response.status_code == 200:
+                    logger.info(f"[OAUTH_HANDOFF] Successfully initiated session for {conversation_id} on agent service.")
+                else:
+                    # Log the error but don't fail the auth flow.
+                    # The user will still be redirected, but the agent won't be pre-warmed.
+                    logger.error(
+                        f"[OAUTH_HANDOFF] Failed to initiate session. Agent service returned "
+                        f"{response.status_code}: {response.text}"
+                    )
+                    
             except Exception as e:
-                logger.error(f"[OAUTH_CALLBACK] Failed to write OAuth status to DB: {e}")
-                # Don't fail the entire auth flow, but log it as a critical error. 
-                # The backend will handle it as a normal onboarding.
+                # Log the error but don't fail the auth flow.
+                logger.error(f"[OAUTH_HANDOFF] Error calling agent service: {e}", exc_info=True)
+                # The flow will gracefully degrade to the user connecting and starting a new session.
 
         # PHASE 3: Redirect to frontend with only conversation_id
         redirect_params = {}

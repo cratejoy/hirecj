@@ -199,7 +199,10 @@ This plan breaks down the architectural change into small, manageable, and testa
     - [x] Create `SessionInitiator` service in `agents/app/services/session_initiator.py`.
     - [x] Implement session creation and message pre-generation logic.
     - [x] Update internal API endpoint to use the new service.
-- [ ] **Phase 6.3**: Update the Auth Service to call the new internal endpoint.
+- [x] **Phase 6.3**: Update the Auth Service to call the new internal endpoint.
+    - [x] Remove database handoff logic from `auth/app/api/shopify_oauth.py`.
+    - [x] Add `httpx` call to Agent Service's `/internal/session/initiate` endpoint.
+    - [x] Added error handling to gracefully degrade if the handoff fails.
 - [ ] **Phase 6.4**: Deprecate & Remove Old DB Handoff Flow.
 - [ ] **Phase 6.5**: Update the WebSocket handler for pre-warmed sessions.
 - [ ] **Phase 6.6**: Final Testing & Cleanup.
@@ -231,11 +234,11 @@ This plan breaks down the architectural change into small, manageable, and testa
 
 -   **Goal**: Modify the Auth Service to use the new server-to-server handoff mechanism.
 -   **Tasks**:
-    1.  In `auth/app/api/shopify_oauth.py`, inside the `handle_oauth_callback` function.
-    2.  Remove the code that writes to the `OAuthCompletionState` table.
-    3.  Add an `httpx` API call to `POST {AGENTS_SERVICE_URL}/api/v1/internal/session/initiate`.
-    4.  The Auth service must wait for a successful `200 OK` from the Agent service before proceeding.
-    5.  If the call fails, log a critical error but still redirect the user to the frontend (the flow will gracefully degrade to the non-auth experience).
+    1.  **DONE**: In `auth/app/api/shopify_oauth.py`, inside the `handle_oauth_callback` function.
+    2.  **DONE**: Remove the code that writes to the `OAuthCompletionState` table.
+    3.  **DONE**: Add an `httpx` API call to `POST {AGENTS_SERVICE_URL}/api/v1/internal/session/initiate`.
+    4.  **DONE**: The Auth service now waits for a successful `200 OK` from the Agent service before proceeding.
+    5.  **DONE**: If the call fails, it logs a critical error but still redirects the user to the frontend, allowing the flow to gracefully degrade.
 
 ### Phase 6.4: Deprecate & Remove Old DB Handoff Flow
 
