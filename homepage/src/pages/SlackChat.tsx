@@ -425,15 +425,22 @@ const SlackChat = () => {
 				}
 			},
 			
-			prompts: () => {
+			// Show the last 10 chat messages that CJ *received/sent*
+			// (these are NOT the LLM prompts).
+			history: () => {
 				if (wsChat.isConnected) {
 					wsChat.sendSpecialMessage({
 						type: 'debug_request',
-						data: { type: 'prompts' }
+						data: { type: 'prompts' } // backend returns chat history
 					});
 				} else {
 					console.log('%c❌ Not connected to CJ', 'color: red');
 				}
+			},
+			// Deprecated alias kept for backward-compatibility
+			prompts: () => {
+				console.warn('⚠️  cj.prompts() is deprecated. Use cj.history() instead.');
+				debugInterface.history();
 			},
 			
 			context: () => {
@@ -466,11 +473,12 @@ const SlackChat = () => {
 				console.table({
 					'cj.debug()': 'Full state snapshot',
 					'cj.session()': 'Session & auth details',
-					'cj.prompts()': 'Recent prompts to CJ',
+					'cj.history()': 'Recent chat messages',
 					'cj.context()': 'Conversation context',
 					'cj.events()': 'Start live event stream',
 					'cj.stop()': 'Stop event stream',
-					'cj.help()': 'Show this help'
+					'cj.help()': 'Show this help',
+					'cj.prompts()': 'Alias for cj.history() (deprecated)'
 				});
 			}
 		};
