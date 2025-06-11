@@ -253,14 +253,9 @@ This plan breaks down the architectural change into small, manageable, and testa
 
 -   **Goal**: Adapt the WebSocket connection logic to use the pre-warmed sessions.
 -   **Tasks**:
-    1.  In `agents/app/platforms/web/session_handlers.py`, inside `handle_start_conversation`.
-    2.  Before creating a new session, check the `SessionInitiator`'s cache for a session matching the `conversation_id`.
-    3.  **If a pre-warmed session is found**:
-        -   Move it from the cache to the active `SessionManager`.
-        -   Immediately send the cached welcome message down the WebSocket.
-        -   Do not proceed with the rest of the function's logic.
-    4.  **If no session is found**:
-        -   Proceed with the normal (non-authenticated) conversation flow as it works today.
+    1.  **DONE**: In `agents/app/platforms/web/session_handlers.py`, inside `handle_start_conversation`, added logic to check the `SessionInitiator` cache for a pre-warmed session.
+    2.  **DONE**: If a session is found, it is loaded, the pre-generated message is sent, and the normal session creation flow is bypassed.
+    3.  **DONE**: If no pre-warmed session is found, the handler proceeds with the normal, non-authenticated flow.
 
 ### Phase 6.6: Final Testing & Cleanup
 
