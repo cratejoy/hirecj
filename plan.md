@@ -195,7 +195,10 @@ This plan breaks down the architectural change into small, manageable, and testa
     - [x] Create internal API request models in `shared/models/api.py`.
     - [x] Create internal router and endpoint in `agents/app/api/routes/internal.py`.
     - [x] Register internal router in `agents/app/main.py`.
-- [ ] **Phase 6.2**: Implement a `SessionInitiator` service to handle the session pre-preparation logic.
+- [x] **Phase 6.2**: Implement a `SessionInitiator` service to handle the session pre-preparation logic.
+    - [x] Create `SessionInitiator` service in `agents/app/services/session_initiator.py`.
+    - [x] Implement session creation and message pre-generation logic.
+    - [x] Update internal API endpoint to use the new service.
 - [ ] **Phase 6.3**: Update the Auth Service to call the new internal endpoint.
 - [ ] **Phase 6.4**: Deprecate & Remove Old DB Handoff Flow.
 - [ ] **Phase 6.5**: Update the WebSocket handler for pre-warmed sessions.
