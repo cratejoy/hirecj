@@ -21,7 +21,7 @@ from app.scenarios import ScenarioLoader
 from app.cache_config import setup_litellm_cache, get_cache_info
 from app.cache_warming import warm_cache_on_startup
 from app.platforms.manager import PlatformManager
-from app.platforms.web_platform import WebPlatform
+from app.platforms.web import WebPlatform
 from app.api.routes import catalog as catalog_router
 from app.api.routes import universe
 from app.api.routes import conversations
