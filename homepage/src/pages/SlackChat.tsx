@@ -477,8 +477,7 @@ const SlackChat = () => {
 					'cj.context()': 'Conversation context',
 					'cj.events()': 'Start live event stream',
 					'cj.stop()': 'Stop event stream',
-					'cj.help()': 'Show this help',
-					'cj.prompts()': 'Alias for cj.history() (deprecated)'
+					'cj.help()': 'Show this help'
 				});
 			}
 		};
