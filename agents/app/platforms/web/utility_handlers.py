@@ -89,9 +89,12 @@ class UtilityHandlers:
                 recent_prompts = []
                 if hasattr(session, "conversation") and hasattr(session.conversation, "messages"):
                     for msg in session.conversation.messages[-10:]:
+                        ts = getattr(msg, "timestamp", "unknown")
+                        if isinstance(ts, datetime):
+                            ts = ts.isoformat()
                         recent_prompts.append(
                             {
-                                "timestamp": getattr(msg, "timestamp", "unknown"),
+                                "timestamp": ts,
                                 "sender": msg.sender,
                                 "content": msg.content[:500],  # Truncate long text
                             }
