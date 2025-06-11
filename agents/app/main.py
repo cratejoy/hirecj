@@ -25,6 +25,7 @@ from app.platforms.web import WebPlatform
 from app.api.routes import catalog as catalog_router
 from app.api.routes import universe
 from app.api.routes import conversations
+from app.api.routes import internal as internal_router
 from app.constants import HTTPStatus, WebSocketCloseCodes
 
 # Initialize logging
@@ -658,6 +659,7 @@ async def websocket_test_page():
 app.include_router(catalog_router.router)
 app.include_router(universe.router)
 app.include_router(conversations.router)
+app.include_router(internal_router.router)
 
 
 if __name__ == "__main__":
