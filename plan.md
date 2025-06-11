@@ -102,6 +102,7 @@
 ### 📅 Upcoming Phases
 
 1.  **Phase 6: Server-Side OAuth Handoff (Implementation)**
+    *   **Phase 6.0**: Refactor Workflow YAMLs for New Architecture.
     *   **Phase 6.1**: Create Internal API Endpoint in Agent Service.
     *   **Phase 6.2**: Implement `SessionInitiator` Service.
     *   **Phase 6.3**: Update Auth Service to Call Internal Endpoint.
@@ -178,8 +179,18 @@ The key benefits are:
 
 This plan breaks down the architectural change into small, manageable, and testable steps.
 
+### Phase 6.0: Refactor Workflow YAMLs
+
+-   **Goal**: Align workflow configurations with the new server-to-server OAuth handoff architecture.
+-   **Tasks**:
+    1.  **Simplify `shopify_onboarding.yaml`**: Remove the `SYSTEM EVENT HANDLING` block. This logic is now obsolete, as the `SessionInitiator` will create a new session with the `shopify_post_auth` workflow. This change makes the onboarding workflow's single purpose clear: guiding a user to authentication.
+    2.  **Verify `shopify_post_auth.yaml`**: Confirm that its `system`-initiated behavior is perfectly aligned with the new architecture, where it will be triggered by the `SessionInitiator`. No changes are needed for this file.
+
 ### Implementation Checklist
 
+- [ ] **Phase 6.0**: Refactor Workflow YAMLs.
+    - [ ] Simplify `shopify_onboarding.yaml` by removing legacy system event handling.
+    - [ ] Confirm `shopify_post_auth.yaml` is correctly designed for the new architecture.
 - [x] **Phase 6.1**: Create Internal API Endpoint in Agent Service.
     - [x] Create internal API request models in `shared/models/api.py`.
     - [x] Create internal router and endpoint in `agents/app/api/routes/internal.py`.
