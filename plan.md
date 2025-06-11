@@ -209,8 +209,8 @@ This plan breaks down the architectural change into small, manageable, and testa
     - [x] Add `httpx` call to Agent Service's `/internal/session/initiate` endpoint.
     - [x] Added error handling to gracefully degrade if the handoff fails.
 - [x] **Phase 6.4**: Deprecate & Remove Old DB Handoff Flow.
-- [x] **Phase 6.5**: Update the WebSocket handler for pre-warmed sessions.
-- [ ] **Phase 6.6**: Final Testing & Cleanup.
+- [x] **Phase 6.5**: Update the WebSocket handler for pre-warmed sessions. **(Completed)**
+- [ ] **Phase 6.6**: Final Testing & Cleanup. **(Only this phase remains outstanding)**
 
 ### Phase 6.1: Create Internal API Endpoint
 
