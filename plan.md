@@ -88,56 +88,168 @@
 
 ### ⏳ In Progress
 
-**Phase 5.5.6: OAuth Flow Alignment** (12 hours) 🚨 CRITICAL
-- Fix conversation continuity during OAuth redirect
-- Implement proper system event generation
-- Align WebSocket implementation with workflow spec
-- Ensure OAuth completion triggers expected system messages
-- [📄 Documentation](docs/oauth-flow-fix/README.md)
+**Phase 6: Simplified Server-Side OAuth Handoff**
+- **Goal**: Replace the complex, browser-dependent OAuth completion flow with a reliable, direct server-to-server communication between the Auth and Agent services.
+- **Status**: Planning complete. Awaiting implementation.
+- **Why**: The current "dead drop" database method is fragile and complex. A direct API call will be more robust, simpler to maintain, and provide a better user experience.
 
 ### 📅 Upcoming Phases
 
-1. **Phase 5: Quick Value Demo** (Total: 25.5 hours)
-   - **Phase 5.1**: API Infrastructure ✅ COMPLETED
-   - **Phase 5.2**: Data Service Layer ✅ COMPLETED
-   - **Phase 5.3**: Atomic Shopify Tools ✅ COMPLETED
-   - **Phase 5.3.5**: PostgreSQL-Only Token Storage ✅ COMPLETED
-   - **Phase 5.4**: Auth Service Migration ✅ COMPLETED
-   - **Phase 5.5**: Workflow Integration ✅ COMPLETED
-   - **Phase 5.5.5**: Post-OAuth Workflow ✅ COMPLETED
-   - **Phase 5.5.6**: OAuth Flow Alignment (12 hours) 🚨 IN PROGRESS
-   - **Phase 5.6**: Agent Registration (1 hour)
-   - **Phase 5.7**: Testing & Validation (3 hours)
-   - [📄 Detailed Documentation](docs/shopify-onboarding/phase-5-quick-value.md)
+1.  **Phase 6: Server-Side OAuth Handoff (Implementation)**
+    *   **Phase 6.1**: Create Internal API Endpoint in Agent Service.
+    *   **Phase 6.2**: Implement `SessionInitiator` Service.
+    *   **Phase 6.3**: Update Auth Service to Call Internal Endpoint.
+    *   **Phase 6.4**: Deprecate & Remove Old DB Handoff Flow.
+    *   **Phase 6.5**: Update WebSocket Handler for Pre-warmed Sessions.
+    *   **Phase 6.6**: Final Testing & Documentation Cleanup.
 
+2.  **Phase 7: Demo & Refinement**
+    *   End-to-end testing of the full Shopify onboarding and data retrieval flow.
+    *   Refine agent prompts and tools based on live data.
+    *   Prepare for the next major feature development cycle.
 
 ---
 
-## 🚨 Critical Issue: OAuth Flow Misalignment
+## New Architecture: Server-to-Server OAuth Handoff
 
-### Discovery (Phase 5.5.6)
+### The Problem
+The previous OAuth completion flow was overly complex and unreliable. It depended on the user's browser to bridge communication between the Auth Service and the Agent Service using a database "dead drop" table (`oauth_completion_state`). This introduced potential race conditions and points of failure.
 
-During testing of the OAuth flow, we discovered a fundamental architectural issue:
+### The Solution: Direct Server-to-Server Handoff
+We will implement a simpler, more robust server-to-server architecture. When the Auth Service successfully exchanges the Shopify code for an access token, it will make a direct, internal API call to the Agent Service. This call will instruct the Agent Service to pre-prepare the user's session and CJ's initial welcome message.
 
-**The Problem:**
-1. OAuth redirect loses conversation context (new WebSocket connection)
-2. Implementation uses WebSocket messages but workflow expects system events
-3. Conversation ID isn't preserved through the OAuth flow
-4. Debug code in `oauth_complete` handler never fires due to context mismatch
+The key benefits are:
+- **Reliability**: The critical state transfer is a single, synchronous server-to-server call. It either succeeds or fails cleanly.
+- **Simplicity**: The complex database polling and state-checking logic is removed.
+- **Performance**: The user's perceived performance is better because by the time their browser loads the chat page, the session is fully initialized and CJ's first message is waiting for them.
 
-**The Impact:**
-- OAuth completion doesn't trigger expected workflow responses
-- Users get stuck after connecting Shopify
-- System can't provide immediate value with insights
+### New Control Flow Diagram
+```text
++---------------------------+       +------------------+      +------------------+      +------------------+
+|    User Browser/Frontend  |       |   Auth Service   |      |     Database     |      |   Agent Service  |
++---------------------------+       +------------------+      +------------------+      +------------------+
+              |                             |                       |                       |
+              |   <-- 1. Redirect with `code` & `state` from Shopify
+              |                             |                       |                       |
+              |--- 2. GET /api/v1/shopify/callback -->
+              |                             |                       |                       |
+              |                  [auth/app/api/shopify_oauth.py]
+              |                             |                       |                       |
+              |             (Verifies state, exchanges code for token, stores in DB)
+              |                             |                       |                       |
+              |                             |--- 3. Internal API Call [INITIATE] ---------->|
+              |                             |    (POST /internal/v1/session/initiate)       |
+              |                             |    Payload: { shop_domain, is_new, conv_id }  |
+              |                             |                       |                       |
+              |                             |                       |  [agents/app/main.py - New Endpoint]
+              |                             |                       |                       |
+              |                             |                       |  - Creates Session
+              |                             |                       |  - Sets workflow to 'shopify_post_auth'
+              |                             |                       |  - Generates CJ's first message
+              |                             |                       |  - Caches session & message by conv_id
+              |                             |                       |                       |
+              |                             |<-- 4. Receives HTTP 200 OK ------------------|
+              |                             |                       |                       |
+              |<-- 5. Redirect to /chat?conversation_id=...
+              |      (User is redirected AFTER server-side work is complete)
+              |                             |                       |                       |
+              |--- 6. Open WebSocket to /ws/chat/{id} ------------------------------------->|
+              |                             |                       |                       |
+              |                                        [agents/app/platforms/web/websocket_handler.py]
+              |                             |                       |                       |
+              |--- 7. Send 'start_conversation' message ---------------------------------->|
+              |                             |                       |                       |
+              |                                         [agents/app/platforms/web/session_handlers.py]
+              |                             |                       |                       |
+              |                             |                       |  - Finds cached session for {id}
+              |                             |                       |  - Loads the pre-generated state
+              |                             |                       |                       |
+              |<-- 8. IMMEDIATELY Send pre-generated CJ message ---------------------------|
+              |                             |                       |                       |
+```
 
-**The Solution:**
-Phase 5.5.6 implements a comprehensive fix that:
-- Preserves conversation state through OAuth redirect
-- Converts WebSocket messages to proper system events
-- Aligns implementation with workflow specification
-- Ensures seamless user experience
+## Implementation Plan: Phase 6
 
-This is a **CRITICAL** fix that blocks all OAuth-dependent functionality.
+This plan breaks down the architectural change into small, manageable, and testable steps.
+
+### Implementation Checklist
+
+- [ ] **Phase 6.1**: Create a new internal API endpoint in the Agent Service.
+- [ ] **Phase 6.2**: Implement a `SessionInitiator` service to handle the session pre-preparation logic.
+- [ ] **Phase 6.3**: Update the Auth Service to call the new internal endpoint.
+- [ ] **Phase 6.4**: Deprecate & Remove Old DB Handoff Flow.
+- [ ] **Phase 6.5**: Update the WebSocket handler for pre-warmed sessions.
+- [ ] **Phase 6.6**: Final Testing & Cleanup.
+
+### Phase 6.1: Create Internal API Endpoint
+
+-   **Goal**: Create a new, non-public API endpoint in the Agent Service for the Auth Service to call.
+-   **Tasks**:
+    1.  Create a new router file: `agents/app/api/routes/internal.py`.
+    2.  Define a Pydantic model for the request body: `OAuthHandoffRequest`.
+    3.  Add a `POST /api/v1/internal/session/initiate` endpoint.
+    4.  For now, the endpoint will only log the received data and return a `200 OK` response.
+    5.  Include the new router in `agents/app/main.py`.
+
+### Phase 6.2: Implement `SessionInitiator` Service
+
+-   **Goal**: Isolate the session pre-preparation logic into a dedicated service.
+-   **Tasks**:
+    1.  Create a new service file: `agents/app/services/session_initiator.py`.
+    2.  Create a `SessionInitiator` class.
+    3.  Implement a method `prepare_oauth_session(request: OAuthHandoffRequest)`.
+    4.  This method will:
+        -   Call `SessionManager` to create a new session with the correct workflow (`shopify_post_auth`).
+        -   Call `MessageProcessor` to generate CJ's first message.
+        -   Store the session object and the first message in a simple in-memory dictionary, keyed by `conversation_id`.
+    5.  Update the internal API endpoint from Phase 6.1 to use this new service.
+
+### Phase 6.3: Update Auth Service to Call New Endpoint
+
+-   **Goal**: Modify the Auth Service to use the new server-to-server handoff mechanism.
+-   **Tasks**:
+    1.  In `auth/app/api/shopify_oauth.py`, inside the `handle_oauth_callback` function.
+    2.  Remove the code that writes to the `OAuthCompletionState` table.
+    3.  Add an `httpx` API call to `POST {AGENTS_SERVICE_URL}/api/v1/internal/session/initiate`.
+    4.  The Auth service must wait for a successful `200 OK` from the Agent service before proceeding.
+    5.  If the call fails, log a critical error but still redirect the user to the frontend (the flow will gracefully degrade to the non-auth experience).
+
+### Phase 6.4: Deprecate & Remove Old DB Handoff Flow
+
+-   **Goal**: Clean up all code related to the old, unreliable database handoff mechanism.
+-   **Tasks**:
+    1.  **Agent Service**:
+        -   In `agents/app/platforms/web/oauth_handler.py`, remove the `check_oauth_completion` method entirely.
+        -   The `process_oauth_completion` method can also be removed as its logic is now in the `SessionInitiator`.
+        -   In `agents/app/platforms/web/session_handlers.py`, remove all calls to the `oauth_handler`.
+    2.  **Auth Service**:
+        -   In `auth/app/api/shopify_oauth.py`, remove the import for `OAuthCompletionState`.
+    3.  **Shared Models**:
+        -   In `shared/db_models.py`, delete the `OAuthCompletionState` model definition.
+    4.  **Database**:
+        -   Create and apply a database migration to `DROP TABLE oauth_completion_state;`.
+
+### Phase 6.5: Update WebSocket Handler for Pre-warmed Sessions
+
+-   **Goal**: Adapt the WebSocket connection logic to use the pre-warmed sessions.
+-   **Tasks**:
+    1.  In `agents/app/platforms/web/session_handlers.py`, inside `handle_start_conversation`.
+    2.  Before creating a new session, check the `SessionInitiator`'s cache for a session matching the `conversation_id`.
+    3.  **If a pre-warmed session is found**:
+        -   Move it from the cache to the active `SessionManager`.
+        -   Immediately send the cached welcome message down the WebSocket.
+        -   Do not proceed with the rest of the function's logic.
+    4.  **If no session is found**:
+        -   Proceed with the normal (non-authenticated) conversation flow as it works today.
+
+### Phase 6.6: Final Testing & Cleanup
+
+-   **Goal**: Ensure the new end-to-end flow is working correctly and clean up documentation.
+-   **Tasks**:
+    1.  Manually test the full Shopify OAuth flow.
+    2.  Verify that CJ's welcome message appears instantly after the redirect.
+    3.  Review logs in both Auth and Agent services to confirm the internal API call is working.
+    4.  Update this `plan.md` to mark Phase 6 as complete.
 
 ---
 
