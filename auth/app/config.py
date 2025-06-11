@@ -171,10 +171,11 @@ class Settings(BaseSettings):
         # Get values from ValidationInfo
         values = info.data if hasattr(info, 'data') else {}
         
-        # Add frontend URL if set
-        frontend_url = values.get("frontend_url")
-        if frontend_url:
-            origins.add(frontend_url)
+        # Add frontend & homepage URLs if set
+        for url_key in ("frontend_url", "homepage_url"):
+            url = values.get(url_key)
+            if url:
+                origins.add(url)
         
         # Add public URL if set
         public_url = values.get("public_url")
