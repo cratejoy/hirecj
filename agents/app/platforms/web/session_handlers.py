@@ -9,7 +9,6 @@ from app.logging_config import get_logger
 from app.models import Message
 from app.constants import WebSocketCloseCodes
 
-from .oauth_handler import OAuthHandler
 from .session_handler import SessionHandler
 
 if TYPE_CHECKING:
@@ -24,7 +23,6 @@ class SessionHandlers:
 
     def __init__(self, platform: 'WebPlatform'):
         self.platform = platform
-        self.oauth_handler = OAuthHandler(platform)
         self.session_handler = SessionHandler(platform)
 
     async def handle_start_conversation(
@@ -115,11 +113,6 @@ class SessionHandlers:
                 )
                 return
         
-        # Check for OAuth completion status
-        oauth_data = await self.oauth_handler.check_oauth_completion(conversation_id)
-        if oauth_data:
-            await self.oauth_handler.process_oauth_completion(websocket, session, oauth_data)
-            return
 
         # Create conversation data
         conversation_data = {

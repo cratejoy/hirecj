@@ -244,16 +244,10 @@ This plan breaks down the architectural change into small, manageable, and testa
 
 -   **Goal**: Clean up all code related to the old, unreliable database handoff mechanism.
 -   **Tasks**:
-    1.  **Agent Service**:
-        -   In `agents/app/platforms/web/oauth_handler.py`, remove the `check_oauth_completion` method entirely.
-        -   The `process_oauth_completion` method can also be removed as its logic is now in the `SessionInitiator`.
-        -   In `agents/app/platforms/web/session_handlers.py`, remove all calls to the `oauth_handler`.
-    2.  **Auth Service**:
-        -   In `auth/app/api/shopify_oauth.py`, remove the import for `OAuthCompletionState`.
-    3.  **Shared Models**:
-        -   In `shared/db_models.py`, delete the `OAuthCompletionState` model definition.
-    4.  **Database**:
-        -   Create and apply a database migration to `DROP TABLE oauth_completion_state;`.
+    1.  **DONE**: In `agents/app/platforms/web/oauth_handler.py`, deprecated the `OAuthHandler` class and removed all logic.
+    2.  **DONE**: In `agents/app/platforms/web/session_handlers.py`, removed all calls to the `oauth_handler`.
+    3.  **DONE**: In `shared/db_models.py`, deleted the `OAuthCompletionState` model definition.
+    4.  **Manual Action Required**: A database migration must be created and applied to run: `DROP TABLE oauth_completion_state;`
 
 ### Phase 6.5: Update WebSocket Handler for Pre-warmed Sessions
 
