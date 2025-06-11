@@ -141,15 +141,32 @@ class Settings(BaseSettings):
     @classmethod
     def build_allowed_origins(cls, v, info) -> list[str]:
         """Build allowed origins list including tunnel URLs."""
-        origins = set(v) if v else set()
-        
+        # Normalize env value → Python set[str]
+        if not v:
+            origins: set[str] = set()
+        elif isinstance(v, str):
+            # Value may be a JSON list or a comma-separated string
+            import json
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, (list, tuple)):
+                    origins = set(parsed)
+                else:
+                    origins = set(s.strip() for s in v.split(",") if s.strip())
+            except json.JSONDecodeError:
+                origins = set(s.strip() for s in v.split(",") if s.strip())
+        elif isinstance(v, (list, tuple, set)):
+            origins = set(v)
+        else:
+            origins = set()
+
         # Always include localhost origins
-        origins.update([
+        origins.update({
             "http://localhost:3456",
             "http://localhost:8000",
             "http://localhost:8103",
             "http://localhost:8002",
-        ])
+        })
         
         # Get values from ValidationInfo
         values = info.data if hasattr(info, 'data') else {}
