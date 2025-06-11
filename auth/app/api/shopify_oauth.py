@@ -3,7 +3,7 @@
 import logging
 import json
 import base64
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
 import httpx
@@ -190,7 +190,7 @@ async def handle_oauth_callback(request: Request):
                 session.delete(csrf_record)
                 session.commit()
 
-                if csrf_record.expires_at < datetime.utcnow():
+                if csrf_record.expires_at < datetime.now(timezone.utc):
                     logger.error(f"[OAUTH_CALLBACK] Expired state for shop: {shop}")
                     raise HTTPException(status_code=400, detail="Invalid state: expired.")
 
