@@ -188,9 +188,9 @@ This plan breaks down the architectural change into small, manageable, and testa
 
 ### Implementation Checklist
 
-- [ ] **Phase 6.0**: Refactor Workflow YAMLs.
-    - [ ] Simplify `shopify_onboarding.yaml` by removing legacy system event handling.
-    - [ ] Confirm `shopify_post_auth.yaml` is correctly designed for the new architecture.
+- [x] **Phase 6.0**: Refactor Workflow YAMLs.
+    - [x] Simplify `shopify_onboarding.yaml` by removing legacy system event handling.
+    - [x] Confirm `shopify_post_auth.yaml` is correctly designed for the new architecture.
 - [x] **Phase 6.1**: Create Internal API Endpoint in Agent Service.
     - [x] Create internal API request models in `shared/models/api.py`.
     - [x] Create internal router and endpoint in `agents/app/api/routes/internal.py`.
@@ -203,7 +203,7 @@ This plan breaks down the architectural change into small, manageable, and testa
     - [x] Remove database handoff logic from `auth/app/api/shopify_oauth.py`.
     - [x] Add `httpx` call to Agent Service's `/internal/session/initiate` endpoint.
     - [x] Added error handling to gracefully degrade if the handoff fails.
-- [ ] **Phase 6.4**: Deprecate & Remove Old DB Handoff Flow.
+- [x] **Phase 6.4**: Deprecate & Remove Old DB Handoff Flow.
 - [ ] **Phase 6.5**: Update the WebSocket handler for pre-warmed sessions.
 - [ ] **Phase 6.6**: Final Testing & Cleanup.
 
@@ -211,51 +211,51 @@ This plan breaks down the architectural change into small, manageable, and testa
 
 -   **Goal**: Create a new, non-public API endpoint in the Agent Service for the Auth Service to call.
 -   **Tasks**:
-    1.  Create a new router file: `agents/app/api/routes/internal.py`.
-    2.  Define a Pydantic model for the request body: `OAuthHandoffRequest` in `shared/models/api.py`.
-    3.  Add a `POST /api/v1/internal/session/initiate` endpoint.
-    4.  For now, the endpoint will only log the received data and return a `200 OK` response.
-    5.  Include the new router in `agents/app/main.py`.
+    1.  [x] Create a new router file: `agents/app/api/routes/internal.py`.
+    2.  [x] Define a Pydantic model for the request body: `OAuthHandoffRequest` in `shared/models/api.py`.
+    3.  [x] Add a `POST /api/v1/internal/session/initiate` endpoint.
+    4.  [x] For now, the endpoint will only log the received data and return a `200 OK` response.
+    5.  [x] Include the new router in `agents/app/main.py`.
 
 ### Phase 6.2: Implement `SessionInitiator` Service
 
 -   **Goal**: Isolate the session pre-preparation logic into a dedicated service.
 -   **Tasks**:
-    1.  Create a new service file: `agents/app/services/session_initiator.py`.
-    2.  Create a `SessionInitiator` class.
-    3.  Implement a method `prepare_oauth_session(request: OAuthHandoffRequest)`.
-    4.  This method will:
+    1.  [x] Create a new service file: `agents/app/services/session_initiator.py`.
+    2.  [x] Create a `SessionInitiator` class.
+    3.  [x] Implement a method `prepare_oauth_session(request: OAuthHandoffRequest)`.
+    4.  [x] This method will:
         -   Call `SessionManager` to create a new session with the correct workflow (`shopify_post_auth`).
         -   Call `MessageProcessor` to generate CJ's first message.
         -   Store the session object and the first message in a simple in-memory dictionary, keyed by `conversation_id`.
-    5.  Update the internal API endpoint from Phase 6.1 to use this new service.
+    5.  [x] Update the internal API endpoint from Phase 6.1 to use this new service.
 
 ### Phase 6.3: Update Auth Service to Call New Endpoint
 
 -   **Goal**: Modify the Auth Service to use the new server-to-server handoff mechanism.
 -   **Tasks**:
-    1.  **DONE**: In `auth/app/api/shopify_oauth.py`, inside the `handle_oauth_callback` function.
-    2.  **DONE**: Remove the code that writes to the `OAuthCompletionState` table.
-    3.  **DONE**: Add an `httpx` API call to `POST {AGENTS_SERVICE_URL}/api/v1/internal/session/initiate`.
-    4.  **DONE**: The Auth service now waits for a successful `200 OK` from the Agent service before proceeding.
-    5.  **DONE**: If the call fails, it logs a critical error but still redirects the user to the frontend, allowing the flow to gracefully degrade.
+    1.  [x] In `auth/app/api/shopify_oauth.py`, inside the `handle_oauth_callback` function.
+    2.  [x] Remove the code that writes to the `OAuthCompletionState` table.
+    3.  [x] Add an `httpx` API call to `POST {AGENTS_SERVICE_URL}/api/v1/internal/session/initiate`.
+    4.  [x] The Auth service now waits for a successful `200 OK` from the Agent service before proceeding.
+    5.  [x] If the call fails, it logs a critical error but still redirects the user to the frontend, allowing the flow to gracefully degrade.
 
 ### Phase 6.4: Deprecate & Remove Old DB Handoff Flow
 
 -   **Goal**: Clean up all code related to the old, unreliable database handoff mechanism.
 -   **Tasks**:
-    1.  **DONE**: In `agents/app/platforms/web/oauth_handler.py`, deprecated the `OAuthHandler` class and removed all logic.
-    2.  **DONE**: In `agents/app/platforms/web/session_handlers.py`, removed all calls to the `oauth_handler`.
-    3.  **DONE**: In `shared/db_models.py`, deleted the `OAuthCompletionState` model definition.
-    4.  **Manual Action Required**: A database migration must be created and applied to run: `DROP TABLE oauth_completion_state;`
+    1.  [x] In `agents/app/platforms/web/oauth_handler.py`, deprecated the `OAuthHandler` class and removed all logic.
+    2.  [x] In `agents/app/platforms/web/session_handlers.py`, removed all calls to the `oauth_handler`.
+    3.  [x] In `shared/db_models.py`, deleted the `OAuthCompletionState` model definition.
+    4.  [x] **Manual Action Required**: A database migration must be created and applied to run: `DROP TABLE oauth_completion_state;`
 
 ### Phase 6.5: Update WebSocket Handler for Pre-warmed Sessions
 
 -   **Goal**: Adapt the WebSocket connection logic to use the pre-warmed sessions.
 -   **Tasks**:
-    1.  **DONE**: In `agents/app/platforms/web/session_handlers.py`, inside `handle_start_conversation`, added logic to check the `SessionInitiator` cache for a pre-warmed session.
-    2.  **DONE**: If a session is found, it is loaded, the pre-generated message is sent, and the normal session creation flow is bypassed.
-    3.  **DONE**: If no pre-warmed session is found, the handler proceeds with the normal, non-authenticated flow.
+    1.  In `agents/app/platforms/web/session_handlers.py`, inside `handle_start_conversation`, add logic to check the `SessionInitiator` cache for a pre-warmed session.
+    2.  If a session is found, it should be loaded, the pre-generated message sent, and the normal session creation flow bypassed.
+    3.  If no pre-warmed session is found, the handler should proceed with the normal, non-authenticated flow.
 
 ### Phase 6.6: Final Testing & Cleanup
 
