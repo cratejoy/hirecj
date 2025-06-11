@@ -84,17 +84,19 @@ class UtilityHandlers:
                 debug_data["metrics"] = getattr(session, 'metrics', {})
             
             if debug_type == "prompts":
-                # Recent prompts (last 5)
+                # Return the last 10 conversation messages unfiltered so the
+                # frontend always receives useful context.
                 recent_prompts = []
-                if hasattr(session, 'conversation') and hasattr(session.conversation, 'messages'):
-                    for msg in session.conversation.messages[-10:]:  # Check last 10 messages
-                        if hasattr(msg, 'sender') and hasattr(msg, 'content'):
-                            if msg.sender.lower() == "system" or "prompt" in msg.content.lower():
-                                recent_prompts.append({
-                                    "timestamp": getattr(msg, 'timestamp', 'unknown'),
-                                    "content": msg.content[:500]  # First 500 chars
-                                })
-                debug_data["prompts"] = recent_prompts[-5:]  # Last 5 prompts
+                if hasattr(session, "conversation") and hasattr(session.conversation, "messages"):
+                    for msg in session.conversation.messages[-10:]:
+                        recent_prompts.append(
+                            {
+                                "timestamp": getattr(msg, "timestamp", "unknown"),
+                                "sender": msg.sender,
+                                "content": msg.content[:500],  # Truncate long text
+                            }
+                        )
+                debug_data["prompts"] = recent_prompts
             
             # Send debug response
             await websocket.send_json({
