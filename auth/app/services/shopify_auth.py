@@ -32,9 +32,9 @@ class ShopifyAuth:
         if not provided_hmac:
             return False
         
-        # Sort parameters and create query string
+        # Sort parameters and join without additional percent-encoding
         sorted_params = sorted(params.items())
-        query_string = urlencode(sorted_params)
+        query_string = "&".join(f"{k}={v}" for k, v in sorted_params)
         
         # Calculate HMAC
         secret = settings.shopify_client_secret.encode('utf-8')
