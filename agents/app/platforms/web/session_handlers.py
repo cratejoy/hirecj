@@ -65,6 +65,22 @@ class SessionHandlers:
                 await self.platform.send_error(websocket, "Scenario required for this workflow")
                 return
 
+        # ----------------------------------------------------------
+        # Phase 6.5 – check for a pre-warmed session prepared by
+        # SessionInitiator after OAuth hand-off
+        # ----------------------------------------------------------
+        prepared = session_initiator.get_prepared_session(conversation_id)
+        if prepared:
+            # Re-use the pre-generated session and first message
+            session = prepared["session"]
+            initial_message = prepared.get("initial_message")
+
+            # Store the session under this conversation_id so the rest of
+            # the platform can find it normally
+            self.platform.session_manager.store_session(conversation_id, session)
+        else:
+            initial_message = None
+
         # Check for existing session first
         logger.info(
             f"[SESSION_CHECK] Looking for existing session: {conversation_id}"
@@ -78,7 +94,7 @@ class SessionHandlers:
                 f"[RECONNECT] Session has {len(existing_session.conversation.messages)} messages"
             )
             session = existing_session
-        else:
+        elif not prepared:
             logger.info(
                 f"[NEW_SESSION] Creating new session for {conversation_id}"
             )
@@ -153,6 +169,26 @@ class SessionHandlers:
                 "data": conversation_data,
             }
         )
+
+        # If this session was pre-warmed, immediately deliver CJ's
+        # pre-generated first message to the frontend.
+        if initial_message is not None:
+            if isinstance(initial_message, dict) and initial_message.get("type") == "message_with_ui":
+                response_payload = {
+                    "content": initial_message["content"],
+                    "factCheckStatus": "available",
+                    "timestamp": datetime.now().isoformat(),
+                    "ui_elements": initial_message.get("ui_elements", [])
+                }
+            else:
+                response_payload = {
+                    "content": initial_message if isinstance(initial_message, str) else str(initial_message),
+                    "factCheckStatus": "available",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            await websocket.send_json({"type": "cj_message", "data": response_payload})
+            # Pre-warmed session complete – skip initial workflow action
+            return
         
         # Import workflow handlers for the rest
         from .workflow_handlers import WorkflowHandlers
