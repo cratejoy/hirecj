@@ -88,6 +88,12 @@
 
 ### ⏳ In Progress
 
+**Phase 5.5.5: Fix Page Refresh on Shopify Domain Entry**
+- **Issue**: When entering a Shopify domain in the OAuth button and pressing Enter, the page refreshes
+- **Root Cause**: Main chat input's `handleKeyDown` in SlackChat.tsx missing `e.preventDefault()`
+- **Fix**: Add `e.preventDefault()` to line 520 in SlackChat.tsx
+- **Status**: Issue identified, awaiting fix
+
 **Phase 6: Simplified Server-Side OAuth Handoff**
 - **Goal**: Replace the complex, browser-dependent OAuth completion flow with a reliable, direct server-to-server communication between the Auth and Agent services.
 - **Status**: Planning complete. Awaiting implementation.
