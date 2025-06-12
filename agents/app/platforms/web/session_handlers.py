@@ -41,6 +41,13 @@ class SessionHandlers:
             )
             return
 
+        # -------------------------------------------------------------
+        # Defaults before any override logic
+        workflow = "shopify_onboarding"   # default workflow
+        merchant = None                   # will be filled later
+        scenario = None
+        # -------------------------------------------------------------
+
         # Determine workflow and merchant based on authentication state
         ws_session = self.platform.sessions.get(conversation_id, {})
         is_authenticated = ws_session.get("authenticated", False)
@@ -67,14 +74,9 @@ class SessionHandlers:
                     logger.error(f"[WORKFLOW] Failed to clear session flag: {e}")
         # --------------------------------------------------------------
 
-        # Initialize defaults
-        workflow = "shopify_onboarding"
-        merchant = None
-        scenario = None
         
         if is_authenticated and user_id:
             # For authenticated users, check their merchant associations
-            from app.utils.supabase_util import get_db_session
             from shared.db_models import MerchantToken
             from sqlalchemy import select
             
