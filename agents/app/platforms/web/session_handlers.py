@@ -234,9 +234,17 @@ class SessionHandlers:
         workflow_handlers = WorkflowHandlers(self.platform)
         
         # Check if starting onboarding workflow but already authenticated
-        await workflow_handlers._check_already_authenticated(
+        transitioned = await workflow_handlers._check_already_authenticated(
             websocket, conversation_id, session, workflow, requirements, conversation_data
         )
+
+        if transitioned:
+            # session.workflow was changed (e.g., onboarding → post-auth)
+            workflow = session.conversation.workflow
+            workflow_data = self.platform.workflow_loader.get_workflow(workflow)
+            requirements = workflow_data.get("requirements", {})
+            conversation_data["workflow"] = workflow
+            logger.info(f"[WORKFLOW] Transition complete; continuing with {workflow}")
 
         # Register progress callback
         await workflow_handlers._setup_progress_callback(websocket)
