@@ -43,6 +43,9 @@ SERVICE_VARS = {
             "ZENDESK_CLIENT_ID", "ZENDESK_CLIENT_SECRET", "ZENDESK_SUBDOMAIN",
             "INTERCOM_CLIENT_ID", "INTERCOM_CLIENT_SECRET",
             
+            # JWT secret for signing state values
+            "STATE_JWT_SECRET",
+            
             # URLs for OAuth callbacks
             "FRONTEND_URL", "BACKEND_URL", "HOMEPAGE_URL", "OAUTH_REDIRECT_BASE_URL",
             "FRONTEND_SUCCESS_PATH", "FRONTEND_ERROR_PATH",
@@ -144,6 +147,9 @@ SERVICE_VARS = {
         "direct": [
             # Vite expects these specific variables
             "VITE_API_URL", "VITE_WS_URL", "VITE_AUTH_URL",
+            
+            # Shopify OAuth configuration for frontend
+            "VITE_SHOPIFY_CLIENT_ID", "VITE_SHOPIFY_SCOPES",
             
             # Port for development server
             "HOMEPAGE_PORT",
