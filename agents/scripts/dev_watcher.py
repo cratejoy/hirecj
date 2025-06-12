@@ -39,12 +39,12 @@ class ServerManager:
         logger.info("🚀 Starting server...")
         
         env = os.environ.copy()
-        env['LOG_LEVEL'] = 'DEBUG'
+        # env['LOG_LEVEL'] = 'DEBUG'  # Commented out to reduce WebSocket header spam
         
         agents_dir = Path(__file__).parent.parent
         
         cmd = [sys.executable, '-m', 'uvicorn', 'app.main:app', 
-               '--host', '0.0.0.0', '--port', '8000', '--log-level', 'debug']
+               '--host', '0.0.0.0', '--port', '8000', '--log-level', 'info']  # Changed from 'debug' to 'info'
         
         logger.debug(f"Running command: {' '.join(cmd)}")
         logger.debug(f"Working directory: {agents_dir}")

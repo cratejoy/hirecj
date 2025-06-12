@@ -183,6 +183,22 @@ The project uses a centralized `.env` pattern:
 - `scripts/distribute_env.py` automatically distributes to services
 - Service-specific `.env` files are auto-generated (don't edit manually)
 
+### 🚨 Debugging Guidelines
+
+**NO LAZY NETWORK ASSUMPTIONS**: When debugging issues, never conclude they are due to:
+- ngrok problems
+- Network conditions  
+- Packet loss
+- "Transient network errors"
+
+These are lazy explanations that avoid real debugging. 99% of problems are code bugs. Always:
+- Investigate actual code logic and data flow
+- Examine logs and trace execution paths
+- Look for configuration issues
+- Find the specific, deterministic cause in the code
+
+Network issues are extremely rare - focus on the code.
+
 ### Useful Commands
 
 ```bash

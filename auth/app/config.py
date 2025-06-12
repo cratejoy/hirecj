@@ -32,13 +32,7 @@ class Settings(BaseSettings):
     agents_service_url: str = Field("http://localhost:8000", env="AGENTS_SERVICE_URL")
     homepage_url: str = Field("http://localhost:3456", env="HOMEPAGE_URL")
     
-    # Database Configuration
-    database_url: str = Field(
-        "postgresql://hirecj:hirecj_dev_password@localhost:5435/hirecj_auth",
-        env="AUTH_DATABASE_URL"
-    )
-    
-    # Supabase connection for shared tables
+    # Database Configuration - Single shared database for all services
     supabase_connection_string: str = Field(
         env="SUPABASE_CONNECTION_STRING"
     )
@@ -105,11 +99,6 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = Field("INFO", env="LOG_LEVEL")
     
-    # Redis Configuration
-    redis_url: str = Field(
-        "redis://localhost:6379/0",
-        env="REDIS_URL"
-    )
     
     # CORS Configuration
     allowed_origins: list[str] = Field(
@@ -146,23 +135,41 @@ class Settings(BaseSettings):
     @classmethod
     def build_allowed_origins(cls, v, info) -> list[str]:
         """Build allowed origins list including tunnel URLs."""
-        origins = set(v) if v else set()
-        
+        # Normalize env value → Python set[str]
+        if not v:
+            origins: set[str] = set()
+        elif isinstance(v, str):
+            # Value may be a JSON list or a comma-separated string
+            import json
+            try:
+                parsed = json.loads(v)
+                if isinstance(parsed, (list, tuple)):
+                    origins = set(parsed)
+                else:
+                    origins = set(s.strip() for s in v.split(",") if s.strip())
+            except json.JSONDecodeError:
+                origins = set(s.strip() for s in v.split(",") if s.strip())
+        elif isinstance(v, (list, tuple, set)):
+            origins = set(v)
+        else:
+            origins = set()
+
         # Always include localhost origins
-        origins.update([
+        origins.update({
             "http://localhost:3456",
             "http://localhost:8000",
             "http://localhost:8103",
             "http://localhost:8002",
-        ])
+        })
         
         # Get values from ValidationInfo
         values = info.data if hasattr(info, 'data') else {}
         
-        # Add frontend URL if set
-        frontend_url = values.get("frontend_url")
-        if frontend_url:
-            origins.add(frontend_url)
+        # Add frontend & homepage URLs if set
+        for url_key in ("frontend_url", "homepage_url"):
+            url = values.get(url_key)
+            if url:
+                origins.add(url)
         
         # Add public URL if set
         public_url = values.get("public_url")
@@ -175,11 +182,12 @@ class Settings(BaseSettings):
             origins.add(oauth_url)
         
         # Add reserved domains if detected
-        if frontend_url and "hirecj.ai" in frontend_url:
-            origins.update([
+        reserved_frontend = values.get("frontend_url")
+        if reserved_frontend and "hirecj.ai" in reserved_frontend:
+            origins.update({
                 "https://amir.hirecj.ai",
                 "https://amir-auth.hirecj.ai",
-            ])
+            })
         
         # Filter out empty strings and return as list
         return list(filter(None, origins))
@@ -187,19 +195,16 @@ class Settings(BaseSettings):
     def get_oauth_callback_url(self, provider: str) -> str:
         """Get the full OAuth callback URL for a provider."""
         base_url = self.oauth_redirect_base_url.rstrip("/")
-        # Determine if it's a login provider or data provider
-        login_providers = ["shopify", "google"]
-        if provider.lower() in login_providers:
-            return f"{base_url}{self.api_prefix}/auth/callback/{provider}"
-        else:
-            return f"{base_url}{self.api_prefix}/oauth/callback/{provider}"
+        # The path should be /api/v1/{provider}/callback to match router prefixes
+        return f"{base_url}{self.api_prefix}/{provider}/callback"
     
     def log_oauth_urls(self):
         """Log all OAuth callback URLs for easy copying."""
         if self.debug:
             logger.info("🔐 OAuth Callback URLs:")
             logger.info(f"  Base URL: {self.oauth_redirect_base_url}")
-            for provider in ["shopify", "google", "klaviyo", "freshdesk"]:
+            # Removed "google" from the list of providers
+            for provider in ["shopify", "klaviyo", "freshdesk"]:
                 logger.info(f"  {provider.title()}: {self.get_oauth_callback_url(provider)}")
     
     def __init__(self, **kwargs):

@@ -21,10 +21,11 @@ from app.scenarios import ScenarioLoader
 from app.cache_config import setup_litellm_cache, get_cache_info
 from app.cache_warming import warm_cache_on_startup
 from app.platforms.manager import PlatformManager
-from app.platforms.web_platform import WebPlatform
+from app.platforms.web import WebPlatform
 from app.api.routes import catalog as catalog_router
 from app.api.routes import universe
 from app.api.routes import conversations
+from app.api.routes import internal as internal_router
 from app.constants import HTTPStatus, WebSocketCloseCodes
 
 # Initialize logging
@@ -93,6 +94,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add user loading middleware (after CORS)
+from app.middleware.load_user import LoadUser
+app.add_middleware(LoadUser)
 
 # Initialize loaders
 prompt_loader = PromptLoader()
@@ -254,7 +259,7 @@ async def root():
         "version": "1.0.0",
         "endpoints": {
             "conversation_generation": "/api/v1/conversations/generate",
-            "websocket_chat": "/ws/chat/{conversation_id}",
+            "websocket_chat": "/ws/chat",
             "health": "/health",
             "api_docs": "/docs",
         },
@@ -414,17 +419,17 @@ async def health_check():
 # ============== WebSocket Chat Endpoints ==============
 
 
-@app.websocket("/ws/chat/{conversation_id}")
-async def websocket_chat(websocket: WebSocket, conversation_id: str):
+@app.websocket("/ws/chat")
+async def websocket_chat(websocket: WebSocket):
     """WebSocket endpoint for live chat"""
-    logger.info(f"New WebSocket connection: {conversation_id}")
+    logger.info("New WebSocket connection")
 
     await websocket.accept()
 
     # Use the web platform to handle the connection
     global web_platform
     if web_platform:
-        await web_platform.handle_websocket_connection(websocket, conversation_id)
+        await web_platform.handle_websocket_connection(websocket)
     else:
         await websocket.close(
             code=WebSocketCloseCodes.INTERNAL_ERROR, reason="Service unavailable"
@@ -462,7 +467,6 @@ async def websocket_test_page():
         <div class="section">
             <h2>Connection</h2>
             <p>Status: <span id="status" class="disconnected">Disconnected</span></p>
-            <input type="text" id="conversationId" placeholder="Conversation ID" value="test-conv-123">
             <button onclick="connect()">Connect</button>
             <button onclick="disconnect()">Disconnect</button>
         </div>
@@ -537,8 +541,7 @@ async def websocket_test_page():
                 return;
             }
 
-            const conversationId = document.getElementById('conversationId').value;
-            const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/chat/${conversationId}`;
+            const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/chat`;
 
             log(`Connecting to ${wsUrl}...`, 'sent');
             ws = new WebSocket(wsUrl);
@@ -590,7 +593,6 @@ async def websocket_test_page():
             const data = {
                 type: 'start_conversation',
                 data: {
-                    conversation_id: document.getElementById('conversationId').value,
                     merchant_id: document.getElementById('merchantId').value,
                     scenario: document.getElementById('scenario').value,
                     workflow: document.getElementById('workflow').value
@@ -658,6 +660,7 @@ async def websocket_test_page():
 app.include_router(catalog_router.router)
 app.include_router(universe.router)
 app.include_router(conversations.router)
+app.include_router(internal_router.router)
 
 
 if __name__ == "__main__":

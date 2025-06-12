@@ -7,9 +7,16 @@ import { handleClientLog } from "./logging";
 import { createProxyMiddleware } from 'http-proxy-middleware';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Get the agents service URL from environment
+  const AGENTS_SERVICE_URL = process.env.AGENTS_SERVICE_URL || 'http://localhost:8000';
+  const agentsUrl = new URL(AGENTS_SERVICE_URL);
+  const agentsTarget = `${agentsUrl.protocol}//${agentsUrl.host}`;
+  
+  console.log(`[Proxy] Agents service target: ${agentsTarget}`);
+  
   // Proxy /api/v1/* requests to the backend
   const apiProxy = createProxyMiddleware({
-    target: 'http://localhost:8000',
+    target: agentsTarget,
     changeOrigin: true,
     logLevel: 'debug',
     pathFilter: '/api/v1/**',
@@ -27,6 +34,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.use(apiProxy);
+  
+  // Proxy WebSocket connections to the backend
+  const wsProxy = createProxyMiddleware({
+    target: agentsTarget,
+    changeOrigin: true,
+    ws: true,  // Enable WebSocket proxy
+    logLevel: 'debug',
+    pathFilter: '/ws/chat/**',  // More specific path to avoid HMR conflicts
+    on: {
+      upgrade: (proxyReq, req, socket, head) => {
+        console.log(`[WebSocket Proxy] Upgrade request: ${req.url}`);
+      },
+      open: (proxySocket) => {
+        console.log('[WebSocket Proxy] WebSocket opened');
+      },
+      close: (res, socket, head) => {
+        console.log('[WebSocket Proxy] WebSocket closed');
+      },
+      error: (err, req, socket) => {
+        console.error('[WebSocket Proxy] Error:', err);
+      }
+    }
+  });
+  
+  app.use(wsProxy);
   
   // Get initial chat message
   app.get("/api/chat/initial", (req, res) => {
@@ -100,6 +132,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/logs", handleClientLog);
 
   const httpServer = createServer(app);
+
+  // Set up WebSocket upgrade handling on the HTTP server
+  httpServer.on('upgrade', (request, socket, head) => {
+    console.log(`[Server] Upgrade request for: ${request.url}`);
+    
+    // Let http-proxy-middleware handle WebSocket upgrades for /ws/chat/* paths
+    if (request.url?.startsWith('/ws/chat/')) {
+      wsProxy.upgrade(request, socket, head);
+    } else {
+      // Let other WebSocket connections (like Vite HMR) pass through
+      console.log(`[Server] Non-chat WebSocket upgrade, letting it pass through`);
+    }
+  });
 
   return httpServer;
 }

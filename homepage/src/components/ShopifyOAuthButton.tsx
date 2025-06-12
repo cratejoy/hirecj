@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
 interface ShopifyOAuthButtonProps {
-  conversationId: string;
   text?: string;
   className?: string;
   disabled?: boolean;
 }
 
 export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
-  conversationId,
   text = 'Connect Shopify',
   className = '',
   disabled = false
@@ -28,30 +26,41 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
     setShowShopInput(true);
   };
 
-  const initiateOAuth = (shop: string) => {
+  const initiateOAuth = async (shop: string) => {
     setIsConnecting(true);
-    
-    // Validate shop domain format
-    if (!shop.endsWith('.myshopify.com')) {
-      shop = `${shop}.myshopify.com`;
+
+    try {
+      // Normalize shop domain
+      if (!shop.endsWith('.myshopify.com')) {
+        shop = `${shop}.myshopify.com`;
+      }
+
+      const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
+      const params = new URLSearchParams({
+        shop,
+        mode: 'json', // ask backend for JSON instead of 302
+      });
+
+      const res = await fetch(`${authUrl}/api/v1/shopify/install?${params}`, {
+        credentials: 'include',
+        headers: { 'ngrok-skip-browser-warning': 'true' },
+      });
+
+      if (!res.ok) {
+        throw new Error(`OAuth init failed: ${res.status} ${await res.text()}`);
+      }
+
+      const { redirect_url } = await res.json();
+
+      console.log('🛍️ Shopify OAuth Debug (ShopifyOAuthButton):');
+      console.log('  Redirect URL:', redirect_url);
+
+      // Single navigation straight to Shopify (no extra history entry)
+      window.location.replace(redirect_url);
+    } catch (err) {
+      console.error(err);
+      setIsConnecting(false);
     }
-    
-    // Store conversation ID for later (OAuth doesn't preserve it)
-    sessionStorage.setItem('shopify_oauth_conversation_id', conversationId);
-    
-    // Redirect to auth service install endpoint
-    const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
-    const installUrl = `${authUrl}/api/v1/shopify/install?shop=${encodeURIComponent(shop)}`;
-    
-    // Log OAuth details for debugging
-    console.log('🛍️ Shopify OAuth Debug (ShopifyOAuthButton):');
-    console.log('  Auth URL:', authUrl);
-    console.log('  Install URL:', installUrl);
-    console.log('  Expected Redirect URI:', `${authUrl}/api/v1/shopify/callback`);
-    console.log('  Shop Domain:', shop);
-    
-    // Redirect to start OAuth flow
-    window.location.href = installUrl;
   };
 
   const handleShopSubmit = () => {
@@ -62,13 +71,7 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
 
   if (showShopInput) {
     return (
-      <form
-        className="space-y-3 p-4 bg-gray-800 rounded-lg border border-gray-700"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleShopSubmit();
-        }}
-      >
+      <div className="space-y-3 p-4 bg-gray-800 rounded-lg border border-gray-700">
         <div className="text-sm text-gray-300 font-medium">
           Enter your Shopify store domain:
         </div>
@@ -77,29 +80,36 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
           placeholder="yourstore or yourstore.myshopify.com"
           value={shopDomain}
           onChange={(e) => setShopDomain(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleShopSubmit();
+            }
+          }}
           className="w-full px-4 py-2.5 bg-gray-900 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-shopify-green focus:border-transparent text-white placeholder-gray-500 transition-all"
           autoFocus
         />
         <div className="flex gap-2">
-          <button
-            type="submit"
+          <Button
+            type="button"
+            onClick={handleShopSubmit}
             disabled={!shopDomain || isConnecting}
-            className="flex-1 bg-shopify-green hover:bg-shopify-green-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
+            className="flex-1 bg-shopify-green hover:bg-shopify-green-dark"
           >
             {isConnecting ? 'Redirecting...' : 'Connect'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => {
               setShowShopInput(false);
               setShopDomain('');
             }}
-            className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-300 font-medium rounded-lg transition-colors"
           >
             Cancel
-          </button>
+          </Button>
         </div>
-      </form>
+      </div>
     );
   }
 
@@ -110,7 +120,32 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
       className={`bg-shopify-green hover:bg-shopify-green-dark text-white ${className}`}
       size="lg"
     >
-      {isConnecting ? 'Redirecting to Shopify...' : text}
+      {isConnecting ? (
+        <>
+          <svg
+            className="animate-spin h-4 w-4 mr-2"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8v8H4z"
+            />
+          </svg>
+          Connecting…
+        </>
+      ) : (
+        text
+      )}
     </Button>
   );
 };

@@ -150,12 +150,90 @@ SERVICE_VARS = {
         ],
         "mappings": {
             # Map from our standard names to what Vite expects
-            "VITE_API_URL": lambda vars: vars.get("AGENTS_SERVICE_URL", "http://localhost:8000"),
-            "VITE_WS_URL": lambda vars: vars.get("AGENTS_SERVICE_URL", "http://localhost:8000").replace("http://", "ws://").replace("https://", "wss://"),
+            # Check if we should use proxy mode (when homepage is on amir.hirecj.ai)
+            "VITE_API_URL": lambda vars: _get_vite_api_url(vars),
+            "VITE_WS_URL": lambda vars: _get_vite_ws_url(vars),
             "VITE_AUTH_URL": lambda vars: vars.get("AUTH_SERVICE_URL", "http://localhost:8103"),
         }
     }
 }
+
+def _should_use_proxy(homepage_url: str, agents_url: str) -> bool:
+    """Determine if we should use proxy mode based on URLs."""
+    if not homepage_url or not agents_url:
+        return False
+        
+    try:
+        from urllib.parse import urlparse
+        homepage_domain = urlparse(homepage_url).hostname
+        agents_domain = urlparse(agents_url).hostname
+        
+        # Use proxy when homepage is on amir.hirecj.ai
+        # This allows us to route all traffic through the same domain
+        if homepage_url and 'amir.hirecj.ai' in homepage_url:
+            return True
+            
+        # Also use proxy when both are on localhost
+        if homepage_domain == 'localhost' and agents_domain == 'localhost':
+            return True
+            
+        # Same domain = use proxy
+        if homepage_domain == agents_domain:
+            return True
+            
+    except Exception:
+        pass
+        
+    return False
+
+def _get_vite_api_url(vars: Dict[str, str]) -> str:
+    """Get VITE_API_URL, empty if using proxy mode."""
+    homepage_url = vars.get("HOMEPAGE_URL", "")
+    agents_url = vars.get("AGENTS_SERVICE_URL", "http://localhost:8000")
+    
+    # Check tunnel env for latest URLs
+    tunnel_env_path = Path(".env.tunnel")
+    if tunnel_env_path.exists():
+        try:
+            with open(tunnel_env_path) as f:
+                for line in f:
+                    if line.startswith("HOMEPAGE_URL="):
+                        homepage_url = line.split("=", 1)[1].strip()
+                    elif line.startswith("AGENTS_SERVICE_URL="):
+                        agents_url = line.split("=", 1)[1].strip()
+        except Exception:
+            pass
+    
+    if _should_use_proxy(homepage_url, agents_url):
+        # Return empty string to trigger proxy mode
+        return ""
+    
+    return agents_url
+
+def _get_vite_ws_url(vars: Dict[str, str]) -> str:
+    """Get VITE_WS_URL, empty if using proxy mode."""
+    homepage_url = vars.get("HOMEPAGE_URL", "")
+    agents_url = vars.get("AGENTS_SERVICE_URL", "http://localhost:8000")
+    
+    # Check tunnel env for latest URLs
+    tunnel_env_path = Path(".env.tunnel")
+    if tunnel_env_path.exists():
+        try:
+            with open(tunnel_env_path) as f:
+                for line in f:
+                    if line.startswith("HOMEPAGE_URL="):
+                        homepage_url = line.split("=", 1)[1].strip()
+                    elif line.startswith("AGENTS_SERVICE_URL="):
+                        agents_url = line.split("=", 1)[1].strip()
+        except Exception:
+            pass
+    
+    if _should_use_proxy(homepage_url, agents_url):
+        # Return empty string to trigger proxy mode
+        return ""
+    
+    # Convert HTTP URL to WebSocket URL
+    return agents_url.replace("http://", "ws://").replace("https://", "wss://")
 
 def load_master_env() -> Dict[str, str]:
     """Load variables from master .env file."""
