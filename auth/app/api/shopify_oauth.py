@@ -259,7 +259,7 @@ async def handle_oauth_callback(request: Request):
 
                 agents_url = f"{settings.agents_service_url}/api/v1/internal/oauth/completed"
                 
-                async with httpx.AsyncClient(timeout=15.0) as client:
+                async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.post(agents_url, json=handoff_request)
                 
                 if response.status_code == 200:
@@ -275,8 +275,11 @@ async def handle_oauth_callback(request: Request):
                 # Log but don't fail - the auth flow continues
                 logger.error(f"[OAUTH] Error notifying agents service: {e}", exc_info=True)
 
-        # PHASE 3: Redirect to frontend with only conversation_id
-        redirect_params = {}
+        # PHASE 3: Redirect to frontend with conversation_id and oauth complete marker
+        redirect_params = {
+            "oauth": "complete",  # Mark this as an OAuth return
+            "workflow": "shopify_post_auth"  # Set the appropriate workflow
+        }
         if conversation_id:
             redirect_params["conversation_id"] = conversation_id
         else:
