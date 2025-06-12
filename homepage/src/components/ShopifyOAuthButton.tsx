@@ -57,8 +57,7 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
 
       // During dev keep real navigation disabled:
       console.log("REDIRECT", redirect);
-      return;                 // ← remove / comment when you want to follow the link
-      // window.location.assign(redirect);
+      window.location.assign(redirect);   // perform the real redirect
     } catch (err) {
       console.error("[ShopifyOAuthButton] OAuth init failed:", err);
       setIsConnecting(false);
