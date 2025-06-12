@@ -35,6 +35,7 @@ class WebSocketHandler:
             websocket: WebSocket connection object
         """
         # Get user context from cookie BEFORE accepting connection
+        session = None                     # <── ADD THIS LINE
         session_id = websocket.cookies.get("hirecj_session")
         user_ctx = None
         conversation_id = None
