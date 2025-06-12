@@ -34,8 +34,12 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
 
     setIsConnecting(true);
 
-    const authUrlBase =
-      import.meta.env.VITE_AUTH_URL || "https://amir-auth.hirecj.ai";
+    const authUrlBase = import.meta.env.VITE_AUTH_URL;
+    if (!authUrlBase) {
+      throw new Error(
+        "[ShopifyOAuthButton] VITE_AUTH_URL is not set – cannot initiate OAuth"
+      );
+    }
 
     // ONE direct navigation – no pre-flight, no CORS
     const redirect = `${authUrlBase}/api/v1/shopify/install?shop=${encodeURIComponent(

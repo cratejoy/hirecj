@@ -57,7 +57,12 @@ const SlackChat = () => {
 	
 	// Log OAuth configuration on startup
 	useEffect(() => {
-		const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
+		const authUrl = import.meta.env.VITE_AUTH_URL;
+		if (!authUrl) {
+		  console.error(
+		    "[SlackChat] ❌ VITE_AUTH_URL not set – frontend cannot construct OAuth URLs"
+		  );
+		}
 		console.log('🛍️ Shopify OAuth Configuration (on page load):');
 		console.log('  Auth Service URL:', authUrl);
 		console.log('  Expected Redirect URI:', `${authUrl}/api/v1/shopify/callback`);
