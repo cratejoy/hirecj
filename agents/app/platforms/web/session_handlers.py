@@ -1,7 +1,7 @@
 """Session-related message handlers."""
 
 from typing import Dict, Any, TYPE_CHECKING
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, update
 from shared.db_models import WebSession, MerchantToken
 from app.utils.supabase_util import get_db_session
@@ -55,7 +55,7 @@ class SessionHandlers:
             mt = self._get_latest_token(user_id)
             if mt:
                 merchant = mt["shop_domain"].replace(".myshopify.com", "")
-                if mt["created_at"] > datetime.utcnow() - timedelta(minutes=5):
+                if mt["created_at"] > datetime.now(timezone.utc) - timedelta(minutes=5):
                     workflow = "shopify_post_auth"
                     scenario = "post_auth"
 
