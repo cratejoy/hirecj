@@ -33,6 +33,9 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
   const initiateOAuth = async (shop: string) => {
     if (!shop.endsWith(".myshopify.com")) shop += ".myshopify.com";
 
+    // 🔒 Lock the UI – show “Redirecting…” and disable buttons
+    setIsConnecting(true);
+
     try {
       const authUrlBase = import.meta.env.VITE_AUTH_URL;
       if (!authUrlBase) throw new Error("VITE_AUTH_URL not set");
@@ -59,6 +62,7 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
       return;                                 // stop execution – no further React updates
     } catch (err) {
       console.error("[ShopifyOAuthButton] OAuth init failed:", err);
+      setIsConnecting(false);
     }
   };
 
