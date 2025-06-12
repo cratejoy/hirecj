@@ -32,7 +32,6 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
 
   const initiateOAuth = async (shop: string) => {
     if (!shop.endsWith(".myshopify.com")) shop += ".myshopify.com";
-    setIsConnecting(true);
 
     try {
       const authUrlBase = import.meta.env.VITE_AUTH_URL;
@@ -55,12 +54,11 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
 
       const redirect = `https://${shop}/admin/oauth/authorize?${params}`;
 
-      // During dev keep real navigation disabled:
-      console.log("REDIRECT", redirect);
-      window.location.assign(redirect);   // perform the real redirect
+      console.log("REDIRECT", redirect);      // optional debug
+      window.location.assign(redirect);       // ⬅️ trigger full page navigation
+      return;                                 // stop execution – no further React updates
     } catch (err) {
       console.error("[ShopifyOAuthButton] OAuth init failed:", err);
-      setIsConnecting(false);
     }
   };
 
