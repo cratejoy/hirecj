@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { logger } from '@/lib/logger';
 import { WorkflowType } from '@/constants/workflow';
-import { WorkflowTransitionMessage } from '@/types/websocket';
 
 const wsLogger = logger.child('websocket');
 
@@ -300,6 +299,18 @@ export function useWebSocketChat({
           
         case 'conversation_started':
           wsLogger.info('Conversation started', data.data);
+          // Update workflow from backend's authoritative state
+          const backendWorkflow = data.data?.workflow;
+          if (backendWorkflow && onWorkflowUpdatedRef.current) {
+            wsLogger.info('Updating workflow from conversation_started', {
+              workflow: backendWorkflow,
+              source: 'backend'
+            });
+            // Update our internal ref
+            workflowRef.current = backendWorkflow;
+            // Notify parent component
+            onWorkflowUpdatedRef.current(backendWorkflow, workflowRef.current);
+          }
           break;
           
         case 'workflow_updated':
@@ -308,6 +319,8 @@ export function useWebSocketChat({
             from: previous, 
             to: updatedWorkflow 
           });
+          // Update our internal ref
+          workflowRef.current = updatedWorkflow;
           // Trigger callback to parent component
           if (onWorkflowUpdatedRef.current) {
             onWorkflowUpdatedRef.current(updatedWorkflow, previous);
@@ -748,30 +761,12 @@ export function useWebSocketChat({
       retryCount: 0
     });
   }, []);
-  
-  // Send workflow transition request
-  const sendWorkflowTransition = useCallback((newWorkflow: WorkflowType) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      const message: WorkflowTransitionMessage = {
-        type: 'workflow_transition',
-        data: {
-          new_workflow: newWorkflow,
-          user_initiated: true
-        }
-      };
-      wsRef.current.send(JSON.stringify(message));
-      wsLogger.info('📤 Sent workflow transition request', { newWorkflow });
-    } else {
-      wsLogger.warn('Cannot send workflow transition - WebSocket not connected');
-    }
-  }, []);
 
   return {
     messages: state.messages,
     sendMessage,
     sendFactCheck,
     sendSpecialMessage,
-    sendWorkflowTransition,
     isConnected: state.connectionState === 'connected',
     connectionState: state.connectionState,
     isTyping: state.isTyping,

@@ -40,6 +40,22 @@ class SessionHandlers:
 
         workflow = start_data.get("workflow", "ad_hoc_support")
         
+        # Check if this conversation has post-OAuth state waiting
+        post_auth_state = post_oauth_handler.get_post_auth_state(conversation_id)
+        if post_auth_state:
+            # Use the prepared post-auth workflow state
+            session = post_auth_state["session"]
+            initial_message = post_auth_state.get("initial_message")
+
+            # Store the session for future use
+            self.platform.session_manager.store_session(conversation_id, session)
+            
+            # Preserve the workflow from the post-auth session
+            workflow = session.conversation.workflow
+            logger.info(f"[POST_OAUTH] Using post-auth state for {conversation_id}, preserving workflow: {workflow}")
+        else:
+            initial_message = None
+        
         # Get workflow requirements
         workflow_data = self.platform.workflow_loader.get_workflow(workflow)
         requirements = workflow_data.get('requirements', {})
@@ -65,20 +81,6 @@ class SessionHandlers:
                 await self.platform.send_error(websocket, "Scenario required for this workflow")
                 return
 
-        # Check if this conversation has post-OAuth state waiting
-        post_auth_state = post_oauth_handler.get_post_auth_state(conversation_id)
-        if post_auth_state:
-            # Use the prepared post-auth workflow state
-            session = post_auth_state["session"]
-            initial_message = post_auth_state.get("initial_message")
-
-            # Store the session for future use
-            self.platform.session_manager.store_session(conversation_id, session)
-            
-            logger.info(f"[POST_OAUTH] Using post-auth state for {conversation_id}")
-        else:
-            initial_message = None
-
         # Check for existing session first
         logger.info(
             f"[SESSION_CHECK] Looking for existing session: {conversation_id}"
@@ -92,6 +94,9 @@ class SessionHandlers:
                 f"[RECONNECT] Session has {len(existing_session.conversation.messages)} messages"
             )
             session = existing_session
+            # Preserve the workflow from the existing session
+            workflow = session.conversation.workflow
+            logger.info(f"[RECONNECT] Preserving existing session workflow: {workflow}")
         else:
             logger.info(
                 f"[NEW_SESSION] Creating new session for {conversation_id}"
@@ -171,23 +176,22 @@ class SessionHandlers:
             }
         )
 
-        # If we have a post-OAuth initial message, send it immediately
-        if initial_message is not None:
-            if isinstance(initial_message, dict) and initial_message.get("type") == "message_with_ui":
-                response_payload = {
-                    "content": initial_message["content"],
-                    "factCheckStatus": "available",
-                    "timestamp": datetime.now().isoformat(),
-                    "ui_elements": initial_message.get("ui_elements", [])
-                }
-            else:
-                response_payload = {
-                    "content": initial_message if isinstance(initial_message, str) else str(initial_message),
+        # If this is a pending post-OAuth analysis, send placeholder and trigger async processing
+        if post_auth_state and post_auth_state.get("pending_analysis"):
+            await websocket.send_json({
+                "type": "cj_message",
+                "data": {
+                    "content": "🔄 Connection successful! Analyzing your store...",
                     "factCheckStatus": "available",
                     "timestamp": datetime.now().isoformat(),
                 }
-            await websocket.send_json({"type": "cj_message", "data": response_payload})
-            # Pre-warmed session complete – skip initial workflow action
+            })
+            
+            # Trigger async analysis
+            import asyncio
+            asyncio.create_task(self._process_post_oauth_analysis(
+                websocket, session, conversation_id
+            ))
             return
         
         # Import workflow handlers for the rest
@@ -237,3 +241,56 @@ class SessionHandlers:
         # Close WebSocket connection
         await websocket.close()
         logger.info(f"[LOGOUT] Logout complete, connection closed")
+    
+    async def _process_post_oauth_analysis(
+        self, websocket: WebSocket, session: 'Session', conversation_id: str
+    ):
+        """Process post-OAuth analysis asynchronously."""
+        try:
+            logger.info(f"[POST_OAUTH] Starting async analysis for {conversation_id}")
+            
+            # Import here to avoid circular imports
+            from app.services.message_processor import MessageProcessor
+            
+            processor = MessageProcessor()
+            
+            # Generate the analysis (this takes 17-20 seconds)
+            response = await processor.process_message(
+                session=session,
+                message="SYSTEM_EVENT: shopify_oauth_complete",
+                sender="system"
+            )
+            
+            logger.info(f"[POST_OAUTH] Analysis complete for {conversation_id}")
+            
+            # Send the analysis result
+            if isinstance(response, dict) and response.get("type") == "message_with_ui":
+                await websocket.send_json({
+                    "type": "cj_message",
+                    "data": {
+                        "content": response["content"],
+                        "factCheckStatus": "available",
+                        "timestamp": datetime.now().isoformat(),
+                        "ui_elements": response.get("ui_elements", [])
+                    }
+                })
+            else:
+                await websocket.send_json({
+                    "type": "cj_message",
+                    "data": {
+                        "content": response,
+                        "factCheckStatus": "available",
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                })
+        except Exception as e:
+            logger.error(f"[POST_OAUTH] Failed to process analysis: {e}", exc_info=True)
+            # Send a fallback message if analysis fails
+            await websocket.send_json({
+                "type": "cj_message",
+                "data": {
+                    "content": "Welcome! Your store is connected. How can I help you today?",
+                    "factCheckStatus": "available",
+                    "timestamp": datetime.now().isoformat(),
+                }
+            })

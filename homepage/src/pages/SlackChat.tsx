@@ -128,9 +128,13 @@ const SlackChat = () => {
 			final: conversationId
 		});
 		
+		// Get merchantId and scenario from URL if present
+		const urlMerchantId = params.get('merchantId');
+		const urlScenario = params.get('scenario');
+		
 		return {
-			scenarioId: null,
-			merchantId: userSession.merchantId, // Get from user session
+			scenarioId: urlScenario || null,
+			merchantId: urlMerchantId || userSession.merchantId, // Use URL param if available, otherwise user session
 			conversationId,
 			workflow: getWorkflowFromUrl()
 		};

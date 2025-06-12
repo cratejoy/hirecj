@@ -11,4 +11,5 @@ class OAuthHandoffRequest(BaseModel):
     shop_domain: str
     is_new: bool
     conversation_id: str
+    user_id: str
     email: Optional[str] = None
