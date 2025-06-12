@@ -214,6 +214,7 @@ const SlackChat = () => {
 	const messages = isRealChat ? wsChat.messages : demoChat.messages;
 	const isTyping = isRealChat ? wsChat.isTyping : demoChat.isTyping;
 	const handleSendMessage = isRealChat ? wsChat.sendMessage : demoChat.handleSendMessage;
+	const isFirstMessageLoading = isRealChat && messages.length === 0 && wsChat.isConnected;
 	
 	// Clean up OAuth-related URL params after processing
 	useEffect(() => {
@@ -586,7 +587,7 @@ const SlackChat = () => {
 						{isRealChat ? (
 							<ChatInterface
 								messages={messages}
-								isTyping={isTyping}
+								isTyping={isTyping || isFirstMessageLoading}
 								progress={wsChat.progress}
 								merchantName={chatConfig.merchantId?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Merchant'}
 								isConnected={wsChat.isConnected}

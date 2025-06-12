@@ -206,7 +206,7 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 			)}
 
 			{/* Welcome message */}
-			{messages.length === 0 && isConnected && (
+			{messages.length === 0 && isConnected && !isTyping && (
 				<div className="text-center py-8">
 					<p className="text-gray-400">
 						You're now chatting with <span className="font-semibold">{merchantName}</span>
