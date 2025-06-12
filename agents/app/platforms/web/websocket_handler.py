@@ -27,24 +27,24 @@ class WebSocketHandler:
         self.platform = platform
         self.message_handlers = MessageHandlers(platform)
 
-    async def handle_connection(self, websocket: WebSocket, conversation_id: str = None):
+    async def handle_connection(self, websocket: WebSocket):
         """
         Handle new WebSocket connection.
 
         Args:
             websocket: WebSocket connection object
-            conversation_id: Optional existing conversation ID
         """
         # Get user context from cookie BEFORE accepting connection
         session_id = websocket.cookies.get("hirecj_session")
         user_ctx = None
+        conversation_id = None
         
         if session_id:
             logger.info(f"[WEBSOCKET] Found session cookie: {session_id[:10]}...")
             
             # Import here to avoid circular imports
             from app.utils.supabase_util import get_db_session
-            from shared.db_models import WebSession
+            from shared.db_models import WebSession, Conversation
             from sqlalchemy import select
             
             try:
@@ -58,6 +58,22 @@ class WebSocketHandler:
                     if session:
                         user_ctx = {"user_id": session.user_id}
                         logger.info(f"[WEBSOCKET] User {session.user_id} connected via session cookie")
+                        
+                        # For authenticated users, find or create their persistent conversation
+                        existing_conv = db.scalar(
+                            select(Conversation)
+                            .where(Conversation.user_id == session.user_id)
+                            .order_by(Conversation.created_at.desc())
+                            .limit(1)
+                        )
+                        
+                        if existing_conv:
+                            conversation_id = existing_conv.id
+                            logger.info(f"[WEBSOCKET] Using existing conversation {conversation_id} for user {session.user_id}")
+                        else:
+                            # Create new persistent conversation for this user
+                            conversation_id = f"user_{session.user_id}_{uuid.uuid4().hex[:8]}"
+                            logger.info(f"[WEBSOCKET] Creating new conversation {conversation_id} for user {session.user_id}")
                     else:
                         logger.debug(f"[WEBSOCKET] Session not found or expired")
             except Exception as e:
@@ -65,9 +81,10 @@ class WebSocketHandler:
         else:
             logger.info(f"[WEBSOCKET] No session cookie found - anonymous connection")
         
-        # Generate conversation ID if not provided
+        # For anonymous users, always create a new temporary conversation
         if not conversation_id:
-            conversation_id = f"web_session_{uuid.uuid4().hex[:8]}"
+            conversation_id = f"anon_{uuid.uuid4().hex[:8]}"
+            logger.info(f"[WEBSOCKET] Created temporary conversation {conversation_id} for anonymous user")
 
         # Register connection
         self.platform.connections[conversation_id] = websocket

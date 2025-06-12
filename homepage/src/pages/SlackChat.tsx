@@ -7,7 +7,6 @@ import { useUserSession } from '@/hooks/useUserSession';
 import DemoScriptFlow from '@/components/DemoScriptFlow';
 import { ConfigurationModal } from '@/components/ConfigurationModal';
 import { ChatInterface } from '@/components/ChatInterface';
-import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
 import { VALID_WORKFLOWS, WorkflowType, DEFAULT_WORKFLOW, WORKFLOW_NAMES } from '@/constants/workflow';
 
@@ -27,12 +26,10 @@ interface Message {
 interface ChatConfig {
 	scenarioId: string | null;
 	merchantId: string | null;
-	conversationId: string;
 	workflow: WorkflowType | null;
 }
 
 // Workflow display names with emojis for UI
-const LS_CONV_ID = 'cj_conversation_id';          // persistent key
 
 const SlackChat = () => {
 	const [location, setLocation] = useLocation();
@@ -87,46 +84,7 @@ const SlackChat = () => {
 	
 	// Initialize chatConfig with URL workflow (merchant now in userSession)
 	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => {
-		// PHASE 1 FIX: Check if we have an OAuth callback with conversation_id
 		const params = new URLSearchParams(searchString);
-		const oauthConversationId = params.get('conversation_id');
-		const isOAuthCallback = params.get('oauth') === 'complete';
-		
-		// DEBUG TRAP 1: OAuth callback detection
-		if (isOAuthCallback) {
-			console.error('🚨 DEBUG TRAP 1: OAuth callback detected!', {
-				url: window.location.href,
-				params: Object.fromEntries(params.entries()),
-				oauthConversationId,
-				sessionStorageId: sessionStorage.getItem('shopify_oauth_conversation_id')
-			});
-		}
-		
-		// If we have an OAuth callback conversation ID, use it
-		// Otherwise, check sessionStorage (in case of page reload during OAuth)
-		// Finally, generate a new one
-		let conversationId =
-			oauthConversationId ||                            // id returned from OAuth (prioritize this)
-			localStorage.getItem(LS_CONV_ID) ||               // reuse persistent
-			uuidv4();                                         // brand-new
-		
-		// DEBUG TRAP 2: Conversation ID mismatch
-		if (isOAuthCallback && !oauthConversationId) {
-			console.error('🚨 DEBUG TRAP 2: OAuth callback WITHOUT conversation_id!', {
-				expected: 'conversation_id in URL params',
-				got: 'null',
-				willUse: conversationId,
-				source: oauthConversationId ? 'oauth' : sessionStorage.getItem('shopify_oauth_conversation_id') ? 'session' : 'new uuid'
-			});
-			alert('DEBUG: OAuth callback missing conversation_id!');
-		}
-		
-		console.log('[SlackChat] Conversation ID resolution:', {
-			isOAuthCallback,
-			fromOAuth: oauthConversationId,
-			fromSession: sessionStorage.getItem('shopify_oauth_conversation_id'),
-			final: conversationId
-		});
 		
 		// Get merchantId and scenario from URL if present
 		const urlMerchantId = params.get('merchantId');
@@ -135,7 +93,6 @@ const SlackChat = () => {
 		return {
 			scenarioId: urlScenario || null,
 			merchantId: urlMerchantId || userSession.merchantId, // Use URL param if available, otherwise user session
-			conversationId,
 			workflow: getWorkflowFromUrl()
 		};
 	});
@@ -157,12 +114,6 @@ const SlackChat = () => {
 		isInternalUpdateRef.current = false;
 	}, [chatConfig.workflow, location, searchString, setLocation]);
 	
-	// Persist conversation id
-	useEffect(() => {
-	  if (chatConfig.conversationId) {
-	    localStorage.setItem(LS_CONV_ID, chatConfig.conversationId);
-	  }
-	}, [chatConfig.conversationId]);
 
 	// Sync userSession.merchantId to chatConfig when it changes
 	useEffect(() => {
@@ -178,7 +129,7 @@ const SlackChat = () => {
 		const params = new URLSearchParams(window.location.search);
 		const isOAuthReturn = params.get('oauth') === 'complete';
 		
-		return !showConfigModal && !!chatConfig.conversationId && !!chatConfig.workflow && 
+		return !showConfigModal && !!chatConfig.workflow && 
 			// For onboarding, support_daily, and OAuth returns, we don't need merchantId/scenarioId initially
 			(chatConfig.workflow === 'shopify_onboarding' || 
 			 chatConfig.workflow === 'support_daily' || 
@@ -187,14 +138,6 @@ const SlackChat = () => {
 			 (!!chatConfig.scenarioId && !!chatConfig.merchantId));
 	}, [showConfigModal, chatConfig]);
 
-	console.log('[SlackChat] Component render', {
-		showConfigModal,
-		isRealChat,
-		conversationId: chatConfig.conversationId,
-		scenarioId: chatConfig.scenarioId,
-		merchantId: chatConfig.merchantId,
-		workflow: chatConfig.workflow
-	});
 
 	// Use demo chat for script flow
 	const demoChat = useChat(setEmailModalOpen);
@@ -233,7 +176,6 @@ const SlackChat = () => {
 	// Use WebSocket chat for real conversations (only when ready)
 	const wsChat = useWebSocketChat({
 		enabled: isRealChat,
-		conversationId: chatConfig.conversationId,
 		merchantId: chatConfig.merchantId || '',
 		scenario: chatConfig.scenarioId || '',
 		workflow: chatConfig.workflow || 'ad_hoc_support',
@@ -272,41 +214,31 @@ const SlackChat = () => {
 		}
 	});
 	
-	// Debug WebSocket connection
-	console.log('[SlackChat] WebSocket params:', {
-		enabled: isRealChat,
-		conversationId: chatConfig.conversationId,
-		merchantId: chatConfig.merchantId || '',
-		scenario: chatConfig.scenarioId || '',
-		workflow: chatConfig.workflow || 'ad_hoc_support'
-	});
 
 	// Use appropriate chat based on mode
 	const messages = isRealChat ? wsChat.messages : demoChat.messages;
 	const isTyping = isRealChat ? wsChat.isTyping : demoChat.isTyping;
 	const handleSendMessage = isRealChat ? wsChat.sendMessage : demoChat.handleSendMessage;
 	
-	// The OAuth callback is now handled by the backend after WebSocket connection.
-	// The frontend just needs to ensure it connects with the right conversation_id from the URL.
-	// The backend will send an 'oauth_processed' message, which is handled by onOAuthProcessed.
+	// Clean up OAuth-related URL params after processing
 	useEffect(() => {
 		const params = new URLSearchParams(window.location.search);
-		if (params.has('conversation_id') && params.get('conversation_id') !== chatConfig.conversationId) {
-			// If URL has a conversation ID that differs from state, it's likely an OAuth redirect.
-			// Update our state to use it.
-			setChatConfig(prev => ({ ...prev, conversationId: params.get('conversation_id')! }));
-		}
 		// Clean up OAuth-related URL params after processing, but keep workflow
-		if (params.has('conversation_id') || params.has('oauth')) {
-			params.delete('conversation_id');
+		if (params.has('oauth')) {
 			params.delete('oauth');
 			const newUrl = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
 			window.history.replaceState({}, '', newUrl);
 		}
-	}, [location, searchString, chatConfig.conversationId]); // Rerun if location changes.
+	}, [location, searchString]); // Rerun if location changes.
 
-	// Debug
-	console.log('[SlackChat] Messages length:', messages.length, 'isTyping:', isTyping);
+	// Debug - only log when message count changes
+	const prevMessageCountRef = useRef(messages.length);
+	useEffect(() => {
+		if (prevMessageCountRef.current !== messages.length) {
+			console.log('[SlackChat] Messages length changed:', prevMessageCountRef.current, '->', messages.length);
+			prevMessageCountRef.current = messages.length;
+		}
+	}, [messages.length]);
 
 	// Focus input when component mounts
 	useEffect(() => {
@@ -340,11 +272,28 @@ const SlackChat = () => {
 
 		// Define the debug interface
 		const debugInterface = {
+			status: () => {
+				console.group('%c📊 Current Status', 'color: #4CAF50; font-size: 14px; font-weight: bold');
+				
+				console.group('👤 User Session');
+				console.log('Merchant ID:', userSession.merchantId || 'None');
+				console.log('Shop Domain:', userSession.shopDomain || 'None');
+				console.log('Authenticated:', userSession.isConnected ? '✅ Yes' : '❌ No');
+				console.groupEnd();
+				
+				console.group('💬 Conversation');
+				console.log('Workflow:', chatConfig.workflow || 'None');
+				console.log('Scenario:', chatConfig.scenarioId || 'None');
+				console.log('WebSocket:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
+				console.log('Messages:', messages.length);
+				console.groupEnd();
+				
+				console.groupEnd();
+			},
 			debug: () => {
 				console.group('%c🤖 CJ Debug Snapshot', 'color: #00D4FF; font-size: 16px; font-weight: bold');
 				
 				console.group('📊 Session');
-				console.log('Conversation ID:', chatConfig.conversationId);
 				console.log('Status:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
 				console.log('Merchant:', chatConfig.merchantId || 'Not authenticated');
 				console.log('Workflow:', chatConfig.workflow);
@@ -425,6 +374,7 @@ const SlackChat = () => {
 			help: () => {
 				console.log('%c🤖 CJ Debug Commands:', 'color: #00D4FF; font-size: 14px; font-weight: bold');
 				console.table({
+					'cj.status()': 'Current user & conversation status',
 					'cj.debug()': 'Full state snapshot',
 					'cj.session()': 'Session & auth details',
 					'cj.history()': 'Recent chat messages',
@@ -439,34 +389,11 @@ const SlackChat = () => {
 		// Attach to window
 		(window as any).cj = debugInterface;
 		
-		// Always show help message with current session info
-		console.log('%c🤖 CJ Debug Interface Ready!', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+		// Show debug interface ready message once
+		console.log('%c🤖 CJ Debug Interface Ready! Type cj.help() for commands', 'color: #00D4FF; font-size: 14px; font-weight: bold');
 		
-		// Show persistent user data
-		console.group('%c👤 User Session (Persistent)', 'color: #4CAF50; font-size: 12px');
-		console.log('Merchant ID:', userSession.merchantId || 'None');
-		console.log('Shop Domain:', userSession.shopDomain || 'None');
-		console.log('Shopify Authenticated:', userSession.isConnected ? '✅ Yes' : '❌ No');
-		console.groupEnd();
 		
-		// Show ephemeral conversation data
-		console.group('%c💬 Conversation (Ephemeral)', 'color: #2196F3; font-size: 12px');
-		console.log('Conversation ID:', chatConfig.conversationId);
-		console.log('Workflow:', chatConfig.workflow || 'None');
-		console.log('Scenario:', chatConfig.scenarioId || 'None');
-		console.log('WebSocket:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
-		console.groupEnd();
-		
-		console.log('Type cj.help() for available commands');
-		
-		// Debug environment variables
-		console.log('%c🔧 Frontend Environment Variables:', 'color: #FF00FF; font-weight: bold');
-		console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
-		console.log('VITE_AUTH_URL:', import.meta.env.VITE_AUTH_URL);
-		console.log('VITE_WS_BASE_URL:', import.meta.env.VITE_WS_BASE_URL);
-		console.log('VITE_PUBLIC_URL:', import.meta.env.VITE_PUBLIC_URL);
-		
-	}, [chatConfig, messages, isTyping, wsChat, userSession]);
+	}, []); // Only run once on mount
 
 	const handleMessageSend = () => {
 		if (inputValue.trim()) {
@@ -484,20 +411,16 @@ const SlackChat = () => {
 	};
 
 	const handleStartChat = useCallback((scenarioId: string, merchantId: string, workflow: 'ad_hoc_support' | 'daily_briefing' | 'support_daily') => {
-		const conversationId = uuidv4();
-
 		console.log('[SlackChat] Starting chat', {
 			scenarioId,
 			merchantId,
-			workflow,
-			conversationId
+			workflow
 		});
 
 		// Update all config at once
 		const config = {
 			scenarioId,
 			merchantId,
-			conversationId,
 			workflow
 		};
 
@@ -601,7 +524,6 @@ const SlackChat = () => {
 						<button
 							onClick={() => {
 								wsChat.endConversation();
-								localStorage.removeItem(LS_CONV_ID); // clear id
 								toast({
 									title: "Chat ended",
 									description: "Your conversation has been ended.",
@@ -673,7 +595,6 @@ const SlackChat = () => {
 								progress={wsChat.progress}
 								merchantName={chatConfig.merchantId?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Merchant'}
 								isConnected={wsChat.isConnected}
-								conversationId={chatConfig.conversationId}
 								sendFactCheck={wsChat.sendFactCheck}
 							/>
 						) : (

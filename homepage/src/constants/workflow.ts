@@ -27,4 +27,4 @@ export const WORKFLOW_NAMES: Record<WorkflowType, string> = {
 export const WORKFLOW_TRANSITION_DEBOUNCE_MS = 100;  // Milliseconds to debounce workflow transitions
 
 // Default workflow
-export const DEFAULT_WORKFLOW: WorkflowType = 'support_daily';
+export const DEFAULT_WORKFLOW: WorkflowType = 'shopify_onboarding';

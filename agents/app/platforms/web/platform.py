@@ -166,15 +166,14 @@ class WebPlatform(Platform):
             },
         )
 
-    async def handle_websocket_connection(self, websocket: WebSocket, conversation_id: str = None):
+    async def handle_websocket_connection(self, websocket: WebSocket):
         """
         Handle new WebSocket connection.
 
         Args:
             websocket: WebSocket connection object
-            conversation_id: Optional existing conversation ID
         """
-        await self.websocket_handler.handle_connection(websocket, conversation_id)
+        await self.websocket_handler.handle_connection(websocket)
 
     async def send_error(self, websocket: WebSocket, error_message: str):
         """Send error message to web client"""

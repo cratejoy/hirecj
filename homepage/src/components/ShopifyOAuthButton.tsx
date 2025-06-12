@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
 interface ShopifyOAuthButtonProps {
-  conversationId: string;
   text?: string;
   className?: string;
   disabled?: boolean;
 }
 
 export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
-  conversationId,
   text = 'Connect Shopify',
   className = '',
   disabled = false
@@ -40,7 +38,6 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
       const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
       const params = new URLSearchParams({
         shop,
-        conversation_id: conversationId,
         mode: 'json', // ask backend for JSON instead of 302
       });
 

@@ -11,14 +11,12 @@ interface UIElement {
 
 interface MessageContentProps {
   content: string;
-  conversationId: string;
   isThinking?: boolean;
   ui_elements?: UIElement[];
 }
 
 export const MessageContent: React.FC<MessageContentProps> = ({
   content,
-  conversationId,
   isThinking = false,
   ui_elements = []
 }) => {
@@ -59,7 +57,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({
           </ReactMarkdown>
         </div>
         <div className="mt-4">
-          <ShopifyOAuthButton conversationId={conversationId} />
+          <ShopifyOAuthButton />
         </div>
       </div>
     );
@@ -103,7 +101,6 @@ export const MessageContent: React.FC<MessageContentProps> = ({
   if (ui_elements.some(elem => elem.type === 'oauth_button')) {
     console.log('🛍️ MessageContent - OAuth button detected');
     console.log('  UI Elements:', ui_elements);
-    console.log('  Conversation ID:', conversationId);
   }
 
   return (
@@ -132,9 +129,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({
           {index < placeholders.length && placeholders[index] && (
             <div className="my-4">
               {elementMap.get(placeholders[index])?.type === 'oauth_button' && (
-                <ShopifyOAuthButton 
-                  conversationId={conversationId}
-                />
+                <ShopifyOAuthButton />
               )}
             </div>
           )}

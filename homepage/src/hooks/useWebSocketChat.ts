@@ -48,10 +48,9 @@ interface WebSocketMessage {
 
 interface UseWebSocketChatProps {
   enabled?: boolean;
-  conversationId: string;
   merchantId: string;
   scenario: string;
-  workflow: 'ad_hoc_support' | 'daily_briefing' | 'shopify_onboarding' | 'support_daily';
+  workflow: WorkflowType;
   onError?: (error: string) => void;
   onWorkflowUpdated?: (newWorkflow: string, previousWorkflow: string) => void;
   onOAuthProcessed?: (data: any) => void;
@@ -67,11 +66,11 @@ interface State {
   progress: Progress | null;
   error: { type: ErrorType; message: string } | null;
   retryCount: number;
+  conversationId: string | null;
 }
 
 export function useWebSocketChat({ 
   enabled = false,
-  conversationId, 
   merchantId, 
   scenario,
   workflow,
@@ -79,21 +78,23 @@ export function useWebSocketChat({
   onWorkflowUpdated,
   onOAuthProcessed
 }: UseWebSocketChatProps) {
-  // Debug initial props
-  wsLogger.debug('🎯 useWebSocketChat initialized', {
-    enabled,
-    conversationId,
-    merchantId,
-    scenario,
-    workflow
-  });
+  // Debug initial mount only
+  useEffect(() => {
+    wsLogger.debug('🎯 useWebSocketChat initialized', {
+      enabled,
+      merchantId,
+      scenario,
+      workflow
+    });
+  }, []); // Empty dependency array = log only on mount
   const [state, setState] = useState<State>({
     connectionState: 'idle',
     messages: [],
     isTyping: false,
     progress: null,
     error: null,
-    retryCount: 0
+    retryCount: 0,
+    conversationId: null
   });
   
   const wsRef = useRef<WebSocket | null>(null);
@@ -147,51 +148,6 @@ export function useWebSocketChat({
   }, [workflow]);
 
   // Create a stable connection key
-  const connectionKey = useMemo(
-    () => {
-      wsLogger.debug('Computing connection key', {
-        enabled,
-        conversationId,
-        merchantId,
-        scenario,
-        workflow
-      });
-      
-      if (!enabled || !conversationId || !workflow) {
-        wsLogger.debug('Connection key null - missing required fields', {
-          enabled,
-          hasConversationId: !!conversationId,
-          hasWorkflow: !!workflow
-        });
-        return null;
-      }
-      
-      // For onboarding and support_daily workflows, we don't need merchant/scenario
-      if (workflow === 'shopify_onboarding' || workflow === 'support_daily') {
-        const key = `${conversationId}`;
-        wsLogger.info('Connection key for ${workflow}', { key });
-        return key;
-      }
-      
-      // For other workflows, require merchant/scenario (not empty strings)
-      if (!merchantId || !scenario || merchantId === '' || scenario === '') {
-        wsLogger.warn('Connection key null - missing merchant/scenario for non-onboarding workflow', {
-          workflow,
-          merchantId,
-          scenario,
-          hasMerchantId: !!merchantId && merchantId !== '',
-          hasScenario: !!scenario && scenario !== ''
-        });
-        return null;
-      }
-      
-      // Don't include workflow in key - we want to keep same connection during transitions
-      const key = `${conversationId}-${merchantId}-${scenario}`;
-      wsLogger.info('Connection key computed (workflow excluded for transitions)', { key });
-      return key;
-    },
-    [enabled, conversationId, merchantId, scenario] // workflow removed - we don't want reconnections on workflow change
-  );
 
   // Send queued messages when connected
   const flushMessageQueue = useCallback(() => {
@@ -299,6 +255,12 @@ export function useWebSocketChat({
           
         case 'conversation_started':
           wsLogger.info('Conversation started', data.data);
+          // Capture the server-assigned conversation ID
+          const serverConversationId = data.data?.conversationId;
+          if (serverConversationId) {
+            setState(prev => ({ ...prev, conversationId: serverConversationId }));
+            wsLogger.info('Captured server-assigned conversation ID', { conversationId: serverConversationId });
+          }
           // Update workflow from backend's authoritative state
           const backendWorkflow = data.data?.workflow;
           if (backendWorkflow && onWorkflowUpdatedRef.current) {
@@ -390,15 +352,7 @@ export function useWebSocketChat({
 
   // Connect to WebSocket
   const connect = useCallback(() => {
-    wsLogger.debug('Connect function called', { 
-      hasConnectionKey: !!connectionKey,
-      connectionKey 
-    });
-    
-    if (!connectionKey) {
-      wsLogger.warn('Connect aborted - no connection key');
-      return;
-    }
+    wsLogger.debug('Connect function called');
     
     // Check current state using setState callback
     setState(currentState => {
@@ -423,7 +377,7 @@ export function useWebSocketChat({
     const { signal } = abortControllerRef.current;
 
     setState(prev => ({ ...prev, connectionState: 'connecting' }));
-    wsLogger.info('🚀 Connecting to WebSocket', { connectionKey });
+    wsLogger.info('🚀 Connecting to WebSocket');
 
     // Connection timeout
     const timeoutId = setTimeout(() => {
@@ -444,11 +398,10 @@ export function useWebSocketChat({
       wsRef.current?.close();
     });
 
-    const wsUrl = `${WS_BASE_URL}/ws/chat/${conversationId}`;
+    const wsUrl = `${WS_BASE_URL}/ws/chat`;
     wsLogger.info('🔌 Creating WebSocket', { 
       url: wsUrl,
-      baseUrl: WS_BASE_URL,
-      conversationId 
+      baseUrl: WS_BASE_URL
     });
     
     try {
@@ -489,25 +442,12 @@ export function useWebSocketChat({
         // Send start_conversation message
         const currentWorkflow = workflowRef.current;
         const startData = {
-          conversation_id: conversationId,
-          merchant_id: merchantId || ((currentWorkflow === 'shopify_onboarding' || currentWorkflow === 'support_daily') ? 'onboarding_user' : null),
-          scenario: scenario || ((currentWorkflow === 'shopify_onboarding' || currentWorkflow === 'support_daily') ? 'onboarding' : null),
+          // Server determines conversation_id based on auth state
+          merchant_id: merchantId,
+          scenario: scenario,
           workflow: currentWorkflow,
         };
         
-        // DEBUG TRAP 5: start_conversation on WebSocket connect
-        const urlParams = new URLSearchParams(window.location.search);
-        const isOAuthReturn = urlParams.get('oauth') === 'complete';
-        if (isOAuthReturn) {
-          console.error('🚨 DEBUG TRAP 5: Starting conversation after OAuth!', {
-            conversationId,
-            merchantId: merchantId,
-            workflow: currentWorkflow,
-            urlParams: Object.fromEntries(urlParams.entries()),
-            reason: 'WebSocket onopen handler'
-          });
-          alert(`DEBUG: Starting NEW conversation after OAuth!\nConversation ID: ${conversationId}`);
-        }
         
         // Debug: Log what we're sending
         wsLogger.info('📤 start_conversation data:', startData);
@@ -552,18 +492,6 @@ export function useWebSocketChat({
     };
 
     wsRef.current.onclose = (event) => {
-      // DEBUG TRAP 6: WebSocket close
-      const urlParams = new URLSearchParams(window.location.search);
-      const isOAuthReturn = urlParams.get('oauth') === 'complete';
-      if (isOAuthReturn) {
-        console.error('🚨 DEBUG TRAP 6: WebSocket CLOSED after OAuth!', {
-          code: event.code,
-          reason: event.reason,
-          wasClean: event.wasClean,
-          conversationId,
-          urlParams: Object.fromEntries(urlParams.entries())
-        });
-      }
       
       if (signal.aborted) {
         wsLogger.debug('Connection aborted - ignoring close');
@@ -605,20 +533,17 @@ export function useWebSocketChat({
         return prev;
       });
     };
-  }, [connectionKey, conversationId, merchantId, scenario, WS_BASE_URL, handleMessage, flushMessageQueue]); // Removed workflow to prevent reconnection on workflow change
+  }, [merchantId, scenario, WS_BASE_URL, handleMessage, flushMessageQueue]); // Removed workflow to prevent reconnection on workflow change
 
   // Effect to manage connection lifecycle
   useEffect(() => {
-    wsLogger.debug('🔄 Connection lifecycle effect triggered', { 
-      hasConnectionKey: !!connectionKey,
-      connectionKey 
-    });
+    wsLogger.debug('🔄 Connection lifecycle effect triggered');
     
-    if (connectionKey) {
-      wsLogger.info('📞 Initiating connection for key:', connectionKey);
+    if (enabled) {
+      wsLogger.info('📞 Initiating connection');
       connect();
     } else {
-      wsLogger.warn('⚠️ No connection key - skipping connection');
+      wsLogger.warn('⚠️ Connection disabled');
     }
     
     return () => {
@@ -631,7 +556,7 @@ export function useWebSocketChat({
         wsRef.current.close(1000, 'Component unmounting');
       }
     };
-  }, [connectionKey, connect]); // Only reconnect when connectionKey actually changes
+  }, [enabled, connect]);
 
   // Send message function with debouncing
   const sendMessage = useCallback((text: string) => {
@@ -758,7 +683,8 @@ export function useWebSocketChat({
       isTyping: false,
       progress: null,
       error: null,
-      retryCount: 0
+      retryCount: 0,
+      conversationId: null
     });
   }, []);
 
@@ -771,6 +697,7 @@ export function useWebSocketChat({
     connectionState: state.connectionState,
     isTyping: state.isTyping,
     progress: state.progress,
+    conversationId: state.conversationId,
     clearMessages,
     endConversation
   };

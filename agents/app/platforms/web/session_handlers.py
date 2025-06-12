@@ -38,7 +38,17 @@ class SessionHandlers:
             )
             return
 
-        workflow = start_data.get("workflow", "ad_hoc_support")
+        # Determine workflow based on authentication state
+        ws_session = self.platform.sessions.get(conversation_id, {})
+        is_authenticated = ws_session.get("authenticated", False)
+        
+        if is_authenticated:
+            # Authenticated users can use any workflow
+            workflow = start_data.get("workflow", "ad_hoc_support")
+        else:
+            # Anonymous users always get onboarding workflow
+            workflow = "shopify_onboarding"
+            logger.info(f"[WORKFLOW] Anonymous user - forcing onboarding workflow")
         
         # Check if this conversation has post-OAuth state waiting
         post_auth_state = post_oauth_handler.get_post_auth_state(conversation_id)
