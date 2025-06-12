@@ -28,29 +28,31 @@ class SingleEnvLoader:
         if self._loaded:
             return
             
-        if not ROOT_ENV_FILE.exists():
-            print(f"ERROR: {ROOT_ENV_FILE} not found.")
-            print("Run 'cp .env.master.example .env' and configure your environment.")
-            sys.exit(1)
-        
-        # Parse .env file
-        self._load_file(ROOT_ENV_FILE, self._env_vars)
-        
-        # Load tunnel vars if they exist (auto-generated, read-only)
-        tunnel_file = ROOT_ENV_FILE.parent / ".env.tunnel"
-        if tunnel_file.exists():
-            self._load_file(tunnel_file, self._tunnel_vars)
-            print(f"✅ Loaded tunnel configuration from {tunnel_file}")
-        
-        # Apply to os.environ (tunnel vars override base vars)
-        for key, value in self._env_vars.items():
-            os.environ[key] = value
-        for key, value in self._tunnel_vars.items():
-            os.environ[key] = value
+        # In production (e.g., Heroku), env vars are already set
+        # Only try to load .env file if it exists
+        if ROOT_ENV_FILE.exists():
+            # Parse .env file
+            self._load_file(ROOT_ENV_FILE, self._env_vars)
+            
+            # Load tunnel vars if they exist (auto-generated, read-only)
+            tunnel_file = ROOT_ENV_FILE.parent / ".env.tunnel"
+            if tunnel_file.exists():
+                self._load_file(tunnel_file, self._tunnel_vars)
+                print(f"✅ Loaded tunnel configuration from {tunnel_file}")
+            
+            # Apply to os.environ (tunnel vars override base vars)
+            for key, value in self._env_vars.items():
+                os.environ[key] = value
+            for key, value in self._tunnel_vars.items():
+                os.environ[key] = value
+            
+            total_vars = len(self._env_vars) + len(self._tunnel_vars)
+            print(f"✅ Loaded {total_vars} variables from {ROOT_ENV_FILE}")
+        else:
+            # In production, just mark as loaded - env vars come from system
+            print(f"INFO: No .env file found at {ROOT_ENV_FILE}, using system environment variables")
         
         self._loaded = True
-        total_vars = len(self._env_vars) + len(self._tunnel_vars)
-        print(f"✅ Loaded {total_vars} variables from {ROOT_ENV_FILE}")
     
     def _load_file(self, filepath: Path, target_dict: Dict[str, str]) -> None:
         """Parse an env file into the target dictionary."""
@@ -83,10 +85,16 @@ class SingleEnvLoader:
         if not self._loaded:
             self.load()
         
-        # Tunnel vars take precedence
+        # Check system env first (for production)
+        sys_value = os.environ.get(key)
+        if sys_value is not None:
+            return sys_value
+            
+        # Then tunnel vars
         if key in self._tunnel_vars:
             return self._tunnel_vars[key]
         
+        # Then loaded env vars
         return self._env_vars.get(key, default)
     
     def require(self, key: str) -> str:
@@ -140,5 +148,4 @@ def load_dotenv(*args, **kwargs) -> None:
     """
     env_loader.load()
 
-# Auto-load on import
-env_loader.load()
+# Don't auto-load on import - let services load when ready
