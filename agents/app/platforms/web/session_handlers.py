@@ -1,9 +1,9 @@
 """Session-related message handlers."""
 
 from typing import Dict, Any, TYPE_CHECKING
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from sqlalchemy import select, update
-from shared.db_models import WebSession, MerchantToken
+from shared.db_models import WebSession, MerchantToken, MerchantIntegration
 from app.utils.supabase_util import get_db_session
 from typing import Optional, Dict
 
@@ -50,14 +50,13 @@ class SessionHandlers:
         elif w := start_data.get("workflow"):
             workflow = w
 
-        # 3. recent OAuth heuristic
+        # 3. user already has an active Shopify integration ⇒ start in post-auth
         elif user_id:
-            mt = self._get_latest_token(user_id)
-            if mt:
-                merchant = mt["shop_domain"].replace(".myshopify.com", "")
-                if mt["created_at"] > datetime.now(timezone.utc) - timedelta(minutes=5):
-                    workflow = "shopify_post_auth"
-                    scenario = "post_auth"
+            shop_domain = self._get_active_shopify_domain(user_id)
+            if shop_domain:
+                merchant = shop_domain.replace(".myshopify.com", "")
+                workflow = "shopify_post_auth"
+                scenario = "post_auth"
 
         # 4. skip onboarding when already authed
         if user_id and workflow == "shopify_onboarding":
@@ -82,23 +81,20 @@ class SessionHandlers:
             )
             db.commit()
 
-    def _get_latest_token(self, user_id: str) -> Optional[Dict[str, Any]]:
-        """Return {'shop_domain': str, 'created_at': datetime} or None."""
+    def _get_active_shopify_domain(self, user_id: str) -> str | None:
+        """Return shop_domain if this user already has an active Shopify integration."""
         with get_db_session() as db:
-            token = db.scalar(
-                select(MerchantToken)
+            return db.scalar(
+                select(MerchantToken.shop_domain)
+                .join(
+                    MerchantIntegration,
+                    MerchantIntegration.merchant_id == MerchantToken.merchant_id
+                )
                 .where(MerchantToken.user_id == user_id)
-                .order_by(MerchantToken.created_at.desc())
+                .where(MerchantIntegration.platform == "shopify")
+                .where(MerchantIntegration.is_active.is_(True))
                 .limit(1)
             )
-            if token:
-                # copy primitives before the DB session closes to avoid
-                # DetachedInstanceError
-                return {
-                    "shop_domain": token.shop_domain,
-                    "created_at": token.created_at,
-                }
-            return None
 
     async def handle_start_conversation(
         self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
