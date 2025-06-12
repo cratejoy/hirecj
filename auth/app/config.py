@@ -49,6 +49,9 @@ class Settings(BaseSettings):
         "dev-encryption-key-change-in-production",
         env="ENCRYPTION_KEY"
     )
+
+    # Shopify state JWT secret
+    state_jwt_secret: str = Field(default_factory=lambda: "change-me", env="STATE_JWT_SECRET")
     
     # OAuth Configuration - Login Providers
     shopify_client_id: Optional[str] = Field(None, env="SHOPIFY_CLIENT_ID")

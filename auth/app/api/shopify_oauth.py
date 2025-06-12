@@ -3,6 +3,8 @@
 import logging
 import json
 import base64
+import secrets, jwt                              # NEW
+from jwt import InvalidTokenError                # NEW
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
@@ -49,6 +51,21 @@ async def debug_oauth_config():
         }
     }
 
+
+@router.get("/state")
+async def get_signed_state(conversation_id: str | None = Query(None)) -> dict:
+    """
+    Front-end fetches this to obtain the Shopify `state` value.
+    It is a self-contained, 10-minute JWT – no DB write needed.
+    """
+    payload = {
+        "nonce": secrets.token_hex(16),
+        "exp": datetime.utcnow() + timedelta(minutes=10),
+    }
+    if conversation_id:
+        payload["conversation_id"] = conversation_id
+    token = jwt.encode(payload, settings.state_jwt_secret, algorithm="HS256")
+    return {"state": token}
 
 @router.get("/install")
 async def initiate_oauth(request: Request):
@@ -177,42 +194,45 @@ async def handle_oauth_callback(request: Request):
             detail=f"Invalid HMAC signature for shop {shop} on callback."
         )
     
-    # Verify state if provided
+    # Verify state (JWT preferred, DB fallback)
     conversation_id = None
+    state_valid = False
     if state:
+        try:
+            jwt_payload = jwt.decode(state, settings.state_jwt_secret, algorithms=["HS256"])
+            conversation_id = jwt_payload.get("conversation_id")
+            nonce          = jwt_payload.get("nonce")
+            state_valid    = True
+            logger.info(f"[OAUTH_CALLBACK] JWT state verified (nonce={nonce}) conversation_id={conversation_id}")
+        except InvalidTokenError:
+            logger.warning("[OAUTH_CALLBACK] State is not valid JWT – attempting legacy DB lookup")
+            state_valid = False
+
+    # Legacy DB lookup only when JWT failed
+    if not state_valid:
         try:
             with get_db_session() as session:
                 csrf_record = session.query(OAuthCSRFState).filter(
                     OAuthCSRFState.state == state
                 ).first()
-
                 if not csrf_record:
-                    logger.error(f"[OAUTH_CALLBACK] State not found in DB for shop: {shop}")
-                    raise HTTPException(status_code=400, detail="Invalid state: not found.")
-                
-                # Clean up used state immediately
+                    raise HTTPException(status_code=400, detail="Invalid state")
+                if csrf_record.expires_at < datetime.now(timezone.utc):
+                    raise HTTPException(status_code=400, detail="State expired")
+                conversation_id = csrf_record.conversation_id
+                shop_db = csrf_record.shop
+                if shop_db != shop:
+                    raise HTTPException(status_code=400, detail="State shop mismatch")
+                # cleanup
                 session.delete(csrf_record)
                 session.commit()
-
-                if csrf_record.expires_at < datetime.now(timezone.utc):
-                    logger.error(f"[OAUTH_CALLBACK] Expired state for shop: {shop}")
-                    raise HTTPException(status_code=400, detail="Invalid state: expired.")
-
-                stored_shop = csrf_record.shop
-                conversation_id = csrf_record.conversation_id
-
-                logger.info(f"[OAUTH_CALLBACK] State data retrieved from DB: shop={stored_shop}, conversation_id={conversation_id}")
-
-                if not stored_shop or stored_shop != shop:
-                    logger.error(f"[OAUTH_CALLBACK] Invalid state for shop: {shop}. Expected {stored_shop}")
-                    raise HTTPException(status_code=400, detail="Invalid state: shop mismatch.")
-        
+                state_valid = True
+                logger.info("[OAUTH_CALLBACK] Legacy DB state verified")
+        except HTTPException:
+            raise
         except Exception as e:
-            logger.error(f"[OAUTH_CALLBACK] Failed to verify state from DB: {e}")
-            raise HTTPException(
-                status_code=500,
-                detail=f"State verification from DB failed: {e}"
-            )
+            logger.error(f"[OAUTH_CALLBACK] DB state verification error: {e}")
+            raise HTTPException(status_code=500, detail="State verification failed")
     
     # Check if we have authorization code
     if not code:
