@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, update
 from shared.db_models import WebSession, MerchantToken
 from app.utils.supabase_util import get_db_session
+from typing import Optional, Dict
 
 from fastapi import WebSocket
 
@@ -53,8 +54,8 @@ class SessionHandlers:
         elif user_id:
             mt = self._get_latest_token(user_id)
             if mt:
-                merchant = mt.shop_domain.replace(".myshopify.com", "")
-                if mt.created_at > datetime.utcnow() - timedelta(minutes=5):
+                merchant = mt["shop_domain"].replace(".myshopify.com", "")
+                if mt["created_at"] > datetime.utcnow() - timedelta(minutes=5):
                     workflow = "shopify_post_auth"
                     scenario = "post_auth"
 
@@ -81,15 +82,23 @@ class SessionHandlers:
             )
             db.commit()
 
-    def _get_latest_token(self, user_id: str):
-        """Return latest MerchantToken row or None."""
+    def _get_latest_token(self, user_id: str) -> Optional[Dict[str, Any]]:
+        """Return {'shop_domain': str, 'created_at': datetime} or None."""
         with get_db_session() as db:
-            return db.scalar(
+            token = db.scalar(
                 select(MerchantToken)
                 .where(MerchantToken.user_id == user_id)
                 .order_by(MerchantToken.created_at.desc())
                 .limit(1)
             )
+            if token:
+                # copy primitives before the DB session closes to avoid
+                # DetachedInstanceError
+                return {
+                    "shop_domain": token.shop_domain,
+                    "created_at": token.created_at,
+                }
+            return None
 
     async def handle_start_conversation(
         self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
