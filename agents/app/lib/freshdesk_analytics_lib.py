@@ -560,7 +560,7 @@ class FreshdeskAnalytics:
                     "rating": ticket.rating_score,
                     "rating_label": rating_labels.get(ticket.rating_score, "Unknown"),
                     "feedback": ticket.rating_feedback or "",
-                    "agent": ticket.responder_email or "unassigned",
+                    "agent": f"Agent {ticket.responder_id}" if ticket.responder_id else "unassigned",
                     "customer_email": ticket.requester_email,
                     "tags": ticket.tags or [],
                     "created_at": ticket.rating_created_at.isoformat() if ticket.rating_created_at else None,
@@ -583,6 +583,354 @@ class FreshdeskAnalytics:
                 "total_count": total_count,
                 "below_threshold_count": below_threshold_count,
                 "avg_rating": avg_rating
+            }
+    
+    @staticmethod
+    def get_open_ticket_distribution(merchant_id: int) -> Dict[str, Any]:
+        """Get distribution of open tickets by age and identify oldest tickets.
+        
+        Args:
+            merchant_id: The merchant ID to filter by (NEVER look up by name)
+            
+        Returns:
+            Dict containing:
+                - age_buckets: Distribution of tickets by age ranges
+                - total_open: Total number of open tickets
+                - oldest_tickets: Details of the 10 oldest open tickets
+        """
+        with get_db_session() as session:
+            # Get current time for age calculations
+            now = datetime.utcnow().replace(tzinfo=timezone.utc)
+            
+            # Query all open tickets (statuses: Open, Pending, Waiting on Customer, Waiting on Third Party)
+            open_tickets = session.query(FreshdeskUnifiedTicketView).filter(
+                FreshdeskUnifiedTicketView.merchant_id == merchant_id,
+                FreshdeskUnifiedTicketView.status.in_([2, 3, 6, 7])  # Open statuses
+            ).all()
+            
+            # Initialize age buckets
+            age_buckets = {
+                "0-4h": {"count": 0, "tickets": []},
+                "4-24h": {"count": 0, "tickets": []},
+                "1-2d": {"count": 0, "tickets": []},
+                "3-7d": {"count": 0, "tickets": []},
+                ">7d": {"count": 0, "tickets": []},
+            }
+            
+            # Categorize tickets by age
+            for ticket in open_tickets:
+                if ticket.created_at:
+                    # Ensure created_at has timezone info
+                    created_at = ticket.created_at
+                    if created_at.tzinfo is None:
+                        created_at = created_at.replace(tzinfo=timezone.utc)
+                    
+                    age = now - created_at
+                    age_hours = age.total_seconds() / 3600
+                    
+                    # Determine bucket
+                    if age_hours <= 4:
+                        bucket = "0-4h"
+                    elif age_hours <= 24:
+                        bucket = "4-24h"
+                    elif age_hours <= 48:
+                        bucket = "1-2d"
+                    elif age_hours <= 168:  # 7 days
+                        bucket = "3-7d"
+                    else:
+                        bucket = ">7d"
+                    
+                    age_buckets[bucket]["count"] += 1
+                    age_buckets[bucket]["tickets"].append({
+                        "ticket": ticket,
+                        "age_hours": age_hours
+                    })
+            
+            total_open = len(open_tickets)
+            
+            # Calculate percentages and remove ticket objects from response
+            for bucket in age_buckets:
+                count = age_buckets[bucket]["count"]
+                age_buckets[bucket] = {
+                    "count": count,
+                    "percentage": round((count / total_open * 100) if total_open > 0 else 0, 1)
+                }
+            
+            # Get the 10 oldest tickets with details
+            oldest_tickets = []
+            all_tickets_with_age = []
+            
+            for ticket in open_tickets:
+                if ticket.created_at:
+                    created_at = ticket.created_at
+                    if created_at.tzinfo is None:
+                        created_at = created_at.replace(tzinfo=timezone.utc)
+                    
+                    age = now - created_at
+                    age_hours = age.total_seconds() / 3600
+                    
+                    all_tickets_with_age.append({
+                        "ticket": ticket,
+                        "age_hours": age_hours
+                    })
+            
+            # Sort by age and get oldest 10
+            all_tickets_with_age.sort(key=lambda x: x["age_hours"], reverse=True)
+            
+            for item in all_tickets_with_age[:10]:
+                ticket = item["ticket"]
+                age_hours = item["age_hours"]
+                
+                # Format age display
+                if age_hours < 1:
+                    age_display = f"{int(age_hours * 60)}m"
+                elif age_hours < 24:
+                    age_display = f"{int(age_hours)}h {int((age_hours % 1) * 60)}m"
+                elif age_hours < 168:  # Less than 7 days
+                    days = int(age_hours / 24)
+                    hours = int(age_hours % 24)
+                    if hours > 0:
+                        age_display = f"{days}d {hours}h"
+                    else:
+                        age_display = f"{days}d"
+                else:
+                    days = int(age_hours / 24)
+                    age_display = f"{days}d"
+                
+                # Map status codes to names
+                status_names = {
+                    2: "Open",
+                    3: "Pending",
+                    6: "Waiting on Customer",
+                    7: "Waiting on Third Party"
+                }
+                
+                oldest_tickets.append({
+                    "ticket_id": int(ticket.freshdesk_ticket_id),
+                    "subject": ticket.subject or "No subject",
+                    "age_hours": round(age_hours, 1),
+                    "age_display": age_display,
+                    "status": status_names.get(ticket.status, f"Status {ticket.status}"),
+                    "priority": ticket.priority,
+                    "tags": ticket.tags or [],
+                    "customer_email": ticket.requester_email,
+                    "last_updated": ticket.updated_at.isoformat() if ticket.updated_at else None
+                })
+            
+            return {
+                "age_buckets": age_buckets,
+                "total_open": total_open,
+                "oldest_tickets": oldest_tickets
+            }
+    
+    @staticmethod
+    def get_response_time_metrics(merchant_id: int, date_range: Dict[str, date]) -> Dict[str, Any]:
+        """Get detailed response and resolution time metrics with statistical analysis.
+        
+        Args:
+            merchant_id: The merchant ID to filter by (NEVER look up by name)
+            date_range: Dict with 'start_date' and 'end_date' keys
+            
+        Returns:
+            Dict containing:
+                - first_response: Statistical breakdown of first response times
+                - resolution: Statistical breakdown of resolution times
+                - quick_resolutions: Tickets resolved in various time buckets
+                - total_resolved: Total number of resolved tickets
+                - csat_by_speed: CSAT correlation with response/resolution speed
+        """
+        import numpy as np
+        
+        with get_db_session() as session:
+            # Convert dates to datetime for filtering
+            start_dt = datetime.combine(date_range['start_date'], datetime.min.time()).replace(tzinfo=timezone.utc)
+            end_dt = datetime.combine(date_range['end_date'], datetime.max.time()).replace(tzinfo=timezone.utc)
+            
+            # Get all tickets created in the date range
+            tickets = session.query(FreshdeskUnifiedTicketView).filter(
+                FreshdeskUnifiedTicketView.merchant_id == merchant_id,
+                FreshdeskUnifiedTicketView.created_at.between(start_dt, end_dt)
+            ).all()
+            
+            # Collect response and resolution times
+            first_response_times = []
+            resolution_times = []
+            tickets_with_times = []
+            
+            for ticket in tickets:
+                ticket_data = {
+                    'ticket_id': int(ticket.freshdesk_ticket_id),
+                    'has_rating': ticket.has_rating,
+                    'rating_score': ticket.rating_score if ticket.has_rating else None
+                }
+                
+                # First response time
+                if ticket.first_responded_at and ticket.created_at:
+                    response_min = (ticket.first_responded_at - ticket.created_at).total_seconds() / 60
+                    if response_min >= 0:  # Sanity check
+                        first_response_times.append(response_min)
+                        ticket_data['first_response_min'] = response_min
+                
+                # Resolution time
+                if ticket.resolved_at and ticket.created_at:
+                    resolution_min = (ticket.resolved_at - ticket.created_at).total_seconds() / 60
+                    if resolution_min >= 0:  # Sanity check
+                        resolution_times.append(resolution_min)
+                        ticket_data['resolution_min'] = resolution_min
+                
+                if 'first_response_min' in ticket_data or 'resolution_min' in ticket_data:
+                    tickets_with_times.append(ticket_data)
+            
+            # Calculate statistics for first response
+            first_response_stats = {}
+            if first_response_times:
+                fr_array = np.array(first_response_times)
+                first_response_stats = {
+                    'median_min': float(np.median(fr_array)),
+                    'mean_min': float(np.mean(fr_array)),
+                    'p25_min': float(np.percentile(fr_array, 25)),
+                    'p75_min': float(np.percentile(fr_array, 75)),
+                    'p95_min': float(np.percentile(fr_array, 95)),
+                    'outliers': []
+                }
+                
+                # Find outliers (>2 standard deviations from mean)
+                mean = np.mean(fr_array)
+                std = np.std(fr_array)
+                outlier_threshold = mean + (2 * std)
+                
+                for i, time_val in enumerate(first_response_times):
+                    if time_val > outlier_threshold:
+                        # Find the corresponding ticket
+                        for ticket_data in tickets_with_times:
+                            if ticket_data.get('first_response_min') == time_val:
+                                first_response_stats['outliers'].append({
+                                    'ticket_id': ticket_data['ticket_id'],
+                                    'response_min': round(time_val, 1)
+                                })
+                                break
+            
+            # Calculate statistics for resolution
+            resolution_stats = {}
+            if resolution_times:
+                res_array = np.array(resolution_times)
+                resolution_stats = {
+                    'median_min': float(np.median(res_array)),
+                    'mean_min': float(np.mean(res_array)),
+                    'p25_min': float(np.percentile(res_array, 25)),
+                    'p75_min': float(np.percentile(res_array, 75)),
+                    'p95_min': float(np.percentile(res_array, 95)),
+                    'outliers': []
+                }
+                
+                # Find outliers
+                mean = np.mean(res_array)
+                std = np.std(res_array)
+                outlier_threshold = mean + (2 * std)
+                
+                for i, time_val in enumerate(resolution_times):
+                    if time_val > outlier_threshold:
+                        # Find the corresponding ticket
+                        for ticket_data in tickets_with_times:
+                            if ticket_data.get('resolution_min') == time_val:
+                                resolution_stats['outliers'].append({
+                                    'ticket_id': ticket_data['ticket_id'],
+                                    'resolution_min': round(time_val, 1)
+                                })
+                                break
+            
+            # Quick resolution analysis
+            quick_resolutions = {
+                '<5min': {'count': 0, 'with_rating': 0, 'total_rating': 0},
+                '<10min': {'count': 0, 'with_rating': 0, 'total_rating': 0},
+                '<30min': {'count': 0, 'with_rating': 0, 'total_rating': 0},
+                '<60min': {'count': 0, 'with_rating': 0, 'total_rating': 0}
+            }
+            
+            total_resolved = len(resolution_times)
+            
+            for ticket_data in tickets_with_times:
+                if 'resolution_min' in ticket_data:
+                    res_time = ticket_data['resolution_min']
+                    
+                    # Count in appropriate buckets
+                    if res_time < 5:
+                        quick_resolutions['<5min']['count'] += 1
+                        if ticket_data['has_rating'] and ticket_data['rating_score']:
+                            quick_resolutions['<5min']['with_rating'] += 1
+                            quick_resolutions['<5min']['total_rating'] += ticket_data['rating_score']
+                    if res_time < 10:
+                        quick_resolutions['<10min']['count'] += 1
+                        if ticket_data['has_rating'] and ticket_data['rating_score']:
+                            quick_resolutions['<10min']['with_rating'] += 1
+                            quick_resolutions['<10min']['total_rating'] += ticket_data['rating_score']
+                    if res_time < 30:
+                        quick_resolutions['<30min']['count'] += 1
+                        if ticket_data['has_rating'] and ticket_data['rating_score']:
+                            quick_resolutions['<30min']['with_rating'] += 1
+                            quick_resolutions['<30min']['total_rating'] += ticket_data['rating_score']
+                    if res_time < 60:
+                        quick_resolutions['<60min']['count'] += 1
+                        if ticket_data['has_rating'] and ticket_data['rating_score']:
+                            quick_resolutions['<60min']['with_rating'] += 1
+                            quick_resolutions['<60min']['total_rating'] += ticket_data['rating_score']
+            
+            # Calculate percentages and average CSAT
+            for bucket in quick_resolutions:
+                data = quick_resolutions[bucket]
+                data['percentage'] = round((data['count'] / total_resolved * 100) if total_resolved > 0 else 0, 1)
+                # Convert Freshdesk rating to 1-5 scale approximation
+                if data['with_rating'] > 0:
+                    avg_freshdesk_rating = data['total_rating'] / data['with_rating']
+                    # Map -103 to 103 scale to 1-5 scale
+                    data['avg_csat'] = round(((avg_freshdesk_rating + 103) / 206) * 4 + 1, 1)
+                else:
+                    data['avg_csat'] = 0.0
+                # Clean up temporary fields
+                del data['with_rating']
+                del data['total_rating']
+            
+            # CSAT by speed categories
+            csat_by_speed = {
+                'ultra_fast_<5min': {'count': 0, 'total_rating': 0},
+                'fast_5-30min': {'count': 0, 'total_rating': 0},
+                'normal_30-180min': {'count': 0, 'total_rating': 0},
+                'slow_>180min': {'count': 0, 'total_rating': 0}
+            }
+            
+            for ticket_data in tickets_with_times:
+                if 'resolution_min' in ticket_data and ticket_data['has_rating'] and ticket_data['rating_score']:
+                    res_time = ticket_data['resolution_min']
+                    rating = ticket_data['rating_score']
+                    
+                    if res_time < 5:
+                        csat_by_speed['ultra_fast_<5min']['count'] += 1
+                        csat_by_speed['ultra_fast_<5min']['total_rating'] += rating
+                    elif res_time < 30:
+                        csat_by_speed['fast_5-30min']['count'] += 1
+                        csat_by_speed['fast_5-30min']['total_rating'] += rating
+                    elif res_time < 180:
+                        csat_by_speed['normal_30-180min']['count'] += 1
+                        csat_by_speed['normal_30-180min']['total_rating'] += rating
+                    else:
+                        csat_by_speed['slow_>180min']['count'] += 1
+                        csat_by_speed['slow_>180min']['total_rating'] += rating
+            
+            # Calculate average ratings for each speed category
+            for category in csat_by_speed:
+                data = csat_by_speed[category]
+                if data['count'] > 0:
+                    data['avg_rating'] = round(data['total_rating'] / data['count'], 1)
+                else:
+                    data['avg_rating'] = 0.0
+                del data['total_rating']
+            
+            return {
+                'first_response': first_response_stats,
+                'resolution': resolution_stats,
+                'quick_resolutions': quick_resolutions,
+                'total_resolved': total_resolved,
+                'csat_by_speed': csat_by_speed
             }
 
 

@@ -491,12 +491,13 @@ Data Source: Live database analytics"""
                 return f"{hours}h {mins}m"
             
             # Format the output
+            below_threshold_pct = (csat_data['below_threshold_count']/csat_data['total_count']*100) if csat_data['total_count'] > 0 else 0
             output = f"""📊 Detailed CSAT Log for {target_date}:
             
 **Summary:**
 • Total Surveys: {csat_data['total_count']}
 • Average Rating: {csat_data['avg_rating']} 
-• Below Threshold (<{rating_threshold}): {csat_data['below_threshold_count']} ({csat_data['below_threshold_count']/csat_data['total_count']*100:.1f}% if csat_data['total_count'] > 0 else 0})
+• Below Threshold (<{rating_threshold}): {csat_data['below_threshold_count']} ({below_threshold_pct:.1f}%)
 
 **Individual Survey Details:**
 """
@@ -543,6 +544,218 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             logger.error(f"[TOOL ERROR] get_csat_detail_log() - Error: {str(e)}")
             return f"Error fetching CSAT detail log: {str(e)}"
 
+    @tool
+    def get_open_ticket_distribution() -> str:
+        """Get distribution of open tickets by age to monitor backlog health and identify aging tickets.
+        
+        Returns ticket counts grouped by age (0-4h, 4-24h, 1-2d, 3-7d, >7d) and details of oldest tickets.
+        Helps identify tickets at risk of SLA breach and backlog bottlenecks.
+        """
+        logger.info("[TOOL CALL] get_open_ticket_distribution()")
+        
+        try:
+            # Get merchant_id - hardcoded to 1 for now
+            merchant_id = 1
+            
+            # Get the distribution data
+            distribution = FreshdeskAnalytics.get_open_ticket_distribution(merchant_id)
+            
+            # Format the output
+            output = f"""📊 Open Ticket Distribution Analysis:
+
+**Backlog Overview:**
+• Total Open Tickets: {distribution['total_open']}
+
+**Age Distribution:**
+"""
+            
+            # Display buckets in order
+            bucket_order = ["0-4h", "4-24h", "1-2d", "3-7d", ">7d"]
+            for bucket in bucket_order:
+                data = distribution['age_buckets'][bucket]
+                # Create a simple bar chart
+                bar_length = int(data['percentage'] / 5) if data['percentage'] > 0 else 0
+                bar = "█" * bar_length if bar_length > 0 else ""
+                output += f"• {bucket:>6}: {data['count']:3d} tickets ({data['percentage']:5.1f}%) {bar}\n"
+            
+            # Highlight concerning patterns
+            old_tickets = distribution['age_buckets']['>7d']['count']
+            if old_tickets > 0:
+                output += f"\n⚠️ **Alert**: {old_tickets} ticket(s) older than 7 days!\n"
+            
+            # Show oldest tickets
+            if distribution['oldest_tickets']:
+                output += "\n**10 Oldest Open Tickets:**\n"
+                for i, ticket in enumerate(distribution['oldest_tickets'], 1):
+                    # Priority indicator
+                    priority_emoji = {1: "🟢", 2: "🟡", 3: "🟠", 4: "🔴"}.get(ticket['priority'], "⚪")
+                    
+                    output += f"""
+{i}. {priority_emoji} Ticket #{ticket['ticket_id']} - {ticket['age_display']} old
+   Subject: {ticket['subject']}
+   Status: {ticket['status']}
+   Customer: {ticket['customer_email']}
+   Tags: {', '.join(ticket['tags']) if ticket['tags'] else 'None'}
+   Last Updated: {ticket['last_updated']}
+"""
+            else:
+                output += "\n✅ No open tickets - backlog is clear!"
+            
+            # Add insights
+            if distribution['total_open'] > 0:
+                fresh_pct = distribution['age_buckets']['0-4h']['percentage']
+                aging_pct = distribution['age_buckets']['3-7d']['percentage'] + distribution['age_buckets']['>7d']['percentage']
+                
+                output += "\n**Insights:**\n"
+                if fresh_pct > 50:
+                    output += f"• {fresh_pct:.1f}% of tickets are fresh (<4h) - good responsiveness\n"
+                if aging_pct > 20:
+                    output += f"• {aging_pct:.1f}% of tickets are aging (>3d) - consider prioritizing these\n"
+                
+                # Check for "Waiting" statuses in oldest tickets
+                waiting_count = sum(1 for t in distribution['oldest_tickets'] 
+                                  if 'Waiting' in t['status'])
+                if waiting_count > 0:
+                    output += f"• {waiting_count} oldest tickets are waiting on customer/third party\n"
+            
+            output += "\nData Source: Live database analytics"
+            
+            logger.info(f"[TOOL RESULT] get_open_ticket_distribution() - Found {distribution['total_open']} open tickets")
+            return output
+            
+        except Exception as e:
+            logger.error(f"[TOOL ERROR] get_open_ticket_distribution() - Error: {str(e)}")
+            return f"Error analyzing open ticket distribution: {str(e)}"
+
+    @tool
+    def get_response_time_metrics(days: int = 7) -> str:
+        """Analyze team response and resolution time performance with statistical insights.
+        
+        Args:
+            days: Number of days to analyze (default: 7)
+            
+        Returns detailed metrics including percentiles, outliers, and CSAT correlation with speed.
+        """
+        # Handle CrewAI dict args
+        if isinstance(days, dict):
+            days = days.get('days', 7)
+        
+        logger.info(f"[TOOL CALL] get_response_time_metrics(days={days})")
+        
+        try:
+            # Calculate date range
+            end_date = date.today()
+            start_date = end_date - timedelta(days=days)
+            date_range = {'start_date': start_date, 'end_date': end_date}
+            
+            # Get metrics
+            metrics = FreshdeskAnalytics.get_response_time_metrics(
+                merchant_id=1,
+                date_range=date_range
+            )
+            
+            # Format time helper
+            def format_time(minutes):
+                if minutes < 60:
+                    return f"{int(minutes)}m"
+                hours = int(minutes // 60)
+                mins = int(minutes % 60)
+                return f"{hours}h {mins}m"
+            
+            # Format the output
+            output = f"""📊 Response Time Performance Analysis ({days} days):
+
+⏱️ **First Response Times:**"""
+            
+            if metrics['first_response']:
+                fr = metrics['first_response']
+                output += f"""
+• Median: {format_time(fr['median_min'])}
+• Average: {format_time(fr['mean_min'])}
+• 25th percentile: {format_time(fr['p25_min'])} (25% respond faster)
+• 75th percentile: {format_time(fr['p75_min'])} (75% respond faster)
+• 95th percentile: {format_time(fr['p95_min'])} (95% respond faster)
+"""
+                if fr['outliers']:
+                    output += f"\n⚠️ Outliers (>2σ from mean): {len(fr['outliers'])} tickets\n"
+                    for outlier in fr['outliers'][:3]:
+                        output += f"   - Ticket #{outlier['ticket_id']}: {format_time(outlier['response_min'])}\n"
+            else:
+                output += "\n   No response time data available\n"
+            
+            output += "\n⏰ **Resolution Times:**"
+            if metrics['resolution']:
+                res = metrics['resolution']
+                output += f"""
+• Median: {format_time(res['median_min'])}
+• Average: {format_time(res['mean_min'])}
+• 25th percentile: {format_time(res['p25_min'])}
+• 75th percentile: {format_time(res['p75_min'])}
+• 95th percentile: {format_time(res['p95_min'])}
+"""
+                if res['outliers']:
+                    output += f"\n⚠️ Outliers (>2σ from mean): {len(res['outliers'])} tickets\n"
+                    for outlier in res['outliers'][:3]:
+                        output += f"   - Ticket #{outlier['ticket_id']}: {format_time(outlier['resolution_min'])}\n"
+            else:
+                output += "\n   No resolution time data available\n"
+            
+            # Quick resolution breakdown
+            output += f"\n🚀 **Quick Resolution Performance:**\n"
+            output += f"Total Resolved: {metrics['total_resolved']} tickets\n\n"
+            
+            if metrics['quick_resolutions']:
+                for bucket, data in metrics['quick_resolutions'].items():
+                    bar_length = int(data['percentage'] / 5) if data['percentage'] > 0 else 0
+                    bar = "█" * bar_length if bar_length > 0 else ""
+                    csat_str = f" (CSAT: {data['avg_csat']}/5)" if data['avg_csat'] > 0 else ""
+                    output += f"• {bucket:>6}: {data['count']:3d} ({data['percentage']:5.1f}%) {bar}{csat_str}\n"
+            
+            # CSAT correlation
+            output += "\n😊 **CSAT vs Response Speed:**\n"
+            if any(cat['count'] > 0 for cat in metrics['csat_by_speed'].values()):
+                for category, data in metrics['csat_by_speed'].items():
+                    if data['count'] > 0:
+                        # Convert rating to emoji
+                        if data['avg_rating'] >= 102:
+                            emoji = "😊"
+                        elif data['avg_rating'] >= 100:
+                            emoji = "😐"
+                        else:
+                            emoji = "😞"
+                        output += f"• {category}: {data['count']} tickets, avg rating: {emoji} {data['avg_rating']}\n"
+            else:
+                output += "No rated tickets to analyze\n"
+            
+            # Insights
+            output += "\n💡 **Key Insights:**\n"
+            
+            # Response time insights
+            if metrics['first_response'] and metrics['first_response']['median_min'] < 60:
+                output += f"✅ Excellent median first response time: {format_time(metrics['first_response']['median_min'])}\n"
+            elif metrics['first_response'] and metrics['first_response']['median_min'] > 240:
+                output += f"⚠️ Slow median first response time: {format_time(metrics['first_response']['median_min'])}\n"
+            
+            # Quick resolution insights
+            if metrics['quick_resolutions'] and metrics['quick_resolutions']['<30min']['percentage'] > 50:
+                output += f"✅ {metrics['quick_resolutions']['<30min']['percentage']:.1f}% of tickets resolved within 30 minutes\n"
+            
+            # CSAT correlation insights
+            if metrics['csat_by_speed']:
+                ultra_fast = metrics['csat_by_speed'].get('ultra_fast_<5min', {})
+                slow = metrics['csat_by_speed'].get('slow_>180min', {})
+                if ultra_fast.get('avg_rating', 0) > slow.get('avg_rating', 0):
+                    output += "✅ Faster resolutions correlate with higher satisfaction\n"
+            
+            output += "\nData Source: Live database analytics"
+            
+            logger.info(f"[TOOL RESULT] get_response_time_metrics() - Analyzed {len(metrics.get('first_response', {}).get('outliers', []))} response outliers")
+            return output
+            
+        except Exception as e:
+            logger.error(f"[TOOL ERROR] get_response_time_metrics() - Error: {str(e)}")
+            return f"Error analyzing response time metrics: {str(e)}"
+
     # Return the tools created with @tool decorator
     tools = [
         get_recent_ticket_from_db,
@@ -555,6 +768,8 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
         analyze_bad_csat_tickets,
         get_daily_snapshot,
         get_csat_detail_log,
+        get_open_ticket_distribution,
+        get_response_time_metrics,
     ]
 
     return tools

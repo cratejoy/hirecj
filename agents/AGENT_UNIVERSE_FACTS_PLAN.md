@@ -45,9 +45,10 @@ This document outlines the plan to build a comprehensive data agent that can per
      }
      ```
 
-2. **get_csat_detail_log(merchant_id, date, rating_threshold=102)**
+2. **get_csat_detail_log(merchant_id, date, rating_threshold=102, include_conversations=False)**
    - Returns: List of CSAT surveys with ticket_id, rating, agent, response_times
-   - Requires: Rating data, ticket metadata, conversation timestamps
+   - NEW: Optional full conversation history for bad ratings
+   - Requires: Rating data, ticket metadata, conversation timestamps, conversation bodies
    - Output Schema:
      ```python
      {
@@ -63,7 +64,23 @@ This document outlines the plan to build a comprehensive data agent that can per
                  "created_at": "2024-01-10T14:30:00Z",
                  "first_response_min": 5.2,
                  "resolution_min": 45.8,
-                 "conversation_count": 3
+                 "conversation_count": 3,
+                 "conversations": [  # Only included if include_conversations=True AND rating < threshold
+                     {
+                         "from": "customer@example.com",
+                         "to": "support@example.com",
+                         "timestamp": "2024-01-10T14:00:00Z",
+                         "body": "My package arrived damaged...",
+                         "type": "customer"  # or "agent", "note"
+                     },
+                     {
+                         "from": "support@example.com",
+                         "to": "customer@example.com", 
+                         "timestamp": "2024-01-10T14:05:12Z",
+                         "body": "I'm sorry to hear that. Let me help...",
+                         "type": "agent"
+                     }
+                 ]
              }
          ],
          "total_count": 15,
@@ -279,6 +296,13 @@ This document outlines the plan to build a comprehensive data agent that can per
 10. **aggregate_by_time_bucket(tickets, bucket_size)**
     - Generic time-based aggregation for various metrics
 
+11. **get_bad_csat_analysis(merchant_id, date_range, auto_fetch_conversations=True)**
+    - Specialized function for deep-diving into negative CSAT ratings
+    - Automatically fetches full conversation history for bad ratings
+    - Groups issues by common themes in feedback
+    - Identifies problematic agent interactions
+    - Output includes conversation snippets showing where things went wrong
+
 ### Stage 1.3: Daily Snapshot Implementation ✅ COMPLETE
 **Objective**: Build the core daily health metrics function
 - ✅ Implemented `get_daily_snapshot()` with proper merchant_id filtering
@@ -290,27 +314,38 @@ This document outlines the plan to build a comprehensive data agent that can per
 - ✅ Made it the default tool in support_daily workflow
 - ✅ Migrated all functions from insight_lib to analytics_lib
 
-### Stage 1.4: CSAT Analysis Implementation ✅ COMPLETE
+### Stage 1.4: CSAT Analysis Implementation ✅ COMPLETE → NEEDS ENHANCEMENT
 **Objective**: Deep dive into customer satisfaction
 - ✅ Implemented `get_csat_detail_log()` with detailed survey data
 - ✅ Included feedback, response times, and conversation counts
 - ✅ Written tests for various rating scenarios including edge cases
 - ✅ Exposed as CrewAI tool in database_tools.py
 - ✅ Fixed conversation count query to work with JSONB data structure
+- 🔄 **ENHANCEMENT NEEDED**: Add `include_conversations` parameter
+  - When True, include full conversation history for tickets below threshold
+  - Helps identify what went wrong in bad interactions
+  - Essential for root cause analysis and agent coaching
 
-### Stage 1.5: Open Ticket Tracking
+### Stage 1.5: Open Ticket Tracking ✅ COMPLETE
 **Objective**: Monitor backlog health
-- Implement `get_open_ticket_distribution()`
-- Create age bucket calculations
-- Identify aging tickets at risk
-- Write tests for various backlog states
+- ✅ Implemented `get_open_ticket_distribution()` with age buckets
+- ✅ Created age bucket calculations (0-4h, 4-24h, 1-2d, 3-7d, >7d)
+- ✅ Identifies 10 oldest tickets with full details
+- ✅ Written tests for various backlog states
+- ✅ Exposed as CrewAI tool with formatted output
+- ✅ Includes visual indicators (priority emojis, bar charts)
+- 📊 **Real data shows**: 95.9% of tickets are >7 days old!
 
-### Stage 1.6: Response Time Analytics
+### Stage 1.6: Response Time Analytics ✅ COMPLETE
 **Objective**: Track team performance metrics
-- Implement `get_response_time_metrics()`
-- Calculate percentiles and outliers
-- Handle business hours correctly
-- Test with various response patterns
+- ✅ Implemented `get_response_time_metrics()` with full statistical analysis
+- ✅ Calculates percentiles (p25, p50, p75, p95) and outlier detection (>2σ)
+- ✅ Quick resolution buckets with CSAT correlation
+- ✅ Speed categories showing impact on customer satisfaction
+- ✅ Written comprehensive tests covering all edge cases
+- ✅ Added numpy to requirements.txt for statistical calculations
+- ✅ Exposed as CrewAI tool with formatted output
+- 📊 **Real data insights**: 0.4 min median response, 599 min median resolution, 38.5% <5min
 
 ### Stage 1.7: Volume Trend Analysis
 **Objective**: Detect unusual patterns
@@ -339,6 +374,10 @@ This document outlines the plan to build a comprehensive data agent that can per
 - Enhance support_daily workflow prompts
 - Add formatting for daily brief generation
 - Test end-to-end workflow execution
+- **Special consideration for CSAT analysis**:
+  - Agent should automatically request conversations for bad ratings
+  - Workflow should identify patterns in conversation failures
+  - Output should highlight specific interaction moments that led to dissatisfaction
 
 ## Stage 2: Advanced Analytics (Future)
 
