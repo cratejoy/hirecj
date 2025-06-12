@@ -98,9 +98,11 @@ async def initiate_oauth(request: Request):
                 detail=f"Invalid HMAC signature for shop {shop}"
             )
     
-    # Generate and store state with conversation_id
+    # Generate and store state
     nonce = shopify_auth.generate_state()
-    state_data = {"nonce": nonce, "conversation_id": conversation_id}
+    state_data = {"nonce": nonce}
+    if conversation_id:
+        state_data["conversation_id"] = conversation_id
     state = base64.urlsafe_b64encode(json.dumps(state_data).encode()).decode()
     
     logger.info(f"[OAUTH_INSTALL] State data to encode: {state_data}")
@@ -230,12 +232,7 @@ async def handle_oauth_callback(request: Request):
                 detail="Token exchange failed. No access token received from Shopify."
             )
         
-        # Store merchant data
-        store_result = store_merchant_token(shop, access_token, scopes)
-        merchant_id = store_result["merchant_id"]
-        is_new = store_result["is_new"]
-        
-        # Create or get user identity
+        # Create or get user identity first
         try:
             user_id, user_is_new = get_or_create_user(shop)
             logger.info(f"[OAUTH_CALLBACK] User identity: {user_id}, is_new: {user_is_new}")
@@ -243,37 +240,15 @@ async def handle_oauth_callback(request: Request):
             logger.error(f"[OAUTH_CALLBACK] Failed to get/create user identity: {e}")
             user_id = None
         
+        # Store merchant data with user association
+        store_result = store_merchant_token(shop, access_token, scopes, user_id)
+        merchant_id = store_result["merchant_id"]
+        is_new = store_result["is_new"]
+        
         logger.info(f"[OAUTH_CALLBACK] Successfully authenticated shop: {shop}, is_new: {is_new}")
         
-        # Notify agents service about OAuth completion
-        if conversation_id and user_id:
-            try:
-                # Prepare OAuth completion data
-                handoff_request = {
-                    "shop_domain": shop,
-                    "is_new": is_new,
-                    "conversation_id": conversation_id,
-                    "user_id": user_id,  # Pass the user_id we just created
-                    "email": None  # We don't have email at this stage
-                }
-
-                agents_url = f"{settings.agents_service_url}/api/v1/internal/oauth/completed"
-                
-                async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.post(agents_url, json=handoff_request)
-                
-                if response.status_code == 200:
-                    logger.info(f"[OAUTH] Successfully notified agents service of OAuth completion for {conversation_id}")
-                else:
-                    # Log but don't fail - graceful degradation
-                    logger.error(
-                        f"[OAUTH] Failed to notify agents service. Response: "
-                        f"{response.status_code}: {response.text}"
-                    )
-                    
-            except Exception as e:
-                # Log but don't fail - the auth flow continues
-                logger.error(f"[OAUTH] Error notifying agents service: {e}", exc_info=True)
+        # With centralized database, agents service will determine OAuth completion
+        # from MerchantToken creation timestamp - no notification needed
 
         # PHASE 3: Redirect to frontend with oauth complete marker
         # Server will determine everything from session
@@ -393,7 +368,7 @@ async def exchange_code_for_token(shop: str, code: str) -> Optional[tuple[str, s
         return None, None
 
 
-def store_merchant_token(shop: str, access_token: str, scopes: str) -> Dict[str, Any]:
+def store_merchant_token(shop: str, access_token: str, scopes: str, user_id: str = None) -> Dict[str, Any]:
     """
     Store merchant access token using the merchant_storage service.
     
@@ -401,11 +376,12 @@ def store_merchant_token(shop: str, access_token: str, scopes: str) -> Dict[str,
         shop: Shop domain
         access_token: Access token from Shopify
         scopes: Granted scopes
+        user_id: User ID to associate with this merchant
         
     Returns:
         Dict with merchant_id and is_new status
     """
-    return merchant_storage.store_token(shop, access_token, scopes)
+    return merchant_storage.store_token(shop, access_token, scopes, user_id)
 
 
 @router.get("/test-shop")
