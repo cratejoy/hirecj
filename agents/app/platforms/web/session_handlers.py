@@ -11,6 +11,10 @@ from app.constants import WebSocketCloseCodes
 
 from .session_handler import SessionHandler
 
+from shared.db_models import WebSession            # NEW
+from sqlalchemy import update                       # NEW
+from app.utils.supabase_util import get_db_session  # NEW
+
 if TYPE_CHECKING:
     from .platform import WebPlatform
 
@@ -41,7 +45,28 @@ class SessionHandlers:
         ws_session = self.platform.sessions.get(conversation_id, {})
         is_authenticated = ws_session.get("authenticated", False)
         user_id = ws_session.get("user_id") if is_authenticated else None
-        
+
+        # ---- NEW OVERRIDE LOGIC --------------------------------------
+        next_wf = (ws_session.get("data") or {}).pop("next_workflow", None)
+        if next_wf:
+            workflow = next_wf
+            logger.info(f"[WORKFLOW] Using explicit next_workflow override: {workflow}")
+
+            # one-shot: clear the flag in the DB
+            sess_id = ws_session.get("session_id")
+            if sess_id:
+                try:
+                    with get_db_session() as db:
+                        db.execute(
+                            update(WebSession)
+                            .where(WebSession.session_id == sess_id)
+                            .values(data={})
+                        )
+                        db.commit()
+                except Exception as e:
+                    logger.error(f"[WORKFLOW] Failed to clear session flag: {e}")
+        # --------------------------------------------------------------
+
         # Initialize defaults
         workflow = "shopify_onboarding"
         merchant = None

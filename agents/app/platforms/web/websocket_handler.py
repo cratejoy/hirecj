@@ -86,7 +86,9 @@ class WebSocketHandler:
             "session_start": datetime.now().isoformat(),
             "ip_address": getattr(websocket, "remote_address", None),
             "user_agent": None,  # Would need to be passed from client
-            "authenticated": user_ctx is not None
+            "authenticated": user_ctx is not None,
+            "session_id": getattr(session, "session_id", None),   # NEW
+            "data": getattr(session, "data", {}) or {},           # NEW
         }
 
         logger.info(
