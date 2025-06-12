@@ -37,6 +37,14 @@ const LS_CONV_ID = 'cj_conversation_id';          // persistent key
 const SlackChat = () => {
 	const [location, setLocation] = useLocation();
 	const searchString = useSearch();
+
+	// --- DEBUG: log full page URL once on initial render -----------------
+	useEffect(() => {
+		console.log('[SlackChat] Full page URL on load:', window.location.href);
+		console.log('[SlackChat] window.location.search:', window.location.search);
+	}, []);
+	// ---------------------------------------------------------------------
+
 	const { toast } = useToast();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
