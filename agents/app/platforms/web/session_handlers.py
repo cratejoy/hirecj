@@ -1,7 +1,10 @@
 """Session-related message handlers."""
 
 from typing import Dict, Any, TYPE_CHECKING
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import select, update
+from shared.db_models import WebSession, MerchantToken
+from app.utils.supabase_util import get_db_session
 
 from fastapi import WebSocket
 
@@ -10,10 +13,6 @@ from app.models import Message
 from app.constants import WebSocketCloseCodes
 
 from .session_handler import SessionHandler
-
-from shared.db_models import WebSession            # NEW
-from sqlalchemy import update                       # NEW
-from app.utils.supabase_util import get_db_session  # NEW
 
 if TYPE_CHECKING:
     from .platform import WebPlatform
@@ -29,6 +28,69 @@ class SessionHandlers:
         self.platform = platform
         self.session_handler = SessionHandler(platform)
 
+    async def _select_workflow(
+        self,
+        ws_session: dict,
+        start_data: dict,
+        user_id: str | None,
+    ) -> tuple[str | None, str | None, str]:
+        """Return (merchant, scenario, workflow) to start with – single authority."""
+        merchant  = start_data.get("merchant_id")
+        scenario  = start_data.get("scenario") or "default"
+        workflow  = "shopify_onboarding"
+
+        # 1. explicit override set by auth-callback
+        override = (ws_session.get("data") or {}).pop("next_workflow", None)
+        if override:
+            workflow = override
+            await self._clear_session_flag(ws_session)
+
+        # 2. client-requested workflow
+        elif w := start_data.get("workflow"):
+            workflow = w
+
+        # 3. recent OAuth heuristic
+        elif user_id:
+            mt = self._get_latest_token(user_id)
+            if mt:
+                merchant = mt.shop_domain.replace(".myshopify.com", "")
+                if mt.created_at > datetime.utcnow() - timedelta(minutes=5):
+                    workflow = "shopify_post_auth"
+                    scenario = "post_auth"
+
+        # 4. skip onboarding when already authed
+        if user_id and workflow == "shopify_onboarding":
+            workflow = "ad_hoc_support"
+
+        # fallback merchant for non-auth flows
+        if not merchant:
+            merchant = "onboarding_user"
+
+        return merchant, scenario, workflow
+
+    async def _clear_session_flag(self, ws_session: dict):
+        """Remove next_workflow flag from DB (one-shot)."""
+        sess_id = ws_session.get("session_id")
+        if not sess_id:
+            return
+        with get_db_session() as db:
+            db.execute(
+                update(WebSession)
+                .where(WebSession.session_id == sess_id)
+                .values(data={})
+            )
+            db.commit()
+
+    def _get_latest_token(self, user_id: str):
+        """Return latest MerchantToken row or None."""
+        with get_db_session() as db:
+            return db.scalar(
+                select(MerchantToken)
+                .where(MerchantToken.user_id == user_id)
+                .order_by(MerchantToken.created_at.desc())
+                .limit(1)
+            )
+
     async def handle_start_conversation(
         self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
     ):
@@ -41,95 +103,31 @@ class SessionHandlers:
             )
             return
 
-        # -------------------------------------------------------------
-        # Defaults before any override logic
-        workflow = "shopify_onboarding"   # default workflow
-        merchant = None                   # will be filled later
-        scenario = None
-        # -------------------------------------------------------------
-
-        # Determine workflow and merchant based on authentication state
         ws_session = self.platform.sessions.get(conversation_id, {})
         is_authenticated = ws_session.get("authenticated", False)
         user_id = ws_session.get("user_id") if is_authenticated else None
 
-        # ---- NEW OVERRIDE LOGIC --------------------------------------
-        next_wf = (ws_session.get("data") or {}).pop("next_workflow", None)
-        if next_wf:
-            workflow = next_wf
-            logger.info(f"[WORKFLOW] Using explicit next_workflow override: {workflow}")
+        merchant, scenario, workflow = await self._select_workflow(
+            ws_session, start_data, user_id
+        )
 
-            # one-shot: clear the flag in the DB
-            sess_id = ws_session.get("session_id")
-            if sess_id:
-                try:
-                    with get_db_session() as db:
-                        db.execute(
-                            update(WebSession)
-                            .where(WebSession.session_id == sess_id)
-                            .values(data={})
-                        )
-                        db.commit()
-                except Exception as e:
-                    logger.error(f"[WORKFLOW] Failed to clear session flag: {e}")
-        # --------------------------------------------------------------
-
-        
-        if is_authenticated and user_id:
-            # For authenticated users, check their merchant associations
-            from shared.db_models import MerchantToken
-            from sqlalchemy import select
-            
-            try:
-                with get_db_session() as db:
-                    # Find the user's most recent merchant
-                    merchant_token = db.scalar(
-                        select(MerchantToken)
-                        .where(MerchantToken.user_id == user_id)
-                        .order_by(MerchantToken.created_at.desc())
-                        .limit(1)
-                    )
-                    
-                    if merchant_token:
-                        merchant = merchant_token.shop_domain.replace(".myshopify.com", "")
-                        # Check if this is a recent OAuth (within last 60 seconds)
-                        from datetime import datetime, timedelta
-                        if merchant_token.created_at > datetime.utcnow() - timedelta(seconds=60):
-                            workflow = "shopify_post_auth"
-                            scenario = "post_auth"
-                            logger.info(f"[WORKFLOW] Recent OAuth detected for {merchant} - using post_auth workflow")
-                        else:
-                            workflow = "ad_hoc_support"
-                            scenario = "normal_day"
-                            logger.info(f"[WORKFLOW] Authenticated user with merchant {merchant}")
-                    else:
-                        logger.info(f"[WORKFLOW] Authenticated user without merchant - using onboarding")
-            except Exception as e:
-                logger.error(f"[WORKFLOW] Error determining merchant: {e}")
-        else:
-            logger.info(f"[WORKFLOW] Anonymous user - using onboarding workflow")
-        
         # Get workflow requirements
         workflow_data = self.platform.workflow_loader.get_workflow(workflow)
         requirements = workflow_data.get('requirements', {})
-        
+
         # Use server-determined values with appropriate defaults
         if not requirements.get('merchant', True):
-            # Workflow doesn't require merchant
             if not merchant:
                 merchant = "onboarding_user"
         else:
-            # Workflow requires merchant
             if not merchant:
                 await self.platform.send_error(websocket, "Merchant ID required for this workflow")
                 return
-        
+
         if not requirements.get('scenario', True):
-            # Workflow doesn't require scenario
             if not scenario:
                 scenario = "default"
         else:
-            # Workflow requires scenario
             if not scenario:
                 await self.platform.send_error(websocket, "Scenario required for this workflow")
                 return
@@ -147,37 +145,31 @@ class SessionHandlers:
                 f"[RECONNECT] Session has {len(existing_session.conversation.messages)} messages"
             )
             session = existing_session
-            # Preserve the workflow from the existing session
             workflow = session.conversation.workflow
             logger.info(f"[RECONNECT] Preserving existing session workflow: {workflow}")
         else:
             logger.info(
                 f"[NEW_SESSION] Creating new session for {conversation_id}"
             )
-            # Create conversation session
             try:
                 ws_session = self.platform.sessions.get(conversation_id, {})
-                # Get user_id from WebSocket session (set by WebSocket handler from cookie)
                 user_id = ws_session.get("user_id") if ws_session.get("user_id") != "anonymous" else None
-                
+
                 session = await self.session_handler.create_session(
                     conversation_id, merchant, scenario, workflow, ws_session, user_id
                 )
             except ValueError as e:
-                # Handle missing universe or other critical errors
                 error_msg = str(e)
                 logger.error(f"Failed to start conversation: {error_msg}")
                 await self.platform.send_error(
                     websocket, f"Cannot start conversation: {error_msg}"
                 )
-                # Close the WebSocket with error code
                 await websocket.close(
                     code=WebSocketCloseCodes.INTERNAL_ERROR,
                     reason="Universe not found",
                 )
                 return
             except Exception as e:
-                # Handle unexpected errors
                 logger.error(f"Unexpected error starting conversation: {e}")
                 await self.platform.send_error(
                     websocket,
@@ -188,9 +180,7 @@ class SessionHandlers:
                     reason="Internal error",
                 )
                 return
-        
 
-        # Create conversation data
         conversation_data = {
             "conversationId": conversation_id,
             "merchantId": merchant,
@@ -228,28 +218,11 @@ class SessionHandlers:
                 "data": conversation_data,
             }
         )
-        
-        # Import workflow handlers for the rest
+
         from .workflow_handlers import WorkflowHandlers
         workflow_handlers = WorkflowHandlers(self.platform)
-        
-        # Check if starting onboarding workflow but already authenticated
-        transitioned = await workflow_handlers._check_already_authenticated(
-            websocket, conversation_id, session, workflow, requirements, conversation_data
-        )
 
-        if transitioned:
-            # session.workflow was changed (e.g., onboarding → post-auth)
-            workflow = session.conversation.workflow
-            workflow_data = self.platform.workflow_loader.get_workflow(workflow)
-            requirements = workflow_data.get("requirements", {})
-            conversation_data["workflow"] = workflow
-            logger.info(f"[WORKFLOW] Transition complete; continuing with {workflow}")
-
-        # Register progress callback
         await workflow_handlers._setup_progress_callback(websocket)
-
-        # Handle initial workflow action
         await workflow_handlers._handle_initial_workflow_action(websocket, session, workflow)
 
 
