@@ -256,6 +256,7 @@ async def handle_oauth_callback(request: Request):
         # Server will determine everything from session
         redirect_params = {
             "oauth": "complete",
+            "workflow": "shopify_post_auth",   # tell frontend which workflow to open
         }
         
         redirect_url = f"{settings.frontend_url}/chat?{urlencode(redirect_params)}"

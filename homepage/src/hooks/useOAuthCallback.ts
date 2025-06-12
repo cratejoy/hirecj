@@ -25,8 +25,9 @@ export const useOAuthCallback = (
     if (error) {
       console.error('[OAuth] Error in URL:', error);
       onError(error);
-      // Clean URL
-      window.history.replaceState({}, '', window.location.pathname);
+      params.delete('error');
+      const rest = params.toString();
+      window.history.replaceState({}, '', rest ? `${window.location.pathname}?${rest}` : window.location.pathname);
       return;
     }
     
@@ -46,8 +47,15 @@ export const useOAuthCallback = (
         onSuccess(callbackData);
       }
       
-      // Clean URL
-      window.history.replaceState({}, '', window.location.pathname);
+      // Remove only oauth / error params, keep others (e.g. workflow)
+      params.delete('oauth');
+      params.delete('error');
+      const remaining = params.toString();
+      window.history.replaceState(
+        {},
+        '',
+        remaining ? `${window.location.pathname}?${remaining}` : window.location.pathname
+      );
     }
   }, [onSuccess, onError]);
   
