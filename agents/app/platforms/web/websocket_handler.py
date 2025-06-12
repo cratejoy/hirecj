@@ -39,6 +39,10 @@ class WebSocketHandler:
         session_id = websocket.cookies.get("hirecj_session")
         user_ctx = None
         conversation_id = None
+
+        # Holders for primitive values to avoid DetachedInstanceError
+        session_id_db: str | None = None    # NEW
+        session_data_db: dict = {}          # NEW
         
         if session_id:
             logger.info(f"[WEBSOCKET] Found session cookie: {session_id[:10]}...")
@@ -58,6 +62,8 @@ class WebSocketHandler:
                     
                     if session:
                         user_ctx = {"user_id": session.user_id}
+                        session_id_db = session.session_id     # NEW
+                        session_data_db = session.data or {}   # NEW
                         logger.info(f"[WEBSOCKET] User {session.user_id} connected via session cookie")
                         
                         # For authenticated users, create conversation ID based on user and session
@@ -88,8 +94,8 @@ class WebSocketHandler:
             "ip_address": getattr(websocket, "remote_address", None),
             "user_agent": None,  # Would need to be passed from client
             "authenticated": user_ctx is not None,
-            "session_id": getattr(session, "session_id", None),   # NEW
-            "data": getattr(session, "data", {}) or {},           # NEW
+            "session_id": session_id_db,
+            "data": session_data_db,
         }
 
         logger.info(
