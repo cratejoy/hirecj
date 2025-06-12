@@ -46,7 +46,10 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
       shop
     )}`;
 
-    window.location.assign(redirect);
+    // 👉 During local testing, don’t actually navigate.
+    console.log('REDIRECT', redirect);   // Shows the final Shopify OAuth URL
+    return;                              // Stop execution – no redirect
+    // window.location.assign(redirect);
   };
 
   const handleShopSubmit = () => {
