@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 
+// Shopify public constants
+const SHOPIFY_CLIENT_ID  = import.meta.env.VITE_SHOPIFY_CLIENT_ID;
+const SHOPIFY_SCOPES     = import.meta.env.VITE_SHOPIFY_SCOPES;
+
 interface ShopifyOAuthButtonProps {
   text?: string;
   className?: string;
@@ -27,29 +31,38 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
   };
 
   const initiateOAuth = async (shop: string) => {
-    // Normalize shop domain
-    if (!shop.endsWith(".myshopify.com")) {
-      shop = `${shop}.myshopify.com`;
-    }
-
+    if (!shop.endsWith(".myshopify.com")) shop += ".myshopify.com";
     setIsConnecting(true);
 
-    const authUrlBase = import.meta.env.VITE_AUTH_URL;
-    if (!authUrlBase) {
-      throw new Error(
-        "[ShopifyOAuthButton] VITE_AUTH_URL is not set – cannot initiate OAuth"
-      );
+    try {
+      const authUrlBase = import.meta.env.VITE_AUTH_URL;
+      if (!authUrlBase) throw new Error("VITE_AUTH_URL not set");
+
+      // 1️⃣  fetch short-lived JWT (`state`) from auth-service
+      const res = await fetch(`${authUrlBase}/api/v1/shopify/state`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`state fetch failed (${res.status})`);
+      const { state } = await res.json();
+
+      // 2️⃣  build Shopify authorize URL directly
+      const params = new URLSearchParams({
+        client_id   : SHOPIFY_CLIENT_ID,
+        scope       : SHOPIFY_SCOPES,
+        redirect_uri: `${authUrlBase}/api/v1/shopify/callback`,
+        state,
+      }).toString();
+
+      const redirect = `https://${shop}/admin/oauth/authorize?${params}`;
+
+      // During dev keep real navigation disabled:
+      console.log("REDIRECT", redirect);
+      return;                 // ← remove / comment when you want to follow the link
+      // window.location.assign(redirect);
+    } catch (err) {
+      console.error("[ShopifyOAuthButton] OAuth init failed:", err);
+      setIsConnecting(false);
     }
-
-    // ONE direct navigation – no pre-flight, no CORS
-    const redirect = `${authUrlBase}/api/v1/shopify/install?shop=${encodeURIComponent(
-      shop
-    )}`;
-
-    // 👉 During local testing, don’t actually navigate.
-    console.log('REDIRECT', redirect);   // Shows the final Shopify OAuth URL
-    return;                              // Stop execution – no redirect
-    // window.location.assign(redirect);
   };
 
   const handleShopSubmit = () => {
