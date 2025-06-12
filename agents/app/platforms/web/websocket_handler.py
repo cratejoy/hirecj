@@ -35,6 +35,36 @@ class WebSocketHandler:
             websocket: WebSocket connection object
             conversation_id: Optional existing conversation ID
         """
+        # Get user context from cookie BEFORE accepting connection
+        session_id = websocket.cookies.get("hirecj_session")
+        user_ctx = None
+        
+        if session_id:
+            logger.info(f"[WEBSOCKET] Found session cookie: {session_id[:10]}...")
+            
+            # Import here to avoid circular imports
+            from app.utils.supabase_util import get_db_session
+            from shared.db_models import WebSession
+            from sqlalchemy import select
+            
+            try:
+                with get_db_session() as db:
+                    session = db.scalar(
+                        select(WebSession)
+                        .where(WebSession.session_id == session_id)
+                        .where(WebSession.expires_at > datetime.utcnow())
+                    )
+                    
+                    if session:
+                        user_ctx = {"user_id": session.user_id}
+                        logger.info(f"[WEBSOCKET] User {session.user_id} connected via session cookie")
+                    else:
+                        logger.debug(f"[WEBSOCKET] Session not found or expired")
+            except Exception as e:
+                logger.error(f"[WEBSOCKET] Error loading session: {e}", exc_info=True)
+        else:
+            logger.info(f"[WEBSOCKET] No session cookie found - anonymous connection")
+        
         # Generate conversation ID if not provided
         if not conversation_id:
             conversation_id = f"web_session_{uuid.uuid4().hex[:8]}"
@@ -42,13 +72,14 @@ class WebSocketHandler:
         # Register connection
         self.platform.connections[conversation_id] = websocket
 
-        # Initialize session
+        # Initialize session with user context if available
         self.platform.sessions[conversation_id] = {
-            "user_id": "anonymous",
+            "user_id": user_ctx["user_id"] if user_ctx else "anonymous",
             "display_name": "Web User",
             "session_start": datetime.now().isoformat(),
             "ip_address": getattr(websocket, "remote_address", None),
             "user_agent": None,  # Would need to be passed from client
+            "authenticated": user_ctx is not None
         }
 
         logger.info(
@@ -111,7 +142,6 @@ class WebSocketHandler:
                 "end_conversation",
                 "fact_check",
                 "ping",
-                "session_update",
                 "system_event",
                 "debug_request",
                 "workflow_transition",

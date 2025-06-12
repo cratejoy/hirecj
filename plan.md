@@ -105,9 +105,35 @@
 - **Fix**: Add `e.preventDefault()` to line 520 in SlackChat.tsx
 - **Status**: Issue identified, awaiting fix
 
-**Phase 6: Simplified Server-Side OAuth Handoff – Status**  
-Implementation complete through Phase 6.5.  Remaining work: **Phase 6.6** (final testing & documentation cleanup).
-- **Why**: The current "dead drop" database method is fragile and complex. A direct API call will be more robust, simpler to maintain, and provide a better user experience.
+### ✅ Recently Completed
+
+**Phase 6.1: OAuth Flow Fix & Two-Layer Session Pattern** ✅
+- **Completed**: 2025-06-11
+- **Summary**: Successfully implemented two-layer session pattern and fixed OAuth flow
+- **Key Changes**:
+  - HTTP sessions for user identity (PostgreSQL-backed with web_sessions table)
+  - WebSocket sessions for conversation state only
+  - Removed all session_update message handling
+  - Renamed SessionInitiator → PostOAuthHandler for clarity
+  - Fixed OAuth workflow transition (shopify_onboarding → shopify_post_auth)
+  - Set cookie domain to .hirecj.ai for cross-subdomain access
+- **Documentation**: 
+  - [Phase 1 Summary](docs/oauth-flow-fix/phase-1-completed.md)
+  - [Testing Guide](docs/oauth-flow-fix/phase-2-testing-guide.md)
+
+**Phase 6.2: WebSocket Proxy Architecture** ✅
+- **Completed**: 2025-06-11
+- **Summary**: Implemented single-domain proxy to solve cross-domain cookie issue
+- **Key Changes**:
+  - Added WebSocket proxy to homepage Express server
+  - Routes `/ws/*` requests through `amir.hirecj.ai` to agents service
+  - Frontend uses same-origin WebSocket connections
+  - Cookies work automatically - no cross-domain issues
+- **Benefits**:
+  - Single domain for all connections
+  - No workarounds or hacks needed
+  - Standard production architecture
+- **Documentation**: [Proxy Architecture](docs/oauth-flow-fix/phase-3-proxy-architecture.md)
 
 ### 🛠️ Current Issue Fix
 

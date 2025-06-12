@@ -39,3 +39,14 @@ Success is completing the task **elegantly and completely** according to our Nor
   - Don't optimize algorithms unless asked
   - Don't refactor unrelated code unless asked
   - If you see an opportunity for improvement, mention it but don't implement it
+
+## 🚨 Debugging & Problem Solving Guidelines
+
+- **NO LAZY NETWORK ASSUMPTIONS**: Never conclude that errors are due to ngrok, network conditions, packet loss, or "transient network errors"
+  - These are lazy explanations that avoid real debugging
+  - Always investigate the actual code logic, configuration, and data flow
+  - Network issues are extremely rare - 99% of problems are code bugs
+- **NO MAGICAL THINKING**: Don't attribute problems to mysterious external forces
+  - Look at logs, trace the code path, examine the data
+  - Every error has a specific, deterministic cause in the code
+  - Find the root cause, don't paper over it with retries or timeouts

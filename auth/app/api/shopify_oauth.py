@@ -241,39 +241,39 @@ async def handle_oauth_callback(request: Request):
             logger.info(f"[OAUTH_CALLBACK] User identity: {user_id}, is_new: {user_is_new}")
         except Exception as e:
             logger.error(f"[OAUTH_CALLBACK] Failed to get/create user identity: {e}")
+            user_id = None
         
         logger.info(f"[OAUTH_CALLBACK] Successfully authenticated shop: {shop}, is_new: {is_new}")
         
-        # PHASE 6.3: Call Agent service's internal API to pre-warm session
-        if conversation_id:
+        # Notify agents service about OAuth completion
+        if conversation_id and user_id:
             try:
-                # Prepare payload for the agent service
+                # Prepare OAuth completion data
                 handoff_request = {
                     "shop_domain": shop,
                     "is_new": is_new,
                     "conversation_id": conversation_id,
-                    "email": None  # We don't have email at this stage, can be added later
+                    "user_id": user_id,  # Pass the user_id we just created
+                    "email": None  # We don't have email at this stage
                 }
 
-                agents_url = f"{settings.agents_service_url}/api/v1/internal/session/initiate"
+                agents_url = f"{settings.agents_service_url}/api/v1/internal/oauth/completed"
                 
                 async with httpx.AsyncClient(timeout=15.0) as client:
                     response = await client.post(agents_url, json=handoff_request)
                 
                 if response.status_code == 200:
-                    logger.info(f"[OAUTH_HANDOFF] Successfully initiated session for {conversation_id} on agent service.")
+                    logger.info(f"[OAUTH] Successfully notified agents service of OAuth completion for {conversation_id}")
                 else:
-                    # Log the error but don't fail the auth flow.
-                    # The user will still be redirected, but the agent won't be pre-warmed.
+                    # Log but don't fail - graceful degradation
                     logger.error(
-                        f"[OAUTH_HANDOFF] Failed to initiate session. Agent service returned "
+                        f"[OAUTH] Failed to notify agents service. Response: "
                         f"{response.status_code}: {response.text}"
                     )
                     
             except Exception as e:
-                # Log the error but don't fail the auth flow.
-                logger.error(f"[OAUTH_HANDOFF] Error calling agent service: {e}", exc_info=True)
-                # The flow will gracefully degrade to the user connecting and starting a new session.
+                # Log but don't fail - the auth flow continues
+                logger.error(f"[OAUTH] Error notifying agents service: {e}", exc_info=True)
 
         # PHASE 3: Redirect to frontend with only conversation_id
         redirect_params = {}
@@ -284,7 +284,37 @@ async def handle_oauth_callback(request: Request):
         
         redirect_url = f"{settings.frontend_url}/chat?{urlencode(redirect_params)}"
         logger.info(f"[OAUTH_CALLBACK] Redirecting to: {redirect_url}")
-        return RedirectResponse(url=redirect_url, status_code=302)
+        
+        # Create redirect response
+        response = RedirectResponse(url=redirect_url, status_code=302)
+        
+        # Issue session cookie if we have a user_id
+        if user_id:
+            from app.services.session_cookie import issue_session
+            session_id = issue_session(user_id)
+            
+            # Determine cookie domain based on environment
+            cookie_domain = None
+            if "hirecj.ai" in settings.frontend_url:
+                # Production: allow cookie across all subdomains
+                cookie_domain = ".hirecj.ai"
+                logger.info(f"[OAUTH_CALLBACK] Setting cookie domain to {cookie_domain} for cross-subdomain access")
+            
+            # Set HTTP-only secure cookie
+            response.set_cookie(
+                key="hirecj_session",
+                value=session_id,
+                max_age=86400,  # 24 hours in seconds
+                httponly=True,
+                secure=True,  # Only send over HTTPS
+                samesite="lax",  # CSRF protection
+                domain=cookie_domain  # None for localhost, ".hirecj.ai" for production
+            )
+            logger.info(f"[OAUTH_CALLBACK] Set session cookie for user {user_id} (domain: {cookie_domain})")
+        else:
+            logger.warning(f"[OAUTH_CALLBACK] No user_id available, not setting session cookie")
+        
+        return response
         
     except Exception as e:
         import traceback

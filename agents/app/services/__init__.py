@@ -1,5 +1,5 @@
 """Service layer."""
 
-from .session_initiator import session_initiator
+from .post_oauth_handler import post_oauth_handler
 
-__all__ = ["session_initiator"]
+__all__ = ["post_oauth_handler"]

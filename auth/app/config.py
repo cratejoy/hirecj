@@ -32,13 +32,7 @@ class Settings(BaseSettings):
     agents_service_url: str = Field("http://localhost:8000", env="AGENTS_SERVICE_URL")
     homepage_url: str = Field("http://localhost:3456", env="HOMEPAGE_URL")
     
-    # Database Configuration
-    database_url: str = Field(
-        "postgresql://hirecj:hirecj_dev_password@localhost:5435/hirecj_auth",
-        env="AUTH_DATABASE_URL"
-    )
-    
-    # Supabase connection for shared tables
+    # Database Configuration - Single shared database for all services
     supabase_connection_string: str = Field(
         env="SUPABASE_CONNECTION_STRING"
     )

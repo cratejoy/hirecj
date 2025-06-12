@@ -29,23 +29,25 @@ class SessionHandler:
         merchant: str,
         scenario: str,
         workflow: str,
-        ws_session: Dict[str, Any]
+        ws_session: Dict[str, Any],
+        user_id: str = None
     ):
         """Create a new conversation session."""
         try:
-            # Get user ID if shop domain is available
-            shop_domain = ws_session.get("shop_domain")
-            user_id = None
-            
-            if shop_domain:
-                try:
-                    user_id, is_new = get_or_create_user(shop_domain)
-                    logger.info(f"[USER_IDENTITY] Backend generated user_id={user_id} "
-                               f"for shop_domain={shop_domain} (new={is_new})")
-                except Exception as e:
-                    logger.error(f"[USER_IDENTITY] Failed to get/create user for {shop_domain}: {e}")
-            else:
-                logger.info(f"[USER_IDENTITY] No shop_domain provided - proceeding without user_id")
+            # User ID now comes from WebSocket handler (via cookie)
+            # Only fall back to shop_domain if no user_id provided
+            if not user_id:
+                shop_domain = ws_session.get("shop_domain")
+                
+                if shop_domain:
+                    try:
+                        user_id, is_new = get_or_create_user(shop_domain)
+                        logger.info(f"[USER_IDENTITY] Backend generated user_id={user_id} "
+                                   f"for shop_domain={shop_domain} (new={is_new})")
+                    except Exception as e:
+                        logger.error(f"[USER_IDENTITY] Failed to get/create user for {shop_domain}: {e}")
+                else:
+                    logger.info(f"[USER_IDENTITY] No user_id from cookie and no shop_domain - proceeding anonymously")
             
             logger.info(f"[SESSION_CREATE] Creating session: merchant={merchant}, "
                        f"workflow={workflow}, user_id={user_id or 'None'}")

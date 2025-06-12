@@ -4,36 +4,42 @@ from fastapi import APIRouter, HTTPException
 from app.logging_config import get_logger
 from app.constants import HTTPStatus
 from shared.models.api import OAuthHandoffRequest
-from app.services.session_initiator import session_initiator
+from app.services.post_oauth_handler import post_oauth_handler
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/internal", tags=["internal"])
 
 
-@router.post("/session/initiate")
-async def initiate_session(request: OAuthHandoffRequest):
+@router.post("/oauth/completed")
+async def handle_oauth_completion(request: OAuthHandoffRequest):
     """
-    Internal endpoint called by the Auth Service to pre-warm a session
-    after a successful OAuth completion.
+    Internal endpoint called by the Auth Service after successful OAuth completion.
+    
+    This endpoint prepares the appropriate workflow state (e.g., shopify_post_auth)
+    so that when the user's WebSocket connects, they see the right content immediately.
     """
     logger.info(
-        f"[INTERNAL_API] Received session initiation request for conversation_id: {request.conversation_id}"
+        f"[INTERNAL_API] OAuth completion notification for conversation: {request.conversation_id}"
     )
     logger.info(
-        f"[INTERNAL_API] Handoff data: shop_domain={request.shop_domain}, is_new={request.is_new}"
+        f"[INTERNAL_API] OAuth data: shop_domain={request.shop_domain}, is_new={request.is_new}"
     )
 
-    # Call the SessionInitiator service to prepare the session.
-    success = await session_initiator.prepare_oauth_session(request)
+    # Handle the OAuth completion
+    success = await post_oauth_handler.handle_oauth_completion(request)
 
     if not success:
         logger.error(
-            f"[INTERNAL_API] SessionInitiator failed to prepare session for {request.conversation_id}"
+            f"[INTERNAL_API] Failed to handle OAuth completion for {request.conversation_id}"
         )
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail="Failed to prepare user session on the agent service.",
+            detail="Failed to prepare post-OAuth workflow state",
         )
 
-    return {"status": "session_prepared", "conversation_id": request.conversation_id}
+    return {
+        "status": "oauth_handled",
+        "conversation_id": request.conversation_id,
+        "workflow": "shopify_post_auth"
+    }

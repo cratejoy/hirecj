@@ -95,6 +95,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add user loading middleware (after CORS)
+from app.middleware.load_user import LoadUser
+app.add_middleware(LoadUser)
+
 # Initialize loaders
 prompt_loader = PromptLoader()
 scenario_loader = ScenarioLoader()

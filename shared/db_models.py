@@ -18,3 +18,22 @@ class OAuthCSRFState(Base):
 
     def __repr__(self):
         return f"<OAuthCSRFState(state='{self.state}', shop='{self.shop}')>"
+
+
+class WebSession(Base):
+    """Web session for HTTP cookie-based authentication."""
+    __tablename__ = 'web_sessions'
+    
+    session_id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    last_accessed_at = Column(DateTime(timezone=True), server_default=func.now())
+    data = Column(JSON, default=dict)
+    
+    def is_valid(self) -> bool:
+        """Check if session is still valid (not expired)."""
+        return datetime.utcnow() < self.expires_at
+    
+    def __repr__(self):
+        return f"<WebSession(session_id='{self.session_id}', user_id='{self.user_id}', expires_at='{self.expires_at}')>"

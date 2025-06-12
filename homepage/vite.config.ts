@@ -41,13 +41,29 @@ export default defineConfig(({ mode }) => {
     VITE_API_BASE_URL: env.VITE_API_BASE_URL || tunnelEnv.AGENTS_SERVICE_URL || parentEnv.AGENTS_SERVICE_URL || 'http://localhost:8000',
     VITE_AUTH_URL: env.VITE_AUTH_URL || tunnelEnv.AUTH_SERVICE_URL || parentEnv.AUTH_SERVICE_URL || 'http://localhost:8103',
     VITE_WS_BASE_URL: env.VITE_WS_BASE_URL || (() => {
+      // When homepage and agents are on the same domain, don't set VITE_WS_BASE_URL
+      // This allows the frontend to use same-origin WebSocket connections
+      const homepageUrl = tunnelEnv.HOMEPAGE_URL || parentEnv.HOMEPAGE_URL || ''
       const agentsUrl = tunnelEnv.AGENTS_SERVICE_URL || parentEnv.AGENTS_SERVICE_URL || 'http://localhost:8000'
-      try {
-        const url = new URL(agentsUrl)
-        return url.protocol === 'https:' ? `wss://${url.host}` : `ws://${url.host}`
-      } catch {
-        return 'ws://localhost:8000'
+      
+      if (homepageUrl && agentsUrl) {
+        try {
+          const homepageDomain = new URL(homepageUrl).hostname
+          const agentsDomain = new URL(agentsUrl).hostname
+          
+          // If agents is on a different domain (like ngrok), we can't use proxy
+          // In this case, return the WebSocket URL
+          if (homepageDomain !== agentsDomain && !agentsDomain.includes('localhost')) {
+            const url = new URL(agentsUrl)
+            return url.protocol === 'https:' ? `wss://${url.host}` : `ws://${url.host}`
+          }
+        } catch {
+          // Fall through to return empty string
+        }
       }
+      
+      // Return empty string to let frontend use same-origin
+      return ''
     })(),
     VITE_PUBLIC_URL: env.VITE_PUBLIC_URL || tunnelEnv.VITE_PUBLIC_URL || tunnelEnv.HOMEPAGE_URL || parentEnv.HOMEPAGE_URL || ''
   }
@@ -84,6 +100,11 @@ export default defineConfig(({ mode }) => {
         '/api/v1': {
           target: tunnelEnv.AGENTS_SERVICE_URL || parentEnv.AGENTS_SERVICE_URL || 'http://localhost:8000',  // hirecj-agents backend
           changeOrigin: true,
+        },
+        '/ws/chat': {
+          target: tunnelEnv.AGENTS_SERVICE_URL || parentEnv.AGENTS_SERVICE_URL || 'http://localhost:8000',  // WebSocket proxy
+          changeOrigin: true,
+          ws: true
         },
         '/api': {
           target: 'http://localhost:3457',  // Express API server

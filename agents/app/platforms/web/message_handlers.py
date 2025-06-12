@@ -36,11 +36,6 @@ class MessageHandlers:
         """Route to session handler."""
         await self.session.handle_start_conversation(websocket, conversation_id, data)
 
-    async def handle_session_update(
-        self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
-    ):
-        """Route to session handler."""
-        await self.session.handle_session_update(websocket, conversation_id, data)
 
     async def handle_logout(
         self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
