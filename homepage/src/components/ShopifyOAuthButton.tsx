@@ -27,40 +27,22 @@ export const ShopifyOAuthButton: React.FC<ShopifyOAuthButtonProps> = ({
   };
 
   const initiateOAuth = async (shop: string) => {
+    // Normalize shop domain
+    if (!shop.endsWith(".myshopify.com")) {
+      shop = `${shop}.myshopify.com`;
+    }
+
     setIsConnecting(true);
 
-    try {
-      // Normalize shop domain
-      if (!shop.endsWith('.myshopify.com')) {
-        shop = `${shop}.myshopify.com`;
-      }
+    const authUrlBase =
+      import.meta.env.VITE_AUTH_URL || "https://amir-auth.hirecj.ai";
 
-      const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
-      const params = new URLSearchParams({
-        shop,
-        mode: 'json', // ask backend for JSON instead of 302
-      });
+    // ONE direct navigation – no pre-flight, no CORS
+    const redirect = `${authUrlBase}/api/v1/shopify/install?shop=${encodeURIComponent(
+      shop
+    )}`;
 
-      const res = await fetch(`${authUrl}/api/v1/shopify/install?${params}`, {
-        credentials: 'include',
-        headers: { 'ngrok-skip-browser-warning': 'true' },
-      });
-
-      if (!res.ok) {
-        throw new Error(`OAuth init failed: ${res.status} ${await res.text()}`);
-      }
-
-      const { redirect_url } = await res.json();
-
-      console.log('🛍️ Shopify OAuth Debug (ShopifyOAuthButton):');
-      console.log('  Redirect URL:', redirect_url);
-
-      // Single navigation straight to Shopify (no extra history entry)
-      window.location.replace(redirect_url);
-    } catch (err) {
-      console.error(err);
-      setIsConnecting(false);
-    }
+    window.location.assign(redirect);
   };
 
   const handleShopSubmit = () => {
