@@ -276,9 +276,12 @@ async def handle_oauth_callback(request: Request):
                 logger.error(f"[OAUTH] Error notifying agents service: {e}", exc_info=True)
 
         # PHASE 3: Redirect to frontend with conversation_id and oauth complete marker
+        merchant_name = shop.replace(".myshopify.com", "")
         redirect_params = {
-            "oauth": "complete",  # Mark this as an OAuth return
-            "workflow": "shopify_post_auth"  # Set the appropriate workflow
+            "oauth": "complete",
+            "workflow": "shopify_post_auth",
+            "merchant_id": merchant_name,
+            "scenario": "post_auth",
         }
         if conversation_id:
             redirect_params["conversation_id"] = conversation_id
