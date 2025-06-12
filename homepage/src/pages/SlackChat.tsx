@@ -84,15 +84,10 @@ const SlackChat = () => {
 	
 	// Initialize chatConfig with URL workflow (merchant now in userSession)
 	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => {
-		const params = new URLSearchParams(searchString);
-		
-		// Get merchantId and scenario from URL if present
-		const urlMerchantId = params.get('merchantId');
-		const urlScenario = params.get('scenario');
-		
+		// Server determines everything - we just track UI state
 		return {
-			scenarioId: urlScenario || null,
-			merchantId: urlMerchantId || userSession.merchantId, // Use URL param if available, otherwise user session
+			scenarioId: null,
+			merchantId: userSession.merchantId,
 			workflow: getWorkflowFromUrl()
 		};
 	});

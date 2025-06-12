@@ -44,7 +44,7 @@ class WebSocketHandler:
             
             # Import here to avoid circular imports
             from app.utils.supabase_util import get_db_session
-            from shared.db_models import WebSession, Conversation
+            from shared.db_models import WebSession
             from sqlalchemy import select
             
             try:
@@ -59,21 +59,11 @@ class WebSocketHandler:
                         user_ctx = {"user_id": session.user_id}
                         logger.info(f"[WEBSOCKET] User {session.user_id} connected via session cookie")
                         
-                        # For authenticated users, find or create their persistent conversation
-                        existing_conv = db.scalar(
-                            select(Conversation)
-                            .where(Conversation.user_id == session.user_id)
-                            .order_by(Conversation.created_at.desc())
-                            .limit(1)
-                        )
-                        
-                        if existing_conv:
-                            conversation_id = existing_conv.id
-                            logger.info(f"[WEBSOCKET] Using existing conversation {conversation_id} for user {session.user_id}")
-                        else:
-                            # Create new persistent conversation for this user
-                            conversation_id = f"user_{session.user_id}_{uuid.uuid4().hex[:8]}"
-                            logger.info(f"[WEBSOCKET] Creating new conversation {conversation_id} for user {session.user_id}")
+                        # For authenticated users, create conversation ID based on user and session
+                        # This gives us a stable conversation per session
+                        session_hash = session.session_id[:8]  # Use first 8 chars of session ID
+                        conversation_id = f"user_{session.user_id}_{session_hash}"
+                        logger.info(f"[WEBSOCKET] Created conversation {conversation_id} for authenticated user")
                     else:
                         logger.debug(f"[WEBSOCKET] Session not found or expired")
             except Exception as e:

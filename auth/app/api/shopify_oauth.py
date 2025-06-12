@@ -275,18 +275,11 @@ async def handle_oauth_callback(request: Request):
                 # Log but don't fail - the auth flow continues
                 logger.error(f"[OAUTH] Error notifying agents service: {e}", exc_info=True)
 
-        # PHASE 3: Redirect to frontend with conversation_id and oauth complete marker
-        merchant_name = shop.replace(".myshopify.com", "")
+        # PHASE 3: Redirect to frontend with oauth complete marker
+        # Server will determine everything from session
         redirect_params = {
             "oauth": "complete",
-            "workflow": "shopify_post_auth",
-            "merchantId": merchant_name,
-            "scenario": "post_auth",
         }
-        if conversation_id:
-            redirect_params["conversation_id"] = conversation_id
-        else:
-            logger.warning("[OAUTH_CALLBACK] No conversation_id available for redirect.")
         
         redirect_url = f"{settings.frontend_url}/chat?{urlencode(redirect_params)}"
         logger.info(f"[OAUTH_CALLBACK] Redirecting to: {redirect_url}")

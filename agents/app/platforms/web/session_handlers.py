@@ -38,17 +38,50 @@ class SessionHandlers:
             )
             return
 
-        # Determine workflow based on authentication state
+        # Determine workflow and merchant based on authentication state
         ws_session = self.platform.sessions.get(conversation_id, {})
         is_authenticated = ws_session.get("authenticated", False)
+        user_id = ws_session.get("user_id") if is_authenticated else None
         
-        if is_authenticated:
-            # Authenticated users can use any workflow
-            workflow = start_data.get("workflow", "ad_hoc_support")
+        # Initialize defaults
+        workflow = "shopify_onboarding"
+        merchant = None
+        scenario = None
+        
+        if is_authenticated and user_id:
+            # For authenticated users, check their merchant associations
+            from app.utils.supabase_util import get_db_session
+            from shared.db_models import MerchantToken
+            from sqlalchemy import select
+            
+            try:
+                with get_db_session() as db:
+                    # Find the user's most recent merchant
+                    merchant_token = db.scalar(
+                        select(MerchantToken)
+                        .where(MerchantToken.user_id == user_id)
+                        .order_by(MerchantToken.created_at.desc())
+                        .limit(1)
+                    )
+                    
+                    if merchant_token:
+                        merchant = merchant_token.shop_domain.replace(".myshopify.com", "")
+                        # Check if this is a recent OAuth (within last 60 seconds)
+                        from datetime import datetime, timedelta
+                        if merchant_token.created_at > datetime.utcnow() - timedelta(seconds=60):
+                            workflow = "shopify_post_auth"
+                            scenario = "post_auth"
+                            logger.info(f"[WORKFLOW] Recent OAuth detected for {merchant} - using post_auth workflow")
+                        else:
+                            workflow = "ad_hoc_support"
+                            scenario = "normal_day"
+                            logger.info(f"[WORKFLOW] Authenticated user with merchant {merchant}")
+                    else:
+                        logger.info(f"[WORKFLOW] Authenticated user without merchant - using onboarding")
+            except Exception as e:
+                logger.error(f"[WORKFLOW] Error determining merchant: {e}")
         else:
-            # Anonymous users always get onboarding workflow
-            workflow = "shopify_onboarding"
-            logger.info(f"[WORKFLOW] Anonymous user - forcing onboarding workflow")
+            logger.info(f"[WORKFLOW] Anonymous user - using onboarding workflow")
         
         # Check if this conversation has post-OAuth state waiting
         post_auth_state = post_oauth_handler.get_post_auth_state(conversation_id)
@@ -70,23 +103,23 @@ class SessionHandlers:
         workflow_data = self.platform.workflow_loader.get_workflow(workflow)
         requirements = workflow_data.get('requirements', {})
         
-        # Use requirements to determine defaults and validation
+        # Use server-determined values with appropriate defaults
         if not requirements.get('merchant', True):
             # Workflow doesn't require merchant
-            merchant = start_data.get("merchant_id", "onboarding_user")
+            if not merchant:
+                merchant = "onboarding_user"
         else:
             # Workflow requires merchant
-            merchant = start_data.get("merchant_id")
             if not merchant:
                 await self.platform.send_error(websocket, "Merchant ID required for this workflow")
                 return
         
         if not requirements.get('scenario', True):
             # Workflow doesn't require scenario
-            scenario = start_data.get("scenario", "default")
+            if not scenario:
+                scenario = "default"
         else:
             # Workflow requires scenario
-            scenario = start_data.get("scenario")
             if not scenario:
                 await self.platform.send_error(websocket, "Scenario required for this workflow")
                 return

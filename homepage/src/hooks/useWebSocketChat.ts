@@ -440,13 +440,8 @@ export function useWebSocketChat({
       // Small delay before sending start_conversation
       setTimeout(() => {
         // Send start_conversation message
-        const currentWorkflow = workflowRef.current;
-        const startData = {
-          // Server determines conversation_id based on auth state
-          merchant_id: merchantId,
-          scenario: scenario,
-          workflow: currentWorkflow,
-        };
+        // Server determines everything from session
+        const startData = {};
         
         
         // Debug: Log what we're sending
