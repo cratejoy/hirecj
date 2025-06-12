@@ -253,19 +253,7 @@ const SlackChat = () => {
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 	}, [messages, isTyping]);
 
-	// Save conversation on page unload
-	useEffect(() => {
-		const handleBeforeUnload = () => {
-			if (isRealChat) {
-				wsChat.endConversation();
-			}
-		};
-
-		window.addEventListener('beforeunload', handleBeforeUnload);
-		return () => {
-			window.removeEventListener('beforeunload', handleBeforeUnload);
-		};
-	}, [isRealChat, wsChat]);
+	
 
 	// Setup debug interface
 	useEffect(() => {

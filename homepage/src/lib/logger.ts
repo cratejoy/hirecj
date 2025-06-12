@@ -115,10 +115,6 @@ class ClientLogger {
 // Export singleton instance
 export const logger = new ClientLogger();
 
-// Flush logs before page unload
-window.addEventListener('beforeunload', () => {
-  logger.forceFlush();
-});
 
 // Log unhandled errors
 window.addEventListener('error', (event) => {
