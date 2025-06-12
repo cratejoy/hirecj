@@ -280,7 +280,7 @@ async def handle_oauth_callback(request: Request):
         redirect_params = {
             "oauth": "complete",
             "workflow": "shopify_post_auth",
-            "merchant_id": merchant_name,
+            "merchantId": merchant_name,
             "scenario": "post_auth",
         }
         if conversation_id:
