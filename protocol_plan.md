@@ -10,6 +10,15 @@ The project currently defines WebSocket message structures independently in both
 
 The goal of this plan is to establish a **Single Source of Truth** for the WebSocket protocol. We will define the protocol schema in one language, automatically generate the corresponding models for the other, and place them in a shared location. This will ensure that the frontend and backend are always in sync, providing strong typing and validation from end to end.
 
+**Version Alignment**
+
+The monorepo already runs on **Pydantic v2** (≥ 2.5).  
+Consequently every code example below assumes Pydantic v2 syntax and we will
+generate TypeScript with **datamodel-code-generator ≥ 0.25**, which has first-class
+support for Pydantic v2.  
+All previous mentions of the now-incompatible `pydantic-to-typescript`
+package have been removed.
+
 ## 2. Problem Statement
 
 *   **Protocol Drift:** Any change to a message structure must be manually replicated in both the frontend and backend. It's easy to forget a field or introduce a type mismatch.
@@ -50,8 +59,9 @@ The protocol's source of truth (Python models) will live in `shared/`, but the g
 ### Phase 1: Setup and Initial Model Definition
 
 1.  **Directory Structure:** The plan is to create the directory structure as outlined above.
-2.  **Install Tooling:** The `datamodel-code-generator` dependency should be added to `shared/setup.py`. This tool natively supports Pydantic v2 and is more robust.
-    `datamodel-code-generator>=0.25.0`
+2. **Install tooling**  
+   Add `datamodel-code-generator>=0.25.0` to `shared/setup.py` (it natively
+   supports Pydantic v2 and outputs TypeScript).
 3.  **Define Core Models:** In `shared/protocol/models.py`, define the message structures to match the runtime reality.
 
     *Example (`models.py`):*
