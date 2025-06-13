@@ -36,89 +36,97 @@ A simple Python script will be created to orchestrate this generation, ensuring 
 
 ### 3.3. New Directory Structure
 
-To facilitate sharing, we will create a new top-level directory named `protocol`.
+The protocol definitions will live inside the existing `shared` directory to consolidate all common code. This is a more integrated approach than creating a separate top-level directory.
 
 ```
 /
-├── agents/
-├── homepage/
-├── protocol/
-│   ├── python/
-│   │   └── hirecj_protocol/
-│   │       ├── __init__.py
-│   │       └── messages.py  # Pydantic models (Source of Truth)
-│   ├── ts/
-│   │   └── index.ts         # Generated TypeScript interfaces
-│   └── generate_ts_models.py # Generation script
-└── ...other project folders
+├── shared/
+│   ├── protocol/
+│   │   ├── __init__.py         # Makes `protocol` a python module
+│   │   ├── models.py           # Pydantic models (Source of Truth)
+│   │   ├── generated/
+│   │   │   └── ts/
+│   │   │       └── index.ts    # Generated TypeScript interfaces
+│   │   └── generate_ts.py      # Generation script
+│   └── ... (other shared modules)
+└── ...
 ```
 
-*   `protocol/python/`: Will contain the canonical Pydantic models. This will be a standard Python package.
-*   `protocol/ts/`: Will contain the auto-generated TypeScript interfaces. This file should be marked with a "DO NOT EDIT" header.
-*   `protocol/generate_ts_models.py`: The script that reads from `python/` and writes to `ts/`.
+*   `shared/protocol/`: A new Python sub-package for protocol definitions.
+*   `shared/protocol/models.py`: The canonical Pydantic models that serve as the single source of truth.
+*   `shared/protocol/generated/ts/`: Contains the auto-generated TypeScript interfaces. The `generated` directory should be added to `.gitignore`.
+*   `shared/protocol/generate_ts.py`: The script that reads from `models.py` and writes to the `generated/ts/` directory.
 
 ## 4. Implementation Plan
 
 ### Phase 1: Setup and Initial Model Definition
 
-1.  **Create Directory Structure:** Create the `protocol/` directory and its subdirectories as outlined above.
-2.  **Install Tooling:** Add `pydantic-to-typescript` to the development dependencies for the `agents` service.
-3.  **Define Core Models:** In `protocol/python/hirecj_protocol/messages.py`, define the base message structures.
+1.  **Directory Structure:** The plan is to create the directory structure as outlined above within `shared/protocol/`.
+2.  **Install Tooling:** The `pydantic-to-typescript` dependency should be added to `shared/setup.py`. This step is outside the scope of this plan update.
+3.  **Define Core Models:** In `shared/protocol/models.py`, define the message structures to match the existing nested format (`{"type": "...", "data": {...}}`).
 
-    *Example (`messages.py`):*
+    *Example (`models.py`):*
     ```python
     from pydantic import BaseModel, Field
-    from typing import Literal, Union, List, Dict, Any
+    from typing import Literal, Union, Optional, Annotated
 
-    # --- Payloads for different message types ---
-
+    # --- Payloads for the 'data' field ---
     class StartConversationData(BaseModel):
-        type: Literal["start_conversation"]
         workflow: str
-        merchant_id: str | None = None
-        scenario_id: str | None = None
+        merchant_id: Optional[str] = None
+        scenario_id: Optional[str] = None
 
     class UserMessageData(BaseModel):
-        type: Literal["message"]
         text: str
 
     class DebugRequestData(BaseModel):
-        type: Literal["debug_request"]
         debug_type: Literal["snapshot", "session", "state", "metrics", "prompts"]
 
-    # --- Discriminated Union for Payloads ---
-    
-    # This is the main model that the websocket will expect.
-    # The `discriminator='type'` tells Pydantic to look at the `type` field
-    # to determine which model to validate against.
-    WebSocketMessage = Annotated[
+    # --- Top-level message models ---
+    class StartConversationMessage(BaseModel):
+        type: Literal["start_conversation"]
+        data: StartConversationData
+
+    class UserMessage(BaseModel):
+        type: Literal["message"]
+        data: UserMessageData
+
+    class DebugRequestMessage(BaseModel):
+        type: Literal["debug_request"]
+        data: DebugRequestData
+
+    # --- Discriminated Union for all Incoming Messages ---
+    IncomingMessage = Annotated[
         Union[
-            StartConversationData,
-            UserMessageData,
-            DebugRequestData,
+            StartConversationMessage,
+            UserMessage,
+            DebugRequestMessage
         ],
         Field(discriminator="type"),
     ]
-
     ```
-4.  **Create Generation Script:** Create `protocol/generate_ts_models.py`.
+4.  **Generation Script:** The generation script will be `shared/protocol/generate_ts.py`.
 
-    *Example (`generate_ts_models.py`):*
+    *Example (`generate_ts.py`):*
     ```python
+    #!/usr/bin/env python3
     from pathlib import Path
     from pydantic_to_typescript import generate_typescript_defs
 
     # Assumes script is run from the repository root
-    py_module_path = Path("protocol/python/hirecj_protocol/messages.py")
-    ts_output_path = Path("protocol/ts/index.ts")
+    py_module_path = Path("shared/protocol/models.py")
+    ts_output_path = Path("shared/protocol/generated/ts/index.ts")
 
     # Ensure output directory exists
-    ts_output_path.parent.mkdir(exist_ok=True)
+    ts_output_path.parent.mkdir(parents=True, exist_ok=True)
     
     header = "//\n// DO NOT EDIT. THIS FILE IS AUTO-GENERATED BY `pydantic-to-typescript`\n//\n"
 
     # Generate the file content first
-    ts_defs = generate_typescript_defs(py_module_path, json_dump_kwargs={'indent': 2})
+    ts_defs = generate_typescript_defs(
+        py_module_path.as_posix(), 
+        json_dump_kwargs={'indent': 2}
+    )
 
     # Write header and content to file
     with open(ts_output_path, 'w') as f:
@@ -130,9 +138,9 @@ To facilitate sharing, we will create a new top-level directory named `protocol`
 
 ### Phase 2: Backend Integration
 
-1.  **Modify `agents` service:** Update `agents/app/platforms/web/websocket_handler.py` and its sub-handlers (`message_handlers.py`, `session_handlers.py`, etc.).
-2.  **Install Protocol Package:** The `agents` service will need to install the local `protocol` package in editable mode. Add `.` to `sys.path` or configure `PYTHONPATH`. A `pyproject.toml` in the `protocol/python` directory can define it as a package.
-3.  **Type WebSocket Messages:** In the `handle_connection` loop, parse the incoming JSON into the `WebSocketMessage` model.
+1.  **Modify `agents` service:** Update `agents/app/platforms/web/websocket_handler.py` (and its sub-handlers) to use the new models.
+2.  **Update Python Imports:** Since `shared` is already in the `PYTHONPATH` for services, you can import the models directly.
+3.  **Type WebSocket Messages:** In the `handle_connection` loop, parse the incoming JSON into the `IncomingMessage` model. This provides automatic, type-safe validation.
 
     *Before:*
     ```python
@@ -143,32 +151,42 @@ To facilitate sharing, we will create a new top-level directory named `protocol`
 
     *After:*
     ```python
-    from hirecj_protocol.messages import WebSocketMessage
+    from shared.protocol.models import IncomingMessage
     from pydantic import ValidationError
 
     async for raw_message in websocket.iter_json():
         try:
-            message = WebSocketMessage.model_validate(raw_message)
-            # Now message is a fully typed and validated Pydantic object
-            if message.type == 'start_conversation':
-                # message is now guaranteed to be StartConversationData
-                await self.message_handlers.handle_start_conversation(..., message)
+            # Pydantic validates the entire message structure, including the nested data object.
+            message = IncomingMessage.model_validate(raw_message)
+            
+            # The existing routing logic can remain for now.
+            # We are just adding a validation layer.
+            message_type = message.type
+            handler_method = getattr(self.message_handlers, f"handle_{message_type}", None)
+            
+            if handler_method:
+                # Pass the validated dict to the handler for maximum compatibility
+                # with existing handler function signatures.
+                await handler_method(websocket, conversation_id, message.model_dump())
+            else:
+                logger.warning(f"No handler for message type: {message_type}")
+
         except ValidationError as e:
-            # Handle bad message format
-            ...
+            # Pydantic raises an error for invalid message structures
+            await self.platform.send_error(websocket, f"Invalid message format: {e.errors()}")
     ```
 
 ### Phase 3: Frontend Integration
 
-1.  **Run Generator:** Execute `python protocol/generate_ts_models.py` from the repository root.
-2.  **Verify Output:** Check `protocol/ts/index.ts` to ensure the TypeScript interfaces were generated correctly.
-3.  **Update `homepage`:** Refactor the frontend code to use these shared types.
-4.  **Modify `useWebSocketChat.ts`:** Replace locally-defined `Message` interfaces with the imported types from `../../protocol/ts`.
-5.  **Type `sendMessage`:** Ensure that the `sendMessage` function and other message construction logic builds objects that conform to the new, stricter interfaces. This will immediately catch bugs where incorrect fields are being sent.
+1.  **Run Generator:** Execute `python shared/protocol/generate_ts.py` from the repository root.
+2.  **Verify Output:** Check `shared/protocol/generated/ts/index.ts` to ensure the TypeScript interfaces were generated correctly.
+3.  **Update `homepage`:** Refactor frontend code to use these shared types.
+4.  **Modify `useWebSocketChat.ts`:** Replace locally-defined interfaces with imported types from `../../../shared/protocol/generated/ts`.
+5.  **Type `sendMessage`:** Ensure that the `sendMessage` function and other message construction logic builds objects that conform to the new, stricter interfaces (e.g., `StartConversationMessage`). This will immediately catch bugs where incorrect fields are being sent.
 
 ### Phase 4: Expansion and Finalization
 
-1.  **Migrate All Payloads:** Systematically convert every single message type (`cj_message`, `fact_check_complete`, `error`, etc.) into Pydantic models in `messages.py`. This includes client-bound messages as well for full-protocol coverage.
+1.  **Migrate All Payloads:** Systematically convert every single message type (`cj_message`, `fact_check_complete`, `error`, etc.) into Pydantic models in `shared/protocol/models.py`. This includes client-bound messages as well for full-protocol coverage.
 2.  **Regenerate:** Run the generation script again.
 3.  **Refactor:** Update the backend and frontend code that produces or consumes these messages to use the new typed models.
 4.  **CI/CD Integration:** This is a critical step to prevent future drift. See section 6.
@@ -177,15 +195,15 @@ To facilitate sharing, we will create a new top-level directory named `protocol`
 
 When a developer needs to change the WebSocket protocol (e.g., add a field to a message):
 
-1.  **Edit Python:** They modify the Pydantic model in `protocol/python/hirecj_protocol/messages.py`.
-2.  **Run Script:** They run `python protocol/generate_ts_models.py` from the root directory.
+1.  **Edit Python:** They modify the Pydantic model in `shared/protocol/models.py`.
+2.  **Run Script:** They run `python shared/protocol/generate_ts.py` from the root directory.
 3.  **Commit Both:** They commit the changes to **both** the Python model and the auto-generated TypeScript file.
 4.  **Update Logic:** They update the relevant Python and TypeScript code to utilize the new field(s). The TypeScript compiler and Pydantic validators will guide them.
 
 ## 6. Risks & Mitigations
 
 *   **Risk:** Developers forget to run the generation script, causing the committed code to be out of sync.
-    *   **Mitigation:** **Implement a CI Check.** Add a step to the CI pipeline that runs `generate_ts_models.py` and then uses `git diff --exit-code protocol/ts/index.ts`. If there's a diff, it means the generated file is stale, and the build fails. This forces developers to commit the up-to-date version. A pre-commit hook can also be used for local development.
+    *   **Mitigation:** **Implement a CI Check.** Add a step to the CI pipeline that runs `python shared/protocol/generate_ts.py` and then uses `git diff --exit-code shared/protocol/generated/ts/index.ts`. If there's a diff, it means the generated file is stale, and the build fails. This forces developers to commit the up-to-date version. A pre-commit hook can also be used for local development.
 
 *   **Risk:** The `pydantic-to-typescript` tool might not support a complex type we need.
     *   **Mitigation:** Keep the protocol models simple and focused on data transfer. Avoid complex custom types in the Pydantic models destined for generation. Test complex cases early.
