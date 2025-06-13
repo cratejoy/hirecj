@@ -243,6 +243,312 @@ FactExtractor extracts new facts (Phase 8-9)
 Memory saved to disk
 ```
 
+## 📊 Analytics Capabilities
+
+The support_daily workflow includes comprehensive analytics tools for support operations:
+
+### Available Analytics
+1. **Daily Snapshot**: Comprehensive daily metrics (volume, response times, CSAT, SLA)
+2. **CSAT Analysis**: Deep dive into ratings with full conversation history
+3. **Backlog Monitoring**: Age distribution and oldest ticket identification
+4. **Response Metrics**: Statistical analysis with percentiles and outliers
+5. **Volume Trends**: Spike detection and trend analysis over time
+6. **SLA Tracking**: Breach identification and pattern analysis
+7. **Root Cause Analysis**: Understand drivers behind ticket spikes
+
+### Example Usage
+```python
+# Daily health check
+"Give me yesterday's support metrics"
+→ Returns volume, response times, CSAT scores, SLA breaches
+
+# Investigate dissatisfaction  
+"Show me bad CSAT ratings with full conversations"
+→ Returns ratings with complete interaction history
+
+# Monitor performance
+"Analyze our response times for the past week"
+→ Returns statistical breakdown with CSAT correlation
+
+# Detect anomalies
+"What caused the spike in tickets on May 26th?"
+→ Returns tag analysis, example tickets, insights
+```
+
+### Key Features
+- **Real-time Analysis**: All metrics computed from live database
+- **Merchant Isolation**: Data strictly filtered by merchant_id
+- **Conversation Context**: Optional full conversation history for CSAT analysis
+- **Statistical Insights**: Automated spike detection, trend analysis
+- **Actionable Output**: Prioritized issues and recommendations
+
+For detailed scenarios and examples, see [Analytics Scenarios Guide](docs/ANALYTICS_SCENARIOS.md).
+
+### SQLAlchemy Best Practices
+
+When working with database models and SQLAlchemy in this codebase, follow these critical guidelines:
+
+#### 1. **Keep Models Thin**
+Models should be data containers with minimal logic. They define schema and basic properties only.
+
+**✅ GOOD - What belongs in models:**
+```python
+class FreshdeskTicket(Base):
+    __tablename__ = 'freshdesk_tickets'
+    
+    # Column definitions
+    id = Column(Integer, primary_key=True)
+    merchant_id = Column(Integer, nullable=False, index=True)
+    status = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True))
+    
+    # Relationships
+    conversations = relationship("FreshdeskConversation", back_populates="ticket")
+    
+    # Simple properties
+    @property
+    def is_resolved(self):
+        return self.status in [4, 5]
+    
+    @property
+    def age_days(self):
+        if self.created_at:
+            return (datetime.utcnow() - self.created_at).days
+        return 0
+```
+
+**❌ BAD - What does NOT belong in models:**
+```python
+class FreshdeskTicket(Base):
+    # ❌ Never import from lib modules
+    from app.lib.analytics import calculate_metrics
+    
+    # ❌ No business logic methods
+    def calculate_sla_breach(self):
+        from app.lib.sla_calculator import check_breach
+        return check_breach(self)
+    
+    # ❌ No session creation
+    def get_related_tickets(self):
+        with get_db_session() as session:  # NO!
+            return session.query(FreshdeskTicket)...
+    
+    # ❌ No external API calls
+    def sync_with_freshdesk(self):
+        response = requests.get(...)  # NO!
+```
+
+#### 2. **Session Management**
+Proper session handling is critical for performance and data consistency.
+
+**✅ GOOD Patterns:**
+```python
+# Pass sessions down through function calls
+def get_ticket_analytics(session: Session, merchant_id: int):
+    tickets = session.query(FreshdeskTicket).filter(
+        FreshdeskTicket.merchant_id == merchant_id
+    ).all()
+    return analyze_tickets(session, tickets)
+
+# Use context managers at the entry point
+def handle_request():
+    with get_db_session() as session:
+        result = get_ticket_analytics(session, merchant_id)
+        session.commit()  # Explicit commits when needed
+        return result
+
+# Bulk operations in a single session
+def process_tickets(session: Session, ticket_ids: List[int]):
+    tickets = session.query(FreshdeskTicket).filter(
+        FreshdeskTicket.id.in_(ticket_ids)
+    ).all()
+    
+    for ticket in tickets:
+        ticket.processed = True
+    
+    session.commit()  # One commit for all changes
+```
+
+**❌ BAD Patterns:**
+```python
+# ❌ Creating sessions inside library functions
+def get_ticket_analytics(merchant_id: int):
+    with get_db_session() as session:  # NO! Session should be passed in
+        return session.query(...)
+
+# ❌ Multiple session creates/commits
+def process_tickets(ticket_ids: List[int]):
+    for ticket_id in ticket_ids:
+        with get_db_session() as session:  # NO! Creates N sessions
+            ticket = session.query(...).first()
+            ticket.processed = True
+            session.commit()  # N commits!
+
+# ❌ Implicit session access in models
+class Ticket(Base):
+    def get_conversations(self):
+        session = inspect(self).session  # NO! Anti-pattern
+        return session.query(...)
+```
+
+#### 3. **Query Patterns & Optimization**
+
+**Data Isolation (CRITICAL):**
+```python
+# ✅ ALWAYS filter by merchant_id first
+tickets = session.query(FreshdeskTicket).filter(
+    FreshdeskTicket.merchant_id == merchant_id,  # First filter!
+    FreshdeskTicket.status == 2
+).all()
+
+# ✅ Use indexed columns in WHERE clauses
+# Make sure merchant_id, status, created_at are indexed
+```
+
+**Eager Loading to Prevent N+1:**
+```python
+# ✅ Load relationships upfront
+tickets = session.query(FreshdeskTicket).options(
+    joinedload(FreshdeskTicket.conversations),
+    joinedload(FreshdeskTicket.ratings)
+).filter(
+    FreshdeskTicket.merchant_id == merchant_id
+).all()
+
+# Now accessing ticket.conversations won't trigger new queries
+```
+
+**Efficient Aggregations:**
+```python
+# ✅ Use database aggregations
+from sqlalchemy import func
+
+stats = session.query(
+    func.count(FreshdeskTicket.id).label('total'),
+    func.avg(FreshdeskTicket.resolution_time).label('avg_resolution')
+).filter(
+    FreshdeskTicket.merchant_id == merchant_id
+).first()
+
+# ❌ Don't aggregate in Python
+tickets = session.query(FreshdeskTicket).all()
+total = len(tickets)  # NO! Use COUNT in query
+avg = sum(t.resolution_time for t in tickets) / len(tickets)  # NO!
+```
+
+**Batch Operations:**
+```python
+# ✅ Bulk inserts
+session.bulk_insert_mappings(FreshdeskTicket, [
+    {"merchant_id": 1, "subject": "Issue 1"},
+    {"merchant_id": 1, "subject": "Issue 2"},
+])
+
+# ✅ Bulk updates
+session.query(FreshdeskTicket).filter(
+    FreshdeskTicket.merchant_id == merchant_id,
+    FreshdeskTicket.created_at < cutoff_date
+).update({"archived": True})
+```
+
+#### 4. **Transaction Management**
+
+```python
+# ✅ Explicit transaction control
+def transfer_tickets(session: Session, from_merchant: int, to_merchant: int):
+    try:
+        # All operations in one transaction
+        tickets = session.query(FreshdeskTicket).filter(
+            FreshdeskTicket.merchant_id == from_merchant
+        ).all()
+        
+        for ticket in tickets:
+            ticket.merchant_id = to_merchant
+        
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise
+
+# ✅ Use savepoints for nested transactions
+def complex_operation(session: Session):
+    with session.begin_nested():  # Savepoint
+        try:
+            risky_operation(session)
+        except SpecificError:
+            # Only rolls back to savepoint
+            pass
+```
+
+#### 5. **Common Anti-Patterns to Avoid**
+
+```python
+# ❌ Lazy loading in loops
+for ticket in tickets:
+    print(ticket.conversations)  # Each triggers a query!
+
+# ❌ Loading entire objects for single fields
+tickets = session.query(FreshdeskTicket).all()
+ids = [t.id for t in tickets]  # Loaded entire objects for just IDs
+
+# ✅ Better: Query only what you need
+ids = session.query(FreshdeskTicket.id).all()
+
+# ❌ Using model instances after session close
+def get_ticket():
+    with get_db_session() as session:
+        return session.query(FreshdeskTicket).first()
+
+ticket = get_ticket()
+print(ticket.conversations)  # Error! Session closed
+
+# ✅ Better: Return data, not model instances
+def get_ticket_data():
+    with get_db_session() as session:
+        ticket = session.query(FreshdeskTicket).first()
+        return {
+            "id": ticket.id,
+            "conversations": [{"id": c.id} for c in ticket.conversations]
+        }
+```
+
+#### 6. **Testing Considerations**
+
+```python
+# ✅ Use transactions in tests that rollback
+class TestCase:
+    def setUp(self):
+        self.session = get_db_session()
+        self.trans = self.session.begin_nested()
+    
+    def tearDown(self):
+        self.trans.rollback()
+        self.session.close()
+
+# ✅ Use factories for test data
+def create_test_ticket(session, **kwargs):
+    defaults = {
+        "merchant_id": 1,
+        "status": 2,
+        "subject": "Test Ticket"
+    }
+    defaults.update(kwargs)
+    ticket = FreshdeskTicket(**defaults)
+    session.add(ticket)
+    session.flush()
+    return ticket
+```
+
+#### 7. **Performance Tips**
+
+1. **Index Strategy**: Always index columns used in WHERE, ORDER BY, and JOIN
+2. **Query Logging**: Enable SQL logging in development to spot inefficiencies
+3. **Connection Pooling**: Configure appropriate pool size for your workload
+4. **Batch Size**: Use reasonable batch sizes (100-1000) for bulk operations
+5. **Query Complexity**: Sometimes 2 simple queries are better than 1 complex join
+
+Remember: The database is powerful - let it do the heavy lifting. Don't retrieve data just to filter/aggregate in Python!
+
 ## 🔧 Configuration
 See `app/config.py` for all configuration options. Key environment variables:
 - `LOG_LEVEL`: Logging level (default: INFO, dev: DEBUG)

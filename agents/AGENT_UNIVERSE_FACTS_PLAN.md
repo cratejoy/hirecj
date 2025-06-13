@@ -395,13 +395,38 @@ This document outlines the plan to build a comprehensive data agent that can per
 - Agent has access to comprehensive analytics toolkit for daily support operations
 - Proper data isolation maintained with merchant_id filtering
 
-### Stage 1.11 Update the documentation
+### Stage 1.11 Update the documentation ✅ COMPLETE
 **Objective**: Make it so it's easy to understand the AI agent's current list of capabilties
-- Write example user stories / scenarios that show what kinds of questions to ask the support_daily agent to yield corresponding tool calls
-- Do this by generating a script to test inputs and outputs with the agent, get the actual example text, and put them in the correct places. They should at least be referenced in the README.md or QUICKSTART.md if not fully documented in one of those locations.
+- ✅ Created comprehensive Analytics Scenarios Guide (docs/ANALYTICS_SCENARIOS.md)
+- ✅ Wrote test script showing all analytics scenarios (scripts/test_analytics_scenarios.py)
+- ✅ Updated README.md with Analytics Capabilities section
+- ✅ Created Analytics Quick Start Guide (docs/ANALYTICS_QUICKSTART.md)
+- ✅ Added SQLAlchemy best practices to README
 
-## Stage 1b
-- Document best practices for sqlalchemy model code (keep it slim, never import from libs, it's ok to import from utils but models should be really thin and contain almost no business logic). Also cover other sqla usage best practices. Make sure those are included in the README. Show me what changes you made there.
+**Documentation Created**:
+1. **Analytics Scenarios Guide**: Complete reference with example queries, outputs, and use cases
+2. **Test Script**: Demonstrates all 8 scenarios with tool calls and parameters
+3. **README Updates**: Added analytics section with examples and link to detailed guide
+4. **Quick Start Guide**: Condensed guide for immediate usage
+
+## Stage 1b ✅ COMPLETE
+**Objective**: Document SQLAlchemy best practices
+- ✅ Expanded SQLAlchemy section in README.md with comprehensive guidelines
+- ✅ Created detailed SQLALCHEMY_BEST_PRACTICES.md guide
+- ✅ Updated CLAUDE.md with library versioning guidelines
+
+**Key Documentation Added**:
+1. **Keep Models Thin**: Clear examples of what belongs (schema, simple properties) vs what doesn't (business logic, external calls)
+2. **Session Management**: Pass sessions down, never create in libraries
+3. **Query Patterns**: Always filter by merchant_id first, use database aggregations
+4. **Performance Tips**: Eager loading, bulk operations, proper indexing
+5. **Common Anti-patterns**: N+1 queries, lazy loading in loops, session after close
+6. **Testing Patterns**: Transaction rollback, factory patterns
+
+**CLAUDE.md Updates**:
+- Added rule: NEVER create v2 libraries unless explicitly asked
+- Added rule: Clean up orphaned files when creating PRs
+- These prevent accidental library duplication and keep codebase clean
 
 ## Stage 2: Advanced Analytics (Future)
 

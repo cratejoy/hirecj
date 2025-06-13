@@ -39,3 +39,17 @@ Success is completing the task **elegantly and completely** according to our Nor
   - Don't optimize algorithms unless asked
   - Don't refactor unrelated code unless asked
   - If you see an opportunity for improvement, mention it but don't implement it
+- **NEVER Create V2 Versions**: When asked to add functionality, ALWAYS update the existing code
+  - ❌ Creating `analytics_lib_v2.py`, `process_data_v2.py`, `utils_v2.py`, etc.
+  - ❌ Creating `models_v2.py` or `schema_v2.py`
+  - ❌ Creating `test_script_v2.py` or any `_v2` variant
+  - ✅ Adding new functions to existing files
+  - ✅ Updating existing functions to support new parameters
+  - ✅ Refactoring existing code to handle new requirements
+  - Exception: Only create a new version if EXPLICITLY asked "create a v2" or "make a new version"
+- **Clean Up When Creating PRs**: When asked to create a pull request, ALWAYS:
+  - Remove any test files that are no longer needed
+  - Delete orphaned or superseded libraries
+  - Clean up temporary scripts
+  - Ensure no duplicate functionality remains
+  - The PR should be clean and ready to merge
