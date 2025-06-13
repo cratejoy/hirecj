@@ -82,7 +82,7 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
 
     # --- Payloads for nested data objects ---
     class StartConversationData(BaseModel):
-        workflow: str
+        workflow: Optional[str] = None
         merchant_id: Optional[str] = None
         scenario_id: Optional[str] = None
 
@@ -280,9 +280,9 @@ or inside a `data` object.
 
 ### 5.1  Incoming — Client ➜ Server
 
-| type                     | Required Fields                           | Optional Fields                         | Location in JSON | Notes |
-|--------------------------|-------------------------------------------|-----------------------------------------|------------------|-------|
-| start_conversation       | data.workflow (str)                       | data.merchant_id, data.scenario_id      | inside `data`    | triggers session + workflow |
+| type            | Required Fields                         | Optional Fields                                     | Location in JSON | Notes |
+|-----------------|-----------------------------------------|-----------------------------------------------------|------------------|-------|
+| start_conversation       | —                                         | data.workflow (str), data.merchant_id, data.scenario_id      | inside `data`    | triggers session + workflow |
 | message                  | text (str)                                | —                                       | root             | user free-text |
 | fact_check               | data.messageIndex (int)                   | data.forceRefresh (bool)                | inside `data`    | requests verification |
 | end_conversation         | —                                         | —                                       | root             | user ends chat |
@@ -291,6 +291,7 @@ or inside a `data` object.
 | ping                     | —                                         | —                                       | root             | keep-alive |
 | logout                   | —                                         | —                                       | root             | terminate session |
 | system_event (reserved)  | data (object)                             | —                                       | inside `data`    | not used yet |
+| oauth_complete           | data.{conversation_id, is_new}            | data.merchant_id, data.shop (shop_domain), data.user_id, data.error | inside `data`    | sent by browser after Shopify OAuth redirect |
 
 ### 5.2  Outgoing — Server ➜ Client
 
