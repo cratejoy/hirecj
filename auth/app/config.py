@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     
     # Server Configuration
     app_host: str = Field("0.0.0.0", env="APP_HOST")
-    app_port: int = Field(8103, env="AUTH_SERVICE_PORT")  # Use service-specific port
+    # Heroku sets PORT env var, fallback to AUTH_SERVICE_PORT for local dev
+    app_port: int = Field(8103, env="PORT")  # Heroku provides PORT
     
     # Service URLs (from shared config)
     auth_service_url: str = Field("http://localhost:8103", env="AUTH_SERVICE_URL")
