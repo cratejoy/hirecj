@@ -18,6 +18,9 @@ generate TypeScript with **datamodel-code-generator ≥ 0.25**, which has first-
 support for Pydantic v2.  
 All previous mentions of the now-incompatible `pydantic-to-typescript`
 package have been removed.
+The new generator binary will be installed in every Python service that
+needs it by listing it in the **agents/requirements.txt** file (runtime) and
+`shared/setup.py` (editable install for local tooling).
 
 ## 2. Problem Statement
 
