@@ -27,85 +27,129 @@ We will adopt a **Python-first, code-generation** approach. The protocol will be
 
 ### Phase 1: Setup and Initial Model Definition
 
-1.  **Directory Structure:** The plan is to create the directory structure as outlined above within `shared/protocol/`.
-2.  **Install Tooling:** A modern version of the generator, like `pydantic-to-typescript>=2.2`, should be added to `shared/setup.py`. This is compatible with Pydantic v2.7+. This step is outside the scope of this plan update.
-3.  **Define Core Models:** In `shared/protocol/models.py`, define the message structures to match the existing nested format (`{"type": "...", "data": {...}}`).
+1.  **Directory Structure:** The plan is to create the directory structure as outlined above.
+2.  **Install Tooling:** The `datamodel-code-generator` dependency should be added to `shared/setup.py`. This tool natively supports Pydantic v2 and is more robust.
+    `datamodel-code-generator>=0.25.0`
+3.  **Define Core Models:** In `shared/protocol/models.py`, define the message structures to match the runtime reality.
 
     *Example (`models.py`):*
     ```python
     from pydantic import BaseModel, Field
-    from typing import Literal, Union, Optional, Annotated
+    from typing import Literal, Union, Optional, Annotated, Dict, Any, List
+    from datetime import datetime
 
-    # --- Payloads for the 'data' field of nested messages ---
+    # --- Payloads for nested data objects ---
     class StartConversationData(BaseModel):
         workflow: str
         merchant_id: Optional[str] = None
         scenario_id: Optional[str] = None
 
-    class DebugRequestData(BaseModel):
-        debug_type: Literal["snapshot", "session", "state", "metrics", "prompts"]
+    class FactCheckData(BaseModel):
+        messageIndex: int
+        forceRefresh: bool = False
 
-    # --- Top-level message models ---
-    # Note: Some messages are flat, others have a nested `data` object.
-    # This matches the existing backend implementation.
+    class DebugRequestData(BaseModel):
+        # This is the inner `data` object for a debug_request.
+        # The field must be `type` to match the handler.
+        type: Literal["snapshot", "session", "state", "metrics", "prompts"]
+
+    class WorkflowTransitionData(BaseModel):
+        new_workflow: str
+        user_initiated: bool = False
+
+    # --- Incoming Messages (Client -> Server) ---
     class StartConversationMessage(BaseModel):
         type: Literal["start_conversation"]
         data: StartConversationData
 
     class UserMessage(BaseModel):
         type: Literal["message"]
-        text: str  # This message type is flat
+        text: str  # Flat structure
+
+    class EndConversationMessage(BaseModel):
+        type: Literal["end_conversation"]
+
+    class FactCheckMessage(BaseModel):
+        type: Literal["fact_check"]
+        data: FactCheckData
+        
+    class PingMessage(BaseModel):
+        type: Literal["ping"]
 
     class DebugRequestMessage(BaseModel):
         type: Literal["debug_request"]
         data: DebugRequestData
 
-    # --- Discriminated Union for all Incoming Messages ---
-    # Pydantic will use the `type` field to determine which model to use for validation.
+    class WorkflowTransitionMessage(BaseModel):
+        type: Literal["workflow_transition"]
+        data: WorkflowTransitionData
+
+    class LogoutMessage(BaseModel):
+        type: Literal["logout"]
+
     IncomingMessage = Annotated[
         Union[
-            StartConversationMessage,
-            UserMessage,
-            DebugRequestMessage,
+            StartConversationMessage, UserMessage, EndConversationMessage,
+            FactCheckMessage, PingMessage, DebugRequestMessage, 
+            WorkflowTransitionMessage, LogoutMessage
+        ],
+        Field(discriminator="type"),
+    ]
+
+    # --- Outgoing Messages (Server -> Client) ---
+    class ConversationStartedData(BaseModel):
+        conversationId: str
+        merchantId: Optional[str]
+        scenario: Optional[str]
+        workflow: str
+
+    class CJMessageData(BaseModel):
+        content: str
+        factCheckStatus: str
+        timestamp: datetime
+        ui_elements: Optional[List[Dict[str, Any]]] = None
+
+    class PongMessage(BaseModel):
+        type: Literal["pong"]
+        timestamp: datetime
+
+    class ErrorMessage(BaseModel):
+        type: Literal["error"]
+        text: str
+    
+    class SystemMessage(BaseModel):
+        type: Literal["system"]
+        text: str
+
+    class ConversationStartedMessage(BaseModel):
+        type: Literal["conversation_started"]
+        data: ConversationStartedData
+
+    class CJMessage(BaseModel):
+        type: Literal["cj_message"]
+        data: CJMessageData
+
+    # ... other outgoing messages would be modeled here ...
+
+    OutgoingMessage = Annotated[
+        Union[
+            ConversationStartedMessage,
+            CJMessage,
+            PongMessage,
+            ErrorMessage,
+            SystemMessage
         ],
         Field(discriminator="type"),
     ]
     ```
-4.  **Generation Script:** The generation script will be `shared/protocol/generate_ts.py`.
+4.  **Generation Script:** Use `datamodel-code-generator` via a shell script or command.
 
-    *Example (`generate_ts.py`):*
-    ```python
-    #!/usr/bin/env python3
-    import sys
-    from pathlib import Path
-    from pydantic_to_typescript import generate_typescript_defs
-
-    # Add monorepo root to sys.path to allow for module imports
-    repo_root = Path(__file__).parent.parent.parent
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
-
-    # Use a module import string (e.g., 'shared.protocol.models'), not a file path.
-    py_module_name = "shared.protocol.models"
-    ts_output_path = repo_root / "shared/protocol/generated/ts/index.ts"
-
-    # Ensure output directory exists
-    ts_output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    header = "//\n// DO NOT EDIT. THIS FILE IS AUTO-GENERATED BY `pydantic-to-typescript`\n//\n"
-
-    # Generate the file content first
-    ts_defs = generate_typescript_defs(
-        py_module_name, 
-        json_dump_kwargs={'indent': 2}
-    )
-
-    # Write header and content to file
-    with open(ts_output_path, 'w') as f:
-        f.write(header)
-        f.write(ts_defs)
-
-    print(f"✅ TypeScript models generated at {ts_output_path}")
+    *Example Generation Command (run from monorepo root):*
+    ```bash
+    datamodel-codegen --input shared/protocol/models.py \
+                      --input-file-type module \
+                      --output homepage/src/protocol/generated.ts \
+                      --output-file-type typescript
     ```
 
 ### Phase 2: Backend Integration
@@ -121,27 +165,35 @@ We will adopt a **Python-first, code-generation** approach. The protocol will be
         # ... manual parsing and validation ...
     ```
 
-    *After:*
+    *After (using `match` statement for elegance):*
     ```python
-    from shared.protocol.models import IncomingMessage
+    from shared.protocol.models import (
+        IncomingMessage, UserMessage, StartConversationMessage, DebugRequestMessage
+    )
     from pydantic import ValidationError
 
     async for raw_message in websocket.iter_json():
         try:
-            # Pydantic validates the entire message structure, including the nested data object.
             message = IncomingMessage.model_validate(raw_message)
             
-            # The existing routing logic can remain for now.
-            # We are just adding a validation layer.
-            message_type = message.type
-            handler_method = getattr(self.message_handlers, f"handle_{message_type}", None)
-            
-            if handler_method:
-                # Pass the validated dict to the handler for maximum compatibility
-                # with existing handler function signatures.
-                await handler_method(websocket, conversation_id, message.model_dump())
-            else:
-                logger.warning(f"No handler for message type: {message_type}")
+            # Use pattern matching for clean, type-safe routing.
+            # This requires passing the validated model object to the handlers.
+            match message:
+                case UserMessage():
+                    await self.message_handlers.handle_message(
+                        websocket, conversation_id, message.model_dump()
+                    )
+                case StartConversationMessage():
+                    await self.message_handlers.handle_start_conversation(
+                        websocket, conversation_id, message.model_dump()
+                    )
+                case DebugRequestMessage():
+                     await self.message_handlers.handle_debug_request(
+                        websocket, conversation_id, message.model_dump()
+                    )
+                # ... add cases for all other message types
+                case _:
+                    logger.warning(f"No handler for message type: {message.type}")
 
         except ValidationError as e:
             # Pydantic raises an error for invalid message structures
@@ -153,7 +205,7 @@ We will adopt a **Python-first, code-generation** approach. The protocol will be
 1.  **Run Generator:** Execute `python shared/protocol/generate_ts.py` from the repository root.
 2.  **Verify Output:** Check `shared/protocol/generated/ts/index.ts` to ensure the TypeScript interfaces were generated correctly.
 3.  **Update `homepage`:** Refactor frontend code to use these shared types.
-4.  **Modify `useWebSocketChat.ts`:** Replace locally-defined interfaces with imported types from `../../../shared/protocol/generated/ts`.
+4.  **Modify `useWebSocketChat.ts`:** Replace locally-defined interfaces with imported types from `../protocol/generated`.
 5.  **Type `sendMessage`:** Ensure that the `sendMessage` function and other message construction logic builds objects that conform to the new, stricter interfaces (e.g., `StartConversationMessage`). This will immediately catch bugs where incorrect fields are being sent.
 
 ### Phase 4: Expansion and Finalization
@@ -168,17 +220,17 @@ We will adopt a **Python-first, code-generation** approach. The protocol will be
 When a developer needs to change the WebSocket protocol (e.g., add a field to a message):
 
 1.  **Edit Python:** They modify the Pydantic model in `shared/protocol/models.py`.
-2.  **Run Script:** They run `python shared/protocol/generate_ts.py` from the root directory.
+2.  **Run Script:** They run the `datamodel-code-generator` command (or a wrapper shell script) from the root directory to regenerate `homepage/src/protocol/generated.ts`.
 3.  **Commit Both:** They commit the changes to **both** the Python model and the auto-generated TypeScript file.
 4.  **Update Logic:** They update the relevant Python and TypeScript code to utilize the new field(s). The TypeScript compiler and Pydantic validators will guide them.
 
 ## 6. Risks & Mitigations
 
 *   **Risk:** Developers forget to run the generation script, causing the committed code to be out of sync.
-    *   **Mitigation:** **Implement a CI Check.** Add a step to the CI pipeline that runs `python shared/protocol/generate_ts.py` and then uses `git diff --exit-code shared/protocol/generated/ts/index.ts`. If there's a diff, it means the generated file is stale, and the build fails. This forces developers to commit the up-to-date version. A pre-commit hook can also be used for local development.
+    *   **Mitigation:** **Implement a CI Check.** Add a step to the CI pipeline that runs the generation script and then uses `git diff --exit-code homepage/src/protocol/generated.ts`. If there's a diff, it means the generated file is stale, and the build fails. This forces developers to commit the up-to-date version. A pre-commit hook can also be used for local development.
 
-*   **Risk:** The `pydantic-to-typescript` tool might not support a complex type we need.
-    *   **Mitigation:** Keep the protocol models simple and focused on data transfer. Avoid complex custom types in the Pydantic models destined for generation. Test complex cases early.
+*   **Risk:** The `datamodel-code-generator` tool might have issues with very complex types.
+    *   **Mitigation:** This tool is more robust, but it's still good practice to keep protocol models simple and focused on data transfer. Avoid complex custom types or validators in the Pydantic models destined for generation.
 
 *   **Risk:** Initial refactoring effort is significant.
     *   **Mitigation:** The phased implementation plan is designed to manage this. We can start with just one or two message types to prove the workflow and then incrementally migrate the rest.
