@@ -187,10 +187,11 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
         workflow_requirements: Optional[Dict[str, Any]] = None
         user_id: Optional[str] = None
         resumed: Optional[bool] = None        # true when this is a reconnect
+        connected_at: Optional[str] = None    # optional; may be null or omitted
 
     class CJMessageData(BaseModel):
         content: str
-        factCheckStatus: str
+        factCheckStatus: Optional[str] = "available"
         timestamp: datetime
         ui_elements: Optional[List[Dict[str, Any]]] = None
 
@@ -275,6 +276,23 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
                       --output-file-type typescript
     ```
 
+    Additional message types that MUST be included in the
+    IncomingMessage / OutgoingMessage unions before running
+    datamodel-code-generator:
+
+    Incoming:
+      – oauth_complete
+      – system_event
+      – logout
+    Outgoing:
+      – pong
+      – fact_check_started
+      – fact_check_complete
+      – fact_check_error
+      – oauth_processed
+      – workflow_transition_complete
+      – logout_complete
+
 ## 5. Canonical WebSocket Message Reference  
 
 This table is the contractual, exhaustive list of every message 
@@ -286,7 +304,7 @@ or inside a `data` object.
 
 | type            | Required Fields                         | Optional Fields                                     | Location in JSON | Notes |
 |-----------------|-----------------------------------------|-----------------------------------------------------|------------------|-------|
-| start_conversation       | —                                         | data.workflow (str), data.merchant_id, data.scenario_id      | inside `data`    | triggers session + workflow |
+| start_conversation       | —                                         | data.workflow, data.merchant_id, data.scenario_id (all optional; **usually omitted – the server derives authoritative values from the cookie/session**).      | inside `data`    | triggers session + workflow |
 | message                  | text (str)                                | —                                       | root             | user free-text |
 | fact_check               | data.messageIndex (int)                   | data.forceRefresh (bool)                | inside `data`    | requests verification |
 | end_conversation         | —                                         | —                                       | root             | user ends chat |
@@ -311,7 +329,9 @@ or inside a `data` object.
 | debug_response              | data (object: snapshot/session/state/metrics/prompts)                                 | —                                     |
 | debug_event                 | data (object)                                                                         | —                                     |
 | pong                        | timestamp                                                                             | —                                     |
-| error                       | text                                                                                  | —                                     |
+| error                       | one of **text**, **error** or **message** (string).  
+  The server currently sends **text**; the client also accepts
+  **error** or **message** for backward-compatibility. | —                                     |
 | system                      | text                                                                                  | —                                     |
 | logout_complete             | data.{message}                                                                        | —                                     |
 
