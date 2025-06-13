@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import { ShopifyOAuthButton } from './ShopifyOAuthButton';
 
 interface UIElement {
@@ -25,6 +26,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({
     return (
       <div className="text-sm prose prose-sm max-w-none prose-invert">
         <ReactMarkdown 
+          remarkPlugins={[remarkBreaks]}
           components={{
             // Customize paragraph styling to match existing
             p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -67,6 +69,7 @@ export const MessageContent: React.FC<MessageContentProps> = ({
           {part && (
             <div className="text-sm prose prose-sm max-w-none prose-invert">
               <ReactMarkdown
+                remarkPlugins={[remarkBreaks]}
                 components={{
                   // Customize paragraph styling to match existing
                   p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,

@@ -27,3 +27,6 @@ psycopg2-binary>=2.9.0  # PostgreSQL adapter for database tools
 
 # Redis for caching
 redis>=5.0.0
+
+# Data analysis
+numpy>=1.24.0
