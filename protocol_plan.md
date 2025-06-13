@@ -99,6 +99,39 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
         new_workflow: str
         user_initiated: bool = False
 
+    class FactCheckStartedData(BaseModel):
+        messageIndex: int
+        status: Literal["checking"]
+
+    class CJThinkingData(BaseModel):
+        status: str
+        elapsed: Optional[float] = None
+        toolsCalled: Optional[int] = None
+        currentTool: Optional[str] = None
+
+    class FactCheckCompleteData(BaseModel):
+        messageIndex: int
+        result: Dict[str, Any]
+
+    class FactCheckErrorData(BaseModel):
+        messageIndex: int
+        error: str
+
+    class WorkflowUpdatedData(BaseModel):
+        workflow: str
+        previous: Optional[str] = None
+
+    class WorkflowTransitionCompleteData(BaseModel):
+        workflow: str
+        message: str
+
+    class DebugResponseData(BaseModel):
+        # Arbitrary object, e.g. snapshot/session/state/metrics/prompts
+        pass
+
+    class LogoutCompleteData(BaseModel):
+        message: str
+
     # --- Incoming Messages (Client -> Server) ---
     class StartConversationMessage(BaseModel):
         type: Literal["start_conversation"]
@@ -144,6 +177,9 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
         merchantId: Optional[str]
         scenario: Optional[str]
         workflow: str
+        sessionId: Optional[str] = None
+        messageCount: Optional[int] = None
+        messages: Optional[List[Dict[str, Any]]] = None
 
     class CJMessageData(BaseModel):
         content: str
@@ -171,7 +207,37 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
         type: Literal["cj_message"]
         data: CJMessageData
 
-    # ... other outgoing messages would be modeled here ...
+    class CJThinking(BaseModel):
+        type: Literal["cj_thinking"]
+        data: CJThinkingData
+
+    class FactCheckStarted(BaseModel):
+        type: Literal["fact_check_started"]
+        data: FactCheckStartedData
+
+    class FactCheckComplete(BaseModel):
+        type: Literal["fact_check_complete"]
+        data: FactCheckCompleteData
+
+    class FactCheckError(BaseModel):
+        type: Literal["fact_check_error"]
+        data: FactCheckErrorData
+
+    class WorkflowUpdated(BaseModel):
+        type: Literal["workflow_updated"]
+        data: WorkflowUpdatedData
+
+    class WorkflowTransitionComplete(BaseModel):
+        type: Literal["workflow_transition_complete"]
+        data: WorkflowTransitionCompleteData
+
+    class DebugResponse(BaseModel):
+        type: Literal["debug_response"]
+        data: Dict[str, Any]
+
+    class LogoutComplete(BaseModel):
+        type: Literal["logout_complete"]
+        data: LogoutCompleteData
 
     OutgoingMessage = Annotated[
         Union[
@@ -179,7 +245,15 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
             CJMessage,
             PongMessage,
             ErrorMessage,
-            SystemMessage
+            SystemMessage,
+            CJThinking,
+            FactCheckStarted,
+            FactCheckComplete,
+            FactCheckError,
+            WorkflowUpdated,
+            WorkflowTransitionComplete,
+            DebugResponse,
+            LogoutComplete
         ],
         Field(discriminator="type"),
     ]
@@ -193,6 +267,55 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
                       --output homepage/src/protocol/generated.ts \
                       --output-file-type typescript
     ```
+
+## 5. Canonical WebSocket Message Reference  
+
+This table is the contractual, exhaustive list of every message 
+currently exchanged between the browser (homepage) and the agents service.  
+Column “Location in JSON” clarifies whether a field sits at the root level 
+or inside a `data` object.
+
+### 5.1  Incoming — Client ➜ Server
+
+| type                     | Required Fields                           | Optional Fields                         | Location in JSON | Notes |
+|--------------------------|-------------------------------------------|-----------------------------------------|------------------|-------|
+| start_conversation       | data.workflow (str)                       | data.merchant_id, data.scenario_id      | inside `data`    | triggers session + workflow |
+| message                  | text (str)                                | —                                       | root             | user free-text |
+| fact_check               | data.messageIndex (int)                   | data.forceRefresh (bool)                | inside `data`    | requests verification |
+| end_conversation         | —                                         | —                                       | root             | user ends chat |
+| workflow_transition      | data.new_workflow (str)                   | data.user_initiated (bool, default False)| inside `data`   | change active workflow |
+| debug_request            | data.type: `"snapshot" \| "session" \| "state" \| "metrics" \| "prompts"` | — | inside `data` | diagnostics |
+| ping                     | —                                         | —                                       | root             | keep-alive |
+| logout                   | —                                         | —                                       | root             | terminate session |
+| system_event (reserved)  | data (object)                             | —                                       | inside `data`    | not used yet |
+
+### 5.2  Outgoing — Server ➜ Client
+
+| type                        | Required Fields / Shape                                                               | Optional Fields                       |
+|-----------------------------|---------------------------------------------------------------------------------------|---------------------------------------|
+| conversation_started        | data.{conversationId, merchantId, scenario, workflow, sessionId}                      | data.messageCount, data.messages[]    |
+| cj_message                  | data.{content, factCheckStatus, timestamp}                                            | data.ui_elements[]                    |
+| cj_thinking                 | data.{status, elapsed}                                                                | data.toolsCalled, data.currentTool    |
+| fact_check_started          | data.{messageIndex, status="checking"}                                                | —                                     |
+| fact_check_complete         | data.{messageIndex, result.{overall_status, claim_count, execution_time}}             | —                                     |
+| fact_check_error            | data.{messageIndex, error}                                                            | —                                     |
+| workflow_updated            | data.{workflow, previous}                                                             | —                                     |
+| workflow_transition_complete| data.{workflow, message}                                                              | —                                     |
+| debug_response              | data (object: snapshot/session/state/metrics/prompts)                                 | —                                     |
+| pong                        | timestamp                                                                             | —                                     |
+| error                       | text                                                                                  | —                                     |
+| system                      | text                                                                                  | —                                     |
+| logout_complete             | data.{message}                                                                        | —                                     |
+
+All other server-initiated broadcast variants are enveloped in one of the
+types above (e.g. broadcast uses `cj_message` with `metadata.type="broadcast"`).
+
+### Envelope Convention
+
+* Messages listed with “root” put their payload keys next to `"type"`.  
+* Messages listed with “inside `data`” wrap their payload in a `data` object.  
+  This mirrors today’s handlers and **must not change without a protocol
+  revision**.
 
 ### Phase 2: Backend Integration
 
@@ -257,7 +380,7 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
 3.  **Refactor:** Update the backend and frontend code that produces or consumes these messages to use the new typed models.
 4.  **CI/CD Integration:** This is a critical step to prevent future drift. See section 6.
 
-## 5. New Developer Workflow
+## 6. New Developer Workflow
 
 When a developer needs to change the WebSocket protocol (e.g., add a field to a message):
 
@@ -266,7 +389,7 @@ When a developer needs to change the WebSocket protocol (e.g., add a field to a 
 3.  **Commit Both:** They commit the changes to **both** the Python model and the auto-generated TypeScript file.
 4.  **Update Logic:** They update the relevant Python and TypeScript code to utilize the new field(s). The TypeScript compiler and Pydantic validators will guide them.
 
-## 6. Risks & Mitigations
+## 7. Risks & Mitigations
 
 *   **Risk:** Developers forget to run the generation script, causing the committed code to be out of sync.
     *   **Mitigation:** **Implement a CI Check.** Add a step to the CI pipeline that runs the generation script and then uses `git diff --exit-code homepage/src/protocol/generated.ts`. If there's a diff, it means the generated file is stale, and the build fails. This forces developers to commit the up-to-date version. A pre-commit hook can also be used for local development.
