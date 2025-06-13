@@ -28,6 +28,8 @@ help:
 	@echo "  make dev-auth     - Start auth service only"
 	@echo "  make dev-agents   - Start agents service only"
 	@echo "  make dev-homepage - Start homepage service only"
+	@echo "  make dev-editor-backend - Start editor backend service only"
+	@echo "  make dev-editor   - Start editor frontend only"
 	@echo "  make test-auth    - Test auth service"
 	@echo "  make test-agents  - Test agents service"
 	@echo ""
@@ -54,7 +56,9 @@ install:
 	cd agents && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt -r requirements-dev.txt
 	cd database && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
 	cd knowledge && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
+	cd editor-backend && python -m venv venv && . venv/bin/activate && pip install -r requirements.txt
 	cd homepage && npm install
+	cd editor && npm install
 	@echo "✅ All dependencies installed!"
 
 # Development commands
@@ -84,6 +88,10 @@ dev-all: env-distribute
 	tmux send-keys -t hirecj-dev:1 'make dev-homepage' C-m
 	tmux new-window -t hirecj-dev:2 -n auth
 	tmux send-keys -t hirecj-dev:2 'make dev-auth' C-m
+	tmux new-window -t hirecj-dev:3 -n editor-backend
+	tmux send-keys -t hirecj-dev:3 'make dev-editor-backend' C-m
+	tmux new-window -t hirecj-dev:4 -n editor
+	tmux send-keys -t hirecj-dev:4 'make dev-editor' C-m
 	@if [ -z "$$TMUX" ]; then \
 		tmux attach -t hirecj-dev; \
 	else \
@@ -124,6 +132,14 @@ dev-homepage: env-distribute
 dev-database: env-distribute
 	@echo "💾 Starting database service..."
 	cd database && . venv/bin/activate && python -m app.main
+
+dev-editor-backend: env-distribute
+	@echo "🔧 Starting editor backend service with hot reload..."
+	cd editor-backend && . venv/bin/activate && uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+
+dev-editor: env-distribute
+	@echo "🎨 Starting editor frontend..."
+	cd editor && npm run dev
 
 # Stop all services
 stop:
@@ -217,7 +233,7 @@ dev-tunnels-tmux: env-distribute
 		exit 1; \
 	fi
 	@tmux new-session -d -s hirecj-tunnels -n urls
-	@tmux send-keys -t hirecj-tunnels:0 'sleep 2 && make detect-tunnels && echo "" && echo "✅ Tunnels configured! Service URLs are shown above." && echo "" && echo "Press Ctrl+b then a number to switch windows:" && echo "  0 - This URL list" && echo "  1 - Ngrok tunnels" && echo "  2 - Agents service" && echo "  3 - Auth service" && echo "  4 - Database service" && echo "  5 - Homepage" && echo ""' C-m
+	@tmux send-keys -t hirecj-tunnels:0 'sleep 2 && make detect-tunnels && echo "" && echo "✅ Tunnels configured! Service URLs are shown above." && echo "" && echo "Press Ctrl+b then a number to switch windows:" && echo "  0 - This URL list" && echo "  1 - Ngrok tunnels" && echo "  2 - Agents service" && echo "  3 - Auth service" && echo "  4 - Database service" && echo "  5 - Homepage" && echo "  6 - Editor backend" && echo "  7 - Editor frontend" && echo "  8 - Logs" && echo ""' C-m
 	@tmux new-window -t hirecj-tunnels:1 -n ngrok
 	@tmux send-keys -t hirecj-tunnels:1 'make tunnels' C-m
 	@tmux new-window -t hirecj-tunnels:2 -n agents
@@ -228,8 +244,12 @@ dev-tunnels-tmux: env-distribute
 	@tmux send-keys -t hirecj-tunnels:4 'sleep 3 && make dev-database' C-m
 	@tmux new-window -t hirecj-tunnels:5 -n homepage  
 	@tmux send-keys -t hirecj-tunnels:5 'sleep 3 && make dev-homepage' C-m
-	@tmux new-window -t hirecj-tunnels:6 -n logs
-	@tmux send-keys -t hirecj-tunnels:6 'sleep 10 && find agents/logs auth/logs homepage/logs database/logs -name "*.log" -type f 2>/dev/null | xargs tail -f' C-m
+	@tmux new-window -t hirecj-tunnels:6 -n editor-backend
+	@tmux send-keys -t hirecj-tunnels:6 'sleep 3 && make dev-editor-backend' C-m
+	@tmux new-window -t hirecj-tunnels:7 -n editor-frontend  
+	@tmux send-keys -t hirecj-tunnels:7 'sleep 3 && make dev-editor' C-m
+	@tmux new-window -t hirecj-tunnels:8 -n logs
+	@tmux send-keys -t hirecj-tunnels:8 'sleep 10 && find agents/logs auth/logs homepage/logs database/logs editor/logs -name "*.log" -type f 2>/dev/null | xargs tail -f' C-m
 	@tmux select-window -t hirecj-tunnels:0
 	@tmux attach -t hirecj-tunnels
 
