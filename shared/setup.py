@@ -12,5 +12,6 @@ setup(
         "pydantic>=2.5.0",
         "python-dotenv>=1.0.0",
         "sqlalchemy>=2.0.0",
+        "datamodel-code-generator>=0.25.0",
     ],
 )
