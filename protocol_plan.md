@@ -322,7 +322,7 @@ or inside a `data` object.
 | conversation_started        | data.{conversationId, merchantId, scenario, workflow, sessionId}                      | data.messageCount, data.messages[], data.workflow_requirements, data.user_id, data.resumed |
 | cj_message                  | data.{content, factCheckStatus, timestamp}                                            | data.ui_elements[]                    |
 | cj_thinking                 | data.{status, elapsed}                                                                | data.toolsCalled, data.currentTool    |
-| fact_check_started          | data.{messageIndex, status="checking"}                                                | —                                     |
+| **fact_check_started**      | data.{messageIndex, status="checking"}                                                | —                                     |
 | fact_check_complete         | data.{messageIndex, result.{overall_status, claim_count, execution_time}}             | —                                     |
 | fact_check_error            | data.{messageIndex, error}                                                            | —                                     |
 | workflow_updated            | data.{workflow, previous}                                                             | —                                     |
