@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Union, Literal, Annotated, Dict, Any, List, datetime
+from typing import Optional, Union, Literal, Annotated, Dict, Any, List
+from datetime import datetime
 
 # ───── nested payload objects ───────────────────────────────────────────────
 class StartConversationData(BaseModel):
@@ -173,6 +174,10 @@ class WorkflowUpdatedMsg(BaseModel):
     type: Literal["workflow_updated"]
     data: WorkflowUpdatedData
 
+class WorkflowTransitionCompleteMsg(BaseModel):
+    type: Literal["workflow_transition_complete"]
+    data: Dict[str, Any]          # {"workflow": str, "message": str}
+
 class OAuthProcessedMsg(BaseModel):
     type: Literal["oauth_processed"]
     data: OAuthProcessedData
@@ -185,6 +190,14 @@ class PongMsg(BaseModel):
     type: Literal["pong"]
     timestamp: datetime
 
+class DebugResponseMsg(BaseModel):
+    type: Literal["debug_response"]
+    data: Dict[str, Any]
+
+class DebugEventMsg(BaseModel):
+    type: Literal["debug_event"]
+    data: Dict[str, Any]
+
 OutgoingMessage = Annotated[
     Union[
         ConversationStartedMsg,
@@ -194,9 +207,12 @@ OutgoingMessage = Annotated[
         FactCheckCompleteMsg,
         FactCheckErrorMsg,
         WorkflowUpdatedMsg,
+        WorkflowTransitionCompleteMsg,
         OAuthProcessedMsg,
         LogoutCompleteMsg,
         PongMsg,
+        DebugResponseMsg,
+        DebugEventMsg,
         ErrorMsg,
         SystemMsg,
     ],
