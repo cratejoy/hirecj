@@ -17,66 +17,18 @@ The goal of this plan is to establish a **Single Source of Truth** for the WebSo
 *   **Brittle Communication:** Mismatches often lead to silent failures or runtime errors that are difficult to debug (e.g., a message is dropped, or a field is unexpectedly `undefined`).
 *   **Development Overhead:** Onboarding new developers is slower, as they must learn the protocol from two separate, unsynchronized sources.
 
-<!-- (Message-shape drift bullet removed; now addressed by canonical table) -->
+<!-- (Message-shape drift bullet removed; now addressed by models) -->
 
 ## 3. Proposed Solution
 
-We will adopt a **Python-first, code-generation** approach. The protocol will be defined using Pydantic models within the Python ecosystem. These models will then be used to generate TypeScript interfaces for the frontend.
+We will adopt a **Python-first, code-generation** approach. The protocol will be defined using Pydantic models within the Python ecosystem. These models will then be used to generate TypeScript interfaces for the frontend. The Pydantic models are the single source of truth, replacing any manually maintained tables or documentation.
 
----
-
-## 4. Canonical WebSocket Message Reference
-
-This section defines the canonical set of WebSocket message types and their required keys for both directions.  
-**All messages keep the existing envelope:**
-```
-{
-  "type": "<message_type>",
-  ...payloadKeys
-}
-```
-Only `start_conversation`, `fact_check`, `workflow_transition`, and `debug_request` embed their payload in a `data` object; `message` uses top-level `text`.
-
-### 4.1 Incoming (client → server)
-
-| type                     | Mandatory keys          | Notes |
-|--------------------------|-------------------------|-------|
-| start_conversation       | data.workflow (str)     | optional data.merchant_id, data.scenario |
-| message                  | text (str)              | free-text user message |
-| fact_check               | data.messageIndex (int) | optional data.forceRefresh (bool) |
-| end_conversation         | —                       | user clicks “End Chat” |
-| workflow_transition      | data.new_workflow (str) | optional data.user_initiated (bool) |
-| debug_request            | data.type (str enum)    | “snapshot” \| “session” \| “state” \| “metrics” \| “prompts” |
-| ping                     | —                       | keep-alive |
-| logout                   | —                       | user log-out |
-| system_event*            | data (obj)              | *reserved — not yet used* |
-
-### 4.2 Outgoing (server → client)
-
-| type                       | Mandatory keys / shape                                   |
-|----------------------------|----------------------------------------------------------|
-| conversation_started       | data.conversationId, merchantId, scenario, workflow      |
-| cj_message                 | data.content (str)                                       |
-| cj_thinking                | data.status, elapsed, etc.                               |
-| fact_check_started         | data.messageIndex, status="checking"                    |
-| fact_check_complete        | data.messageIndex, result (obj)                          |
-| fact_check_error           | data.messageIndex, error (str)                           |
-| workflow_updated           | data.workflow, previous                                  |
-| workflow_transition_complete | data.workflow, message                                  |
-| debug_response             | data (obj)                                               |
-| pong                       | timestamp                                                |
-| error                      | text (str)                                               |
-| system                     | text (str)                                               |
-| logout_complete            | data.message                                             |
-
----
-
-## 5. Implementation Plan
+## 4. Implementation Plan
 
 ### Phase 1: Setup and Initial Model Definition
 
 1.  **Directory Structure:** The plan is to create the directory structure as outlined above within `shared/protocol/`.
-2.  **Install Tooling:** The `pydantic-to-typescript` dependency should be added to `shared/setup.py`. This step is outside the scope of this plan update.
+2.  **Install Tooling:** A modern version of the generator, like `pydantic-to-typescript>=2.2`, should be added to `shared/setup.py`. This is compatible with Pydantic v2.7+. This step is outside the scope of this plan update.
 3.  **Define Core Models:** In `shared/protocol/models.py`, define the message structures to match the existing nested format (`{"type": "...", "data": {...}}`).
 
     *Example (`models.py`):*
@@ -84,37 +36,37 @@ Only `start_conversation`, `fact_check`, `workflow_transition`, and `debug_reque
     from pydantic import BaseModel, Field
     from typing import Literal, Union, Optional, Annotated
 
-    # --- Payloads for the 'data' field ---
+    # --- Payloads for the 'data' field of nested messages ---
     class StartConversationData(BaseModel):
         workflow: str
         merchant_id: Optional[str] = None
         scenario_id: Optional[str] = None
 
-    class UserMessageData(BaseModel):
-        text: str
-
     class DebugRequestData(BaseModel):
         debug_type: Literal["snapshot", "session", "state", "metrics", "prompts"]
 
     # --- Top-level message models ---
+    # Note: Some messages are flat, others have a nested `data` object.
+    # This matches the existing backend implementation.
     class StartConversationMessage(BaseModel):
         type: Literal["start_conversation"]
         data: StartConversationData
 
     class UserMessage(BaseModel):
         type: Literal["message"]
-        data: UserMessageData
+        text: str  # This message type is flat
 
     class DebugRequestMessage(BaseModel):
         type: Literal["debug_request"]
         data: DebugRequestData
 
     # --- Discriminated Union for all Incoming Messages ---
+    # Pydantic will use the `type` field to determine which model to use for validation.
     IncomingMessage = Annotated[
         Union[
             StartConversationMessage,
             UserMessage,
-            DebugRequestMessage
+            DebugRequestMessage,
         ],
         Field(discriminator="type"),
     ]
@@ -124,12 +76,18 @@ Only `start_conversation`, `fact_check`, `workflow_transition`, and `debug_reque
     *Example (`generate_ts.py`):*
     ```python
     #!/usr/bin/env python3
+    import sys
     from pathlib import Path
     from pydantic_to_typescript import generate_typescript_defs
 
-    # Assumes script is run from the repository root
-    py_module_path = Path("shared/protocol/models.py")
-    ts_output_path = Path("shared/protocol/generated/ts/index.ts")
+    # Add monorepo root to sys.path to allow for module imports
+    repo_root = Path(__file__).parent.parent.parent
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    # Use a module import string (e.g., 'shared.protocol.models'), not a file path.
+    py_module_name = "shared.protocol.models"
+    ts_output_path = repo_root / "shared/protocol/generated/ts/index.ts"
 
     # Ensure output directory exists
     ts_output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -138,7 +96,7 @@ Only `start_conversation`, `fact_check`, `workflow_transition`, and `debug_reque
 
     # Generate the file content first
     ts_defs = generate_typescript_defs(
-        py_module_path.as_posix(), 
+        py_module_name, 
         json_dump_kwargs={'indent': 2}
     )
 
