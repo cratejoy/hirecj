@@ -133,6 +133,11 @@ class ConversationStartedData(BaseModel):
     sessionId: Optional[str] = None
     resumed: Optional[bool] = None
 
+    messageCount: Optional[int] = None
+    messages: Optional[List[Dict[str, Any]]] = None
+    workflow_requirements: Optional[Dict[str, Any]] = None
+    user_id: Optional[str] = None
+
 
 class ConversationStartedMsg(BaseModel):
     type: Literal["conversation_started"]
@@ -178,6 +183,10 @@ class WorkflowTransitionCompleteMsg(BaseModel):
     type: Literal["workflow_transition_complete"]
     data: Dict[str, Any]          # {"workflow": str, "message": str}
 
+class FactCheckStatusMsg(BaseModel):
+    type: Literal["fact_check_status"]
+    data: Dict[str, Any]          # e.g. {"messageIndex": int, "status": str, ...}
+
 class OAuthProcessedMsg(BaseModel):
     type: Literal["oauth_processed"]
     data: OAuthProcessedData
@@ -206,6 +215,7 @@ OutgoingMessage = Annotated[
         FactCheckStartedMsg,
         FactCheckCompleteMsg,
         FactCheckErrorMsg,
+        FactCheckStatusMsg,
         WorkflowUpdatedMsg,
         WorkflowTransitionCompleteMsg,
         OAuthProcessedMsg,
