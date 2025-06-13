@@ -49,7 +49,7 @@ The protocol's source of truth (Python models) will live in `shared/`, but the g
 ├── homepage/
 │   ├── src/
 │   │   ├── protocol/
-│   │   │   └── generated.ts    # Generated TypeScript interfaces
+│   │   │   └── generated.ts    # Generated TypeScript interfaces (tracked in git)
 │   │   └── ...
 └── ...
 ```
@@ -162,11 +162,15 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
     class LogoutMessage(BaseModel):
         type: Literal["logout"]
 
+    class SystemEventMessage(BaseModel):
+        type: Literal["system_event"]
+        data: Dict[str, Any]
+
     IncomingMessage = Annotated[
         Union[
             StartConversationMessage, UserMessage, EndConversationMessage,
             FactCheckMessage, PingMessage, DebugRequestMessage, 
-            WorkflowTransitionMessage, LogoutMessage
+            WorkflowTransitionMessage, LogoutMessage, SystemEventMessage
         ],
         Field(discriminator="type"),
     ]
@@ -230,12 +234,12 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
         type: Literal["workflow_updated"]
         data: WorkflowUpdatedData
 
-    class WorkflowTransitionComplete(BaseModel):
-        type: Literal["workflow_transition_complete"]
-        data: WorkflowTransitionCompleteData
-
     class DebugResponse(BaseModel):
         type: Literal["debug_response"]
+        data: Dict[str, Any]
+
+    class DebugEvent(BaseModel):
+        type: Literal["debug_event"]
         data: Dict[str, Any]
 
     class LogoutComplete(BaseModel):
@@ -254,8 +258,8 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
             FactCheckComplete,
             FactCheckError,
             WorkflowUpdated,
-            WorkflowTransitionComplete,
             DebugResponse,
+            DebugEvent,
             LogoutComplete
         ],
         Field(discriminator="type"),
@@ -304,8 +308,8 @@ or inside a `data` object.
 | fact_check_complete         | data.{messageIndex, result.{overall_status, claim_count, execution_time}}             | —                                     |
 | fact_check_error            | data.{messageIndex, error}                                                            | —                                     |
 | workflow_updated            | data.{workflow, previous}                                                             | —                                     |
-| workflow_transition_complete| data.{workflow, message}                                                              | —                                     |
 | debug_response              | data (object: snapshot/session/state/metrics/prompts)                                 | —                                     |
+| debug_event                 | data (object)                                                                         | —                                     |
 | pong                        | timestamp                                                                             | —                                     |
 | error                       | text                                                                                  | —                                     |
 | system                      | text                                                                                  | —                                     |
@@ -317,6 +321,9 @@ types above (e.g. broadcast uses `cj_message` with `metadata.type="broadcast"`).
 > **resumed** ( bool ) — `true` when the server is restoring a prior session, allowing the client to skip any “welcome” UX.
 
 ### Envelope Convention
+
+All `datetime` fields are serialized as ISO-8601 strings; the generated  
+TypeScript model therefore uses `string`.
 
 * Messages listed with “root” put their payload keys next to `"type"`.  
 * Messages listed with “inside `data`” wrap their payload in a `data` object.  
