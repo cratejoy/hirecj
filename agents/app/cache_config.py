@@ -14,7 +14,7 @@ from app.config import settings
 
 def setup_litellm_cache() -> Optional[Cache]:
     """
-    Setup LiteLLM cache with Redis if available, otherwise use in-memory cache
+    Setup LiteLLM cache. Currently only supports in-memory cache.
     """
     # Check if caching is enabled globally
     if not settings.enable_litellm_cache:
@@ -22,38 +22,7 @@ def setup_litellm_cache() -> Optional[Cache]:
         litellm.cache = None
         return None
 
-    redis_url = os.getenv("REDIS_URL")
-
-    if redis_url:
-        try:
-            # Parse Redis URL
-            url = urlparse(redis_url)
-
-            # Determine if we need SSL (Heroku uses rediss://)
-            use_ssl = redis_url.startswith("rediss://")
-
-            # Create Redis cache
-            cache = Cache(
-                type="redis",
-                host=url.hostname,
-                port=url.port or settings.redis_port,
-                password=url.password,
-                ssl=use_ssl,
-                ttl=settings.cache_ttl,  # Use configured TTL
-                namespace="hirecj",  # Namespace for all cache keys
-            )
-
-            # Set the cache globally
-            litellm.cache = cache
-
-            print(f"✅ LiteLLM Redis cache initialized (host: {url.hostname})")
-            return cache
-
-        except Exception as e:
-            print(f"⚠️  Failed to initialize Redis cache: {e}")
-            print("Falling back to in-memory cache...")
-
-    # Fallback to in-memory cache
+    # Use in-memory cache
     cache = Cache(
         type="local",
         default_in_memory_ttl=settings.cache_ttl_short,  # Use shorter TTL for local dev

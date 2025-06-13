@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 class AuthProvider(str, Enum):
     """Supported authentication providers."""
     SHOPIFY = "shopify"
-    GOOGLE = "google"
     EMAIL = "email"  # Future: email/password auth
 
 

@@ -1,7 +1,7 @@
 """Session lifecycle management."""
 
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 import uuid
 
 from app.models import Conversation, ConversationState
@@ -22,6 +22,7 @@ class Session:
         merchant_name: Optional[str] = None,
         scenario_name: Optional[str] = None,
         user_id: Optional[str] = None,
+        oauth_metadata: Optional[Dict[str, Any]] = None,
     ):
         self.id = str(uuid.uuid4())
         self.conversation = conversation
@@ -29,6 +30,7 @@ class Session:
         self.merchant_name = merchant_name or conversation.merchant_name
         self.scenario_name = scenario_name or conversation.scenario_name
         self.user_id = user_id
+        self.oauth_metadata = oauth_metadata
         self.created_at = datetime.utcnow()
         self.last_activity = datetime.utcnow()
         self.is_active = True
@@ -77,15 +79,46 @@ class SessionManager:
                 logger.error(f"Failed to load universe for {merchant_name}/{scenario_name}: {e}")
                 raise
 
+        # Check if merchant has Shopify integration
+        oauth_metadata = None
+        if merchant_name and user_id:
+            # Check if this merchant has authenticated with Shopify
+            try:
+                from app.utils.supabase_util import get_db_session
+                from app.dbmodels.base import Merchant, MerchantIntegration
+                
+                with get_db_session() as db:
+                    merchant = db.query(Merchant).filter_by(name=merchant_name).first()
+                    if merchant:
+                        integration = db.query(MerchantIntegration).filter_by(
+                            merchant_id=merchant.id,
+                            platform='shopify',
+                            is_active=True
+                        ).first()
+                        
+                        if integration:
+                            # Extract shop domain from config
+                            shop_domain = integration.config.get('shop_domain', f"{merchant_name}.myshopify.com")
+                            oauth_metadata = {
+                                "provider": "shopify",
+                                "authenticated": True,
+                                "shop_domain": shop_domain,
+                                "is_new_merchant": False  # Existing merchant
+                            }
+                            logger.info(f"Found Shopify integration for {merchant_name}: {shop_domain}")
+            except Exception as e:
+                logger.error(f"Error checking Shopify integration: {e}")
+
         session = Session(
             conversation, 
             data_agent, 
             merchant_name, 
             scenario_name,
-            user_id=user_id
+            user_id=user_id,
+            oauth_metadata=oauth_metadata
         )
         self._sessions[session.id] = session
-        logger.info(f"Created session {session.id}")
+        logger.info(f"Created session {session.id} with oauth_metadata: {bool(oauth_metadata)}")
         return session
 
     def get_session(self, session_id: str) -> Optional[Session]:

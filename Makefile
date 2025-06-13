@@ -228,6 +228,8 @@ dev-tunnels-tmux: env-distribute
 	@tmux send-keys -t hirecj-tunnels:4 'sleep 3 && make dev-database' C-m
 	@tmux new-window -t hirecj-tunnels:5 -n homepage  
 	@tmux send-keys -t hirecj-tunnels:5 'sleep 3 && make dev-homepage' C-m
+	@tmux new-window -t hirecj-tunnels:6 -n logs
+	@tmux send-keys -t hirecj-tunnels:6 'sleep 10 && find agents/logs auth/logs homepage/logs database/logs -name "*.log" -type f 2>/dev/null | xargs tail -f' C-m
 	@tmux select-window -t hirecj-tunnels:0
 	@tmux attach -t hirecj-tunnels
 
@@ -287,7 +289,7 @@ heroku-setup:
 	git remote add heroku-homepage https://git.heroku.com/hirecj-homepage.git
 	git remote add heroku-database https://git.heroku.com/hirecj-database.git
 
-# Logs
+# Heroku logs
 logs-auth:
 	heroku logs --tail --app hirecj-auth
 

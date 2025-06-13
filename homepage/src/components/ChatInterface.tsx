@@ -52,12 +52,11 @@ interface ChatInterfaceProps {
 	progress: Progress | null;
 	merchantName: string;
 	isConnected?: boolean;
-	conversationId: string;
 	sendFactCheck?: (messageIndex: number) => void;
 	cjVersion?: string;
 }
 
-export function ChatInterface({ messages, isTyping, progress, merchantName, isConnected, conversationId, sendFactCheck, cjVersion = "v6.0.1" }: ChatInterfaceProps) {
+export function ChatInterface({ messages, isTyping, progress, merchantName, isConnected, sendFactCheck, cjVersion = "v6.0.1" }: ChatInterfaceProps) {
 	const { toast } = useToast();
 	const [annotationModal, setAnnotationModal] = useState<{
 		isOpen: boolean;
@@ -78,34 +77,12 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 
 	const [isLoadingAnnotations, setIsLoadingAnnotations] = useState(false);
 
-	// Fetch existing annotations when conversation changes or reconnects
+	// TODO: Update annotation fetching to use session-based endpoints
+	// For now, annotations are disabled until we update the backend API
 	React.useEffect(() => {
-		if (conversationId && isConnected) {
-			const fetchAnnotations = async () => {
-				setIsLoadingAnnotations(true);
-				try {
-					const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-					const response = await fetch(`${BACKEND_URL}/api/v1/conversations/${conversationId}`);
-
-					if (response.ok) {
-						const data = await response.json();
-						if (data.annotations) {
-							setAnnotations(data.annotations);
-							chatLogger.info('Loaded annotations', { count: Object.keys(data.annotations).length });
-						}
-					}
-				} catch (error) {
-					chatLogger.error('Error fetching annotations', error);
-				} finally {
-					setIsLoadingAnnotations(false);
-				}
-			};
-
-			// Delay fetch to allow conversation to be saved first
-			const timer = setTimeout(fetchAnnotations, 1000);
-			return () => clearTimeout(timer);
-		}
-	}, [conversationId, isConnected]);
+		// Annotations temporarily disabled - will be re-enabled with session-based API
+		setIsLoadingAnnotations(false);
+	}, [isConnected]);
 
 	// Prefill feedback text when opening modal for existing annotation
 	React.useEffect(() => {
@@ -230,7 +207,7 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 			)}
 
 			{/* Welcome message */}
-			{messages.length === 0 && isConnected && (
+			{messages.length === 0 && isConnected && !isTyping && (
 				<div className="text-center py-8">
 					<p className="text-gray-400">
 						You're now chatting with <span className="font-semibold">{merchantName}</span>
@@ -293,7 +270,6 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 									) : message.sender === 'cj' ? (
 										<MessageContent
 											content={message.content}
-											conversationId={conversationId}
 											isThinking={message.metadata?.isThinking}
 											ui_elements={message.ui_elements}
 										/>
@@ -392,12 +368,16 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 																onClick={async () => {
 																	if (messageIndex !== undefined) {
 																		try {
-																			const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-																			const response = await fetch(
-																				`${BACKEND_URL}/api/v1/conversations/${conversationId}/annotations/${messageIndex}`,
-																				{ method: 'DELETE' }
-																			);
+																			// TODO: Update to use session-based API
+																			// const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+																			// const response = await fetch(
+																			// 	`${BACKEND_URL}/api/v1/annotations/${messageIndex}`,
+																			// 	{ method: 'DELETE', credentials: 'include' }
+																			// );
 
+																			// Temporary mock - just update local state
+																			const response = { ok: true };
+																			
 																			if (response.ok) {
 																				setAnnotations(prev => {
 																					const newAnnotations = { ...prev };
@@ -540,32 +520,43 @@ export function ChatInterface({ messages, isTyping, progress, merchantName, isCo
 											throw new Error('Message index not available');
 										}
 
-										const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-										const response = await fetch(
-											`${BACKEND_URL}/api/v1/conversations/${conversationId}/annotations/${annotationModal.messageIndex}`,
-											{
-												method: 'POST',
-												headers: {
-													'Content-Type': 'application/json',
-												},
-												body: JSON.stringify({
-													sentiment: annotationModal.sentiment || 'like',
-													text: feedbackText || undefined
-												}),
-											}
-										);
+										// TODO: Update to use session-based API
+										// const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+										// const response = await fetch(
+										// 	`${BACKEND_URL}/api/v1/annotations/${annotationModal.messageIndex}`,
+										// 	{
+										// 		method: 'POST',
+										// 		headers: {
+										// 			'Content-Type': 'application/json',
+										// 		},
+										// 		body: JSON.stringify({
+										// 			sentiment: annotationModal.sentiment || 'like',
+										// 			text: feedbackText || undefined
+										// 		}),
+										// 		credentials: 'include' // Include cookies for session
+										// 	}
+										// );
+										
+										// Temporary mock response
+										const response = { ok: true };
+										const result = { annotation: { sentiment: annotationModal.sentiment, text: feedbackText, timestamp: new Date().toISOString() } };
 
 										if (!response.ok) {
 											throw new Error('Failed to submit annotation');
 										}
 
-										const result = await response.json();
+										// const result = await response.json();
 
 										// Update local annotations state
 										if (annotationModal.messageIndex !== null) {
+											const newAnnotation = {
+												sentiment: result.annotation.sentiment || 'like',
+												text: result.annotation.text || '',
+												timestamp: result.annotation.timestamp || new Date().toISOString()
+											};
 											setAnnotations(prev => ({
 												...prev,
-												[String(annotationModal.messageIndex)]: result.annotation
+												[String(annotationModal.messageIndex)]: newAnnotation
 											}));
 										}
 

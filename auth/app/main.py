@@ -10,13 +10,27 @@ from app.config import settings
 from app.api import health, shopify_oauth
 
 # Configure logging
+import os
+
+# Create logs directory if it doesn't exist
+os.makedirs("logs", exist_ok=True)
+
+# Configure handlers
+log_handlers = [logging.StreamHandler()]
+log_handlers.append(logging.FileHandler("logs/auth-service.log"))
+
 logging.basicConfig(
     level=getattr(logging, settings.log_level),
     format="[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=log_handlers
 )
 
 logger = logging.getLogger(__name__)
+
+# Suppress httpcore debug logs but keep httpx INFO logs
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.INFO)
 
 
 @asynccontextmanager

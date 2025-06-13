@@ -32,9 +32,9 @@ class ShopifyAuth:
         if not provided_hmac:
             return False
         
-        # Sort parameters and create query string
+        # Sort parameters and join without additional percent-encoding
         sorted_params = sorted(params.items())
-        query_string = urlencode(sorted_params)
+        query_string = "&".join(f"{k}={v}" for k, v in sorted_params)
         
         # Calculate HMAC
         secret = settings.shopify_client_secret.encode('utf-8')
@@ -46,7 +46,22 @@ class ShopifyAuth:
         ).hexdigest()
         
         # Constant-time comparison
-        return hmac.compare_digest(calculated_hmac, provided_hmac)
+        is_valid = hmac.compare_digest(calculated_hmac, provided_hmac)
+        
+        # Add extensive logging for debugging HMAC issues, especially on failure
+        if settings.debug:
+            if not is_valid:
+                logger.error("[HMAC_VALIDATION] FAILED")
+            else:
+                logger.info("[HMAC_VALIDATION] SUCCESS")
+            
+            logger.info("[HMAC_VALIDATION] Debug Details:")
+            logger.info(f"  - Client Secret Used: '{settings.shopify_client_secret}'")
+            logger.info(f"  - Query String for HMAC: '{query_string}'")
+            logger.info(f"  - Provided HMAC:   '{provided_hmac}'")
+            logger.info(f"  - Calculated HMAC: '{calculated_hmac}'")
+            
+        return is_valid
     
     @staticmethod
     def validate_shop_domain(shop: str) -> bool:

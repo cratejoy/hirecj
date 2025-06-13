@@ -8,6 +8,7 @@ from .base import (
     Platform,
 )
 from .manager import PlatformManager
+from .web import WebPlatform
 
 __all__ = [
     "PlatformType",
@@ -17,4 +18,5 @@ __all__ = [
     "OutgoingMessage",
     "Platform",
     "PlatformManager",
+    "WebPlatform",
 ]

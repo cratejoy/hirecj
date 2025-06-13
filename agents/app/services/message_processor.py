@@ -188,8 +188,8 @@ class MessageProcessor:
         )
         logger.info(f"[CJ_AGENT] ====== RESPONSE COMPLETE ======")
 
-        # Only parse UI components if workflow has them enabled
-        if session.conversation.workflow == "shopify_onboarding":
+        # Only add Shopify OAuth button when store not yet connected
+        if session.conversation.workflow == "shopify_onboarding" and session.oauth_metadata is None:
             from app.services.ui_components import UIComponentParser
             parser = UIComponentParser()
             clean_content, ui_components = parser.parse_oauth_buttons(response)

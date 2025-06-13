@@ -4,7 +4,6 @@ import json
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 
 from app.utils.shopify_util import ShopifyAPI
 from app.utils.supabase_util import get_db_session

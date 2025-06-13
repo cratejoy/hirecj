@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Proxy Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .log { margin: 5px 0; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Proxy Test</h1>
+    <p>Open this page at: <code>https://amir.hirecj.ai/scripts/test_websocket_proxy.html</code></p>
+    
+    <h2>Cookie Status</h2>
+    <div id="cookie-status"></div>
+    
+    <h2>WebSocket Test</h2>
+    <button onclick="testWebSocket()">Test WebSocket Connection</button>
+    
+    <h2>Logs</h2>
+    <div id="logs"></div>
+    
+    <script>
+        // Check cookies
+        function checkCookies() {
+            const cookies = document.cookie.split(';').map(c => c.trim());
+            const sessionCookie = cookies.find(c => c.startsWith('hirecj_session='));
+            
+            const status = document.getElementById('cookie-status');
+            if (sessionCookie) {
+                status.innerHTML = `<div class="log success">✅ Session cookie found: ${sessionCookie.substring(0, 30)}...</div>`;
+            } else {
+                status.innerHTML = `<div class="log error">❌ No session cookie found</div>`;
+            }
+            
+            log('info', `All cookies: ${document.cookie || 'none'}`);
+        }
+        
+        // Test WebSocket
+        function testWebSocket() {
+            const conversationId = 'test-' + Date.now();
+            const wsUrl = `wss://${window.location.host}/ws/chat/${conversationId}`;
+            
+            log('info', `Attempting WebSocket connection to: ${wsUrl}`);
+            log('info', `Current domain: ${window.location.host}`);
+            
+            try {
+                const ws = new WebSocket(wsUrl);
+                
+                ws.onopen = () => {
+                    log('success', '✅ WebSocket connected successfully!');
+                    log('info', 'Sending start_conversation message...');
+                    
+                    ws.send(JSON.stringify({
+                        type: 'start_conversation',
+                        data: {
+                            conversation_id: conversationId,
+                            merchant_id: 'test_merchant',
+                            scenario: 'test',
+                            workflow: 'ad_hoc_support'
+                        }
+                    }));
+                };
+                
+                ws.onmessage = (event) => {
+                    log('success', `✅ Received message: ${event.data}`);
+                };
+                
+                ws.onerror = (error) => {
+                    log('error', `❌ WebSocket error: ${error}`);
+                };
+                
+                ws.onclose = (event) => {
+                    log('info', `WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
+                };
+                
+            } catch (error) {
+                log('error', `❌ Failed to create WebSocket: ${error.message}`);
+            }
+        }
+        
+        function log(type, message) {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(entry);
+        }
+        
+        // Check cookies on load
+        checkCookies();
+    </script>
+</body>
+</html>

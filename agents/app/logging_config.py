@@ -93,6 +93,19 @@ def setup_logging(
     # Configure specific loggers
     configure_module_loggers()
 
+    # --- Make uvicorn loggers use the same handlers we just configured ----
+    for _name in ("uvicorn.error", "uvicorn.access"):
+        uv_logger = logging.getLogger(_name)
+        # discard default uvicorn handlers
+        uv_logger.handlers.clear()
+        # attach our root handlers (console + rotating file)
+        for h in root_logger.handlers:
+            uv_logger.addHandler(h)
+        # keep same log-level and stop further propagation
+        uv_logger.setLevel(root_logger.level)
+        uv_logger.propagate = False
+    # ----------------------------------------------------------------------
+
     # Log startup
     logger = logging.getLogger(__name__)
     logger.info(

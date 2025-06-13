@@ -3,14 +3,12 @@ import { Link, useLocation, useSearch } from 'wouter';
 import { motion } from 'framer-motion';
 import { useChat } from '@/hooks/useChat';
 import { useWebSocketChat } from '@/hooks/useWebSocketChat';
-import { useOAuthCallback } from '@/hooks/useOAuthCallback';
 import { useUserSession } from '@/hooks/useUserSession';
 import DemoScriptFlow from '@/components/DemoScriptFlow';
 import { ConfigurationModal } from '@/components/ConfigurationModal';
 import { ChatInterface } from '@/components/ChatInterface';
-import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
-import { VALID_WORKFLOWS, WorkflowType, WORKFLOW_TRANSITION_DEBOUNCE_MS, DEFAULT_WORKFLOW } from '@/constants/workflow';
+import { VALID_WORKFLOWS, WorkflowType, DEFAULT_WORKFLOW, WORKFLOW_NAMES } from '@/constants/workflow';
 
 interface Message {
 	id: string;
@@ -28,21 +26,22 @@ interface Message {
 interface ChatConfig {
 	scenarioId: string | null;
 	merchantId: string | null;
-	conversationId: string;
 	workflow: WorkflowType | null;
 }
 
 // Workflow display names with emojis for UI
-const WORKFLOW_NAMES: Record<WorkflowType, string> = {
-	'support_daily': '📋 Support Daily',
-	'ad_hoc_support': '💬 Ad Hoc Support',
-	'daily_briefing': '📊 Daily Briefing',
-	'shopify_onboarding': '🛍️ Shopify Onboarding'
-};
 
 const SlackChat = () => {
 	const [location, setLocation] = useLocation();
 	const searchString = useSearch();
+
+	// --- DEBUG: log full page URL once on initial render -----------------
+	useEffect(() => {
+		console.log('[SlackChat] Full page URL on load:', window.location.href);
+		console.log('[SlackChat] window.location.search:', window.location.search);
+	}, []);
+	// ---------------------------------------------------------------------
+
 	const { toast } = useToast();
 	const inputRef = useRef<HTMLInputElement>(null);
 	const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -58,7 +57,12 @@ const SlackChat = () => {
 	
 	// Log OAuth configuration on startup
 	useEffect(() => {
-		const authUrl = import.meta.env.VITE_AUTH_URL || 'https://amir-auth.hirecj.ai';
+		const authUrl = import.meta.env.VITE_AUTH_URL;
+		if (!authUrl) {
+		  console.error(
+		    "[SlackChat] ❌ VITE_AUTH_URL not set – frontend cannot construct OAuth URLs"
+		  );
+		}
 		console.log('🛍️ Shopify OAuth Configuration (on page load):');
 		console.log('  Auth Service URL:', authUrl);
 		console.log('  Expected Redirect URI:', `${authUrl}/api/v1/shopify/callback`);
@@ -84,12 +88,14 @@ const SlackChat = () => {
 	}, [searchString]);
 	
 	// Initialize chatConfig with URL workflow (merchant now in userSession)
-	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => ({
-		scenarioId: null,
-		merchantId: userSession.merchantId, // Get from user session
-		conversationId: uuidv4(),
-		workflow: getWorkflowFromUrl()
-	}));
+	const [chatConfig, setChatConfig] = useState<ChatConfig>(() => {
+		// Server determines everything - we just track UI state
+		return {
+			scenarioId: null,
+			merchantId: userSession.merchantId,
+			workflow: getWorkflowFromUrl()
+		};
+	});
 	
 	// Track if we're updating internally to prevent loops
 	const isInternalUpdateRef = useRef(false);
@@ -108,6 +114,7 @@ const SlackChat = () => {
 		isInternalUpdateRef.current = false;
 	}, [chatConfig.workflow, location, searchString, setLocation]);
 	
+
 	// Sync userSession.merchantId to chatConfig when it changes
 	useEffect(() => {
 		setChatConfig(prev => ({
@@ -117,21 +124,20 @@ const SlackChat = () => {
 	}, [userSession.merchantId]);
 	
 
-	const isRealChat = useMemo(() =>
-		!showConfigModal && !!chatConfig.conversationId && !!chatConfig.workflow && 
-		// For onboarding and support_daily workflows, we don't need merchantId/scenarioId initially
-		(chatConfig.workflow === 'shopify_onboarding' || chatConfig.workflow === 'support_daily' || (!!chatConfig.scenarioId && !!chatConfig.merchantId)),
-		[showConfigModal, chatConfig]
-	);
+	const isRealChat = useMemo(() => {
+		// Check if this is an OAuth return
+		const params = new URLSearchParams(window.location.search);
+		const isOAuthReturn = params.get('oauth') === 'complete';
+		
+		return !showConfigModal && !!chatConfig.workflow && 
+			// For onboarding, support_daily, and OAuth returns, we don't need merchantId/scenarioId initially
+			(chatConfig.workflow === 'shopify_onboarding' || 
+			 chatConfig.workflow === 'support_daily' || 
+			 chatConfig.workflow === 'shopify_post_auth' ||
+			 isOAuthReturn ||
+			 (!!chatConfig.scenarioId && !!chatConfig.merchantId));
+	}, [showConfigModal, chatConfig]);
 
-	console.log('[SlackChat] Component render', {
-		showConfigModal,
-		isRealChat,
-		conversationId: chatConfig.conversationId,
-		scenarioId: chatConfig.scenarioId,
-		merchantId: chatConfig.merchantId,
-		workflow: chatConfig.workflow
-	});
 
 	// Use demo chat for script flow
 	const demoChat = useChat(setEmailModalOpen);
@@ -170,7 +176,6 @@ const SlackChat = () => {
 	// Use WebSocket chat for real conversations (only when ready)
 	const wsChat = useWebSocketChat({
 		enabled: isRealChat,
-		conversationId: chatConfig.conversationId,
 		merchantId: chatConfig.merchantId || '',
 		scenario: chatConfig.scenarioId || '',
 		workflow: chatConfig.workflow || 'ad_hoc_support',
@@ -190,177 +195,51 @@ const SlackChat = () => {
 				to: newWorkflow,
 				url: newUrl 
 			});
+		},
+		onOAuthProcessed: (data) => {
+			if (data.success && data.merchant_id && data.shop_domain) {
+				userSession.setMerchant(data.merchant_id, data.shop_domain);
+				toast({
+					title: "Connected to Shopify!",
+					description: data.is_new ? "Welcome! Let me take a look at your store..." : "Welcome back! Good to see you again.",
+					duration: 5000,
+				});
+			} else {
+				toast({
+					title: "Authentication Failed",
+					description: "Failed to finalize Shopify connection.",
+					variant: "destructive"
+				});
+			}
 		}
 	});
 	
-	// Debug WebSocket connection
-	console.log('[SlackChat] WebSocket params:', {
-		enabled: isRealChat,
-		conversationId: chatConfig.conversationId,
-		merchantId: chatConfig.merchantId || '',
-		scenario: chatConfig.scenarioId || '',
-		workflow: chatConfig.workflow || 'ad_hoc_support'
-	});
 
 	// Use appropriate chat based on mode
 	const messages = isRealChat ? wsChat.messages : demoChat.messages;
 	const isTyping = isRealChat ? wsChat.isTyping : demoChat.isTyping;
 	const handleSendMessage = isRealChat ? wsChat.sendMessage : demoChat.handleSendMessage;
+	const isFirstMessageLoading = isRealChat && messages.length === 0 && wsChat.isConnected;
 	
-	// Debounce timer ref for workflow changes
-	const workflowChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-	
-	// Handle workflow change elegantly - preserve context
-	const handleWorkflowChange = useCallback((newWorkflow: WorkflowType) => {
-		// Don't change if already in target workflow
-		if (newWorkflow === chatConfig.workflow) {
-			return;
-		}
-		
-		// Clear any pending workflow changes
-		if (workflowChangeTimeoutRef.current) {
-			clearTimeout(workflowChangeTimeoutRef.current);
-		}
-		
-		// Debounce rapid workflow changes to prevent loops
-		workflowChangeTimeoutRef.current = setTimeout(() => {
-			// Keep same conversation, just transition workflows
-			if (wsChat.isConnected) {
-				// Send transition request to backend
-				wsChat.sendWorkflowTransition(newWorkflow);
-				
-				// Update local state ONLY - keep same conversationId
-				setChatConfig(prev => ({ 
-					...prev, 
-					workflow: newWorkflow
-					// NO conversationId change! Context preserved by backend
-				}));
-			} else {
-				// Only if not connected, update config for next connection
-				setChatConfig(prev => ({ 
-					...prev, 
-					workflow: newWorkflow
-				}));
-			}
-		}, WORKFLOW_TRANSITION_DEBOUNCE_MS);
-	}, [chatConfig.workflow, wsChat]);
-	
-	// Watch for URL parameter changes (e.g., user navigates with browser back/forward)
+	// Clean up OAuth-related URL params after processing
 	useEffect(() => {
-		const params = new URLSearchParams(searchString);
-		const urlWorkflow = params.get('workflow');
-		// Only handle if it's a valid workflow AND different from current
-		// This prevents circular updates when we programmatically update the URL
-		if (urlWorkflow && 
-		    VALID_WORKFLOWS.includes(urlWorkflow as any) && 
-		    urlWorkflow !== chatConfig.workflow) {
-			// If connected, send transition message
-			if (wsChat.isConnected) {
-				wsChat.sendWorkflowTransition(urlWorkflow as WorkflowType);
-			}
-			// Mark as internal update to prevent URL update loop
-			isInternalUpdateRef.current = true;
-			// Update local state
-			setChatConfig(prev => ({ 
-				...prev, 
-				workflow: urlWorkflow as WorkflowType
-			}));
+		const params = new URLSearchParams(window.location.search);
+		// Clean up OAuth-related URL params after processing, but keep workflow
+		if (params.has('oauth')) {
+			params.delete('oauth');
+			const newUrl = params.toString() ? `${window.location.pathname}?${params.toString()}` : window.location.pathname;
+			window.history.replaceState({}, '', newUrl);
 		}
-	}, [searchString, wsChat.isConnected, wsChat.sendWorkflowTransition]); // Minimal deps to prevent loops
-	
-	// Cleanup workflow change timeout on unmount
-	useEffect(() => {
-		return () => {
-			if (workflowChangeTimeoutRef.current) {
-				clearTimeout(workflowChangeTimeoutRef.current);
-			}
-		};
-	}, []);
-	
-	// Add OAuth callback handling
-	const handleOAuthSuccess = useCallback((params: any) => {
-		console.log('[SlackChat] OAuth success:', params);
-		
-		// Debug: Log what we received
-		console.log('[SlackChat] OAuth params received:', {
-			merchant_id: params.merchant_id,
-			shop: params.shop,
-			is_new: params.is_new,
-			current_merchantId: chatConfig.merchantId
-		});
-		
-		// Update user session with OAuth data
-		if (params.merchant_id && params.shop) {
-			console.log('[SlackChat] Updating user session:', params.merchant_id, params.shop);
-			userSession.setMerchant(params.merchant_id, params.shop);
-		} else {
-			console.warn('[SlackChat] Missing merchant_id or shop in OAuth params!');
-		}
-		
-		// Send OAuth complete to WebSocket
-		if (wsChat.isConnected) {
-			wsChat.sendSpecialMessage({
-				type: 'oauth_complete',
-				data: {
-					provider: 'shopify',
-					is_new: params.is_new === 'true',
-					merchant_id: params.merchant_id,
-					shop_domain: params.shop
-				}
-			});
-		}
-		
-		toast({
-			title: "Connected to Shopify!",
-			description: params.is_new === 'true' ? "Welcome! Let me take a look at your store..." : "Welcome back! Good to see you again.",
-			duration: 5000,
-		});
-	}, [wsChat, toast, userSession]);
-	
-	const handleOAuthError = useCallback((error: string) => {
-		console.error('[SlackChat] OAuth error:', error);
-		
-		// Map error codes to user-friendly messages
-		let title = "Authentication Failed";
-		let description = "Unable to connect to Shopify. Please try again.";
-		
-		switch (error) {
-			case 'internal_error':
-				description = "An unexpected error occurred. Please try again or contact support if the issue persists.";
-				break;
-			case 'shopify_not_configured':
-				title = "Shopify Integration Not Available";
-				description = "The Shopify integration is not properly configured. Please contact support.";
-				break;
-			case 'invalid_hmac':
-			case 'invalid_state':
-			case 'state_verification_failed':
-				description = "Security verification failed. Please try connecting again.";
-				break;
-			case 'missing_code':
-				description = "Authorization was cancelled or incomplete. Please try again.";
-				break;
-			case 'token_exchange_failed':
-				description = "Failed to complete authentication with Shopify. Please try again.";
-				break;
-			default:
-				if (error) {
-					description = error;
-				}
-		}
-		
-		toast({
-			title,
-			description,
-			variant: "destructive"
-		});
-	}, [toast]);
-	
-	// Use the OAuth callback hook
-	useOAuthCallback(handleOAuthSuccess, handleOAuthError);
+	}, [location, searchString]); // Rerun if location changes.
 
-	// Debug
-	console.log('[SlackChat] Messages length:', messages.length, 'isTyping:', isTyping);
+	// Debug - only log when message count changes
+	const prevMessageCountRef = useRef(messages.length);
+	useEffect(() => {
+		if (prevMessageCountRef.current !== messages.length) {
+			console.log('[SlackChat] Messages length changed:', prevMessageCountRef.current, '->', messages.length);
+			prevMessageCountRef.current = messages.length;
+		}
+	}, [messages.length]);
 
 	// Focus input when component mounts
 	useEffect(() => {
@@ -374,19 +253,7 @@ const SlackChat = () => {
 		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 	}, [messages, isTyping]);
 
-	// Save conversation on page unload
-	useEffect(() => {
-		const handleBeforeUnload = () => {
-			if (isRealChat) {
-				wsChat.endConversation();
-			}
-		};
-
-		window.addEventListener('beforeunload', handleBeforeUnload);
-		return () => {
-			window.removeEventListener('beforeunload', handleBeforeUnload);
-		};
-	}, [isRealChat, wsChat]);
+	
 
 	// Setup debug interface
 	useEffect(() => {
@@ -394,11 +261,28 @@ const SlackChat = () => {
 
 		// Define the debug interface
 		const debugInterface = {
+			status: () => {
+				console.group('%c📊 Current Status', 'color: #4CAF50; font-size: 14px; font-weight: bold');
+				
+				console.group('👤 User Session');
+				console.log('Merchant ID:', userSession.merchantId || 'None');
+				console.log('Shop Domain:', userSession.shopDomain || 'None');
+				console.log('Authenticated:', userSession.isConnected ? '✅ Yes' : '❌ No');
+				console.groupEnd();
+				
+				console.group('💬 Conversation');
+				console.log('Workflow:', chatConfig.workflow || 'None');
+				console.log('Scenario:', chatConfig.scenarioId || 'None');
+				console.log('WebSocket:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
+				console.log('Messages:', messages.length);
+				console.groupEnd();
+				
+				console.groupEnd();
+			},
 			debug: () => {
 				console.group('%c🤖 CJ Debug Snapshot', 'color: #00D4FF; font-size: 16px; font-weight: bold');
 				
 				console.group('📊 Session');
-				console.log('Conversation ID:', chatConfig.conversationId);
 				console.log('Status:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
 				console.log('Merchant:', chatConfig.merchantId || 'Not authenticated');
 				console.log('Workflow:', chatConfig.workflow);
@@ -433,15 +317,22 @@ const SlackChat = () => {
 				}
 			},
 			
-			prompts: () => {
+			// Show the last 10 chat messages that CJ *received/sent*
+			// (these are NOT the LLM prompts).
+			history: () => {
 				if (wsChat.isConnected) {
 					wsChat.sendSpecialMessage({
 						type: 'debug_request',
-						data: { type: 'prompts' }
+						data: { type: 'prompts' } // backend returns chat history
 					});
 				} else {
 					console.log('%c❌ Not connected to CJ', 'color: red');
 				}
+			},
+			// Deprecated alias kept for backward-compatibility
+			prompts: () => {
+				console.warn('⚠️  cj.prompts() is deprecated. Use cj.history() instead.');
+				debugInterface.history();
 			},
 			
 			context: () => {
@@ -472,9 +363,10 @@ const SlackChat = () => {
 			help: () => {
 				console.log('%c🤖 CJ Debug Commands:', 'color: #00D4FF; font-size: 14px; font-weight: bold');
 				console.table({
+					'cj.status()': 'Current user & conversation status',
 					'cj.debug()': 'Full state snapshot',
 					'cj.session()': 'Session & auth details',
-					'cj.prompts()': 'Recent prompts to CJ',
+					'cj.history()': 'Recent chat messages',
 					'cj.context()': 'Conversation context',
 					'cj.events()': 'Start live event stream',
 					'cj.stop()': 'Stop event stream',
@@ -486,34 +378,11 @@ const SlackChat = () => {
 		// Attach to window
 		(window as any).cj = debugInterface;
 		
-		// Always show help message with current session info
-		console.log('%c🤖 CJ Debug Interface Ready!', 'color: #00D4FF; font-size: 14px; font-weight: bold');
+		// Show debug interface ready message once
+		console.log('%c🤖 CJ Debug Interface Ready! Type cj.help() for commands', 'color: #00D4FF; font-size: 14px; font-weight: bold');
 		
-		// Show persistent user data
-		console.group('%c👤 User Session (Persistent)', 'color: #4CAF50; font-size: 12px');
-		console.log('Merchant ID:', userSession.merchantId || 'None');
-		console.log('Shop Domain:', userSession.shopDomain || 'None');
-		console.log('Shopify Authenticated:', userSession.isConnected ? '✅ Yes' : '❌ No');
-		console.groupEnd();
 		
-		// Show ephemeral conversation data
-		console.group('%c💬 Conversation (Ephemeral)', 'color: #2196F3; font-size: 12px');
-		console.log('Conversation ID:', chatConfig.conversationId);
-		console.log('Workflow:', chatConfig.workflow || 'None');
-		console.log('Scenario:', chatConfig.scenarioId || 'None');
-		console.log('WebSocket:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
-		console.groupEnd();
-		
-		console.log('Type cj.help() for available commands');
-		
-		// Debug environment variables
-		console.log('%c🔧 Frontend Environment Variables:', 'color: #FF00FF; font-weight: bold');
-		console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
-		console.log('VITE_AUTH_URL:', import.meta.env.VITE_AUTH_URL);
-		console.log('VITE_WS_BASE_URL:', import.meta.env.VITE_WS_BASE_URL);
-		console.log('VITE_PUBLIC_URL:', import.meta.env.VITE_PUBLIC_URL);
-		
-	}, [chatConfig, messages, isTyping, wsChat, userSession]);
+	}, []); // Only run once on mount
 
 	const handleMessageSend = () => {
 		if (inputValue.trim()) {
@@ -525,25 +394,22 @@ const SlackChat = () => {
 
 	const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === 'Enter') {
+			e.preventDefault();
 			handleMessageSend();
 		}
 	};
 
 	const handleStartChat = useCallback((scenarioId: string, merchantId: string, workflow: 'ad_hoc_support' | 'daily_briefing' | 'support_daily') => {
-		const conversationId = uuidv4();
-
 		console.log('[SlackChat] Starting chat', {
 			scenarioId,
 			merchantId,
-			workflow,
-			conversationId
+			workflow
 		});
 
 		// Update all config at once
 		const config = {
 			scenarioId,
 			merchantId,
-			conversationId,
 			workflow
 		};
 
@@ -588,7 +454,14 @@ const SlackChat = () => {
 							value={chatConfig.workflow || DEFAULT_WORKFLOW}
 							onChange={(e) => {
 								const newWorkflow = e.target.value as WorkflowType;
-								handleWorkflowChange(newWorkflow);
+								// Update local state
+								setChatConfig(prev => ({ ...prev, workflow: newWorkflow }));
+								// Update URL 
+								const params = new URLSearchParams(window.location.search);
+								params.set('workflow', newWorkflow);
+								window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+								// Trigger reconnect with new workflow
+								window.location.reload();
 							}}
 							className="bg-gray-700 text-white text-sm px-3 py-1 rounded border border-gray-600 focus:border-blue-400 focus:outline-none hover:bg-gray-600 transition-colors"
 						>
@@ -707,11 +580,10 @@ const SlackChat = () => {
 						{isRealChat ? (
 							<ChatInterface
 								messages={messages}
-								isTyping={isTyping}
+								isTyping={isTyping || isFirstMessageLoading}
 								progress={wsChat.progress}
 								merchantName={chatConfig.merchantId?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Merchant'}
 								isConnected={wsChat.isConnected}
-								conversationId={chatConfig.conversationId}
 								sendFactCheck={wsChat.sendFactCheck}
 							/>
 						) : (

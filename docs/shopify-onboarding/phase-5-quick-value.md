@@ -89,18 +89,18 @@ During implementation, we simplified away the complex three-tier system in favor
   - [x] Prevent premature workflow transitions during OAuth
   - [x] Fix UI to prevent page reloads during Shopify connection
 
-- [ ] **Phase 5.5.5: Post-OAuth Workflow** 🆕
-  - [ ] Create dedicated `shopify_post_auth` workflow for OAuth return
-  - [ ] Workflow triggered by system event when OAuth completes
-  - [ ] Provides immediate value using Shopify tools:
-    - [ ] Shows store overview
-    - [ ] Recent order summary  
-    - [ ] Key metrics
-  - [ ] Transitions to appropriate next workflow (daily_briefing or ad_hoc)
-  - [ ] Prevents constant redirect to ad_hoc workflow
+- [x] **Phase 5.5.5: Post-OAuth Workflow** ✅ COMPLETED
+  - [x] Created dedicated `shopify_post_auth` workflow for OAuth return
+  - [x] Workflow triggered by system event when OAuth completes
+  - [x] Provides immediate value using Shopify tools:
+    - [x] Shows store overview
+    - [x] Recent order summary  
+    - [x] Key metrics
+  - [x] Transitions to appropriate next workflow (daily_briefing or ad_hoc)
+  - [x] Prevents constant redirect to ad_hoc workflow
 
 - [ ] **Phase 5.6: Agent Registration**
-  - [ ] Register shopify_data tool with CJ agent (Step 5)
+  - [ ] Register Shopify tools with CJ agent (Step 5)
   - [ ] Ensure tool is available in CJ's tool registry
   - [ ] Verify context passing works correctly
 
@@ -818,12 +818,8 @@ system_events:
           shop_domain: "{{shop_domain}}"
           shopify_connected: true
           merchant_id: "{{merchant_id}}"
-      - type: "process_message"
-        message: "show_shopify_insights"
-        sender: "system"
-        metadata:
-          command: "progressive_disclosure"
-          start_tier: "tier1"
+      - type: "transition_workflow"
+        target: "shopify_post_auth"
 
 # CJ's prompts with data analysis behavior
 prompts:

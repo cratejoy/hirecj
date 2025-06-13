@@ -7,23 +7,25 @@ import logging
 
 # Import database utilities and models
 from app.utils.database import get_db_session
-from app.models.db import Merchant, MerchantIntegration
+from shared.db_models import Merchant, MerchantIntegration, MerchantToken, User
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
 
 class MerchantStorage:
     """Handles persistent storage of merchant data using PostgreSQL."""
 
-    def store_token(self, shop_domain: str, access_token: str, scopes: str) -> Dict[str, Any]:
+    def store_token(self, shop_domain: str, access_token: str, scopes: str, user_id: str = None) -> Dict[str, Any]:
         """
-        Store Shopify OAuth token in the merchant_integrations table.
+        Store Shopify OAuth token in the merchant_integrations table and link to user.
         This is now the single source of truth for tokens.
 
         Args:
             shop_domain: Shopify domain (e.g., 'example.myshopify.com')
             access_token: The access token from Shopify
             scopes: The scopes granted
+            user_id: User ID to associate with this merchant
 
         Returns:
             A dict containing merchant_id and a boolean is_new
@@ -71,6 +73,26 @@ class MerchantStorage:
             )
             
             session.execute(integration_stmt)
+            
+            # If user_id provided, create MerchantToken to link user to merchant
+            if user_id:
+                merchant_token_stmt = insert(MerchantToken).values(
+                    user_id=user_id,
+                    merchant_id=merchant_id,
+                    shop_domain=shop_domain,
+                    access_token=access_token,
+                    scopes=scopes
+                ).on_conflict_do_update(
+                    constraint='merchant_tokens_user_id_merchant_id_key',
+                    set_={
+                        'access_token': access_token,
+                        'scopes': scopes,
+                        'shop_domain': shop_domain
+                    }
+                )
+                session.execute(merchant_token_stmt)
+                logger.info(f"[MERCHANT_STORAGE] Created MerchantToken linking user {user_id} to merchant {merchant_id}")
+            
             session.commit()
 
             logger.info(f"[MERCHANT_STORAGE] Stored token for {shop_domain} (merchant_id: {merchant_id})")

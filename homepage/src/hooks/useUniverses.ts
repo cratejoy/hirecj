@@ -48,7 +48,8 @@ export function useUniverses() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  // When VITE_API_BASE_URL is empty, use relative URLs (proxy mode)
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
   const fetchUniverses = async (forceRefresh = false) => {
     // Check cache first
@@ -63,7 +64,8 @@ export function useUniverses() {
     setError(null);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/universes/`);
+      const url = API_BASE_URL ? `${API_BASE_URL}/api/v1/universes/` : '/api/v1/universes/';
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error('Failed to fetch universes');

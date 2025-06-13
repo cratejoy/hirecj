@@ -2,9 +2,9 @@
 
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
-import redis
 import json
 import logging
+from typing import Dict, List, Any, Optional
 
 from app.utils.shopify_util import ShopifyAPI, ShopifyGraphQL
 from app.config import settings
@@ -24,48 +24,21 @@ class ShopifyDataFetcher:
         self.rest_api = ShopifyAPI(shop_domain=shop_domain, access_token=access_token)
         self.graphql_api = ShopifyGraphQL(shop_domain=shop_domain, access_token=access_token)
         
-        # Redis for caching expensive operations
-        try:
-            self.redis_client = redis.from_url(settings.redis_url, decode_responses=True)
-            self.cache_enabled = True
-        except Exception as e:
-            logger.warning(f"Redis not available for caching: {e}")
-            self.redis_client = None
-            self.cache_enabled = False
+        # Caching is disabled as Redis is removed.
+        # A new caching layer (e.g., in-memory with TTL) could be added here if needed.
+        self.cache_enabled = False
             
         self.cache_ttl = REDIS_TTL_MEDIUM  # 15 minutes default
     
-    def _cache_key(self, data_type: str) -> str:
-        """Generate cache key for data type."""
-        return f"shopify_data:{self.shop_domain}:{data_type}"
-    
     def _get_cached(self, data_type: str) -> Optional[Dict]:
         """Get cached data if available."""
-        if not self.cache_enabled:
-            return None
-            
-        try:
-            key = self._cache_key(data_type)
-            data = self.redis_client.get(key)
-            if data:
-                logger.debug(f"Cache hit for {data_type}")
-                return json.loads(data)
-        except Exception as e:
-            logger.error(f"Cache get error: {e}")
-        
+        # Caching disabled
         return None
     
     def _set_cached(self, data_type: str, data: Dict) -> None:
         """Cache data with TTL."""
-        if not self.cache_enabled:
-            return
-            
-        try:
-            key = self._cache_key(data_type)
-            self.redis_client.setex(key, self.cache_ttl, json.dumps(data))
-            logger.debug(f"Cached {data_type} for {self.cache_ttl}s")
-        except Exception as e:
-            logger.error(f"Cache set error: {e}")
+        # Caching disabled
+        pass
     
     def get_counts(self) -> Dict[str, int]:
         """Get basic counts."""

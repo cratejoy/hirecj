@@ -1,0 +1,29 @@
+name: "Shopify Post-Authentication"
+display_name: "Shopify Post-Authentication"
+description: "Provides immediate store insights after Shopify connection and transitions to the next best workflow."
+
+# This workflow is triggered by a system event, not user choice.
+requirements:
+  authentication: true
+  merchant: true
+  scenario: false
+
+behavior:
+  initiator: "system" # Triggered by the OAuth completion event.
+  initial_action:
+    type: "process_message"
+    message: "SYSTEM_EVENT: shopify_oauth_complete"
+    sender: "system"
+
+workflow: |
+  WORKFLOW: Shopify Post-Authentication
+  GOAL: Analyze the newly connected store, provide immediate high-value insights, and transition to the best long-term workflow.
+
+  MILESTONES:
+  1.  **Acknowledge Connection:** Confirm the connection is successful.
+  2.  **Fetch Initial Data:** Use the `get_shopify_store_overview` tool to get a snapshot of the store (name, currency, recent orders, top products).
+  3.  **Present Key Metrics:** Share 2-3 key metrics in a human-readable way (e.g., "I see you have X customers and your last order was yesterday."). Don't just dump data.
+  4.  **Offer Deeper Dive (Optional):** Briefly mention other data points available, like recent order details.
+  5.  **Transition to Next Workflow:** Based on the data, intelligently choose the next workflow.
+      - If the store has significant data (e.g., >50 orders), transition to `daily_briefing`.
+      - If the store is new or has very little data, transition to `ad_hoc_support`.
