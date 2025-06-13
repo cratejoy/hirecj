@@ -180,6 +180,9 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
         sessionId: Optional[str] = None
         messageCount: Optional[int] = None
         messages: Optional[List[Dict[str, Any]]] = None
+        workflow_requirements: Optional[Dict[str, Any]] = None
+        user_id: Optional[str] = None
+        resumed: Optional[bool] = None        # true when this is a reconnect
 
     class CJMessageData(BaseModel):
         content: str
@@ -293,7 +296,7 @@ or inside a `data` object.
 
 | type                        | Required Fields / Shape                                                               | Optional Fields                       |
 |-----------------------------|---------------------------------------------------------------------------------------|---------------------------------------|
-| conversation_started        | data.{conversationId, merchantId, scenario, workflow, sessionId}                      | data.messageCount, data.messages[]    |
+| conversation_started        | data.{conversationId, merchantId, scenario, workflow, sessionId}                      | data.messageCount, data.messages[], data.workflow_requirements, data.user_id, data.resumed |
 | cj_message                  | data.{content, factCheckStatus, timestamp}                                            | data.ui_elements[]                    |
 | cj_thinking                 | data.{status, elapsed}                                                                | data.toolsCalled, data.currentTool    |
 | fact_check_started          | data.{messageIndex, status="checking"}                                                | —                                     |
@@ -309,6 +312,8 @@ or inside a `data` object.
 
 All other server-initiated broadcast variants are enveloped in one of the
 types above (e.g. broadcast uses `cj_message` with `metadata.type="broadcast"`).
+
+> **resumed** ( bool ) — `true` when the server is restoring a prior session, allowing the client to skip any “welcome” UX.
 
 ### Envelope Convention
 
