@@ -20,9 +20,9 @@ pip install --upgrade pip
 echo "Installing requirements..."
 pip install -r requirements.txt
 
-# Install LightRAG from third-party directory
+# Install LightRAG from local directory
 echo "Installing LightRAG..."
-pip install -e ../third-party/LightRAG
+pip install -e ./LightRAG
 
 # Check if .env exists
 if [ ! -f .env ]; then

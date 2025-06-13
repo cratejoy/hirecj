@@ -1,5 +1,48 @@
 # HireCJ Development Plan
 
+## 🔧 Editor Architecture Verification (2025-06-13)
+
+### Status: ✅ CORRECTLY SEPARATED
+
+The editor endpoints have already been properly moved out of the agent service into a dedicated editor-backend service.
+
+### Current Architecture (CORRECT):
+
+1. **Agent Service (port 8000)** - `/agents`
+   - ✅ NO editor endpoints
+   - Handles: conversations, scenarios, merchants, universes, WebSocket chat
+
+2. **Editor Backend (port 8001)** - `/editor-backend`
+   - ✅ All editor-specific endpoints
+   - Handles: prompts, personas, workflows
+
+3. **Editor Frontend (port 3457)** - `/editor`
+   - ✅ Correctly configured to proxy API calls to editor-backend
+
+### What Was Already Done:
+- Editor endpoints removed from agents service
+- Separate editor-backend service created
+- Frontend properly configured with Vite proxy
+- Makefile updated with all necessary targets
+- Ngrok configuration includes all services
+
+### Development:
+```bash
+# Recommended: Full stack with tunnels
+make dev-tunnels-tmux
+
+# This starts:
+# - Window 0: URL list
+# - Window 1: Ngrok tunnels
+# - Window 2: Agents service (:8000)
+# - Window 3: Auth service (:8103)
+# - Window 4: Database service (:8002)
+# - Window 5: Homepage (:3456)
+# - Window 6: Editor backend (:8001)
+# - Window 7: Editor frontend (:3457)
+# - Window 8: Logs
+```
+
 ## 📊 Current Status
 
 ### ✅ Completed Phases

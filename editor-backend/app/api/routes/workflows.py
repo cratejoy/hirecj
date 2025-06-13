@@ -265,3 +265,31 @@ async def update_workflow(workflow_id: str, request: WorkflowCreateRequest):
             status_code=500,
             detail="Failed to update workflow"
         )
+
+
+@router.get("/{workflow_id}/raw")
+async def get_workflow_raw(workflow_id: str):
+    """Get raw workflow YAML content."""
+    try:
+        workflow_file = WORKFLOWS_DIR / f"{workflow_id}.yaml"
+        
+        if not workflow_file.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Workflow {workflow_id} not found"
+            )
+        
+        with open(workflow_file, 'r') as f:
+            content = f.read()
+        
+        logger.info(f"Retrieved raw workflow {workflow_id}")
+        return {"content": content}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error reading workflow {workflow_id}: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to read workflow content"
+        )

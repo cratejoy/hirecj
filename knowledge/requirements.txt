@@ -17,8 +17,15 @@ xlsxwriter>=3.1.0
 # LLM provider - OpenAI
 openai>=1.0.0
 
+# Content ingestion dependencies
+yt-dlp>=2024.12.23     # YouTube video downloading
+feedparser>=6.0.11     # RSS feed parsing
+pydub>=0.25.1          # Audio processing
+ffmpeg-python>=0.2.0   # FFmpeg wrapper
+requests>=2.32.3       # HTTP requests
+
 # Optional: for better file handling
-textract>=1.6.5  # If you want to handle PDFs or other formats later
+# textract>=1.6.5  # Commented out - has invalid metadata with pip>=24.1
 
 # Development dependencies
 pytest>=7.4.0

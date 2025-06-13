@@ -1,7 +1,6 @@
 import React from 'react'
 import { Link, useLocation } from 'wouter'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { 
   Play, 
@@ -52,7 +51,8 @@ const navItems = [
     title: 'Settings',
     icon: Settings,
     href: '/settings',
-    description: 'Editor configuration'
+    description: 'Editor configuration',
+    separator: true
   }
 ]
 
@@ -62,55 +62,70 @@ export function EditorLayout({ children }: EditorLayoutProps) {
   return (
     <div className="flex h-screen bg-background">
       {/* Navigation Sidebar */}
-      <div className="w-64 border-r">
+      <div className="w-72 border-r bg-muted/30">
         <div className="flex h-full flex-col">
           {/* Logo/Header */}
-          <div className="flex h-16 items-center border-b px-6 bg-primary">
-            <h1 className="text-xl font-semibold text-primary-foreground">Agent Editor</h1>
+          <div className="flex h-20 items-center border-b px-8 bg-primary">
+            <h1 className="text-2xl font-bold text-primary-foreground tracking-tight">Agent Editor</h1>
           </div>
 
           {/* Navigation Items */}
-          <ScrollArea className="flex-1 px-3 py-4">
-            <nav className="space-y-2">
-              {navItems.map((item) => {
+          <ScrollArea className="flex-1">
+            <nav className="p-4 space-y-1">
+              {navItems.map((item, index) => {
                 const isActive = location === item.href || 
                   (item.href === '/' && location === '')
                 
                 return (
-                  <Link key={item.href} href={item.href}>
-                    <a className="block">
-                      <Button
-                        variant={isActive ? 'secondary' : 'ghost'}
-                        className={cn(
-                          'w-full justify-start text-left',
-                          isActive && 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        )}
-                      >
-                        <item.icon className="mr-2 h-4 w-4" />
-                        <div className="flex-1">
-                          <div className="text-sm font-medium">{item.title}</div>
-                          {isActive && (
-                            <div className="text-xs text-muted-foreground">
-                              {item.description}
+                  <React.Fragment key={item.href}>
+                    {item.separator && index > 0 && (
+                      <div className="my-4 border-t border-border/50" />
+                    )}
+                    <Link href={item.href}>
+                      <a className="block">
+                        <div
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition-all',
+                            isActive 
+                              ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90' 
+                              : 'hover:bg-accent/50 text-foreground/70 hover:text-foreground'
+                          )}
+                        >
+                          <item.icon className={cn(
+                            "h-5 w-5 shrink-0 transition-colors",
+                            isActive ? "text-primary-foreground" : ""
+                          )} />
+                          <div className="flex-1 space-y-1">
+                            <div className={cn(
+                              "font-medium leading-none",
+                              isActive ? "text-primary-foreground" : ""
+                            )}>
+                              {item.title}
                             </div>
+                            {isActive && (
+                              <div className="text-xs opacity-90 leading-normal">
+                                {item.description}
+                              </div>
+                            )}
+                          </div>
+                          {isActive && (
+                            <ChevronRight className="h-4 w-4 opacity-75" />
                           )}
                         </div>
-                        {isActive && (
-                          <ChevronRight className="ml-2 h-4 w-4" />
-                        )}
-                      </Button>
-                    </a>
-                  </Link>
+                      </a>
+                    </Link>
+                  </React.Fragment>
                 )
               })}
             </nav>
           </ScrollArea>
 
           {/* Footer */}
-          <div className="border-t p-4">
-            <p className="text-xs text-muted-foreground">
-              HireCJ Agent Editor v1.0
-            </p>
+          <div className="border-t p-6">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">HireCJ Agent Editor</p>
+              <p className="text-xs text-muted-foreground/70">Version 1.0.0</p>
+            </div>
           </div>
         </div>
       </div>
