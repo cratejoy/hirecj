@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Union, Literal, Annotated, Dict, Any, List
-from datetime import datetime
+from typing import Optional, Union, Literal, Annotated, Dict, Any, List, datetime
 
 # ───── nested payload objects ───────────────────────────────────────────────
 class StartConversationData(BaseModel):
@@ -35,6 +34,32 @@ class CJMessageData(BaseModel):
     factCheckStatus: Optional[str] = "available"
     timestamp: datetime
     ui_elements: Optional[List[Dict[str, Any]]] = None
+
+class FactCheckStartedData(BaseModel):
+    messageIndex: int
+    status: Literal["checking"] = "checking"
+
+class FactCheckCompleteData(BaseModel):
+    messageIndex: int
+    result: Dict[str, Any]
+
+class FactCheckErrorData(BaseModel):
+    messageIndex: int
+    error: str
+
+class WorkflowUpdatedData(BaseModel):
+    workflow: str
+    previous: Optional[str] = None
+
+class OAuthProcessedData(BaseModel):
+    success: bool
+    is_new: Optional[bool] = None
+    merchant_id: Optional[str] = None
+    shop_domain: Optional[str] = None
+    error: Optional[str] = None
+
+class LogoutCompleteData(BaseModel):
+    message: str
 
 
 # ───── incoming (client → server) envelopes ────────────────────────────────
@@ -74,6 +99,13 @@ class PingMsg(BaseModel):
 class LogoutMsg(BaseModel):
     type: Literal["logout"]
 
+class OAuthCompleteMsg(BaseModel):
+    type: Literal["oauth_complete"]
+    data: Dict[str, Any]
+
+class SystemEventMsg(BaseModel):
+    type: Literal["system_event"]
+    data: Dict[str, Any]
 
 IncomingMessage = Annotated[
     Union[
@@ -85,6 +117,8 @@ IncomingMessage = Annotated[
         WorkflowTransitionMsg,
         PingMsg,
         LogoutMsg,
+        OAuthCompleteMsg,
+        SystemEventMsg,
     ],
     Field(discriminator="type"),
 ]
@@ -123,12 +157,46 @@ class SystemMsg(BaseModel):
     type: Literal["system"]
     text: str
 
+class FactCheckStartedMsg(BaseModel):
+    type: Literal["fact_check_started"]
+    data: FactCheckStartedData
+
+class FactCheckCompleteMsg(BaseModel):
+    type: Literal["fact_check_complete"]
+    data: FactCheckCompleteData
+
+class FactCheckErrorMsg(BaseModel):
+    type: Literal["fact_check_error"]
+    data: FactCheckErrorData
+
+class WorkflowUpdatedMsg(BaseModel):
+    type: Literal["workflow_updated"]
+    data: WorkflowUpdatedData
+
+class OAuthProcessedMsg(BaseModel):
+    type: Literal["oauth_processed"]
+    data: OAuthProcessedData
+
+class LogoutCompleteMsg(BaseModel):
+    type: Literal["logout_complete"]
+    data: LogoutCompleteData
+
+class PongMsg(BaseModel):
+    type: Literal["pong"]
+    timestamp: datetime
 
 OutgoingMessage = Annotated[
     Union[
         ConversationStartedMsg,
         CJMessageMsg,
         CJThinkingMsg,
+        FactCheckStartedMsg,
+        FactCheckCompleteMsg,
+        FactCheckErrorMsg,
+        WorkflowUpdatedMsg,
+        OAuthProcessedMsg,
+        LogoutCompleteMsg,
+        PongMsg,
         ErrorMsg,
         SystemMsg,
     ],
