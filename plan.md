@@ -378,6 +378,57 @@ The original plan called for a complex three-tier progressive loading system wit
 
 ---
 
+## 🚨 CORS Fix Implementation (2025-06-13)
+
+### Issue Identified
+The auth service at https://amir-auth.hirecj.ai is not including `https://hirecj.ai` in its CORS allowed origins, causing the frontend at https://hirecj.ai to fail when fetching the Shopify OAuth state.
+
+### Root Cause
+1. The auth service is still running with old environment variables (showing environment: "development")
+2. While we updated the .env files, the service hasn't been restarted to pick up the new ALLOWED_ORIGINS that includes https://hirecj.ai
+
+### Changes Made
+1. Updated root .env file to include production configuration:
+   - Set ENVIRONMENT=production
+   - Added all production URLs to ALLOWED_ORIGINS including https://hirecj.ai
+   - Set proper service URLs for production
+   - Added OAUTH_REDIRECT_BASE_URL=https://auth.hirecj.ai
+
+2. Ran distribute_env.py to propagate changes to all services
+
+3. Verified that auth/.env now contains:
+   ```
+   ALLOWED_ORIGINS=["https://hirecj.ai","https://amir.hirecj.ai","https://auth.hirecj.ai","https://amir-auth.hirecj.ai","https://api.hirecj.ai","https://demo.hirecj.ai","http://localhost:3456","http://localhost:8000","http://localhost:8103"]
+   ```
+
+### Test Results
+- https://amir.hirecj.ai → ✅ Gets proper CORS headers
+- http://localhost:3456 → ✅ Gets proper CORS headers  
+- https://hirecj.ai → ❌ Missing Access-Control-Allow-Origin header
+
+### Next Steps Required
+1. **Restart the auth service** to pick up the new environment variables
+2. After restart, verify that:
+   - Service shows environment: "production"
+   - CORS headers are sent for https://hirecj.ai origin
+
+### Verification Commands
+```bash
+# Check service status
+curl https://amir-auth.hirecj.ai/health
+
+# Test CORS
+python test_cors_auth.py
+
+# Or manually test
+curl -H "Origin: https://hirecj.ai" -v https://amir-auth.hirecj.ai/api/v1/shopify/state
+```
+
+### Note on 503 at auth.hirecj.ai
+The https://auth.hirecj.ai domain returns 503 from Heroku, but the actual service is running at https://amir-auth.hirecj.ai (ngrok tunnel). This is expected in the current setup.
+
+---
+
 ## 🌟 North Star Principles
 
 1. **Simplify, Simplify, Simplify**: Every decision should make the code simpler, not more complex

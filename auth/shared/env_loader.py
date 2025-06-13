@@ -28,7 +28,14 @@ class SingleEnvLoader:
         if self._loaded:
             return
             
+        # In production (Heroku), env vars are already loaded
+        # Only try to load .env file if it exists
         if not ROOT_ENV_FILE.exists():
+            # Check if we're in a production environment (Heroku sets DYNO)
+            if os.environ.get('DYNO'):
+                print("✅ Running on Heroku, using environment variables")
+                self._loaded = True
+                return
             print(f"ERROR: {ROOT_ENV_FILE} not found.")
             print("Run 'cp .env.master.example .env' and configure your environment.")
             sys.exit(1)
