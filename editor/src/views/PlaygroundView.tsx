@@ -20,6 +20,7 @@ import {
 } from '@/utils/workflowParser'
 import { AgentInitiatedView } from '@/components/playground/AgentInitiatedView'
 import { MerchantInitiatedView } from '@/components/playground/MerchantInitiatedView'
+import { ConfigurationBar } from '@/components/playground/ConfigurationBar'
 
 const API_BASE = '/api/v1'
 
@@ -67,6 +68,7 @@ export function PlaygroundView() {
   
   // UI state
   const [workflowExpanded, setWorkflowExpanded] = useState(false)
+  const [trustLevel, setTrustLevel] = useState(3)
   
   const { toast } = useToast()
 
@@ -201,33 +203,77 @@ export function PlaygroundView() {
     }
   }
 
+  // Get selected persona and scenario objects
+  const selectedPersonaObj = personas.find(p => p.id === selectedPersona)
+  const selectedScenarioObj = scenarios.find(s => s.id === selectedScenario)
+
   // If conversation hasn't started, show starter view
   if (!conversationStarted && workflow) {
-    if (isAgentInitiated(workflow)) {
-      return (
-        <div className="h-full">
-          <AgentInitiatedView 
-            workflow={workflow}
-            preview={getInitialMessage(workflow)}
-            onStart={startConversation}
-            disabled={loading}
-          />
+    const starterView = isAgentInitiated(workflow) ? (
+      <AgentInitiatedView 
+        workflow={workflow}
+        preview={getInitialMessage(workflow)}
+        persona={selectedPersonaObj}
+        scenario={selectedScenarioObj}
+        trustLevel={trustLevel}
+        onStart={startConversation}
+        disabled={loading}
+      />
+    ) : (
+      <MerchantInitiatedView
+        workflow={workflow}
+        persona={selectedPersonaObj}
+        scenario={selectedScenarioObj}
+        trustLevel={trustLevel}
+        onSendMessage={(message) => {
+          sendMessage(message)
+          setConversationStarted(true)
+        }}
+        disabled={loading}
+      />
+    )
+
+    return (
+      <div className="flex h-full flex-col">
+        {/* Workflow Selector Bar */}
+        <div className="border-b p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Workflow:</span>
+            <Select value={selectedWorkflowId} onValueChange={setSelectedWorkflowId}>
+              <SelectTrigger className="w-[300px]">
+                <SelectValue placeholder="Select a workflow" />
+              </SelectTrigger>
+              <SelectContent>
+                {workflows.map(workflow => (
+                  <SelectItem key={workflow.id} value={workflow.id}>
+                    {workflow.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline">
+              <Pencil className="mr-2 h-3 w-3" />
+              Edit
+            </Button>
+          </div>
         </div>
-      )
-    } else {
-      return (
-        <div className="h-full">
-          <MerchantInitiatedView
-            workflow={workflow}
-            onSendMessage={(message) => {
-              sendMessage(message)
-              setConversationStarted(true)
-            }}
-            disabled={loading}
-          />
+        
+        <div className="flex-1">
+          {starterView}
         </div>
-      )
-    }
+        
+        <ConfigurationBar
+          personas={personas}
+          selectedPersona={selectedPersona}
+          onPersonaChange={setSelectedPersona}
+          scenarios={scenarios}
+          selectedScenario={selectedScenario}
+          onScenarioChange={setSelectedScenario}
+          trustLevel={trustLevel}
+          onTrustLevelChange={setTrustLevel}
+        />
+      </div>
+    )
   }
 
   // Regular conversation view
