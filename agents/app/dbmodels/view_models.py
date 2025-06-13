@@ -116,8 +116,90 @@ class FreshdeskUnifiedTicketView(Base):
     rating_feedback = Column(String)  # Optional text feedback provided with the rating
     rating_created_at = Column(DateTime(timezone=True))  # When the customer submitted their satisfaction rating
     
+    # Conversation History
+    conversation_history = Column(JSONB)  # Full conversation history as JSONB array from etl_freshdesk_conversations.data
+    
     # Relationships
     merchant = relationship("Merchant")
+    
+    @property
+    def conversation(self):
+        """Get formatted conversation history as markdown using the embedded conversation_history field.
+        
+        This property uses the conversation_history JSONB field that's included in the view,
+        so no additional database query is needed.
+        
+        Returns:
+            Formatted markdown string or None if no conversations exist
+        """
+        if not self.conversation_history:
+            return None
+        
+        return self.format_conversation(self.conversation_history)
+    
+    def format_conversation(self, conversation_data):
+        """Format conversation data as markdown.
+        
+        This is a pure formatting function that doesn't access the database.
+        
+        Args:
+            conversation_data: The conversation data array from FreshdeskConversation
+            
+        Returns:
+            Formatted markdown string or None if no conversation data
+        """
+        if not conversation_data:
+            return None
+        
+        # Format conversations as markdown
+        lines = [f"## Ticket #{self.freshdesk_ticket_id}: {self.subject or 'No subject'}\n"]
+        
+        for i, msg in enumerate(conversation_data, 1):
+            # Determine sender type
+            if msg.get('incoming', True):
+                sender = f"**Customer** ({msg.get('from_email', 'Unknown')})"
+                prefix = ">"
+            else:
+                sender = f"**Agent** ({msg.get('from_email', 'Unknown')})"
+                prefix = ">>"
+            
+            # Format timestamp
+            timestamp = msg.get('created_at', 'Unknown time')
+            
+            # Get message body (prefer plain text)
+            body = msg.get('body_text', msg.get('body', 'No content'))
+            
+            # Build message block
+            lines.append(f"### Message {i} - {timestamp}")
+            lines.append(f"{sender}")
+            lines.append("")
+            
+            # Add quoted body
+            for line in body.split('\n'):
+                lines.append(f"{prefix} {line}")
+            lines.append("")
+        
+        # Add rating if present
+        if self.has_rating and self.rating_score is not None:
+            lines.append("---")
+            lines.append(f"**Customer Rating**: {self._format_rating(self.rating_score)}")
+            if self.rating_feedback:
+                lines.append(f"**Feedback**: {self.rating_feedback}")
+        
+        return '\n'.join(lines)
+    
+    def _format_rating(self, score):
+        """Convert Freshdesk rating score to human-readable format."""
+        ratings = {
+            103: "😊 Extremely Happy",
+            102: "😊 Very Happy", 
+            101: "🙂 Happy",
+            100: "😐 Neutral",
+            -101: "😞 Unhappy",
+            -102: "😞 Very Unhappy",
+            -103: "😞 Extremely Unhappy"
+        }
+        return ratings.get(score, f"Unknown ({score})")
     
     def __repr__(self):
         return f"<FreshdeskUnifiedTicketView(ticket_id='{self.freshdesk_ticket_id}', subject='{self.subject}')>"

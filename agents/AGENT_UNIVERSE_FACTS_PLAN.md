@@ -347,37 +347,61 @@ This document outlines the plan to build a comprehensive data agent that can per
 - ✅ Exposed as CrewAI tool with formatted output
 - 📊 **Real data insights**: 0.4 min median response, 599 min median resolution, 38.5% <5min
 
-### Stage 1.7: Volume Trend Analysis
+### Stage 1.7: Volume Trend Analysis ✅ COMPLETE
 **Objective**: Detect unusual patterns
-- Implement `get_volume_trends()`
-- Add rolling averages and spike detection
-- Statistical significance calculations
-- Test with historical data patterns
+- ✅ Implemented `get_volume_trends()` with 60-day default analysis
+- ✅ Statistical spike detection using 2σ threshold
+- ✅ 7-day rolling averages for trend smoothing
+- ✅ Week-over-week trend comparison
+- ✅ Exposed as CrewAI tool with visual formatting
+- ✅ Identifies highest/lowest volume days and zero-ticket days
+- 📊 **Real data insights**: Memorial Day spike (304 tickets), current avg 35.6/day, high variability
 
-### Stage 1.8: Root Cause Intelligence
+### Stage 1.8: Root Cause Intelligence  # SKIP THIS STEP, WE DONT HAVE PRODUCT ATTRIBUTION YET
 **Objective**: Understand spike drivers
 - Implement `get_root_cause_analysis()`
 - Tag and product attribution logic
 - Example ticket selection
 - Test with various spike scenarios
 
-### Stage 1.9: SLA Monitoring
+### Stage 1.9: SLA Monitoring ✅
 **Objective**: Ensure service level compliance
-- Implement `get_sla_exceptions()`
-- Configurable SLA thresholds
-- Pattern detection in breaches
-- Test with various SLA configurations
+- ✅ Implement `get_sla_exceptions()` with session parameter
+- ✅ Configurable SLA thresholds (first_response_min, resolution_min, include_pending)
+- ✅ Pattern detection in breaches (by priority, by tags)
+- ✅ Test with various SLA configurations (default, strict, relaxed)
+- ✅ CrewAI tool wrapper with formatted output
 
-### Stage 1.10: Workflow Integration
-**Objective**: Connect everything to the agent
-- Update database_tools.py with all new functions
-- Enhance support_daily workflow prompts
-- Add formatting for daily brief generation
-- Test end-to-end workflow execution
-- **Special consideration for CSAT analysis**:
-  - Agent should automatically request conversations for bad ratings
-  - Workflow should identify patterns in conversation failures
-  - Output should highlight specific interaction moments that led to dissatisfaction
+**Key Features Implemented**:
+- Tracks both first response and resolution SLA breaches
+- Identifies tickets with no response at all
+- Shows patterns by priority level and common tags
+- Handles still-open tickets that are breaching SLA
+- Provides insights on urgent tickets and escalations
+
+### Stage 1.10: Workflow Integration ✅ COMPLETE
+**Objective**: Make sure everything is connected to the agent
+- ✅ Audited database_tools.py - all analytics functions properly exposed
+- ✅ Enhanced support_daily workflow prompts with new analytics capabilities
+- ✅ Added CSAT conversation analysis to workflow
+- ✅ Tested end-to-end workflow execution
+- ✅ Updated all analytics functions to accept session parameter (no more internal session creation)
+- ✅ Fixed all indentation issues in freshdesk_analytics_lib.py
+- ✅ Updated all tool wrappers in database_tools.py to pass session parameter
+
+**Key Improvements**:
+- All analytics functions now follow consistent session management pattern
+- Workflow can request full conversation history for bad CSAT ratings
+- Agent has access to comprehensive analytics toolkit for daily support operations
+- Proper data isolation maintained with merchant_id filtering
+
+### Stage 1.11 Update the documentation
+**Objective**: Make it so it's easy to understand the AI agent's current list of capabilties
+- Write example user stories / scenarios that show what kinds of questions to ask the support_daily agent to yield corresponding tool calls
+- Do this by generating a script to test inputs and outputs with the agent, get the actual example text, and put them in the correct places. They should at least be referenced in the README.md or QUICKSTART.md if not fully documented in one of those locations.
+
+## Stage 1b
+- Document best practices for sqlalchemy model code (keep it slim, never import from libs, it's ok to import from utils but models should be really thin and contain almost no business logic). Also cover other sqla usage best practices. Make sure those are included in the README. Show me what changes you made there.
 
 ## Stage 2: Advanced Analytics (Future)
 
