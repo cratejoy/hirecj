@@ -294,7 +294,7 @@ or inside a `data` object.
 | debug_request            | data.type: `"snapshot" \| "session" \| "state" \| "metrics" \| "prompts"` | — | inside `data` | diagnostics |
 | ping                     | —                                         | —                                       | root             | keep-alive |
 | logout                   | —                                         | —                                       | root             | terminate session |
-| system_event (reserved)  | data (object)                             | —                                       | inside `data`    | not used yet |
+| system_event             | data (object)                             | —                   | inside `data` | generic custom events
 | oauth_complete           | data.{conversation_id, is_new}            | data.merchant_id, data.shop (shop_domain), data.user_id, data.error | inside `data`    | sent by browser after Shopify OAuth redirect |
 
 ### 5.2  Outgoing — Server ➜ Client
