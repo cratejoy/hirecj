@@ -17,47 +17,61 @@ The goal of this plan is to establish a **Single Source of Truth** for the WebSo
 *   **Brittle Communication:** Mismatches often lead to silent failures or runtime errors that are difficult to debug (e.g., a message is dropped, or a field is unexpectedly `undefined`).
 *   **Development Overhead:** Onboarding new developers is slower, as they must learn the protocol from two separate, unsynchronized sources.
 
+<!-- (Message-shape drift bullet removed; now addressed by canonical table) -->
+
 ## 3. Proposed Solution
 
 We will adopt a **Python-first, code-generation** approach. The protocol will be defined using Pydantic models within the Python ecosystem. These models will then be used to generate TypeScript interfaces for the frontend.
 
-### 3.1. Single Source of Truth: Python & Pydantic
+---
 
-Python (specifically, Pydantic) is the ideal source of truth for the following reasons:
-*   **Backend Validation is Non-Negotiable:** The backend *must* validate all incoming data for security and data integrity. Pydantic is already the standard for this in FastAPI. Using Pydantic as the source means our validation models *are* the protocol definition.
-*   **Existing Tooling:** Pydantic is already used extensively across the `agents` service.
-*   **Rich Type System:** Pydantic's type system is robust and has excellent support for introspection, which is necessary for code generation.
+## 4. Canonical WebSocket Message Reference
 
-### 3.2. Generation Tooling: `pydantic-to-typescript`
-
-We will use the `pydantic-to-typescript` library. It's a lightweight, effective tool that directly converts Pydantic models into TypeScript interfaces.
-
-A simple Python script will be created to orchestrate this generation, ensuring that all necessary models are exported correctly.
-
-### 3.3. New Directory Structure
-
-The protocol definitions will live inside the existing `shared` directory to consolidate all common code. This is a more integrated approach than creating a separate top-level directory.
-
+This section defines the canonical set of WebSocket message types and their required keys for both directions.  
+**All messages keep the existing envelope:**
 ```
-/
-├── shared/
-│   ├── protocol/
-│   │   ├── __init__.py         # Makes `protocol` a python module
-│   │   ├── models.py           # Pydantic models (Source of Truth)
-│   │   ├── generated/
-│   │   │   └── ts/
-│   │   │       └── index.ts    # Generated TypeScript interfaces
-│   │   └── generate_ts.py      # Generation script
-│   └── ... (other shared modules)
-└── ...
+{
+  "type": "<message_type>",
+  ...payloadKeys
+}
 ```
+Only `start_conversation`, `fact_check`, `workflow_transition`, and `debug_request` embed their payload in a `data` object; `message` uses top-level `text`.
 
-*   `shared/protocol/`: A new Python sub-package for protocol definitions.
-*   `shared/protocol/models.py`: The canonical Pydantic models that serve as the single source of truth.
-*   `shared/protocol/generated/ts/`: Contains the auto-generated TypeScript interfaces. The `generated` directory should be added to `.gitignore`.
-*   `shared/protocol/generate_ts.py`: The script that reads from `models.py` and writes to the `generated/ts/` directory.
+### 4.1 Incoming (client → server)
 
-## 4. Implementation Plan
+| type                     | Mandatory keys          | Notes |
+|--------------------------|-------------------------|-------|
+| start_conversation       | data.workflow (str)     | optional data.merchant_id, data.scenario |
+| message                  | text (str)              | free-text user message |
+| fact_check               | data.messageIndex (int) | optional data.forceRefresh (bool) |
+| end_conversation         | —                       | user clicks “End Chat” |
+| workflow_transition      | data.new_workflow (str) | optional data.user_initiated (bool) |
+| debug_request            | data.type (str enum)    | “snapshot” \| “session” \| “state” \| “metrics” \| “prompts” |
+| ping                     | —                       | keep-alive |
+| logout                   | —                       | user log-out |
+| system_event*            | data (obj)              | *reserved — not yet used* |
+
+### 4.2 Outgoing (server → client)
+
+| type                       | Mandatory keys / shape                                   |
+|----------------------------|----------------------------------------------------------|
+| conversation_started       | data.conversationId, merchantId, scenario, workflow      |
+| cj_message                 | data.content (str)                                       |
+| cj_thinking                | data.status, elapsed, etc.                               |
+| fact_check_started         | data.messageIndex, status="checking"                    |
+| fact_check_complete        | data.messageIndex, result (obj)                          |
+| fact_check_error           | data.messageIndex, error (str)                           |
+| workflow_updated           | data.workflow, previous                                  |
+| workflow_transition_complete | data.workflow, message                                  |
+| debug_response             | data (obj)                                               |
+| pong                       | timestamp                                                |
+| error                      | text (str)                                               |
+| system                     | text (str)                                               |
+| logout_complete            | data.message                                             |
+
+---
+
+## 5. Implementation Plan
 
 ### Phase 1: Setup and Initial Model Definition
 
