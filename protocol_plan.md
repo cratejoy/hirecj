@@ -62,8 +62,13 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
 
 1.  **Directory Structure:** The plan is to create the directory structure as outlined above.
 2. **Install tooling**  
-   Add `datamodel-code-generator>=0.25.0` to `shared/setup.py` (it natively
-   supports Pydantic v2 and outputs TypeScript).
+   List `datamodel-code-generator>=0.25.0` in **both**  
+   • `shared/setup.py` – so the package is available when `shared` is installed in
+     editable mode, and  
+   • `agents/requirements.txt` – so the generator is present in production /
+     container builds of the `agents` service.  
+   (If you maintain `agents/requirements-dev.txt`, add it there as well for local
+   developer convenience.)
 3.  **Define Core Models:** In `shared/protocol/models.py`, define the message structures to match the runtime reality.
 
     *Example (`models.py`):*
