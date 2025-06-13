@@ -23,6 +23,28 @@ The goal of this plan is to establish a **Single Source of Truth** for the WebSo
 
 We will adopt a **Python-first, code-generation** approach. The protocol will be defined using Pydantic models within the Python ecosystem. These models will then be used to generate TypeScript interfaces for the frontend. The Pydantic models are the single source of truth, replacing any manually maintained tables or documentation.
 
+### 3.3. New Directory Structure
+
+The protocol's source of truth (Python models) will live in `shared/`, but the generated TypeScript code will live directly in `homepage/src/` to be easily accessible by Vite.
+
+```
+/
+├── shared/
+│   ├── protocol/
+│   │   ├── __init__.py
+│   │   └── models.py           # Pydantic models (Source of Truth)
+│   └── ...
+├── homepage/
+│   ├── src/
+│   │   ├── protocol/
+│   │   │   └── generated.ts    # Generated TypeScript interfaces
+│   │   └── ...
+└── ...
+```
+
+*   `shared/protocol/models.py`: The canonical Pydantic models.
+*   `homepage/src/protocol/generated.ts`: The auto-generated TypeScript interfaces. **This file should be committed to the repository** to simplify the frontend build process.
+
 ## 4. Implementation Plan
 
 ### Phase 1: Setup and Initial Model Definition
