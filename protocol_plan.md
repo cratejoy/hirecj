@@ -53,6 +53,8 @@ The protocol's source of truth (Python models) will live in `shared/`, but the g
 
 *   `shared/protocol/models.py`: The canonical Pydantic models.
 *   `homepage/src/protocol/generated.ts`: The auto-generated TypeScript interfaces. **This file should be committed to the repository** to simplify the frontend build process.
+This is the definitive policy: the generated file **is tracked in git**.  
+CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run the generator.
 
 ## 4. Implementation Plan
 
