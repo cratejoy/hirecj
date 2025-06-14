@@ -5,7 +5,7 @@ Handles WebSocket connections for the web chat interface.
 This is the primary platform for Demo 1.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from datetime import datetime
 import uuid
 
@@ -14,7 +14,7 @@ from fastapi import WebSocket
 from ..base import (
     Platform,
     PlatformType,
-    OutgoingMessage,
+    OutgoingMessage as BaseOutgoingMessage,
     Participant,
     Conversation,
 )
@@ -25,7 +25,6 @@ from app.services.conversation_storage import ConversationStorage
 from app.workflows.loader import WorkflowLoader
 from shared.protocol.models import (
     ErrorMsg,
-    OutgoingMessage,
     ConversationStartedMsg,
     CJMessageMsg,
     CJThinkingMsg,
@@ -48,6 +47,15 @@ from .session_handler import SessionHandler
 
 logger = get_logger(__name__)
 websocket_logger = get_logger("websocket")
+
+# Type alias for all protocol message types
+ProtocolMessage = Union[
+    ConversationStartedMsg, CJMessageMsg, CJThinkingMsg,
+    FactCheckStartedMsg, FactCheckCompleteMsg, FactCheckErrorMsg,
+    FactCheckStatusMsg, WorkflowUpdatedMsg, WorkflowTransitionCompleteMsg,
+    OAuthProcessedMsg, LogoutCompleteMsg, PongMsg, DebugResponseMsg,
+    DebugEventMsg, ErrorMsg, SystemMsg
+]
 
 
 class WebPlatform(Platform):
@@ -104,7 +112,7 @@ class WebPlatform(Platform):
         self._set_connected(False)
         logger.info("Web platform disconnected")
 
-    async def send_message(self, message: OutgoingMessage) -> bool:
+    async def send_message(self, message: BaseOutgoingMessage) -> bool:
         """
         Send message to web client via WebSocket.
         
@@ -199,18 +207,18 @@ class WebPlatform(Platform):
         """
         await self.websocket_handler.handle_connection(websocket)
 
-    async def send_validated_message(self, websocket: WebSocket, message: OutgoingMessage):
-        """Send a validated OutgoingMessage via WebSocket.
+    async def send_validated_message(self, websocket: WebSocket, message: ProtocolMessage):
+        """Send a validated protocol message via WebSocket.
         
         This is the ONLY method that should be used to send messages to clients.
         It ensures all messages conform to the protocol.
         
         Args:
             websocket: The WebSocket connection
-            message: A validated OutgoingMessage instance
+            message: A validated protocol message instance
         
         Raises:
-            TypeError: If message is not a valid OutgoingMessage type
+            TypeError: If message is not a valid protocol message type
         """
         # Type check at runtime (for extra safety)
         if not isinstance(message, (ConversationStartedMsg, CJMessageMsg, CJThinkingMsg, 
@@ -218,7 +226,7 @@ class WebPlatform(Platform):
                                    FactCheckStatusMsg, WorkflowUpdatedMsg, WorkflowTransitionCompleteMsg,
                                    OAuthProcessedMsg, LogoutCompleteMsg, PongMsg, DebugResponseMsg,
                                    DebugEventMsg, ErrorMsg, SystemMsg)):
-            raise TypeError(f"Invalid message type: {type(message).__name__}. Must be a valid OutgoingMessage type.")
+            raise TypeError(f"Invalid message type: {type(message).__name__}. Must be a valid protocol message type.")
         
         try:
             await websocket.send_json(message.model_dump())
@@ -260,7 +268,7 @@ class WebPlatform(Platform):
             logger.info("No active web connections for broadcast")
             return
 
-        broadcast_msg = OutgoingMessage(
+        broadcast_msg = BaseOutgoingMessage(
             conversation_id="",  # Will be set per connection
             text=message,
             metadata={"type": "broadcast"},

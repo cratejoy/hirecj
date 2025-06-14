@@ -6,7 +6,7 @@ import uuid
 import asyncio
 
 from fastapi import WebSocket
-from pydantic import ValidationError
+from pydantic import ValidationError, TypeAdapter
 
 from app.logging_config import get_logger
 from app.services.fact_extractor import FactExtractor
@@ -41,6 +41,8 @@ class WebSocketHandler:
     def __init__(self, platform: 'WebPlatform'):
         self.platform = platform
         self.message_handlers = MessageHandlers(platform)
+        # Create TypeAdapter for validating discriminated union
+        self.incoming_message_adapter = TypeAdapter(IncomingMessage)
 
     async def handle_connection(self, websocket: WebSocket):
         """
@@ -154,9 +156,9 @@ class WebSocketHandler:
                 f"size={len(str(data))} data={data}"
             )
 
-            # Parse and validate message using Pydantic
+            # Parse and validate message using Pydantic TypeAdapter
             try:
-                message = IncomingMessage.model_validate(data)
+                message = self.incoming_message_adapter.validate_python(data)
             except ValidationError as e:
                 websocket_logger.warning(
                     f"[WS_ERROR] Invalid message format - conversation={conversation_id} errors={e.errors()}"
