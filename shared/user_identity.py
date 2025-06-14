@@ -31,10 +31,11 @@ logger.setLevel(logging.INFO)
 @contextmanager
 def get_db_connection():
     """Get PostgreSQL connection using context manager."""
-    db_url = os.getenv("IDENTITY_DATABASE_URL") or os.getenv("SUPABASE_CONNECTION_STRING")
+    # Use the single, authoritative env loader
+    db_url = os.getenv("SUPABASE_CONNECTION_STRING")
     
     if not db_url:
-        logger.error("IDENTITY_DATABASE_URL or SUPABASE_CONNECTION_STRING not set")
+        logger.error("SUPABASE_CONNECTION_STRING not set")
         raise ValueError("Database connection not configured")
     
     conn = None
