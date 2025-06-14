@@ -80,6 +80,7 @@ class OAuthProcessedData(BaseModel):
     is_new: Optional[bool] = None
     merchant_id: Optional[int] = None
     shop_domain: Optional[str] = None
+    shop_subdomain: Optional[str] = None
     error: Optional[str] = None
 
 class LogoutCompleteData(BaseModel):
@@ -154,7 +155,7 @@ IncomingMessage = Annotated[
 # ───── outgoing (server → client) envelopes ────────────────────────────────
 class ConversationStartedData(BaseModel):
     conversationId: str
-    merchantId: Optional[str] = None
+    shopSubdomain: Optional[str] = None
     scenario: Optional[str] = None
     workflow: str
     sessionId: Optional[str] = None

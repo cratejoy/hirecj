@@ -56,7 +56,7 @@ interface Progress {
 
 interface UseWebSocketChatProps {
   enabled?: boolean;
-  merchantId: string;
+  shopSubdomain: string;
   scenario: string;
   workflow: WorkflowType;
   onError?: (error: string) => void;
@@ -79,7 +79,7 @@ interface State {
 
 export function useWebSocketChat({ 
   enabled = false,
-  merchantId, 
+  shopSubdomain, 
   scenario,
   workflow,
   onError,
@@ -90,7 +90,7 @@ export function useWebSocketChat({
   useEffect(() => {
     wsLogger.debug('🎯 useWebSocketChat initialized', {
       enabled,
-      merchantId,
+      shopSubdomain,
       scenario,
       workflow
     });
@@ -535,10 +535,15 @@ export function useWebSocketChat({
           startData.workflow = workflowRef.current;
         }
         
+        // Include subdomain if provided
+        if (shopSubdomain) {
+          startData.shop_subdomain = shopSubdomain;
+        }
+        
         // Debug: Log what we're sending
         wsLogger.info('📤 start_conversation data:', startData);
         wsLogger.info('📤 Current user session:', {
-          merchantId: localStorage.getItem('merchantId'),
+          shopSubdomain: localStorage.getItem('shopSubdomain'),
           shopDomain: localStorage.getItem('shopDomain')
         });
         
@@ -619,7 +624,7 @@ export function useWebSocketChat({
         return prev;
       });
     };
-  }, [merchantId, scenario, WS_BASE_URL, handleMessage, flushMessageQueue]); // Removed workflow to prevent reconnection on workflow change
+  }, [shopSubdomain, scenario, WS_BASE_URL, handleMessage, flushMessageQueue]); // Removed workflow to prevent reconnection on workflow change
 
   // Effect to manage connection lifecycle
   useEffect(() => {

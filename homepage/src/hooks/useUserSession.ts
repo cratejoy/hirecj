@@ -2,32 +2,32 @@ import { useState, useEffect } from 'react';
 
 interface UserSession {
   // State
-  merchantId: string | null;
+  shopSubdomain: string | null;
   shopDomain: string | null;
   isConnected: boolean;
   
   // Actions
-  setMerchant: (merchantId: string, shopDomain: string) => void;
+  setMerchant: (subdomain: string, domain: string) => void;
   clearMerchant: () => void;
 }
 
 export function useUserSession(): UserSession {
   // Load initial state from localStorage
-  const [merchantId, setMerchantId] = useState<string | null>(() => 
-    localStorage.getItem('merchantId') || null
+  const [shopSubdomain, setShopSubdomain] = useState<string | null>(() => 
+    localStorage.getItem('shopSubdomain') || null
   );
   const [shopDomain, setShopDomain] = useState<string | null>(() => 
     localStorage.getItem('shopDomain') || null
   );
 
-  // Update localStorage when merchantId changes
+  // Update localStorage when shopSubdomain changes
   useEffect(() => {
-    if (merchantId) {
-      localStorage.setItem('merchantId', merchantId);
+    if (shopSubdomain) {
+      localStorage.setItem('shopSubdomain', shopSubdomain);
     } else {
-      localStorage.removeItem('merchantId');
+      localStorage.removeItem('shopSubdomain');
     }
-  }, [merchantId]);
+  }, [shopSubdomain]);
 
   // Update localStorage when shopDomain changes
   useEffect(() => {
@@ -40,17 +40,17 @@ export function useUserSession(): UserSession {
 
   return {
     // State
-    merchantId,
+    shopSubdomain,
     shopDomain,
-    isConnected: !!merchantId,
+    isConnected: !!shopSubdomain,
     
     // Actions
-    setMerchant: (id: string, shop: string) => {
-      setMerchantId(id);
-      setShopDomain(shop);
+    setMerchant: (subdomain: string, domain: string) => {
+      setShopSubdomain(subdomain);
+      setShopDomain(domain);
     },
     clearMerchant: () => {
-      setMerchantId(null);
+      setShopSubdomain(null);
       setShopDomain(null);
     }
   };

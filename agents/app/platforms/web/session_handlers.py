@@ -48,7 +48,7 @@ class SessionHandlers:
         user_id: str | None,
     ) -> tuple[str | None, str | None, str]:
         """Return (merchant, scenario, workflow) to start with – single authority."""
-        merchant  = start_data.get("merchant_id")
+        merchant  = start_data.get("shop_subdomain")
         scenario  = start_data.get("scenario") or "default"
         workflow  = "shopify_onboarding"
 
@@ -194,7 +194,7 @@ class SessionHandlers:
 
         conversation_started_data = ConversationStartedData(
             conversationId=conversation_id,
-            merchantId=merchant,
+            shopSubdomain=merchant,
             scenario=scenario,
             workflow=workflow,
             sessionId=session.id,
@@ -354,6 +354,7 @@ class SessionHandlers:
         )
 
         # ── 3. Acknowledge to frontend ───────────────────────────────────
+        shop_subdomain = shop_domain.replace(".myshopify.com", "") if shop_domain else None
         processed_msg = OAuthProcessedMsg(
             type="oauth_processed",
             data=OAuthProcessedData(
@@ -361,6 +362,7 @@ class SessionHandlers:
                 is_new=is_new,
                 merchant_id=merchant_id,
                 shop_domain=shop_domain,
+                shop_subdomain=shop_subdomain,
             )
         )
         await self.platform.send_validated_message(websocket, processed_msg)

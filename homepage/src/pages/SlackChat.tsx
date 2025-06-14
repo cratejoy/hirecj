@@ -26,7 +26,7 @@ interface Message {
 
 interface ChatConfig {
 	scenarioId: string | null;
-	merchantId: string | null;
+	shopSubdomain: string | null;
 	workflow: WorkflowType | null;
 }
 
@@ -93,7 +93,7 @@ const SlackChat = () => {
 		// Server determines everything - we just track UI state
 		return {
 			scenarioId: null,
-			merchantId: userSession.merchantId,
+			shopSubdomain: userSession.shopSubdomain,
 			workflow: getWorkflowFromUrl()
 		};
 	});
@@ -116,13 +116,13 @@ const SlackChat = () => {
 	}, [chatConfig.workflow, location, searchString, setLocation]);
 	
 
-	// Sync userSession.merchantId to chatConfig when it changes
+	// Sync userSession.shopSubdomain to chatConfig when it changes
 	useEffect(() => {
 		setChatConfig(prev => ({
 			...prev,
-			merchantId: userSession.merchantId
+			shopSubdomain: userSession.shopSubdomain
 		}));
-	}, [userSession.merchantId]);
+	}, [userSession.shopSubdomain]);
 	
 
 	const isRealChat = useMemo(() => {
@@ -136,7 +136,7 @@ const SlackChat = () => {
 			 chatConfig.workflow === 'support_daily' || 
 			 chatConfig.workflow === 'shopify_post_auth' ||
 			 isOAuthReturn ||
-			 (!!chatConfig.scenarioId && !!chatConfig.merchantId));
+			 (!!chatConfig.scenarioId && !!chatConfig.shopSubdomain));
 	}, [showConfigModal, chatConfig]);
 
 
@@ -177,7 +177,7 @@ const SlackChat = () => {
 	// Use WebSocket chat for real conversations (only when ready)
 	const wsChat = useWebSocketChat({
 		enabled: isRealChat,
-		merchantId: chatConfig.merchantId || '',
+		shopSubdomain: chatConfig.shopSubdomain || '',
 		scenario: chatConfig.scenarioId || '',
 		workflow: chatConfig.workflow || 'ad_hoc_support',
 		onError: handleChatError,
@@ -198,8 +198,8 @@ const SlackChat = () => {
 			});
 		},
 		onOAuthProcessed: (data) => {
-			if (data.success && data.merchant_id && data.shop_domain) {
-				userSession.setMerchant(data.merchant_id, data.shop_domain);
+			if (data.success && data.shop_subdomain && data.shop_domain) {
+				userSession.setMerchant(data.shop_subdomain, data.shop_domain);
 				toast({
 					title: "Connected to Shopify!",
 					description: data.is_new ? "Welcome! Let me take a look at your store..." : "Welcome back! Good to see you again.",
@@ -285,7 +285,7 @@ const SlackChat = () => {
 				console.group('%c📊 Current Status', 'color: #4CAF50; font-size: 14px; font-weight: bold');
 				
 				console.group('👤 User Session');
-				console.log('Merchant ID:', userSession.merchantId || 'None');
+				console.log('Subdomain:', userSession.shopSubdomain || 'None');
 				console.log('Shop Domain:', userSession.shopDomain || 'None');
 				console.log('Authenticated:', userSession.isConnected ? '✅ Yes' : '❌ No');
 				console.groupEnd();
@@ -304,7 +304,7 @@ const SlackChat = () => {
 				
 				console.group('📊 Session');
 				console.log('Status:', wsChat.isConnected ? '✅ Connected' : '❌ Disconnected');
-				console.log('Merchant:', chatConfig.merchantId || 'Not authenticated');
+				console.log('Subdomain:', chatConfig.shopSubdomain || 'Not authenticated');
 				console.log('Workflow:', chatConfig.workflow);
 				console.log('Scenario:', chatConfig.scenarioId || 'None');
 				console.groupEnd();
@@ -422,14 +422,14 @@ const SlackChat = () => {
 	const handleStartChat = useCallback((scenarioId: string, merchantId: string, workflow: 'ad_hoc_support' | 'daily_briefing' | 'support_daily') => {
 		console.log('[SlackChat] Starting chat', {
 			scenarioId,
-			merchantId,
+			shopSubdomain: merchantId, // Keep variable name for compatibility with onStartChat signature
 			workflow
 		});
 
 		// Update all config at once
 		const config = {
 			scenarioId,
-			merchantId,
+			shopSubdomain: merchantId,
 			workflow
 		};
 
@@ -445,7 +445,7 @@ const SlackChat = () => {
 				onClose={() => {
 					setShowConfigModal(false);
 					// If they close without selecting, go back to home
-					if (!chatConfig.scenarioId || !chatConfig.merchantId) {
+					if (!chatConfig.scenarioId || !chatConfig.shopSubdomain) {
 						setLocation('/');
 					}
 				}}
@@ -492,9 +492,9 @@ const SlackChat = () => {
 							))}
 						</select>
 					</div>
-					{chatConfig.scenarioId && chatConfig.merchantId && (
+					{chatConfig.scenarioId && chatConfig.shopSubdomain && (
 						<span className="ml-2 sm:ml-4 text-xs sm:text-sm text-gray-300 truncate max-w-[200px] sm:max-w-none">
-							{chatConfig.merchantId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - {chatConfig.scenarioId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+							{chatConfig.shopSubdomain.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - {chatConfig.scenarioId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
 						</span>
 					)}
 				</div>
@@ -602,7 +602,7 @@ const SlackChat = () => {
 								messages={messages}
 								isTyping={isTyping || isFirstMessageLoading}
 								progress={wsChat.progress}
-								merchantName={chatConfig.merchantId?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Merchant'}
+								merchantName={chatConfig.shopSubdomain?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Merchant'}
 								isConnected={wsChat.isConnected}
 								sendFactCheck={wsChat.sendFactCheck}
 							/>
