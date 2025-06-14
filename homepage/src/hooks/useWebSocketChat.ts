@@ -232,6 +232,10 @@ export function useWebSocketChat({
         case 'cj_message':
           const cjMsg = data as CJMessageMsg;
           console.log('[WebSocket] Parsing cj_message:', { messageData: cjMsg.data, fullData: cjMsg });
+          // DIAGNOSTIC: Catch duplicate OAuth messages
+          if (cjMsg.data.content.toLowerCase().includes('authentication complete')) {
+            console.error(`[CJ_DUP] OAuth message at ${new Date().toISOString()} - ${cjMsg.data.content.substring(0, 100)}...`);
+          }
           const cjMessage: Message = {
             id: `cj-${Date.now()}`,
             sender: 'cj',
