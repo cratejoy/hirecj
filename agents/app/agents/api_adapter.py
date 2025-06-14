@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional
 from collections import defaultdict
 
 from app.clients.conversation_api import ConversationAPI
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 

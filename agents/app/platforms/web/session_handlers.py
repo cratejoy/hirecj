@@ -10,7 +10,7 @@ from app.services.merchant_service import merchant_service
 
 from fastapi import WebSocket
 
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.models import Message
 from app.constants import WebSocketCloseCodes
 from shared.protocol.models import (

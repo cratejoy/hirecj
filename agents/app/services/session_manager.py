@@ -6,7 +6,7 @@ import uuid
 
 from app.models import Conversation, ConversationState
 from app.agents.universe_data_agent import UniverseDataAgent
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.config import settings
 
 logger = get_logger(__name__)

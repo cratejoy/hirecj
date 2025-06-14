@@ -5,7 +5,7 @@ from datetime import datetime
 
 from fastapi import WebSocket
 
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from shared.protocol.models import (
     PingMsg,
     DebugRequestMsg,

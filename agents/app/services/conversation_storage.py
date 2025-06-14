@@ -8,7 +8,7 @@ from typing import Optional
 from app.config import settings
 from app.models import Conversation, Message
 from app.services.session_manager import Session
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
