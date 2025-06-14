@@ -288,13 +288,27 @@ class SessionHandlers:
         After this call, session.oauth_metadata is populated so that
         create_cj_agent() will load Shopify tools automatically.
         """
-        # ---------------------------------------------------------------
-        # ❶ Try to get identifiers from payload, fall back to DB lookup
-        # ---------------------------------------------------------------
-        data          = message.data or {}
-        shop_domain   = data.get("shop_domain")
-        merchant_id   = data.get("merchant_id")
-        is_new        = data.get("is_new", False)
+        # Check if oauth_metadata already exists in ws_session from cookie
+        ws_session = self.platform.sessions.get(conversation_id, {})
+        if oauth_metadata := ws_session.get("oauth_metadata"):
+            # Use the metadata from cookie - this is the authoritative source
+            shop_domain = oauth_metadata.get("shop_domain")
+            merchant_id = oauth_metadata.get("merchant_id")
+            is_new = oauth_metadata.get("is_new", False)
+            
+            logger.info(
+                f"[OAUTH] Using oauth_metadata from session cookie: "
+                f"shop={shop_domain}, merchant_id={merchant_id}"
+            )
+        else:
+            # Fallback to old behavior for backward compatibility
+            # ---------------------------------------------------------------
+            # ❶ Try to get identifiers from payload, fall back to DB lookup
+            # ---------------------------------------------------------------
+            data          = message.data or {}
+            shop_domain   = data.get("shop_domain")
+            merchant_id   = data.get("merchant_id")
+            is_new        = data.get("is_new", False)
 
         # Look-up via authenticated user when anything missing
         ws_session = self.platform.sessions.setdefault(conversation_id, {})
@@ -328,14 +342,15 @@ class SessionHandlers:
                 f"OAuth finished but merchant_id missing for {shop_domain}"
             )
 
-        # Build unified metadata object
-        oauth_metadata = {
-            "provider": "shopify",
-            "authenticated": True,
-            "shop_domain": shop_domain,
-            "is_new_merchant": is_new,
-            "merchant_id": merchant_id,
-        }
+        # Build unified metadata object if we don't have it from cookie
+        if not oauth_metadata:
+            oauth_metadata = {
+                "provider": "shopify",
+                "authenticated": True,
+                "shop_domain": shop_domain,
+                "is_new_merchant": is_new,
+                "merchant_id": merchant_id,
+            }
 
         # ── 1. Update websocket-session dict ─────────────────────────────
         ws_session = self.platform.sessions.setdefault(conversation_id, {})

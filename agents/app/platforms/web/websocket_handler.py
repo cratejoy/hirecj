@@ -79,9 +79,10 @@ class WebSocketHandler:
                     
                     if session:
                         user_ctx = {"user_id": session.user_id}
-                        session_id_db = session.session_id     # NEW
-                        session_data_db = session.data or {}   # NEW
+                        session_id_db = session.session_id
+                        session_data_db = session.data or {}
                         logger.info(f"[WEBSOCKET] User {session.user_id} connected via session cookie")
+                        logger.info(f"[WEBSOCKET] Session data loaded: {session_data_db}")
                         
                         # For authenticated users, create conversation ID based on user and session
                         # This gives us a stable conversation per session
@@ -104,16 +105,26 @@ class WebSocketHandler:
         self.platform.connections[conversation_id] = websocket
 
         # Initialize session with user context if available
-        self.platform.sessions[conversation_id] = {
+        ws_session = {
             "user_id": user_ctx["user_id"] if user_ctx else "anonymous",
             "display_name": "Web User",
             "session_start": datetime.now().isoformat(),
             "ip_address": getattr(websocket, "remote_address", None),
             "user_agent": None,  # Would need to be passed from client
             "authenticated": user_ctx is not None,
-            "session_id": session_id_db,
-            "data": session_data_db,
+            "session_id": session_id_db if 'session_id_db' in locals() else None,
+            "data": session_data_db if 'session_data_db' in locals() else {},
         }
+        
+        # Extract oauth_metadata if present in session data
+        if 'session_data_db' in locals() and session_data_db:
+            if oauth_metadata := session_data_db.get("oauth_metadata"):
+                ws_session["oauth_metadata"] = oauth_metadata
+                ws_session["shop_domain"] = oauth_metadata.get("shop_domain")
+                ws_session["merchant_id"] = oauth_metadata.get("merchant_id")
+                logger.info(f"[WEBSOCKET] Loaded OAuth metadata from session: {oauth_metadata}")
+        
+        self.platform.sessions[conversation_id] = ws_session
 
         logger.info(
             f"[WEBSOCKET_LIFECYCLE] New WebSocket connection: {conversation_id}"
