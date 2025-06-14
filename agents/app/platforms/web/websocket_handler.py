@@ -6,10 +6,25 @@ import uuid
 import asyncio
 
 from fastapi import WebSocket
+from pydantic import ValidationError
 
 from app.logging_config import get_logger
 from app.services.fact_extractor import FactExtractor
 from app.constants import WebSocketCloseCodes
+from shared.protocol.models import (
+    IncomingMessage,
+    StartConversationMsg,
+    UserMsg,
+    EndConversationMsg,
+    FactCheckMsg,
+    PingMsg,
+    SystemEventMsg,
+    DebugRequestMsg,
+    WorkflowTransitionMsg,
+    LogoutMsg,
+    OAuthCompleteMsg,
+    ErrorMsg,
+)
 
 from .message_handlers import MessageHandlers
 
@@ -139,47 +154,43 @@ class WebSocketHandler:
                 f"size={len(str(data))} data={data}"
             )
 
-            # Basic validation
-            if not isinstance(data, dict):
+            # Parse and validate message using Pydantic
+            try:
+                message = IncomingMessage.parse_obj(data)
+            except ValidationError as e:
                 websocket_logger.warning(
-                    f"[WS_ERROR] Invalid message format - conversation={conversation_id} type={type(data)}"
+                    f"[WS_ERROR] Invalid message format - conversation={conversation_id} errors={e.errors()}"
                 )
                 await self.platform.send_error(
-                    websocket, "Invalid message format: expected JSON object"
+                    websocket, f"Invalid message format: {e}"
                 )
                 return
 
-            message_type = data.get("type", "message")
-
-            # Validate message types
-            valid_types = [
-                "message",
-                "start_conversation",
-                "end_conversation",
-                "fact_check",
-                "ping",
-                "system_event",
-                "debug_request",
-                "workflow_transition",
-                "logout",
-            ]
-            if message_type not in valid_types:
-                logger.warning(
-                    f"Invalid message type from {conversation_id}: {message_type}"
-                )
-                await self.platform.send_error(
-                    websocket, f"Invalid message type: {message_type}"
-                )
-                return
-
-            # Route to appropriate handler
-            handler_method = getattr(self.message_handlers, f"handle_{message_type}", None)
-            if handler_method:
-                await handler_method(websocket, conversation_id, data)
+            # Route based on message type using isinstance checks
+            if isinstance(message, StartConversationMsg):
+                await self.message_handlers.handle_start_conversation(websocket, conversation_id, message)
+            elif isinstance(message, UserMsg):
+                await self.message_handlers.handle_message(websocket, conversation_id, message)
+            elif isinstance(message, EndConversationMsg):
+                await self.message_handlers.handle_end_conversation(websocket, conversation_id, message)
+            elif isinstance(message, FactCheckMsg):
+                await self.message_handlers.handle_fact_check(websocket, conversation_id, message)
+            elif isinstance(message, PingMsg):
+                await self.message_handlers.handle_ping(websocket, conversation_id, message)
+            elif isinstance(message, DebugRequestMsg):
+                await self.message_handlers.handle_debug_request(websocket, conversation_id, message)
+            elif isinstance(message, WorkflowTransitionMsg):
+                await self.message_handlers.handle_workflow_transition(websocket, conversation_id, message)
+            elif isinstance(message, LogoutMsg):
+                await self.message_handlers.handle_logout(websocket, conversation_id, message)
+            elif isinstance(message, SystemEventMsg):
+                await self.message_handlers.handle_system_event(websocket, conversation_id, message)
+            elif isinstance(message, OAuthCompleteMsg):
+                await self.message_handlers.handle_oauth_complete(websocket, conversation_id, message)
             else:
-                logger.warning(f"No handler for message type: {message_type}")
+                logger.warning(f"Unhandled message type: {type(message)}")
                 await self.platform.send_error(
-                    websocket, f"Unsupported message type: {message_type}"
+                    websocket, f"Unhandled message type: {type(message).__name__}"
                 )
 
         except Exception as e:

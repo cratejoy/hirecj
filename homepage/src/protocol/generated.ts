@@ -36,6 +36,7 @@ export interface ConversationStartedData {
   workflow: string;
   sessionId?: string | null;
   resumed?: boolean | null;
+  connected_at?: string | null;
   messageCount?: number | null;
   messages?:
     | {
@@ -174,11 +175,13 @@ export interface UserMsg {
   type: "message";
   text: string;
 }
+export interface WorkflowTransitionCompleteData {
+  workflow: string;
+  message: string;
+}
 export interface WorkflowTransitionCompleteMsg {
   type: "workflow_transition_complete";
-  data: {
-    [k: string]: unknown;
-  };
+  data: WorkflowTransitionCompleteData;
 }
 export interface WorkflowTransitionData {
   new_workflow: string;

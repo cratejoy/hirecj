@@ -62,6 +62,10 @@ class OAuthProcessedData(BaseModel):
 class LogoutCompleteData(BaseModel):
     message: str
 
+class WorkflowTransitionCompleteData(BaseModel):
+    workflow: str
+    message: str
+
 
 # ───── incoming (client → server) envelopes ────────────────────────────────
 class StartConversationMsg(BaseModel):
@@ -132,6 +136,7 @@ class ConversationStartedData(BaseModel):
     workflow: str
     sessionId: Optional[str] = None
     resumed: Optional[bool] = None
+    connected_at: Optional[str] = None
 
     messageCount: Optional[int] = None
     messages: Optional[List[Dict[str, Any]]] = None
@@ -181,7 +186,7 @@ class WorkflowUpdatedMsg(BaseModel):
 
 class WorkflowTransitionCompleteMsg(BaseModel):
     type: Literal["workflow_transition_complete"]
-    data: Dict[str, Any]          # {"workflow": str, "message": str}
+    data: WorkflowTransitionCompleteData
 
 class FactCheckStatusMsg(BaseModel):
     type: Literal["fact_check_status"]

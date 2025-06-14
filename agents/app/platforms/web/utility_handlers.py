@@ -6,6 +6,13 @@ from datetime import datetime
 from fastapi import WebSocket
 
 from app.logging_config import get_logger
+from shared.protocol.models import (
+    PingMsg,
+    DebugRequestMsg,
+    SystemEventMsg,
+    PongMsg,
+    DebugResponseMsg,
+)
 
 if TYPE_CHECKING:
     from .platform import WebPlatform
@@ -20,28 +27,31 @@ class UtilityHandlers:
         self.platform = platform
 
     async def handle_ping(
-        self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
+        self, websocket: WebSocket, conversation_id: str, message: PingMsg
     ):
         """Handle ping/pong for connection keepalive."""
-        await websocket.send_json(
-            {"type": "pong", "timestamp": datetime.now().isoformat()}
+        pong = PongMsg(
+            type="pong",
+            timestamp=datetime.now()
         )
+        await websocket.send_json(pong.model_dump())
 
     async def handle_debug_request(
-        self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
+        self, websocket: WebSocket, conversation_id: str, message: DebugRequestMsg
     ):
         """Handle debug_request message."""
-        debug_type = data.get("data", {}).get("type", "snapshot")
+        debug_type = message.data.type
         session = self.platform.session_manager.get_session(conversation_id)
         
         if not session:
-            await websocket.send_json({
-                "type": "debug_response",
-                "data": {
+            debug_response = DebugResponseMsg(
+                type="debug_response",
+                data={
                     "error": "No active session",
                     "conversation_id": conversation_id
                 }
-            })
+            )
+            await websocket.send_json(debug_response.model_dump())
             return
         
         debug_data = {}
@@ -102,19 +112,32 @@ class UtilityHandlers:
                 debug_data["prompts"] = recent_prompts
             
             # Send debug response
-            await websocket.send_json({
-                "type": "debug_response",
-                "data": debug_data
-            })
+            debug_response = DebugResponseMsg(
+                type="debug_response",
+                data=debug_data
+            )
+            await websocket.send_json(debug_response.model_dump())
             
             logger.info(f"[DEBUG_REQUEST] Sent debug info for {conversation_id}: type={debug_type}")
             
         except Exception as e:
             logger.error(f"[DEBUG_ERROR] Failed to generate debug info: {str(e)}")
-            await websocket.send_json({
-                "type": "debug_response",
-                "data": {
+            error_response = DebugResponseMsg(
+                type="debug_response",
+                data={
                     "error": f"Failed to generate debug info: {str(e)}",
                     "conversation_id": conversation_id
                 }
-            })
+            )
+            await websocket.send_json(error_response.model_dump())
+    
+    async def handle_system_event(
+        self, websocket: WebSocket, conversation_id: str, message: SystemEventMsg
+    ):
+        """Handle system event message."""
+        # Log system event
+        logger.info(f"[SYSTEM_EVENT] Received system event for conversation {conversation_id}: {message.data}")
+        
+        # For now, just acknowledge the event
+        # In the future, this could be used for various system-level operations
+        await self.platform.send_error(websocket, "System events not yet implemented")

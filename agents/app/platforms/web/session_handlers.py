@@ -12,6 +12,15 @@ from fastapi import WebSocket
 from app.logging_config import get_logger
 from app.models import Message
 from app.constants import WebSocketCloseCodes
+from shared.protocol.models import (
+    StartConversationMsg,
+    LogoutMsg,
+    OAuthCompleteMsg,
+    ConversationStartedMsg,
+    ConversationStartedData,
+    LogoutCompleteMsg,
+    LogoutCompleteData,
+)
 
 from .session_handler import SessionHandler
 
@@ -97,23 +106,18 @@ class SessionHandlers:
             )
 
     async def handle_start_conversation(
-        self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
+        self, websocket: WebSocket, conversation_id: str, message: StartConversationMsg
     ):
         """Handle start_conversation message."""
         # Initialize conversation with CrewAI
-        start_data = data.get("data", {})
-        if not isinstance(start_data, dict):
-            await self.platform.send_error(
-                websocket, "Invalid start_conversation data format"
-            )
-            return
+        start_data = message.data
 
         ws_session = self.platform.sessions.get(conversation_id, {})
         is_authenticated = ws_session.get("authenticated", False)
         user_id = ws_session.get("user_id") if is_authenticated else None
 
         merchant, scenario, workflow = await self._select_workflow(
-            ws_session, start_data, user_id
+            ws_session, start_data.model_dump(), user_id
         )
 
         # Get workflow requirements
@@ -186,23 +190,21 @@ class SessionHandlers:
                 )
                 return
 
-        conversation_data = {
-            "conversationId": conversation_id,
-            "merchantId": merchant,
-            "scenario": scenario,
-            "workflow": workflow,
-            "sessionId": session.id,
-            "workflow_requirements": requirements,
-            "user_id": session.user_id,
-        }
+        conversation_started_data = ConversationStartedData(
+            conversationId=conversation_id,
+            merchantId=merchant,
+            scenario=scenario,
+            workflow=workflow,
+            sessionId=session.id,
+            workflow_requirements=requirements,
+            user_id=session.user_id,
+        )
 
         if existing_session:
             # Include message history for resumed conversations
-            conversation_data["resumed"] = True
-            conversation_data["messageCount"] = len(
-                session.conversation.messages
-            )
-            conversation_data["messages"] = [
+            conversation_started_data.resumed = True
+            conversation_started_data.messageCount = len(session.conversation.messages)
+            conversation_started_data.messages = [
                 {
                     "sender": msg.sender,
                     "content": msg.content,
@@ -212,17 +214,14 @@ class SessionHandlers:
                         else str(msg.timestamp)
                     ),
                 }
-                for msg in session.conversation.messages[
-                    -10:
-                ]  # Last 10 messages
+                for msg in session.conversation.messages[-10:]  # Last 10 messages
             ]
 
-        await websocket.send_json(
-            {
-                "type": "conversation_started",
-                "data": conversation_data,
-            }
+        conversation_started_msg = ConversationStartedMsg(
+            type="conversation_started",
+            data=conversation_started_data
         )
+        await websocket.send_json(conversation_started_msg.model_dump())
 
         from .workflow_handlers import WorkflowHandlers
         workflow_handlers = WorkflowHandlers(self.platform)
@@ -232,7 +231,7 @@ class SessionHandlers:
 
 
     async def handle_logout(
-        self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
+        self, websocket: WebSocket, conversation_id: str, message: LogoutMsg
     ):
         """Handle logout message."""
         logger.info(f"[LOGOUT] Processing logout request for conversation {conversation_id}")
@@ -252,13 +251,23 @@ class SessionHandlers:
             logger.info(f"[LOGOUT] Cleared WebSocket session data")
         
         # Send logout confirmation
-        await websocket.send_json({
-            "type": "logout_complete",
-            "data": {
-                "message": "Successfully logged out"
-            }
-        })
+        logout_complete = LogoutCompleteMsg(
+            type="logout_complete",
+            data=LogoutCompleteData(
+                message="Successfully logged out"
+            )
+        )
+        await websocket.send_json(logout_complete.model_dump())
         
         # Close WebSocket connection
         await websocket.close()
         logger.info(f"[LOGOUT] Logout complete, connection closed")
+    
+    async def handle_oauth_complete(
+        self, websocket: WebSocket, conversation_id: str, message: OAuthCompleteMsg
+    ):
+        """Handle OAuth completion message."""
+        # This would be implemented when OAuth flow is integrated
+        logger.info(f"[OAUTH] OAuth complete message received for conversation {conversation_id}")
+        # For now, just acknowledge
+        await self.platform.send_error(websocket, "OAuth completion not yet implemented")

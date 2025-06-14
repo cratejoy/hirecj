@@ -23,6 +23,7 @@ from app.services.session_manager import SessionManager
 from app.services.message_processor import MessageProcessor
 from app.services.conversation_storage import ConversationStorage
 from app.workflows.loader import WorkflowLoader
+from shared.protocol.models import ErrorMsg
 
 from .websocket_handler import WebSocketHandler
 from .session_handler import SessionHandler
@@ -178,12 +179,11 @@ class WebPlatform(Platform):
     async def send_error(self, websocket: WebSocket, error_message: str):
         """Send error message to web client"""
         try:
-            error_msg = {
-                "type": "error",
-                "text": error_message,
-                "timestamp": datetime.now().isoformat(),
-            }
-            await websocket.send_json(error_msg)
+            error_msg = ErrorMsg(
+                type="error",
+                text=error_message
+            )
+            await websocket.send_json(error_msg.model_dump())
         except Exception as e:
             logger.error(f"Error sending error message: {str(e)}")
 
