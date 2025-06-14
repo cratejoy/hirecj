@@ -44,6 +44,9 @@ help:
 	@echo "  make reset-db     - Clear and refill agents database"
 	@echo "  make migrate-agents - Run agents database migrations"
 	@echo ""
+	@echo "🔧 Development tools:"
+	@echo "  make generate-protocol - Generate TypeScript types from Pydantic models"
+	@echo ""
 	@echo "🔄 Freshdesk sync commands:"
 	@echo "  make sync-freshdesk - Sync all Freshdesk data"
 	@echo "  make sync-tickets   - Sync only Freshdesk tickets"
@@ -347,6 +350,13 @@ reset-db: clear-db fill-db
 migrate-agents:
 	@echo "🔄 Running agents database migrations..."
 	cd agents && . venv/bin/activate && python scripts/run_migration.py
+
+# Generate TypeScript types from protocol
+generate-protocol:
+	@echo "🔧 Generating TypeScript types from Pydantic models..."
+	@chmod +x shared/protocol/generate.sh
+	@./shared/protocol/generate.sh
+	@echo "✅ TypeScript types generated in homepage/src/protocol/"
 
 # Sync Freshdesk data
 sync-freshdesk:
