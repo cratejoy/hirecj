@@ -8,6 +8,7 @@ import DemoScriptFlow from '@/components/DemoScriptFlow';
 import { ConfigurationModal } from '@/components/ConfigurationModal';
 import { ChatInterface } from '@/components/ChatInterface';
 import { useToast } from '@/hooks/use-toast';
+import { useOAuthCallback } from '@/hooks/useOAuthCallback';
 import { VALID_WORKFLOWS, WorkflowType, DEFAULT_WORKFLOW, WORKFLOW_NAMES } from '@/constants/workflow';
 
 interface Message {
@@ -213,6 +214,34 @@ const SlackChat = () => {
 			}
 		}
 	});
+
+	// Handle OAuth callback from Shopify
+	useOAuthCallback(
+		(params) => {
+			// This is the onSuccess callback
+			console.log('[OAuth] Callback success, sending message to backend', params);
+
+			// Send the correctly typed message to the backend
+			wsChat.sendSpecialMessage({
+				type: 'oauth_complete',
+				data: {
+					shop_domain: params.shop,
+					user_id: params.user_id,
+					is_new: params.is_new === 'true',
+					merchant_id: params.merchant_id,
+					// The backend gets the conversation_id from the WebSocket connection itself
+				},
+			});
+		},
+		(error) => {
+			// This is the onError callback
+			toast({
+				title: 'Shopify Connection Failed',
+				description: error,
+				variant: 'destructive',
+			});
+		}
+	);
 	
 
 	// Use appropriate chat based on mode
