@@ -49,10 +49,23 @@ class SessionHandlers:
         scenario  = start_data.get("scenario") or "default"
         workflow  = "shopify_onboarding"
 
+        logger.info(f"[WORKFLOW] _select_workflow called with user_id={user_id}, ws_session.data={ws_session.get('data', {})}")
+        logger.info(f"[WORKFLOW] start_data from client: {start_data}")
+
         # 1. explicit override set by auth-callback
         override = (ws_session.get("data") or {}).pop("next_workflow", None)
         if override:
+            logger.info(f"[WORKFLOW] Using explicit next_workflow override: {override}")
             workflow = override
+            # If we're switching to post_auth workflow, also update scenario
+            if workflow == "shopify_post_auth":
+                scenario = "post_auth"
+                # Also try to get merchant from active integration
+                if user_id:
+                    shop_domain = self._get_active_shopify_domain(user_id)
+                    if shop_domain:
+                        merchant = shop_domain.replace(".myshopify.com", "")
+                        logger.info(f"[WORKFLOW] Set merchant to {merchant} from active integration")
             await self._clear_session_flag(ws_session)
 
         # 2. client-requested workflow
@@ -75,6 +88,7 @@ class SessionHandlers:
         if not merchant:
             merchant = "onboarding_user"
 
+        logger.info(f"[WORKFLOW] Final selection: merchant={merchant}, scenario={scenario}, workflow={workflow}")
         return merchant, scenario, workflow
 
     async def _clear_session_flag(self, ws_session: dict):
