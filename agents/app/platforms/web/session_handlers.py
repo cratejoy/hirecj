@@ -323,6 +323,11 @@ class SessionHandlers:
             )
             return
 
+        if merchant_id is None:
+            raise RuntimeError(
+                f"OAuth finished but merchant_id missing for {shop_domain}"
+            )
+
         # Build unified metadata object
         oauth_metadata = {
             "provider": "shopify",

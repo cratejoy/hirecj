@@ -19,8 +19,7 @@ def _get_data_fetcher(shop_domain: str) -> Optional[ShopifyDataFetcher]:
     # This is a synchronous call to the merchant service
     access_token = merchant_service.get_shopify_token(shop_domain)
     if not access_token:
-        logger.error(f"No Shopify access token found for {shop_domain}")
-        return None
+        raise RuntimeError(f"Shopify token not found or DB error for {shop_domain}")
     return ShopifyDataFetcher(shop_domain, access_token)
 
 
@@ -34,9 +33,7 @@ def get_shopify_store_counts(shop_domain: str) -> str:
     logger.info(f"[TOOL_CALL] get_shopify_store_counts called with shop_domain={shop_domain}")
     fetcher = _get_data_fetcher(shop_domain)
     if not fetcher:
-        result = json.dumps({"error": "Shopify connection not found."})
-        logger.info(f"[TOOL_CALL] get_shopify_store_counts returned: {result}")
-        return result
+        raise RuntimeError(f"Shopify token not found or DB error for {shop_domain}")
     try:
         data = fetcher.get_counts()
         result = json.dumps(data)
@@ -59,9 +56,7 @@ def get_shopify_store_overview(shop_domain: str) -> str:
     logger.info(f"[TOOL_CALL] get_shopify_store_overview called with shop_domain={shop_domain}")
     fetcher = _get_data_fetcher(shop_domain)
     if not fetcher:
-        result = json.dumps({"error": "Shopify connection not found."})
-        logger.info(f"[TOOL_CALL] get_shopify_store_overview returned: {result}")
-        return result
+        raise RuntimeError(f"Shopify token not found or DB error for {shop_domain}")
     try:
         data = fetcher.get_store_overview()
         result = json.dumps(data, default=str)  # Use default=str for datetime objects
@@ -83,9 +78,7 @@ def get_shopify_recent_orders(shop_domain: str, limit: int = 10) -> str:
     logger.info(f"[TOOL_CALL] get_shopify_recent_orders called with shop_domain={shop_domain}, limit={limit}")
     fetcher = _get_data_fetcher(shop_domain)
     if not fetcher:
-        result = json.dumps({"error": "Shopify connection not found."})
-        logger.info(f"[TOOL_CALL] get_shopify_recent_orders returned: {result}")
-        return result
+        raise RuntimeError(f"Shopify token not found or DB error for {shop_domain}")
     try:
         data = fetcher.get_recent_orders(limit=limit)
         result = json.dumps(data, default=str)
@@ -108,9 +101,7 @@ def get_shopify_orders_last_week(shop_domain: str) -> str:
     logger.info(f"[TOOL_CALL] get_shopify_orders_last_week called with shop_domain={shop_domain}")
     fetcher = _get_data_fetcher(shop_domain)
     if not fetcher:
-        result = json.dumps({"error": "Shopify connection not found."})
-        logger.info(f"[TOOL_CALL] get_shopify_orders_last_week returned: {result}")
-        return result
+        raise RuntimeError(f"Shopify token not found or DB error for {shop_domain}")
     try:
         data = fetcher.get_orders_last_week()
         result = json.dumps(data, default=str)

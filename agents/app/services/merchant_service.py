@@ -17,26 +17,16 @@ class MerchantService:
         """Get Shopify access token from PostgreSQL only."""
         
         merchant_name = shop_domain.replace('.myshopify.com', '')
-        
-        try:
-            with get_db_session() as session:
-                query = session.query(MerchantIntegration.api_key).join(Merchant).filter(
-                    Merchant.name == merchant_name,
-                    MerchantIntegration.platform == 'shopify',
-                    MerchantIntegration.is_active == True
-                )
-                result = query.scalar()
-                
-                if result:
-                    logger.info(f"Got token from PostgreSQL for {shop_domain}")
-                    return result
-                else:
-                    logger.warning(f"No active Shopify token found for {shop_domain}")
-                    return None
-                    
-        except Exception as e:
-            logger.error(f"Failed to get token from PostgreSQL: {e}")
-            return None
+        with get_db_session() as session:
+            query = session.query(MerchantIntegration.api_key).join(Merchant).filter(
+                Merchant.name == merchant_name,
+                MerchantIntegration.platform == 'shopify',
+                MerchantIntegration.is_active == True
+            )
+            result = query.scalar()
+            if result is None:
+                raise RuntimeError(f"No active Shopify token for {shop_domain}")
+            return result
 
 
 # Singleton instance

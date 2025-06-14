@@ -40,12 +40,9 @@ class SessionHandler:
                 shop_domain = ws_session.get("shop_domain")
                 
                 if shop_domain:
-                    try:
-                        user_id, is_new = get_or_create_user(shop_domain)
-                        logger.info(f"[USER_IDENTITY] Backend generated user_id={user_id} "
-                                   f"for shop_domain={shop_domain} (new={is_new})")
-                    except Exception as e:
-                        logger.error(f"[USER_IDENTITY] Failed to get/create user for {shop_domain}: {e}")
+                    user_id, is_new = get_or_create_user(shop_domain)
+                    logger.info(f"[USER_IDENTITY] Backend generated user_id={user_id} "
+                               f"for shop_domain={shop_domain} (new={is_new})")
                 else:
                     logger.info(f"[USER_IDENTITY] No user_id from cookie and no shop_domain - proceeding anonymously")
             
