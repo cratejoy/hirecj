@@ -57,6 +57,40 @@ Successfully implemented Phase 2 of the WebSocket protocol standardization, ensu
 5. `a7bbaab` - fix: replace deprecated parse_obj with model_validate
 6. `bb23bae` - feat: implement validation gateway for all outgoing messages
 
+## Phase 3: Fact Check Technical Debt (Just Completed) ✅
+
+### Problem Fixed
+The `_run_fact_check` function was storing raw dictionaries instead of typed models, leading to:
+- No validation of stored fact check data format
+- Bug accessing non-existent fields (`issue.issue` and `issue.explanation`)
+- Inconsistency between protocol messages and stored data
+
+### Solution Implemented
+1. **Created Typed Protocol Models**:
+   - `FactClaimData` - Typed representation of fact claims
+   - `FactIssueData` - Typed representation of fact issues
+   - `FactCheckResultData` - Complete typed fact check result
+   - Updated `FactCheckCompleteData` to use typed result
+
+2. **Fixed Bug**:
+   - Corrected field references from `issue.issue`/`issue.explanation` to `issue.summary`
+   - Now properly uses fields that exist on the `FactIssue` dataclass
+
+3. **Updated Implementation**:
+   - `_run_fact_check` now creates `FactCheckResultData` instances
+   - All endpoints handle typed models with proper validation
+   - Maintained backwards compatibility for legacy data
+
+## Results
+- ✅ **Complete Type Safety**: Fact check results now validated end-to-end
+- ✅ **Bug Fixed**: No more runtime errors from accessing non-existent fields
+- ✅ **Consistency**: Same data format in cache, storage, and WebSocket messages
+- ✅ **Frontend Types**: TypeScript now has strongly typed fact check results
+
+## Commits Made
+1. `bb23bae` - feat: implement validation gateway for all outgoing messages
+2. `06e5a78` - fix: implement typed fact check results with protocol models
+
 ## Next Steps (Future Work)
 - Monitor for any protocol violations in production
 - Add protocol versioning if breaking changes needed
