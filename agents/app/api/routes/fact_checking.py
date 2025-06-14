@@ -121,7 +121,7 @@ async def get_fact_check(conversation_id: str, message_index: int) -> FactCheckS
                 return FactCheckStatus(
                     status="complete",
                     message_index=message_index,
-                    result=result.model_dump()
+                    result=result.model_dump(mode='json')
                 )
             
             # Handle legacy FactCheckResult case (for backwards compatibility)
@@ -315,7 +315,7 @@ async def get_all_fact_checks(conversation_id: str) -> Dict[str, Any]:
         for msg_idx, result in _fact_check_results[conversation_id].items():
             if isinstance(result, FactCheckResultData):
                 # Use typed model's serialization
-                fact_checks[str(msg_idx)] = result.model_dump()
+                fact_checks[str(msg_idx)] = result.model_dump(mode='json')
             elif isinstance(result, FactCheckResult):
                 # Legacy support for old FactCheckResult objects
                 fact_checks[str(msg_idx)] = result.to_dict()

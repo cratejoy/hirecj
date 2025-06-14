@@ -229,7 +229,7 @@ class WebPlatform(Platform):
             raise TypeError(f"Invalid message type: {type(message).__name__}. Must be a valid protocol message type.")
         
         try:
-            await websocket.send_json(message.model_dump())
+            await websocket.send_json(message.model_dump(mode='json'))
         except Exception as e:
             logger.error(f"Error sending validated message: {str(e)}")
             raise
