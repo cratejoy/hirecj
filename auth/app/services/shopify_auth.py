@@ -33,7 +33,11 @@ class ShopifyAuth:
             return False
         
         # Sort parameters and join without additional percent-encoding
+        # Per Shopify docs, keys must be sorted alphabetically.
         sorted_params = sorted(params.items())
+        
+        # NOTE: The values must NOT be URL-encoded again. They are used as-is from the query string.
+        # This is a common mistake. The `&` and `=` characters are part of the message to be signed.
         query_string = "&".join(f"{k}={v}" for k, v in sorted_params)
         
         # Calculate HMAC

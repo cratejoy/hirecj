@@ -1,100 +1,59 @@
 
-# Phase-5  –  Deterministic Shopify OAuth handshake
+# Code Duplication Audit & Consolidation Plan
 
-Goal
+## 1. Audit Summary
 
-────
+The codebase contains significant duplication of shared code between the `agents` and `auth` services, as well as between the `editor` and `homepage` frontend applications. This violates the DRY (Don't Repeat Yourself) principle and makes maintenance difficult and error-prone.
 
-Single, loss-proof source of truth for Shopify-OAuth state while removing
-PII from URLs and eliminating timing windows between the four “sessions”.
+### Backend Duplication (`agents` vs. `auth`)
 
-Principles
+The following files are identical or functionally identical across services and should be consolidated into a single shared library.
 
-──────────
-1.  Only the **HTTP cookie session** (`web_sessions` row) is authoritative.  
-2.  Web-socket and runtime `Session` *mirror* that data; they never invent it.  
-3.  Front-end is “dumb”: it just notifies `oauth_complete` with an empty body.  
-4.  Every step is idempotent; a reconnect or page refresh cannot lose state.  
-5.  Fail fast – missing metadata raises, does **not** fall back silently.
+**Identical Files:**
+*   `shared/db_models.py`
+*   `shared/config_base.py`
+*   `shared/logging_config.py`
+*   `shared/env_loader.py`
+*   `shared/user_identity.py`
+*   `shared/models/api.py`
+*   `shared/detect_tunnels.py`
+*   `shared/constants.py`
 
-Data structure stored in DB:
+### Frontend Duplication (`editor` vs. `homepage`)
 
-```json
-{
-  "oauth_metadata": {
-    "provider": "shopify",
-    "shop_domain": "foo.myshopify.com",
-    "merchant_id": 42,
-    "is_new": true
-  },
-  "next_workflow": "shopify_post_auth"
-}
-```
+The UI component library appears to have been copied into multiple frontend applications.
 
-Complete control-flow
+**Identical Files:**
+*   `editor/src/components/ui/button.tsx`
+*   `homepage/src/components/ui/button.tsx`
 
-─────────────────────
-1.  (User clicks **Connect Shopify**)  
-    • Front-end fetches `/state` JWT → builds Shopify redirect.
+This indicates other UI components are likely also duplicated.
 
-2.  (Shopify redirects to `/callback`)  
-    • Token exchange succeeds.  
-    • `issue_session(user_id)` → sets `hirecj_session` cookie.  
-    • **NEW:** `oauth_metadata` JSON is written into
-      `web_sessions.data` together with `"next_workflow":"shopify_post_auth"`.
+## 2. Consolidation Plan
 
-3.  Browser lands back on `/chat?oauth=complete`  
-    • `useOAuthCallback` immediately sends  
-      `{type:"oauth_complete",data:{}}`.  (No URL parsing, no localStorage.)
+The following plan will centralize all shared code, remove duplication, and improve maintainability.
 
-4.  WebSocket connect  
-    a.  Handler loads the DB row for the cookie.  
-    b.  Copies `session.data` into fresh `ws_session["data"]`.  
-    c.  If `oauth_metadata` present, also seeds  
-        `ws_session["oauth_metadata"]`, `shop_domain`, `merchant_id`.
+### Step 1: Create a Top-Level `shared` Python Library
 
-5.  `handle_oauth_complete` (now idempotent)  
-    • Re-computes `oauth_metadata` (falls back to DB row if payload empty).  
-    • Writes it to **all three layers**:  
-      – ws_session  
-      – live Session (if exists)  
-      – DB (`update web_sessions set data->'oauth_metadata' = …`).  
-    • Sends `oauth_processed` ack (success/fail).  
-    • Hard `RuntimeError` if metadata still missing.
+A new directory named `shared` will be created at the root of the monorepo. This will become the single source of truth for all shared Python code.
 
-6.  `start_conversation` → `SessionManager.create_session`  
-    • New arg `ws_session` passed in.  
-    • If `ws_session["oauth_metadata"]` exists, copy into
-      `session.oauth_metadata` **before** CJ agent creation.
+### Step 2: Consolidate Shared Code
 
-7.  CJ agent creation always receives non-None `oauth_metadata` ⇒
-    Shopify tools load deterministically.
+All duplicated Python modules from `agents/shared` and `auth/shared` will be moved into the new top-level `shared` library. The `constants.py` files, while identical, will also be moved, with a plan to merge other constants into them in the future.
 
-Front-end clean-up
+### Step 3: Delete Redundant Directories
 
-──────────────────
-* Remove all URL-param parsing & `userSession.setMerchant`.  
-* Remove `localStorage` dependency entirely (may keep hook for UI toggles).
+The old `agents/shared` and `auth/shared` directories will be deleted from the repository.
 
-Hard-fail guarantees
+### Step 4: Address Frontend Duplication
 
-────────────────────
-* Any missing token/shop_domain raises `RuntimeError` in
-  `handle_oauth_complete` → WebSocket error envelope → visible to user/dev.  
-* Silent DB lookup fall-backs are deleted.
+As a first step, the duplicated `button.tsx` in the `editor` will be removed. A more comprehensive frontend refactoring should be undertaken to create a shared UI library for all frontend applications.
 
-Migration steps
+### Step 5: Update Service Dependencies
 
-───────────────
-1. SQL: `alter table web_sessions alter column data set default '{}'::jsonb;`
-2. Deploy auth-service change first (starts writing metadata).  
-3. Deploy agents-service (reads new column, implements copy logic).  
-4. Remove legacy URL/LocalStorage code from homepage.
+The `agents` and `auth` services will be configured to use the new shared library. The existing `sys.path` modifications in the `config.py` files are sufficient to make the new top-level `shared` directory importable, so no code changes are required for imports.
 
-Expected outcome
+For a more robust setup, each service should install the shared library in editable mode. This can be done by running the following command from within each service's directory (e.g., from `agents/`):
+`pip install -e ../shared`
 
-────────────────
-• 0 % tool-hallucination.  
-• OAuth flow works across refreshes and multi-tab.  
-• Secrets never travel through URLs.  
-• One unified debugging point: `web_sessions.data`.
+This ensures that changes to the shared library are immediately available to the services during development.
