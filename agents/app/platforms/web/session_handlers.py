@@ -20,6 +20,8 @@ from shared.protocol.models import (
     ConversationStartedData,
     LogoutCompleteMsg,
     LogoutCompleteData,
+    OAuthProcessedMsg,          #  <-- NEW
+    OAuthProcessedData,         #  <-- NEW
 )
 
 from .session_handler import SessionHandler
@@ -280,8 +282,52 @@ class SessionHandlers:
     async def handle_oauth_complete(
         self, websocket: WebSocket, conversation_id: str, message: OAuthCompleteMsg
     ):
-        """Handle OAuth completion message."""
-        # This would be implemented when OAuth flow is integrated
-        logger.info(f"[OAUTH] OAuth complete message received for conversation {conversation_id}")
-        # For now, just acknowledge
-        await self.platform.send_error(websocket, "OAuth completion not yet implemented")
+        """
+        Persist OAuth completion info in-memory and acknowledge.
+
+        After this call, session.oauth_metadata is populated so that
+        create_cj_agent() will load Shopify tools automatically.
+        """
+        data = message.data or {}
+        shop_domain   = data.get("shop_domain")
+        user_id       = data.get("user_id")
+        is_new        = data.get("is_new", False)
+        merchant_id   = data.get("merchant_id")  # optional
+
+        if not shop_domain:
+            await self.platform.send_error(websocket, "shop_domain missing")
+            return
+
+        # Build unified metadata object
+        oauth_metadata = {
+            "provider": "shopify",
+            "authenticated": True,
+            "shop_domain": shop_domain,
+            "is_new_merchant": is_new,
+            "merchant_id": merchant_id,
+        }
+
+        # ── 1. Update websocket-session dict ─────────────────────────────
+        ws_session = self.platform.sessions.setdefault(conversation_id, {})
+        ws_session["oauth_metadata"] = oauth_metadata
+
+        # ── 2. Update live Session object if it already exists ───────────
+        session_obj = self.platform.session_manager.get_session(conversation_id)
+        if session_obj:
+            session_obj.oauth_metadata = oauth_metadata
+
+        logger.info(
+            f"[OAUTH] Stored oauth_metadata for {conversation_id}: {oauth_metadata}"
+        )
+
+        # ── 3. Acknowledge to frontend ───────────────────────────────────
+        processed_msg = OAuthProcessedMsg(
+            type="oauth_processed",
+            data=OAuthProcessedData(
+                success=True,
+                is_new=is_new,
+                merchant_id=merchant_id,
+                shop_domain=shop_domain,
+            )
+        )
+        await self.platform.send_validated_message(websocket, processed_msg)
