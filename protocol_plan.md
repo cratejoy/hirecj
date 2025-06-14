@@ -57,7 +57,7 @@ The protocol's source of truth (Python models) will live in `shared/`, but the g
 *   `shared/protocol/models.py`: The canonical Pydantic models.
 *   `homepage/src/protocol/generated.ts`: The auto-generated TypeScript interfaces. **This file should be committed to the repository** to simplify the frontend build process.
 This is the definitive policy: the generated file **is tracked in git**.  
-CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run the generator.
+Developers must keep it up-to-date; a local pre-commit hook (optional) can auto-run the generator.
 
 ## 4. Implementation Plan
 
@@ -402,8 +402,8 @@ When a developer needs to change the WebSocket protocol (e.g., add a field to a 
 
 ## 7. Risks & Mitigations
 
-*   **Risk:** Developers forget to run the generation script, causing the committed code to be out of sync.
-    *   **Mitigation:** **Implement a CI Check.** Add a step to the CI pipeline that runs `pydantic2ts --module shared.protocol.models --output homepage/src/protocol/generated.ts` and then uses `git diff --exit-code homepage/src/protocol/generated.ts`. If there's a diff, it means the generated file is stale, and the build fails. This forces developers to commit the up-to-date version. A pre-commit hook can also be used for local development.
+*   **Risk:** Developers forget to run the generation script, causing the committed code to be out of sync.  
+    *   **Mitigation:** Document the workflow clearly and provide an optional local pre-commit hook that runs `pydantic2ts` and warns if `generated.ts` is stale.
 
 *   **Risk:** The `pydantic2ts` tool might have issues with very complex types.
     *   **Mitigation:** This tool is more robust, but it's still good practice to keep protocol models simple and focused on data transfer. Avoid complex custom types or validators in the Pydantic models destined for generation.
