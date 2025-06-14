@@ -57,3 +57,27 @@ For a more robust setup, each service should install the shared library in edita
 `pip install -e ../shared`
 
 This ensures that changes to the shared library are immediately available to the services during development.
+
+## 3. Remaining Duplication Issues (Post-Consolidation)
+
+The initial consolidation has been successful. The following items represent the next tier of duplication to address for a fully DRY codebase.
+
+### Backend: Database Connection Logic
+-   **Files:** `agents/app/utils/supabase_util.py`, `auth/app/utils/database.py`
+-   **Issue:** Both services contain similar logic for creating an SQLAlchemy engine and session factory. This should be centralized.
+-   **Recommendation:** Create a single `shared/database.py` module to handle all database connection logic, and have both services import from it.
+
+### Backend: Tunnel Detection Scripts
+-   **Files:** `auth/scripts/tunnel_detector.py` (obsolete) vs. `shared/detect_tunnels.py` (canonical).
+-   **Issue:** The `auth` service contains an older, less robust version of the tunnel detection script.
+-   **Recommendation:** Delete the obsolete `auth/scripts/tunnel_detector.py` and ensure any startup processes use the shared version.
+
+### Frontend: Utility Functions
+-   **Files:** `editor/src/lib/utils.ts`, `homepage/src/lib/utils.ts`
+-   **Issue:** Both frontend applications define an identical `cn` utility function for merging CSS classes.
+-   **Recommendation:** Establish a shared frontend utility package (e.g., in `packages/utils`) that both applications can depend on.
+
+### Frontend: UI Components
+-   **Files:** `editor/src/components/ui/`, `homepage/src/components/ui/`
+-   **Issue:** The removal of `button.tsx` from the editor indicates that many other core UI components are likely duplicated across both frontend applications.
+-   **Recommendation:** Perform a full audit of the two `ui` directories. Create a shared UI component library (e.g., in `packages/ui`) to house all common components like `Input`, `Card`, `Dialog`, etc.
