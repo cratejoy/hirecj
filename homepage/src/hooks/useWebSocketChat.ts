@@ -17,7 +17,8 @@ import {
   WorkflowUpdatedMsg,
   OAuthProcessedMsg,
   DebugResponseMsg,
-  DebugEventMsg
+  DebugEventMsg,
+  StartConversationData
 } from '@/protocol';
 
 const wsLogger = logger.child('websocket');
@@ -527,8 +528,12 @@ export function useWebSocketChat({
       setTimeout(() => {
         // Send start_conversation message
         // Server determines everything from session
-        const startData = {};
+        const startData: StartConversationData = {};
         
+        // Include workflow if provided
+        if (workflowRef.current) {
+          startData.workflow = workflowRef.current;
+        }
         
         // Debug: Log what we're sending
         wsLogger.info('📤 start_conversation data:', startData);
