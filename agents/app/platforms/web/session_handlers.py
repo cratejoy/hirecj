@@ -2,8 +2,8 @@
 
 from typing import Dict, Any, TYPE_CHECKING
 from datetime import datetime
-from sqlalchemy import select, update
-from shared.db_models import WebSession, MerchantToken, MerchantIntegration
+from sqlalchemy import select, update          # NEW
+from shared.db_models import WebSession, MerchantToken, MerchantIntegration, Merchant  # NEW
 from app.utils.supabase_util import get_db_session
 from typing import Optional, Dict
 
@@ -288,14 +288,39 @@ class SessionHandlers:
         After this call, session.oauth_metadata is populated so that
         create_cj_agent() will load Shopify tools automatically.
         """
-        data = message.data or {}
+        # ---------------------------------------------------------------
+        # ❶ Try to get identifiers from payload, fall back to DB lookup
+        # ---------------------------------------------------------------
+        data          = message.data or {}
         shop_domain   = data.get("shop_domain")
-        user_id       = data.get("user_id")
+        merchant_id   = data.get("merchant_id")
         is_new        = data.get("is_new", False)
-        merchant_id   = data.get("merchant_id")  # optional
 
+        # Look-up via authenticated user when anything missing
+        ws_session = self.platform.sessions.setdefault(conversation_id, {})
+        user_id    = ws_session.get("user_id") if ws_session.get("authenticated") else None
+
+        if (not shop_domain or not merchant_id) and user_id:
+            # → find active Shopify integration for this user
+            shop_domain_db = self._get_active_shopify_domain(user_id)
+            if shop_domain_db and not shop_domain:
+                shop_domain = shop_domain_db
+
+            if shop_domain and not merchant_id:
+                merchant_name = shop_domain.replace(".myshopify.com", "")
+                with get_db_session() as db:
+                    merchant_id_db = db.scalar(
+                        select(Merchant.id).where(Merchant.name == merchant_name)
+                    )
+                    if merchant_id_db:
+                        merchant_id = merchant_id_db
+
+        # If still no shop_domain we can’t proceed
         if not shop_domain:
-            await self.platform.send_error(websocket, "shop_domain missing")
+            await self.platform.send_error(
+                websocket,
+                "OAuth completed but no active Shopify store found for this user"
+            )
             return
 
         # Build unified metadata object
@@ -310,6 +335,8 @@ class SessionHandlers:
         # ── 1. Update websocket-session dict ─────────────────────────────
         ws_session = self.platform.sessions.setdefault(conversation_id, {})
         ws_session["oauth_metadata"] = oauth_metadata
+        ws_session["shop_domain"] = shop_domain          # NEW
+        ws_session["merchant_id"] = merchant_id          # NEW
 
         # ── 2. Update live Session object if it already exists ───────────
         session_obj = self.platform.session_manager.get_session(conversation_id)
