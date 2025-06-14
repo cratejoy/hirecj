@@ -156,7 +156,7 @@ export interface OAuthCompleteMsg {
 export interface OAuthProcessedData {
   success: boolean;
   is_new?: boolean | null;
-  merchant_id?: string | null;
+  merchant_id?: number | null;
   shop_domain?: string | null;
   error?: string | null;
 }

@@ -78,7 +78,7 @@ class WorkflowUpdatedData(BaseModel):
 class OAuthProcessedData(BaseModel):
     success: bool
     is_new: Optional[bool] = None
-    merchant_id: Optional[str] = None
+    merchant_id: Optional[int] = None
     shop_domain: Optional[str] = None
     error: Optional[str] = None
 
