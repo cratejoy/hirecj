@@ -218,19 +218,10 @@ const SlackChat = () => {
 	// Handle OAuth callback from Shopify
 	useOAuthCallback(
 		(params) => {
-			// This is the onSuccess callback
-			console.log('[OAuth] Callback success, sending message to backend', params);
-
-			// Send the correctly typed message to the backend
+			// Notify backend that OAuth finished; backend will derive all metadata.
 			wsChat.sendSpecialMessage({
 				type: 'oauth_complete',
-				data: {
-					shop_domain: params.shop,
-					user_id: params.user_id,
-					is_new: params.is_new === 'true',
-					merchant_id: params.merchant_id,
-					// The backend gets the conversation_id from the WebSocket connection itself
-				},
+				data: {},
 			});
 		},
 		(error) => {

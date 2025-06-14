@@ -2,12 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useLocation } from 'wouter';
 
 interface OAuthCallbackParams {
-  oauth: string;
-  conversation_id: string;
-  is_new: string;
-  merchant_id?: string;
-  shop?: string;
-  user_id?: string;
+  oauth: 'complete';
   error?: string;
 }
 
@@ -32,25 +27,24 @@ export const useOAuthCallback = (
     }
     
     if (params.get('oauth') === 'complete') {
-      const callbackData: OAuthCallbackParams = {
-        oauth: 'complete',
-        conversation_id: params.get('conversation_id') || '',
-        is_new: params.get('is_new') || 'true',
-        merchant_id: params.get('merchant_id') || undefined,
-        shop: params.get('shop') || undefined,
-        error: params.get('error') || undefined
-      };
+      const callbackData: OAuthCallbackParams = { oauth: 'complete' };
       
+      if (params.get('error')) {
+        callbackData.error = params.get('error') || undefined;
+      }
+
       if (callbackData.error) {
         onError(callbackData.error);
       } else {
         onSuccess(callbackData);
       }
-      
+
       // Remove only oauth / error params, keep others (e.g. workflow)
-      params.delete('oauth');
-      params.delete('error');
-      const remaining = params.toString();
+      const remaining = (() => {
+        params.delete('oauth');
+        params.delete('error');
+        return params.toString();
+      })();
       window.history.replaceState(
         {},
         '',
