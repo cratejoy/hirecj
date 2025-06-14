@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
 from app.config import settings
-from app.logging_config import setup_logging
+from shared.logging_config import setup_logging
 from app.models import ConversationRequest, ConversationResponse
 from app.services.session_manager import SessionManager
 from app.services.message_processor import MessageProcessor
@@ -29,7 +29,7 @@ from app.api.routes import internal as internal_router
 from app.constants import HTTPStatus, WebSocketCloseCodes
 
 # Initialize logging
-setup_logging()
+setup_logging(service_name="agents", level=settings.log_level, log_dir=settings.logs_dir)
 
 # Set environment variables for litellm if they're not already set
 if settings.openai_api_key and not os.getenv("OPENAI_API_KEY"):

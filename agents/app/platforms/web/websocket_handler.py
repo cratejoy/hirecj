@@ -27,6 +27,7 @@ from shared.protocol.models import (
 )
 
 from .message_handlers import MessageHandlers
+from shared.auth.session_cookie import get_session
 
 if TYPE_CHECKING:
     from .platform import WebPlatform
@@ -63,36 +64,20 @@ class WebSocketHandler:
         
         if session_id:
             logger.info(f"[WEBSOCKET] Found session cookie: {session_id[:10]}...")
-            
-            # Import here to avoid circular imports
-            from app.utils.supabase_util import get_db_session
-            from shared.db_models import WebSession
-            from sqlalchemy import select
-            
-            try:
-                with get_db_session() as db:
-                    session = db.scalar(
-                        select(WebSession)
-                        .where(WebSession.session_id == session_id)
-                        .where(WebSession.expires_at > datetime.utcnow())
-                    )
-                    
-                    if session:
-                        user_ctx = {"user_id": session.user_id}
-                        session_id_db = session.session_id
-                        session_data_db = session.data or {}
-                        logger.info(f"[WEBSOCKET] User {session.user_id} connected via session cookie")
-                        logger.info(f"[WEBSOCKET] Session data loaded: {session_data_db}")
-                        
-                        # For authenticated users, create conversation ID based on user and session
-                        # This gives us a stable conversation per session
-                        session_hash = session.session_id[:8]  # Use first 8 chars of session ID
-                        conversation_id = f"user_{session.user_id}_{session_hash}"
-                        logger.info(f"[WEBSOCKET] Created conversation {conversation_id} for authenticated user")
-                    else:
-                        logger.debug(f"[WEBSOCKET] Session not found or expired")
-            except Exception as e:
-                logger.error(f"[WEBSOCKET] Error loading session: {e}", exc_info=True)
+            session_data = get_session(session_id)
+            if session_data:
+                user_ctx = {"user_id": session_data["user_id"]}
+                session_id_db = session_data["session_id"]
+                session_data_db = session_data.get("data", {})
+                logger.info(f"[WEBSOCKET] User {session_data['user_id']} connected via session cookie")
+                logger.info(f"[WEBSOCKET] Session data loaded: {session_data_db}")
+
+                # For authenticated users, create conversation ID based on user and session
+                session_hash = session_id_db[:8]
+                conversation_id = f"user_{user_ctx['user_id']}_{session_hash}"
+                logger.info(f"[WEBSOCKET] Created conversation {conversation_id} for authenticated user")
+            else:
+                logger.debug(f"[WEBSOCKET] Session cookie invalid or expired")
         else:
             logger.info(f"[WEBSOCKET] No session cookie found - anonymous connection")
         

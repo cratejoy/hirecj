@@ -19,8 +19,9 @@ from app.services.shopify_auth import shopify_auth
 from shared.user_identity import get_or_create_user
 from app.utils.database import get_db_session
 from shared.db_models import OAuthCSRFState
-from shared.db_models import WebSession            # NEW
-from sqlalchemy import update                       # NEW
+from shared.db_models import WebSession
+from sqlalchemy import update
+from shared.auth.session_cookie import issue_session
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +288,6 @@ async def handle_oauth_callback(request: Request):
         
         # Issue session cookie if we have a user_id
         if user_id:
-            from app.services.session_cookie import issue_session
             session_id = issue_session(user_id)
 
             # Store OAuth metadata in session for agents service

@@ -6,6 +6,7 @@ from sqlalchemy import select, update          # NEW
 from shared.db_models import WebSession, MerchantToken, MerchantIntegration, Merchant  # NEW
 from app.utils.supabase_util import get_db_session
 from typing import Optional, Dict
+from app.services.merchant_service import merchant_service
 
 from fastapi import WebSocket
 
@@ -64,7 +65,7 @@ class SessionHandlers:
                 scenario = "post_auth"
                 # Also try to get merchant from active integration
                 if user_id:
-                    shop_domain = self._get_active_shopify_domain(user_id)
+                    shop_domain = merchant_service.get_active_shopify_domain_for_user(user_id)
                     if shop_domain:
                         merchant = shop_domain.replace(".myshopify.com", "")
                         logger.info(f"[WORKFLOW] Set merchant to {merchant} from active integration")
@@ -76,7 +77,7 @@ class SessionHandlers:
 
         # 3. user already has an active Shopify integration ⇒ start in post-auth
         elif user_id:
-            shop_domain = self._get_active_shopify_domain(user_id)
+            shop_domain = merchant_service.get_active_shopify_domain_for_user(user_id)
             if shop_domain:
                 merchant = shop_domain.replace(".myshopify.com", "")
                 workflow = "shopify_post_auth"
@@ -105,21 +106,6 @@ class SessionHandlers:
                 .values(data={})
             )
             db.commit()
-
-    def _get_active_shopify_domain(self, user_id: str) -> str | None:
-        """Return shop_domain if this user already has an active Shopify integration."""
-        with get_db_session() as db:
-            return db.scalar(
-                select(MerchantToken.shop_domain)
-                .join(
-                    MerchantIntegration,
-                    MerchantIntegration.merchant_id == MerchantToken.merchant_id
-                )
-                .where(MerchantToken.user_id == user_id)
-                .where(MerchantIntegration.platform == "shopify")
-                .where(MerchantIntegration.is_active.is_(True))
-                .limit(1)
-            )
 
     async def handle_start_conversation(
         self, websocket: WebSocket, conversation_id: str, message: StartConversationMsg
@@ -316,7 +302,7 @@ class SessionHandlers:
 
         if (not shop_domain or not merchant_id) and user_id:
             # → find active Shopify integration for this user
-            shop_domain_db = self._get_active_shopify_domain(user_id)
+            shop_domain_db = merchant_service.get_active_shopify_domain_for_user(user_id)
             if shop_domain_db and not shop_domain:
                 shop_domain = shop_domain_db
 
