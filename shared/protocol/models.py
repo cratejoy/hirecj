@@ -5,7 +5,7 @@ from datetime import datetime
 # ───── nested payload objects ───────────────────────────────────────────────
 class StartConversationData(BaseModel):
     workflow: Optional[str] = None
-    merchant_id: Optional[str] = None
+    shop_subdomain: Optional[str] = None
     scenario_id: Optional[str] = None
 
 
