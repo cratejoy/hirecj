@@ -87,9 +87,32 @@ The `_run_fact_check` function was storing raw dictionaries instead of typed mod
 - ✅ **Consistency**: Same data format in cache, storage, and WebSocket messages
 - ✅ **Frontend Types**: TypeScript now has strongly typed fact check results
 
+## Phase 4: Discriminated Union Validation Fix (Just Completed) ✅
+
+### Problem Fixed
+After converting `IncomingMessage` and `OutgoingMessage` to discriminated unions using `Annotated[Union[...], Field(discriminator="type")]`, the code was still trying to call `.model_validate()` on them, causing:
+- `AttributeError: model_validate` - discriminated unions are type annotations, not Pydantic models
+- Import conflict between base `OutgoingMessage` class and protocol union
+
+### Solution Implemented
+1. **Use TypeAdapter for Validation**:
+   - Added `TypeAdapter(IncomingMessage)` to validate discriminated unions
+   - Replaced `IncomingMessage.model_validate(data)` with `adapter.validate_python(data)`
+
+2. **Fixed Import Conflicts**:
+   - Renamed imports: `OutgoingMessage as BaseOutgoingMessage` (from base)
+   - Removed conflicting protocol import
+   - Created `ProtocolMessage` type alias for all protocol message types
+
+3. **Updated Type Signatures**:
+   - `send_message()` uses `BaseOutgoingMessage` for platform messages
+   - `send_validated_message()` uses `ProtocolMessage` for WebSocket messages
+   - Clear separation between platform and protocol messages
+
 ## Commits Made
 1. `bb23bae` - feat: implement validation gateway for all outgoing messages
 2. `06e5a78` - fix: implement typed fact check results with protocol models
+3. `bc3bb0b` - fix: handle discriminated union validation with TypeAdapter
 
 ## Next Steps (Future Work)
 - Monitor for any protocol violations in production
