@@ -534,8 +534,15 @@ export function useWebSocketChat({
         // Server determines everything from session
         const startData: StartConversationData = {};
         
-        // Include workflow if provided
-        if (workflowRef.current) {
+        // Check if this is a post-OAuth redirect. If so, don't send a workflow preference.
+        // The backend will determine the correct workflow from the session cookie.
+        const params = new URLSearchParams(window.location.search);
+        const isOAuthReturn = params.get('oauth') === 'complete';
+
+        if (isOAuthReturn) {
+          wsLogger.info('💡 Post-OAuth redirect detected. Letting backend determine workflow.');
+        } else if (workflowRef.current) {
+          // Include workflow if provided and not an OAuth return
           startData.workflow = workflowRef.current;
         }
         
