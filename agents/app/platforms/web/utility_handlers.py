@@ -34,7 +34,7 @@ class UtilityHandlers:
             type="pong",
             timestamp=datetime.now()
         )
-        await websocket.send_json(pong.model_dump())
+        await self.platform.send_validated_message(websocket, pong)
 
     async def handle_debug_request(
         self, websocket: WebSocket, conversation_id: str, message: DebugRequestMsg
@@ -51,7 +51,7 @@ class UtilityHandlers:
                     "conversation_id": conversation_id
                 }
             )
-            await websocket.send_json(debug_response.model_dump())
+            await self.platform.send_validated_message(websocket, debug_response)
             return
         
         debug_data = {}
@@ -116,7 +116,7 @@ class UtilityHandlers:
                 type="debug_response",
                 data=debug_data
             )
-            await websocket.send_json(debug_response.model_dump())
+            await self.platform.send_validated_message(websocket, debug_response)
             
             logger.info(f"[DEBUG_REQUEST] Sent debug info for {conversation_id}: type={debug_type}")
             
@@ -129,7 +129,7 @@ class UtilityHandlers:
                     "conversation_id": conversation_id
                 }
             )
-            await websocket.send_json(error_response.model_dump())
+            await self.platform.send_validated_message(websocket, error_response)
     
     async def handle_system_event(
         self, websocket: WebSocket, conversation_id: str, message: SystemEventMsg

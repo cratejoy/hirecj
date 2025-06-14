@@ -156,7 +156,7 @@ class WebSocketHandler:
 
             # Parse and validate message using Pydantic
             try:
-                message = IncomingMessage.parse_obj(data)
+                message = IncomingMessage.model_validate(data)
             except ValidationError as e:
                 websocket_logger.warning(
                     f"[WS_ERROR] Invalid message format - conversation={conversation_id} errors={e.errors()}"

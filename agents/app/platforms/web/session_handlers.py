@@ -221,7 +221,7 @@ class SessionHandlers:
             type="conversation_started",
             data=conversation_started_data
         )
-        await websocket.send_json(conversation_started_msg.model_dump())
+        await self.platform.send_validated_message(websocket, conversation_started_msg)
 
         from .workflow_handlers import WorkflowHandlers
         workflow_handlers = WorkflowHandlers(self.platform)
@@ -257,7 +257,7 @@ class SessionHandlers:
                 message="Successfully logged out"
             )
         )
-        await websocket.send_json(logout_complete.model_dump())
+        await self.platform.send_validated_message(websocket, logout_complete)
         
         # Close WebSocket connection
         await websocket.close()

@@ -65,7 +65,7 @@ class WorkflowHandlers:
                     message="Already in requested workflow"
                 )
             )
-            await websocket.send_json(transition_complete.model_dump())
+            await self.platform.send_validated_message(websocket, transition_complete)
             return
         
         logger.info(f"[WORKFLOW_TRANSITION] Transitioning {conversation_id} from {current_workflow} to {new_workflow}")
@@ -84,7 +84,7 @@ class WorkflowHandlers:
                 previous=current_workflow
             )
         )
-        await websocket.send_json(workflow_updated.model_dump())
+        await self.platform.send_validated_message(websocket, workflow_updated)
         
         logger.info(f"[WORKFLOW_TRANSITION] Successfully transitioned {conversation_id} to {new_workflow}")
         
@@ -115,7 +115,7 @@ class WorkflowHandlers:
                             timestamp=datetime.now()
                         )
                     )
-                    await websocket.send_json(farewell_msg.model_dump())
+                    await self.platform.send_validated_message(websocket, farewell_msg)
                 
                 # Let new workflow say hello
                 logger.info(f"[WORKFLOW_TRANSITION] Generating arrival for {new_workflow}")
@@ -136,7 +136,7 @@ class WorkflowHandlers:
                             timestamp=datetime.now()
                         )
                     )
-                    await websocket.send_json(arrival_msg.model_dump())
+                    await self.platform.send_validated_message(websocket, arrival_msg)
                     
             except Exception as e:
                 logger.error(f"[WORKFLOW_TRANSITION] Error handling transition messages: {e}")
@@ -192,7 +192,7 @@ class WorkflowHandlers:
                             previous=workflow
                         )
                     )
-                    await websocket.send_json(workflow_updated.model_dump())
+                    await self.platform.send_validated_message(websocket, workflow_updated)
                     
                     logger.info(f"[ALREADY_AUTH] Skipping {workflow} initial action - user transitioned to {target_workflow}")
                     return True
@@ -218,7 +218,7 @@ class WorkflowHandlers:
                     f"[WS_PROGRESS] Sending progress update: {cj_thinking.model_dump()}"
                 )
                 try:
-                    await websocket.send_json(cj_thinking.model_dump())
+                    await self.platform.send_validated_message(websocket, cj_thinking)
                 except Exception as e:
                     # WebSocket might be closed, ignore
                     logger.debug(f"Could not send progress update: {e}")
@@ -303,4 +303,4 @@ class WorkflowHandlers:
                 websocket_logger.error(
                     f"[WS_ERROR] Sending message with content '0': {cj_msg.model_dump()}"
                 )
-            await websocket.send_json(cj_msg.model_dump())
+            await self.platform.send_validated_message(websocket, cj_msg)

@@ -118,7 +118,7 @@ class ConversationHandlers:
             websocket_logger.error(
                 f"[WS_ERROR] Sending message with content '0': {cj_msg.model_dump()}"
             )
-        await websocket.send_json(cj_msg.model_dump())
+        await self.platform.send_validated_message(websocket, cj_msg)
 
     async def handle_fact_check(
         self, websocket: WebSocket, conversation_id: str, message: FactCheckMsg
@@ -163,7 +163,7 @@ class ConversationHandlers:
                         status="checking"
                     )
                 )
-                await websocket.send_json(fact_check_started.model_dump())
+                await self.platform.send_validated_message(websocket, fact_check_started)
 
                 # Create a task to poll for completion and send updates
                 asyncio.create_task(
@@ -180,7 +180,7 @@ class ConversationHandlers:
                         error=str(e)
                     )
                 )
-                await websocket.send_json(fact_check_error.model_dump())
+                await self.platform.send_validated_message(websocket, fact_check_error)
 
     async def handle_end_conversation(
         self, websocket: WebSocket, conversation_id: str, message: EndConversationMsg
@@ -198,7 +198,7 @@ class ConversationHandlers:
             type="system",
             text="Conversation saved. Goodbye!"
         )
-        await websocket.send_json(system_msg.model_dump())
+        await self.platform.send_validated_message(websocket, system_msg)
         await websocket.close()
 
     async def _monitor_fact_check(
@@ -232,7 +232,7 @@ class ConversationHandlers:
                                 }
                             )
                         )
-                        await websocket.send_json(fact_check_complete.model_dump())
+                        await self.platform.send_validated_message(websocket, fact_check_complete)
                     except Exception:
                         # WebSocket might be closed
                         pass
@@ -250,6 +250,6 @@ class ConversationHandlers:
                     error="Fact check timed out after 30 seconds"
                 )
             )
-            await websocket.send_json(fact_check_error.model_dump())
+            await self.platform.send_validated_message(websocket, fact_check_error)
         except Exception:
             pass

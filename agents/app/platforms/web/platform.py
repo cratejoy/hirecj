@@ -23,7 +23,25 @@ from app.services.session_manager import SessionManager
 from app.services.message_processor import MessageProcessor
 from app.services.conversation_storage import ConversationStorage
 from app.workflows.loader import WorkflowLoader
-from shared.protocol.models import ErrorMsg
+from shared.protocol.models import (
+    ErrorMsg,
+    OutgoingMessage,
+    ConversationStartedMsg,
+    CJMessageMsg,
+    CJThinkingMsg,
+    FactCheckStartedMsg,
+    FactCheckCompleteMsg,
+    FactCheckErrorMsg,
+    FactCheckStatusMsg,
+    WorkflowUpdatedMsg,
+    WorkflowTransitionCompleteMsg,
+    OAuthProcessedMsg,
+    LogoutCompleteMsg,
+    PongMsg,
+    DebugResponseMsg,
+    DebugEventMsg,
+    SystemMsg,
+)
 
 from .websocket_handler import WebSocketHandler
 from .session_handler import SessionHandler
@@ -89,6 +107,11 @@ class WebPlatform(Platform):
     async def send_message(self, message: OutgoingMessage) -> bool:
         """
         Send message to web client via WebSocket.
+        
+        NOTE: This method handles generic OutgoingMessage objects from the base platform
+        interface, not typed protocol messages. It uses direct websocket.send_json because
+        it's for system broadcasts and other non-protocol messages. For typed protocol
+        messages, use send_validated_message instead.
 
         Args:
             message: Message to send
@@ -176,6 +199,33 @@ class WebPlatform(Platform):
         """
         await self.websocket_handler.handle_connection(websocket)
 
+    async def send_validated_message(self, websocket: WebSocket, message: OutgoingMessage):
+        """Send a validated OutgoingMessage via WebSocket.
+        
+        This is the ONLY method that should be used to send messages to clients.
+        It ensures all messages conform to the protocol.
+        
+        Args:
+            websocket: The WebSocket connection
+            message: A validated OutgoingMessage instance
+        
+        Raises:
+            TypeError: If message is not a valid OutgoingMessage type
+        """
+        # Type check at runtime (for extra safety)
+        if not isinstance(message, (ConversationStartedMsg, CJMessageMsg, CJThinkingMsg, 
+                                   FactCheckStartedMsg, FactCheckCompleteMsg, FactCheckErrorMsg,
+                                   FactCheckStatusMsg, WorkflowUpdatedMsg, WorkflowTransitionCompleteMsg,
+                                   OAuthProcessedMsg, LogoutCompleteMsg, PongMsg, DebugResponseMsg,
+                                   DebugEventMsg, ErrorMsg, SystemMsg)):
+            raise TypeError(f"Invalid message type: {type(message).__name__}. Must be a valid OutgoingMessage type.")
+        
+        try:
+            await websocket.send_json(message.model_dump())
+        except Exception as e:
+            logger.error(f"Error sending validated message: {str(e)}")
+            raise
+
     async def send_error(self, websocket: WebSocket, error_message: str):
         """Send error message to web client"""
         try:
@@ -183,7 +233,7 @@ class WebPlatform(Platform):
                 type="error",
                 text=error_message
             )
-            await websocket.send_json(error_msg.model_dump())
+            await self.send_validated_message(websocket, error_msg)
         except Exception as e:
             logger.error(f"Error sending error message: {str(e)}")
 
