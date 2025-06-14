@@ -14,8 +14,8 @@ The goal of this plan is to establish a **Single Source of Truth** for the WebSo
 
 The monorepo already runs on **Pydantic v2** (≥ 2.5).  
 Consequently every code example below assumes Pydantic v2 syntax and we will
-generate TypeScript with **datamodel-code-generator ≥ 0.25**, which has first-class
-support for Pydantic v2.  
+generate TypeScript with **pydantic-to-typescript (pydantic2ts) ≥ 2.0**, which
+has first-class support for Pydantic v2.
 All previous mentions of the now-incompatible `pydantic-to-typescript`
 package have been removed.
 The new generator binary will be installed in every Python service that
@@ -65,13 +65,10 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
 
 1.  **Directory Structure:** The plan is to create the directory structure as outlined above.
 2. **Install tooling**  
-   List `datamodel-code-generator>=0.25.0` in **both**  
-   • `shared/setup.py` – so the package is available when `shared` is installed in
-     editable mode, and  
-   • `agents/requirements.txt` – so the generator is present in production /
-     container builds of the `agents` service.  
-   (If you maintain `agents/requirements-dev.txt`, add it there as well for local
-   developer convenience.)
+   List `pydantic-to-typescript>=2.0.0` in  
+   • `shared/setup.py` – for editable installs, and  
+   • `agents/requirements.txt` – for runtime / container builds  
+   (add to `agents/requirements-dev.txt` if desired).
 3.  **Define Core Models:** In `shared/protocol/models.py`, define the message structures to match the runtime reality.
 
     *Example (`models.py`):*
@@ -266,32 +263,13 @@ CI will verify it is up-to-date; local pre-commit hooks (optional) can auto-run 
         Field(discriminator="type"),
     ]
     ```
-4.  **Generation Script:** Use `datamodel-code-generator` via a shell script or command.
+4.  **Generation Script:** Use `pydantic2ts` via a shell script or command.
 
     *Example Generation Command (run from monorepo root):*
     ```bash
-    datamodel-codegen --input shared/protocol/models.py \
-                      --input-file-type module \
-                      --output homepage/src/protocol/generated.ts \
-                      --output-file-type typescript
+    pydantic2ts --module shared.protocol.models \
+                --output homepage/src/protocol/generated.ts
     ```
-
-    Additional message types that MUST be included in the
-    IncomingMessage / OutgoingMessage unions before running
-    datamodel-code-generator:
-
-    Incoming:
-      – oauth_complete
-      – system_event
-      – logout
-    Outgoing:
-      – pong
-      – fact_check_started
-      – fact_check_complete
-      – fact_check_error
-      – oauth_processed
-      – workflow_transition_complete
-      – logout_complete
 
 ## 5. Canonical WebSocket Message Reference  
 
@@ -400,7 +378,7 @@ TypeScript model therefore uses `string`.
 
 ### Phase 3: Frontend Integration
 
-1.  **Run Generator:** Execute `python shared/protocol/generate_ts.py` from the repository root.
+1.  **Run Generator:** Execute `pydantic2ts --module shared.protocol.models --output homepage/src/protocol/generated.ts`.
 2.  **Verify Output:** Check `shared/protocol/generated/ts/index.ts` to ensure the TypeScript interfaces were generated correctly.
 3.  **Update `homepage`:** Refactor frontend code to use these shared types.
 4.  **Modify `useWebSocketChat.ts`:** Replace locally-defined interfaces with imported types from `../protocol/generated`.
@@ -425,9 +403,9 @@ When a developer needs to change the WebSocket protocol (e.g., add a field to a 
 ## 7. Risks & Mitigations
 
 *   **Risk:** Developers forget to run the generation script, causing the committed code to be out of sync.
-    *   **Mitigation:** **Implement a CI Check.** Add a step to the CI pipeline that runs the generation script and then uses `git diff --exit-code homepage/src/protocol/generated.ts`. If there's a diff, it means the generated file is stale, and the build fails. This forces developers to commit the up-to-date version. A pre-commit hook can also be used for local development.
+    *   **Mitigation:** **Implement a CI Check.** Add a step to the CI pipeline that runs `pydantic2ts --module shared.protocol.models --output homepage/src/protocol/generated.ts` and then uses `git diff --exit-code homepage/src/protocol/generated.ts`. If there's a diff, it means the generated file is stale, and the build fails. This forces developers to commit the up-to-date version. A pre-commit hook can also be used for local development.
 
-*   **Risk:** The `datamodel-code-generator` tool might have issues with very complex types.
+*   **Risk:** The `pydantic2ts` tool might have issues with very complex types.
     *   **Mitigation:** This tool is more robust, but it's still good practice to keep protocol models simple and focused on data transfer. Avoid complex custom types or validators in the Pydantic models destined for generation.
 
 *   **Risk:** Initial refactoring effort is significant.
