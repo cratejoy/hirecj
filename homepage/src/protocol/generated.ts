@@ -80,9 +80,28 @@ export interface ErrorMsg {
 }
 export interface FactCheckCompleteData {
   messageIndex: number;
-  result: {
-    [k: string]: unknown;
-  };
+  result: FactCheckResultData;
+}
+export interface FactCheckResultData {
+  overall_status: "PASS" | "WARNING" | "FAIL";
+  claims: FactClaimData[];
+  issues: FactIssueData[];
+  execution_time: number;
+  turn_number?: number | null;
+  checked_at: string;
+}
+export interface FactClaimData {
+  claim: string;
+  verification: "VERIFIED" | "UNVERIFIED" | "INCORRECT";
+  actual_data?: string | null;
+  source?: string | null;
+}
+export interface FactIssueData {
+  severity: "minor" | "major" | "critical";
+  summary: string;
+  claim?: string | null;
+  expected?: string | null;
+  actual?: string | null;
 }
 export interface FactCheckCompleteMsg {
   type: "fact_check_complete";

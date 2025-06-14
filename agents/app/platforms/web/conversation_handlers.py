@@ -219,19 +219,48 @@ class ConversationHandlers:
 
                     # Send completion message
                     try:
-                        fact_check_complete = FactCheckCompleteMsg(
-                            type="fact_check_complete",
-                            data=FactCheckCompleteData(
-                                messageIndex=message_index,
-                                result={
-                                    "overall_status": result.overall_status,
-                                    "claim_count": len(result.claims),
-                                    "execution_time": getattr(
-                                        result, "execution_time", 0
-                                    ),
-                                }
+                        # Import the typed model
+                        from shared.protocol.models import FactCheckResultData
+                        
+                        # Handle different result types
+                        if isinstance(result, FactCheckResultData):
+                            # Use the typed result directly
+                            fact_check_complete = FactCheckCompleteMsg(
+                                type="fact_check_complete",
+                                data=FactCheckCompleteData(
+                                    messageIndex=message_index,
+                                    result=result
+                                )
                             )
-                        )
+                        elif isinstance(result, dict) and result.get("status") == "error":
+                            # Handle error case
+                            fact_check_error = FactCheckErrorMsg(
+                                type="fact_check_error",
+                                data=FactCheckErrorData(
+                                    messageIndex=message_index,
+                                    error=result.get("error", "Unknown error")
+                                )
+                            )
+                            await self.platform.send_validated_message(websocket, fact_check_error)
+                            return
+                        else:
+                            # Legacy support - create a minimal result
+                            from datetime import datetime
+                            minimal_result = FactCheckResultData(
+                                overall_status=getattr(result, "overall_status", "UNKNOWN"),
+                                claims=[],
+                                issues=[],
+                                execution_time=getattr(result, "execution_time", 0),
+                                checked_at=datetime.now()
+                            )
+                            fact_check_complete = FactCheckCompleteMsg(
+                                type="fact_check_complete",
+                                data=FactCheckCompleteData(
+                                    messageIndex=message_index,
+                                    result=minimal_result
+                                )
+                            )
+                        
                         await self.platform.send_validated_message(websocket, fact_check_complete)
                     except Exception:
                         # WebSocket might be closed

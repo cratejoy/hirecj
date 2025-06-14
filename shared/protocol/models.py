@@ -40,9 +40,32 @@ class FactCheckStartedData(BaseModel):
     messageIndex: int
     status: Literal["checking"] = "checking"
 
+class FactClaimData(BaseModel):
+    claim: str
+    verification: Literal["VERIFIED", "UNVERIFIED", "INCORRECT"]
+    actual_data: Optional[str] = None
+    source: Optional[str] = None
+
+class FactIssueData(BaseModel):
+    severity: Literal["minor", "major", "critical"]
+    summary: str  # This is the main issue description
+    claim: Optional[str] = None
+    expected: Optional[str] = None
+    actual: Optional[str] = None
+    # Note: The fact_checking.py code incorrectly references 'issue' and 'explanation' fields
+    # We'll fix that to use 'summary' which is what FactIssue actually has
+
+class FactCheckResultData(BaseModel):
+    overall_status: Literal["PASS", "WARNING", "FAIL"]
+    claims: List[FactClaimData]
+    issues: List[FactIssueData]
+    execution_time: float
+    turn_number: Optional[int] = None
+    checked_at: datetime
+
 class FactCheckCompleteData(BaseModel):
     messageIndex: int
-    result: Dict[str, Any]
+    result: FactCheckResultData
 
 class FactCheckErrorData(BaseModel):
     messageIndex: int
