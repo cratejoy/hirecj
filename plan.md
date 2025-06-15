@@ -109,10 +109,12 @@ Each phase below requires **Amir's approval** before proceeding to the next phas
 
 ## Implementation Plan (20 Phases)
 
-### Phase 1: Protocol Models - Define Playground Messages
+### Phase 1: Protocol Models - Define Playground Messages ✅
 **Goal**: Add playground-specific message types to the protocol
 
-1. **Add to `shared/protocol/models.py`**:
+**Status**: Completed as planned
+
+1. **Added to `shared/protocol/models.py`**:
 ```python
 class PlaygroundStartMsg(BaseModel):
     """Simplified start message for playground testing"""
@@ -128,54 +130,74 @@ class PlaygroundResetMsg(BaseModel):
     reason: Literal["workflow_change", "user_clear"]
     new_workflow: Optional[str] = None
 
-# Update IncomingMessage union
-IncomingMessage = Union[
-    StartConversationMsg,
-    MessageMsg,
-    # ... existing messages ...
+# Updated IncomingMessage union to include:
     PlaygroundStartMsg,
     PlaygroundResetMsg,
-]
 ```
 
-### Phase 2: Protocol Generation - Update and Run
+### Phase 2: Protocol Generation - Update and Run ✅
 **Goal**: Generate TypeScript types for editor
 
-1. **Update `shared/protocol/generate.sh`**:
-```bash
-# Add editor generation
-pydantic2ts --module models.py \
-  --output ../../editor/src/protocol/generated.ts \
-  --typescript-version 4.3
-```
-2. Run generation script: `cd shared/protocol && ./generate.sh`
-3. Verify and commit `editor/src/protocol/generated.ts`
+**Status**: Completed with enhancements
 
-### Phase 3: Editor Protocol Setup
+1. **Updated `shared/protocol/generate.sh`**:
+```bash
+# Generate for homepage
+pydantic2ts --module shared.protocol.models --output homepage/src/protocol/generated.ts
+echo "✅ TypeScript types generated for homepage at homepage/src/protocol/generated.ts"
+
+# Generate for editor
+pydantic2ts --module shared.protocol.models --output editor/src/protocol/generated.ts
+echo "✅ TypeScript types generated for editor at editor/src/protocol/generated.ts"
+
+echo "✅ All TypeScript types generated successfully!"
+```
+2. ✅ Ran generation script: `cd shared/protocol && ./generate.sh`
+3. ✅ Verified `editor/src/protocol/generated.ts` contains PlaygroundStartMsg and PlaygroundResetMsg
+
+### Phase 3: Editor Protocol Setup ✅
 **Goal**: Create protocol structure with type guards
 
-1. Create `editor/src/protocol/` directory
-2. **Create `editor/src/protocol/index.ts`**:
+**Status**: Completed with additional features
+
+1. ✅ Created `editor/src/protocol/` directory
+2. ✅ Created `editor/src/protocol/index.ts` with enhanced implementation:
 ```typescript
 // Re-export all generated types
 export * from './generated';
+
+// Import and rename UserMsg for consistency
+import type {
+  UserMsg as MessageMsg,  // Rename for consistency
+  // ... other imports
+} from './generated';
 
 // Playground-specific discriminated unions
 export type PlaygroundIncomingMessage = 
   | PlaygroundStartMsg | PlaygroundResetMsg | MessageMsg;
   
 export type PlaygroundOutgoingMessage =
-  | ConversationStartedMsg | CjMessageMsg | CjThinkingMsg 
+  | ConversationStartedMsg | CJMessageMsg | CJThinkingMsg 
   | ErrorMsg | SystemMsg;
 
-// Type guards
-export function isPlaygroundStart(msg: IncomingMessage): msg is PlaygroundStartMsg {
-  return msg.type === 'playground_start';
-}
-export function isCjMessage(msg: OutgoingMessage): msg is CjMessageMsg {
-  return msg.type === 'cj_message';
-}
+// Comprehensive type guards (more than originally planned)
+export function isPlaygroundStart(msg: any): msg is PlaygroundStartMsg
+export function isPlaygroundReset(msg: any): msg is PlaygroundResetMsg
+export function isMessage(msg: any): msg is MessageMsg
+export function isCjMessage(msg: any): msg is CJMessageMsg
+export function isCjThinking(msg: any): msg is CJThinkingMsg
+export function isConversationStarted(msg: any): msg is ConversationStartedMsg
+export function isError(msg: any): msg is ErrorMsg
+export function isSystem(msg: any): msg is SystemMsg
+
+// Helper functions for union type checking
+export function isPlaygroundIncomingMessage(msg: any): msg is PlaygroundIncomingMessage
+export function isPlaygroundOutgoingMessage(msg: any): msg is PlaygroundOutgoingMessage
 ```
+
+**Additional Work Required**: 
+- Restored `editor/src/lib/utils.ts` and `editor/src/components/ui/button.tsx` from git history
+- These files were accidentally deleted in commit 8a2ac2a and were blocking TypeScript compilation
 
 ### Phase 4: Editor Backend - WebSocket Endpoint Setup
 **Goal**: Create basic WebSocket endpoint with protocol imports
