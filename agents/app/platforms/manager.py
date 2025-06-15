@@ -9,7 +9,7 @@ from typing import Dict, Optional, Union, Callable, List
 import asyncio
 
 from .base import Platform, PlatformType, IncomingMessage, OutgoingMessage
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 

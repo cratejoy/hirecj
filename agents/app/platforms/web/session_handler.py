@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import WebSocket
 
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.models import Message
 from app.constants import WorkflowConstants
 from shared.user_identity import get_or_create_user
@@ -40,23 +40,24 @@ class SessionHandler:
                 shop_domain = ws_session.get("shop_domain")
                 
                 if shop_domain:
-                    try:
-                        user_id, is_new = get_or_create_user(shop_domain)
-                        logger.info(f"[USER_IDENTITY] Backend generated user_id={user_id} "
-                                   f"for shop_domain={shop_domain} (new={is_new})")
-                    except Exception as e:
-                        logger.error(f"[USER_IDENTITY] Failed to get/create user for {shop_domain}: {e}")
+                    user_id, is_new = get_or_create_user(shop_domain)
+                    logger.info(f"[USER_IDENTITY] Backend generated user_id={user_id} "
+                               f"for shop_domain={shop_domain} (new={is_new})")
                 else:
                     logger.info(f"[USER_IDENTITY] No user_id from cookie and no shop_domain - proceeding anonymously")
             
             logger.info(f"[SESSION_CREATE] Creating session: merchant={merchant}, "
                        f"workflow={workflow}, user_id={user_id or 'None'}")
             
+            # Pass oauth_metadata from ws_session if available
+            oauth_metadata = ws_session.get("oauth_metadata")
+            
             session = self.platform.session_manager.create_session(
                 merchant_name=merchant,
                 scenario_name=scenario,
                 workflow_name=workflow,
                 user_id=user_id,
+                oauth_metadata=oauth_metadata,
             )
             # Store the session with the conversation_id as key
             self.platform.session_manager.store_session(conversation_id, session)

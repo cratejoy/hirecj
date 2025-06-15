@@ -9,7 +9,7 @@ import yaml
 
 from app.universe.loader import UniverseLoader
 from app.conversation_catalog import ConversationCatalog
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.constants import HTTPStatus
 
 logger = get_logger(__name__)

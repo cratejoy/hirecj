@@ -1,22 +1,34 @@
-"""Database utilities for auth service."""
+"""
+Database utility wrapper for the auth service.
 
-import os
-from contextlib import contextmanager
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+This module now delegates all functionality to the centralized `shared.database`
+module to ensure a single source of truth for database connections.
+"""
 
-from app.config import settings
+# Re-export all functions from the shared database utility
+from shared.database import (
+    get_connection_string,
+    get_db_connection,
+    execute_query,
+    test_connection,
+    get_engine,
+    get_session_factory,
+    get_db_session,
+)
 
-# Create engine
-engine = create_engine(settings.supabase_connection_string)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# For compatibility, re-export engine and SessionLocal from the shared source
+engine = get_engine()
+SessionLocal = get_session_factory()
 
 
-@contextmanager
-def get_db_session():
-    """Get a database session."""
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
+__all__ = [
+    "get_connection_string",
+    "get_db_connection",
+    "execute_query",
+    "test_connection",
+    "get_engine",
+    "engine",
+    "get_session_factory",
+    "SessionLocal",
+    "get_db_session",
+]

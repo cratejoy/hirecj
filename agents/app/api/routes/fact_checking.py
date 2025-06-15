@@ -14,6 +14,7 @@ from app.agents.fact_checker import ConversationFactChecker as AsyncFactChecker
 from app.agents.fact_checker import FactCheckResult
 from app.universe.loader import UniverseLoader
 from app.constants import HTTPStatus
+from shared.protocol.models import FactCheckResultData, FactClaimData, FactIssueData
 
 logger = logging.getLogger(__name__)
 
@@ -106,28 +107,30 @@ async def get_fact_check(conversation_id: str, message_index: int) -> FactCheckS
     if conversation_id in _fact_check_results:
         if message_index in _fact_check_results[conversation_id]:
             result = _fact_check_results[conversation_id][message_index]
-            return FactCheckStatus(
-                status="complete",
-                message_index=message_index,
-                result=(
-                    result.to_dict()
-                    if hasattr(result, "to_dict")
-                    else {
-                        "overall_status": result.overall_status,
-                        "claim_count": len(result.claims),
-                        "claims": [claim.to_dict() for claim in result.claims],
-                        "issues": [
-                            {
-                                "issue": issue.issue,
-                                "severity": issue.severity.value,
-                                "explanation": issue.explanation,
-                            }
-                            for issue in result.issues
-                        ],
-                        "execution_time": result.execution_time,
-                    }
-                ),
-            )
+            
+            # Handle error case
+            if isinstance(result, dict) and result.get("status") == "error":
+                return FactCheckStatus(
+                    status="error",
+                    message_index=message_index,
+                    error=result.get("error")
+                )
+            
+            # Handle FactCheckResultData case
+            if isinstance(result, FactCheckResultData):
+                return FactCheckStatus(
+                    status="complete",
+                    message_index=message_index,
+                    result=result.model_dump(mode='json')
+                )
+            
+            # Handle legacy FactCheckResult case (for backwards compatibility)
+            if hasattr(result, "to_dict"):
+                return FactCheckStatus(
+                    status="complete",
+                    message_index=message_index,
+                    result=result.to_dict()
+                )
 
     # Check if fact-check is in progress
     if conversation_id in _active_checkers:
@@ -239,45 +242,49 @@ async def _run_fact_check(
             cj_response=message_content, turn_number=message_index
         )
 
-        # Store in memory cache
-        if conversation_id not in _fact_check_results:
-            _fact_check_results[conversation_id] = {}
-        _fact_check_results[conversation_id][message_index] = result
-
-        # Store in conversation file
-        if "fact_checks" not in conversation:
-            conversation["fact_checks"] = {}
-
-        conversation["fact_checks"][str(message_index)] = {
-            "overall_status": result.overall_status,
-            "claim_count": len(result.claims),
-            "claims": [
-                {
-                    "claim": claim.claim,
-                    "verification": claim.verification.value,
-                    "actual_data": claim.actual_data,
-                    "source": claim.source,
-                }
+        # Create typed result using protocol models
+        fact_check_result = FactCheckResultData(
+            overall_status=result.overall_status,
+            claims=[
+                FactClaimData(
+                    claim=claim.claim,
+                    verification=claim.verification.value,
+                    actual_data=claim.actual_data,
+                    source=claim.source
+                )
                 for claim in result.claims
             ],
-            "issues": [
-                {
-                    "issue": issue.issue,
-                    "severity": issue.severity.value,
-                    "explanation": issue.explanation,
-                }
+            issues=[
+                FactIssueData(
+                    severity=issue.severity.value,
+                    summary=issue.summary,  # Fixed: using correct field name
+                    claim=issue.claim,
+                    expected=issue.expected,
+                    actual=issue.actual
+                )
                 for issue in result.issues
             ],
-            "execution_time": result.execution_time,
-            "checked_at": datetime.now().isoformat(),
-        }
+            execution_time=result.execution_time,
+            turn_number=result.turn_number,
+            checked_at=datetime.now()
+        )
+        
+        # Store typed result in memory cache
+        if conversation_id not in _fact_check_results:
+            _fact_check_results[conversation_id] = {}
+        _fact_check_results[conversation_id][message_index] = fact_check_result
+
+        # Store in conversation file using model_dump for JSON serialization
+        if "fact_checks" not in conversation:
+            conversation["fact_checks"] = {}
+        conversation["fact_checks"][str(message_index)] = fact_check_result.model_dump(mode='json')
 
         # Save conversation
         _save_conversation(conversation_id, conversation)
 
     except Exception as e:
         logger.error(f"Fact check failed for {conversation_id}:{message_index}: {e}")
-        # Store error in results
+        # Store error in results - using dict for errors as they don't match FactCheckResultData
         if conversation_id not in _fact_check_results:
             _fact_check_results[conversation_id] = {}
         _fact_check_results[conversation_id][message_index] = {
@@ -306,21 +313,14 @@ async def get_all_fact_checks(conversation_id: str) -> Dict[str, Any]:
     # Merge with in-memory results
     if conversation_id in _fact_check_results:
         for msg_idx, result in _fact_check_results[conversation_id].items():
-            if isinstance(result, FactCheckResult):
-                fact_checks[str(msg_idx)] = {
-                    "overall_status": result.overall_status,
-                    "claim_count": len(result.claims),
-                    "claims": [claim.to_dict() for claim in result.claims],
-                    "issues": [
-                        {
-                            "issue": issue.issue,
-                            "severity": issue.severity.value,
-                            "explanation": issue.explanation,
-                        }
-                        for issue in result.issues
-                    ],
-                }
+            if isinstance(result, FactCheckResultData):
+                # Use typed model's serialization
+                fact_checks[str(msg_idx)] = result.model_dump(mode='json')
+            elif isinstance(result, FactCheckResult):
+                # Legacy support for old FactCheckResult objects
+                fact_checks[str(msg_idx)] = result.to_dict()
             else:
+                # Raw dict (e.g., error results)
                 fact_checks[str(msg_idx)] = result
 
     # Add status for messages currently being checked

@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Cratejoy Primary Colors */
+    --teal: 183 46% 45%;
+    --black: 0 0% 13%;
+    --slate: 210 11% 29%;
+    --smoke: 0 0% 88%;
+    --salt: 30 8% 95%;
+    --brown: 26 35% 35%;
+    
+    /* Cratejoy Secondary Colors */
+    --red: 2 62% 56%;
+    --yellow: 48 79% 54%;
+    --green: 135 47% 36%;
+    --purple: 258 41% 54%;
+    --pink: 1 75% 71%;
+    --orange: 32 78% 55%;
+    --blue-green: 169 29% 50%;
+    --blue-purple: 223 42% 54%;
+    
+    /* Theme mappings */
+    --background: var(--salt);
+    --foreground: var(--black);
+    --card: 0 0% 100%;
+    --card-foreground: var(--black);
+    --popover: 0 0% 100%;
+    --popover-foreground: var(--black);
+    --primary: var(--teal);
+    --primary-foreground: 0 0% 100%;
+    --secondary: var(--smoke);
+    --secondary-foreground: var(--black);
+    --muted: var(--smoke);
+    --muted-foreground: var(--slate);
+    --accent: var(--blue-green);
+    --accent-foreground: 0 0% 100%;
+    --destructive: var(--red);
+    --destructive-foreground: 0 0% 100%;
+    --border: var(--smoke);
+    --input: var(--smoke);
+    --ring: var(--teal);
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: var(--black);
+    --foreground: var(--salt);
+    --card: var(--slate);
+    --card-foreground: var(--salt);
+    --popover: var(--slate);
+    --popover-foreground: var(--salt);
+    --primary: var(--teal);
+    --primary-foreground: 0 0% 100%;
+    --secondary: var(--slate);
+    --secondary-foreground: var(--salt);
+    --muted: var(--slate);
+    --muted-foreground: var(--smoke);
+    --accent: var(--blue-green);
+    --accent-foreground: 0 0% 100%;
+    --destructive: var(--red);
+    --destructive-foreground: 0 0% 100%;
+    --border: var(--slate);
+    --input: var(--slate);
+    --ring: var(--teal);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

@@ -6,8 +6,20 @@ import asyncio
 
 from fastapi import WebSocket
 
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.models import Message
+from shared.protocol.models import (
+    WorkflowTransitionMsg,
+    WorkflowUpdatedMsg,
+    WorkflowUpdatedData,
+    WorkflowTransitionCompleteMsg,
+    WorkflowTransitionCompleteData,
+    DebugEventMsg,
+    CJMessageMsg,
+    CJMessageData,
+    CJThinkingMsg,
+    CJThinkingData,
+)
 
 if TYPE_CHECKING:
     from .platform import WebPlatform
@@ -23,18 +35,17 @@ class WorkflowHandlers:
         self.platform = platform
 
     async def handle_workflow_transition(
-        self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
+        self, websocket: WebSocket, conversation_id: str, message: WorkflowTransitionMsg
     ):
         """Handle workflow_transition message."""
-        transition_data = data.get("data", {})
-        if not isinstance(transition_data, dict):
-            await self.platform.send_error(websocket, "Invalid workflow_transition data format")
-            return
+        new_workflow = message.data.new_workflow
+        user_initiated = message.data.user_initiated
         
-        new_workflow = transition_data.get("new_workflow")
-        if not new_workflow:
-            await self.platform.send_error(websocket, "Missing new_workflow in transition request")
-            return
+        # DIAGNOSTIC: Log workflow transition
+        from datetime import datetime
+        logger.warning(f"[WORKFLOW_HOOK] Workflow transition - to={new_workflow}, "
+                      f"user_initiated={user_initiated}, conversation_id={conversation_id}, "
+                      f"timestamp={datetime.now()}")
         
         # Get current session
         session = self.platform.session_manager.get_session(conversation_id)
@@ -53,13 +64,14 @@ class WorkflowHandlers:
         # Don't transition if already in target workflow
         if current_workflow == new_workflow:
             logger.info(f"[WORKFLOW] Already in {new_workflow}, skipping transition")
-            await websocket.send_json({
-                "type": "workflow_transition_complete",
-                "data": {
-                    "workflow": new_workflow,
-                    "message": "Already in requested workflow"
-                }
-            })
+            transition_complete = WorkflowTransitionCompleteMsg(
+                type="workflow_transition_complete",
+                data=WorkflowTransitionCompleteData(
+                    workflow=new_workflow,
+                    message="Already in requested workflow"
+                )
+            )
+            await self.platform.send_validated_message(websocket, transition_complete)
             return
         
         logger.info(f"[WORKFLOW_TRANSITION] Transitioning {conversation_id} from {current_workflow} to {new_workflow}")
@@ -71,13 +83,14 @@ class WorkflowHandlers:
             return
         
         # IMMEDIATE: Notify frontend of successful transition
-        await websocket.send_json({
-            "type": "workflow_updated",
-            "data": {
-                "workflow": new_workflow,
-                "previous": current_workflow
-            }
-        })
+        workflow_updated = WorkflowUpdatedMsg(
+            type="workflow_updated",
+            data=WorkflowUpdatedData(
+                workflow=new_workflow,
+                previous=current_workflow
+            )
+        )
+        await self.platform.send_validated_message(websocket, workflow_updated)
         
         logger.info(f"[WORKFLOW_TRANSITION] Successfully transitioned {conversation_id} to {new_workflow}")
         
@@ -85,7 +98,7 @@ class WorkflowHandlers:
         async def handle_transition_messages():
             try:
                 # Prepare transition message
-                if transition_data.get("user_initiated"):
+                if user_initiated:
                     transition_msg = f"User requested transition to {new_workflow} workflow"
                 else:
                     transition_msg = f"System requested transition to {new_workflow} workflow"
@@ -100,14 +113,15 @@ class WorkflowHandlers:
                 
                 # Send farewell message if any
                 if farewell_response:
-                    response_data = {
-                        "content": farewell_response if isinstance(farewell_response, str) else farewell_response.get("content", farewell_response),
-                        "factCheckStatus": "available",
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                    await websocket.send_json(
-                        {"type": "cj_message", "data": response_data}
+                    farewell_msg = CJMessageMsg(
+                        type="cj_message",
+                        data=CJMessageData(
+                            content=farewell_response if isinstance(farewell_response, str) else farewell_response.get("content", farewell_response),
+                            factCheckStatus="available",
+                            timestamp=datetime.now()
+                        )
                     )
+                    await self.platform.send_validated_message(websocket, farewell_msg)
                 
                 # Let new workflow say hello
                 logger.info(f"[WORKFLOW_TRANSITION] Generating arrival for {new_workflow}")
@@ -120,14 +134,15 @@ class WorkflowHandlers:
                 
                 # Send arrival message if any
                 if arrival_response:
-                    response_data = {
-                        "content": arrival_response if isinstance(arrival_response, str) else arrival_response.get("content", arrival_response),
-                        "factCheckStatus": "available",
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                    await websocket.send_json(
-                        {"type": "cj_message", "data": response_data}
+                    arrival_msg = CJMessageMsg(
+                        type="cj_message",
+                        data=CJMessageData(
+                            content=arrival_response if isinstance(arrival_response, str) else arrival_response.get("content", arrival_response),
+                            factCheckStatus="available",
+                            timestamp=datetime.now()
+                        )
                     )
+                    await self.platform.send_validated_message(websocket, arrival_msg)
                     
             except Exception as e:
                 logger.error(f"[WORKFLOW_TRANSITION] Error handling transition messages: {e}")
@@ -176,13 +191,14 @@ class WorkflowHandlers:
                     conversation_data["workflow"] = target_workflow
                     
                     # Notify frontend of workflow change
-                    await websocket.send_json({
-                        "type": "workflow_updated",
-                        "data": {
-                            "workflow": target_workflow,
-                            "previous": workflow
-                        }
-                    })
+                    workflow_updated = WorkflowUpdatedMsg(
+                        type="workflow_updated",
+                        data=WorkflowUpdatedData(
+                            workflow=target_workflow,
+                            previous=workflow
+                        )
+                    )
+                    await self.platform.send_validated_message(websocket, workflow_updated)
                     
                     logger.info(f"[ALREADY_AUTH] Skipping {workflow} initial action - user transitioned to {target_workflow}")
                     return True
@@ -194,15 +210,21 @@ class WorkflowHandlers:
         async def progress_callback(update):
             # Transform progress event to WebSocket message format
             if update and update.get("type") == "thinking":
-                ws_message = {
-                    "type": "cj_thinking",
-                    "data": update.get("data", {}),
-                }
+                thinking_data = update.get("data", {})
+                cj_thinking = CJThinkingMsg(
+                    type="cj_thinking",
+                    data=CJThinkingData(
+                        status=thinking_data.get("status", ""),
+                        elapsed=thinking_data.get("elapsed"),
+                        toolsCalled=thinking_data.get("toolsCalled"),
+                        currentTool=thinking_data.get("currentTool")
+                    )
+                )
                 websocket_logger.info(
-                    f"[WS_PROGRESS] Sending progress update: {ws_message}"
+                    f"[WS_PROGRESS] Sending progress update: {cj_thinking.model_dump()}"
                 )
                 try:
-                    await websocket.send_json(ws_message)
+                    await self.platform.send_validated_message(websocket, cj_thinking)
                 except Exception as e:
                     # WebSocket might be closed, ignore
                     logger.debug(f"Could not send progress update: {e}")
@@ -215,6 +237,13 @@ class WorkflowHandlers:
         self, websocket: WebSocket, session: Any, workflow: str
     ):
         """Handle initial workflow action."""
+        # DIAGNOSTIC: Log initial workflow action
+        from datetime import datetime
+        logger.warning(f"[WORKFLOW_INITIAL] Handling initial action for workflow={workflow}, "
+                      f"session_id={session.id if session else 'None'}, "
+                      f"has_oauth={bool(getattr(session, 'oauth_metadata', None))}, "
+                      f"timestamp={datetime.now()}")
+        
         # Get workflow behavior
         workflow_behavior = self.platform.workflow_loader.get_workflow_behavior(workflow)
         initial_action = workflow_behavior.get('initial_action')
@@ -254,36 +283,37 @@ class WorkflowHandlers:
         if response:
             # Handle structured response with UI elements
             if isinstance(response, dict) and response.get("type") == "message_with_ui":
-                response_with_fact_check = {
-                    "content": response["content"],
-                    "factCheckStatus": "available",
-                    "timestamp": datetime.now().isoformat(),
-                    "ui_elements": response.get("ui_elements", [])
-                }
+                cj_msg = CJMessageMsg(
+                    type="cj_message",
+                    data=CJMessageData(
+                        content=response["content"],
+                        factCheckStatus="available",
+                        timestamp=datetime.now(),
+                        ui_elements=response.get("ui_elements", [])
+                    )
+                )
                 websocket_logger.info(
-                    f"[WS_SEND] Sending initial CJ message with UI elements: content='{response_with_fact_check.get('content', '')[:100]}...' "
-                    f"ui_elements={len(response_with_fact_check.get('ui_elements', []))} full_data={response_with_fact_check}"
+                    f"[WS_SEND] Sending initial CJ message with UI elements: content='{cj_msg.data.content[:100]}...' "
+                    f"ui_elements={len(cj_msg.data.ui_elements or [])} full_data={cj_msg.model_dump()}"
                 )
             else:
                 # Regular text response
-                response_with_fact_check = {
-                    "content": response,
-                    "factCheckStatus": "available",
-                    "timestamp": datetime.now().isoformat(),
-                }
+                cj_msg = CJMessageMsg(
+                    type="cj_message",
+                    data=CJMessageData(
+                        content=response,
+                        factCheckStatus="available",
+                        timestamp=datetime.now()
+                    )
+                )
                 websocket_logger.info(
-                    f"[WS_SEND] Sending initial CJ message: content='{response_with_fact_check.get('content', '')[:100]}...' "
-                    f"full_data={response_with_fact_check}"
+                    f"[WS_SEND] Sending initial CJ message: content='{cj_msg.data.content[:100]}...' "
+                    f"full_data={cj_msg.model_dump()}"
                 )
             
             # Check for suspicious content
-            if (
-                response_with_fact_check.get("content") == "0"
-                or response_with_fact_check.get("content") == 0
-            ):
+            if cj_msg.data.content == "0" or cj_msg.data.content == 0:
                 websocket_logger.error(
-                    f"[WS_ERROR] Sending message with content '0': {response_with_fact_check}"
+                    f"[WS_ERROR] Sending message with content '0': {cj_msg.model_dump()}"
                 )
-            await websocket.send_json(
-                {"type": "cj_message", "data": response_with_fact_check}
-            )
+            await self.platform.send_validated_message(websocket, cj_msg)

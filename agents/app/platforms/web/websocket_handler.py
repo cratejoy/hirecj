@@ -6,12 +6,28 @@ import uuid
 import asyncio
 
 from fastapi import WebSocket
+from pydantic import ValidationError, TypeAdapter
 
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.services.fact_extractor import FactExtractor
 from app.constants import WebSocketCloseCodes
+from shared.protocol.models import (
+    IncomingMessage,
+    StartConversationMsg,
+    UserMsg,
+    EndConversationMsg,
+    FactCheckMsg,
+    PingMsg,
+    SystemEventMsg,
+    DebugRequestMsg,
+    WorkflowTransitionMsg,
+    LogoutMsg,
+    OAuthCompleteMsg,
+    ErrorMsg,
+)
 
 from .message_handlers import MessageHandlers
+from shared.auth.session_cookie import get_session
 
 if TYPE_CHECKING:
     from .platform import WebPlatform
@@ -26,6 +42,8 @@ class WebSocketHandler:
     def __init__(self, platform: 'WebPlatform'):
         self.platform = platform
         self.message_handlers = MessageHandlers(platform)
+        # Create TypeAdapter for validating discriminated union
+        self.incoming_message_adapter = TypeAdapter(IncomingMessage)
 
     async def handle_connection(self, websocket: WebSocket):
         """
@@ -46,35 +64,20 @@ class WebSocketHandler:
         
         if session_id:
             logger.info(f"[WEBSOCKET] Found session cookie: {session_id[:10]}...")
-            
-            # Import here to avoid circular imports
-            from app.utils.supabase_util import get_db_session
-            from shared.db_models import WebSession
-            from sqlalchemy import select
-            
-            try:
-                with get_db_session() as db:
-                    session = db.scalar(
-                        select(WebSession)
-                        .where(WebSession.session_id == session_id)
-                        .where(WebSession.expires_at > datetime.utcnow())
-                    )
-                    
-                    if session:
-                        user_ctx = {"user_id": session.user_id}
-                        session_id_db = session.session_id     # NEW
-                        session_data_db = session.data or {}   # NEW
-                        logger.info(f"[WEBSOCKET] User {session.user_id} connected via session cookie")
-                        
-                        # For authenticated users, create conversation ID based on user and session
-                        # This gives us a stable conversation per session
-                        session_hash = session.session_id[:8]  # Use first 8 chars of session ID
-                        conversation_id = f"user_{session.user_id}_{session_hash}"
-                        logger.info(f"[WEBSOCKET] Created conversation {conversation_id} for authenticated user")
-                    else:
-                        logger.debug(f"[WEBSOCKET] Session not found or expired")
-            except Exception as e:
-                logger.error(f"[WEBSOCKET] Error loading session: {e}", exc_info=True)
+            session_data = get_session(session_id)
+            if session_data:
+                user_ctx = {"user_id": session_data["user_id"]}
+                session_id_db = session_data["session_id"]
+                session_data_db = session_data.get("data", {})
+                logger.info(f"[WEBSOCKET] User {session_data['user_id']} connected via session cookie")
+                logger.info(f"[WEBSOCKET] Session data loaded: {session_data_db}")
+
+                # For authenticated users, create conversation ID based on user and session
+                session_hash = session_id_db[:8]
+                conversation_id = f"user_{user_ctx['user_id']}_{session_hash}"
+                logger.info(f"[WEBSOCKET] Created conversation {conversation_id} for authenticated user")
+            else:
+                logger.debug(f"[WEBSOCKET] Session cookie invalid or expired")
         else:
             logger.info(f"[WEBSOCKET] No session cookie found - anonymous connection")
         
@@ -87,16 +90,26 @@ class WebSocketHandler:
         self.platform.connections[conversation_id] = websocket
 
         # Initialize session with user context if available
-        self.platform.sessions[conversation_id] = {
+        ws_session = {
             "user_id": user_ctx["user_id"] if user_ctx else "anonymous",
             "display_name": "Web User",
             "session_start": datetime.now().isoformat(),
             "ip_address": getattr(websocket, "remote_address", None),
             "user_agent": None,  # Would need to be passed from client
             "authenticated": user_ctx is not None,
-            "session_id": session_id_db,
-            "data": session_data_db,
+            "session_id": session_id_db if 'session_id_db' in locals() else None,
+            "data": session_data_db if 'session_data_db' in locals() else {},
         }
+        
+        # Extract oauth_metadata if present in session data
+        if 'session_data_db' in locals() and session_data_db:
+            if oauth_metadata := session_data_db.get("oauth_metadata"):
+                ws_session["oauth_metadata"] = oauth_metadata
+                ws_session["shop_domain"] = oauth_metadata.get("shop_domain")
+                ws_session["merchant_id"] = oauth_metadata.get("merchant_id")
+                logger.info(f"[WEBSOCKET] Loaded OAuth metadata from session: {oauth_metadata}")
+        
+        self.platform.sessions[conversation_id] = ws_session
 
         logger.info(
             f"[WEBSOCKET_LIFECYCLE] New WebSocket connection: {conversation_id}"
@@ -139,47 +152,43 @@ class WebSocketHandler:
                 f"size={len(str(data))} data={data}"
             )
 
-            # Basic validation
-            if not isinstance(data, dict):
+            # Parse and validate message using Pydantic TypeAdapter
+            try:
+                message = self.incoming_message_adapter.validate_python(data)
+            except ValidationError as e:
                 websocket_logger.warning(
-                    f"[WS_ERROR] Invalid message format - conversation={conversation_id} type={type(data)}"
+                    f"[WS_ERROR] Invalid message format - conversation={conversation_id} errors={e.errors()}"
                 )
                 await self.platform.send_error(
-                    websocket, "Invalid message format: expected JSON object"
+                    websocket, f"Invalid message format: {e}"
                 )
                 return
 
-            message_type = data.get("type", "message")
-
-            # Validate message types
-            valid_types = [
-                "message",
-                "start_conversation",
-                "end_conversation",
-                "fact_check",
-                "ping",
-                "system_event",
-                "debug_request",
-                "workflow_transition",
-                "logout",
-            ]
-            if message_type not in valid_types:
-                logger.warning(
-                    f"Invalid message type from {conversation_id}: {message_type}"
-                )
-                await self.platform.send_error(
-                    websocket, f"Invalid message type: {message_type}"
-                )
-                return
-
-            # Route to appropriate handler
-            handler_method = getattr(self.message_handlers, f"handle_{message_type}", None)
-            if handler_method:
-                await handler_method(websocket, conversation_id, data)
+            # Route based on message type using isinstance checks
+            if isinstance(message, StartConversationMsg):
+                await self.message_handlers.handle_start_conversation(websocket, conversation_id, message)
+            elif isinstance(message, UserMsg):
+                await self.message_handlers.handle_message(websocket, conversation_id, message)
+            elif isinstance(message, EndConversationMsg):
+                await self.message_handlers.handle_end_conversation(websocket, conversation_id, message)
+            elif isinstance(message, FactCheckMsg):
+                await self.message_handlers.handle_fact_check(websocket, conversation_id, message)
+            elif isinstance(message, PingMsg):
+                await self.message_handlers.handle_ping(websocket, conversation_id, message)
+            elif isinstance(message, DebugRequestMsg):
+                await self.message_handlers.handle_debug_request(websocket, conversation_id, message)
+            elif isinstance(message, WorkflowTransitionMsg):
+                await self.message_handlers.handle_workflow_transition(websocket, conversation_id, message)
+            elif isinstance(message, LogoutMsg):
+                await self.message_handlers.handle_logout(websocket, conversation_id, message)
+            elif isinstance(message, SystemEventMsg):
+                await self.message_handlers.handle_system_event(websocket, conversation_id, message)
+            elif isinstance(message, OAuthCompleteMsg):
+                await self.message_handlers.handle_oauth_complete(websocket, conversation_id, message)
             else:
-                logger.warning(f"No handler for message type: {message_type}")
+                logger.warning(f"Unhandled message type: {type(message)}")
                 await self.platform.send_error(
-                    websocket, f"Unsupported message type: {message_type}"
+                    websocket, f"Unhandled message type: {type(message).__name__}"
                 )
 
         except Exception as e:

@@ -9,7 +9,7 @@ from crewai import Crew, Task
 from app.models import Message
 from app.agents.cj_agent import create_cj_agent
 from app.services.session_manager import Session
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.config import settings
 from shared.user_identity import save_conversation_message
 
@@ -187,6 +187,14 @@ class MessageProcessor:
             f"[LLM_RESPONSE] Got response ({len(response)} chars): {response[:200]}{'...' if len(response) > 200 else ''}"
         )
         logger.info(f"[CJ_AGENT] ====== RESPONSE COMPLETE ======")
+        
+        # DIAGNOSTIC: Log response generation  
+        from datetime import datetime
+        has_oauth_complete = "authentication complete" in response.lower()
+        logger.warning(f"[MSG_GEN] Message generated - has_oauth_complete={has_oauth_complete}, "
+                      f"oauth_metadata_present={bool(session.oauth_metadata)}, "
+                      f"workflow={session.conversation.workflow}, timestamp={datetime.now()}, "
+                      f"content_preview={response[:100]}...")
 
         # Only add Shopify OAuth button when store not yet connected
         if session.conversation.workflow == "shopify_onboarding" and session.oauth_metadata is None:

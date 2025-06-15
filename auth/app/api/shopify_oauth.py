@@ -19,8 +19,9 @@ from app.services.shopify_auth import shopify_auth
 from shared.user_identity import get_or_create_user
 from app.utils.database import get_db_session
 from shared.db_models import OAuthCSRFState
-from shared.db_models import WebSession            # NEW
-from sqlalchemy import update                       # NEW
+from shared.db_models import WebSession
+from sqlalchemy import update
+from shared.auth.session_cookie import issue_session
 
 logger = logging.getLogger(__name__)
 
@@ -287,22 +288,28 @@ async def handle_oauth_callback(request: Request):
         
         # Issue session cookie if we have a user_id
         if user_id:
-            from app.services.session_cookie import issue_session
             session_id = issue_session(user_id)
 
-            # ---- NEW BLOCK (after session_id is created) -----------------
+            # Store OAuth metadata in session for agents service
             try:
                 with get_db_session() as db:
                     db.execute(
                         update(WebSession)
                         .where(WebSession.session_id == session_id)
-                        .values(data={'next_workflow': 'shopify_post_auth'})
+                        .values(data={
+                            'next_workflow': 'shopify_post_auth',
+                            'oauth_metadata': {
+                                'provider': 'shopify',
+                                'shop_domain': shop,
+                                'merchant_id': merchant_id,
+                                'is_new': is_new
+                            }
+                        })
                     )
                     db.commit()
-                    logger.info(f"[OAUTH_CALLBACK] Marked session {session_id} for post-auth workflow")
+                    logger.info(f"[OAUTH_CALLBACK] Stored OAuth metadata for session {session_id}")
             except Exception as e:
-                logger.error(f"[OAUTH_CALLBACK] Failed to flag session for post-auth workflow: {e}")
-            # --------------------------------------------------------------
+                logger.error(f"[OAUTH_CALLBACK] Failed to store OAuth metadata: {e}")
 
             # Determine cookie domain based on environment
             cookie_domain = None

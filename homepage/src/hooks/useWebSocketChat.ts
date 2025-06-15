@@ -1,6 +1,25 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { logger } from '@/lib/logger';
 import { WorkflowType } from '@/constants/workflow';
+import { 
+  OutgoingMessage, 
+  IncomingMessage,
+  isOutgoingMessage,
+  CJMessageMsg,
+  CJThinkingMsg,
+  ConversationStartedMsg,
+  ErrorMsg,
+  SystemMsg,
+  FactCheckStatusMsg,
+  FactCheckStartedMsg,
+  FactCheckCompleteMsg,
+  FactCheckErrorMsg,
+  WorkflowUpdatedMsg,
+  OAuthProcessedMsg,
+  DebugResponseMsg,
+  DebugEventMsg,
+  StartConversationData
+} from '@/protocol';
 
 const wsLogger = logger.child('websocket');
 
@@ -35,20 +54,9 @@ interface Progress {
   elapsed?: number;
 }
 
-interface WebSocketMessage {
-  type: 'system' | 'cj_thinking' | 'cj_message' | 'error' | 'fact_check_status' | 'oauth_complete' | 'conversation_started' | 'oauth_processed' | 'workflow_updated' | 'debug_response' | 'debug_event';
-  message?: string;
-  text?: string;
-  progress?: Progress;
-  data?: any;
-  error?: string;
-  fact_check_status?: any;
-  [key: string]: any;
-}
-
 interface UseWebSocketChatProps {
   enabled?: boolean;
-  merchantId: string;
+  shopSubdomain: string;
   scenario: string;
   workflow: WorkflowType;
   onError?: (error: string) => void;
@@ -71,7 +79,7 @@ interface State {
 
 export function useWebSocketChat({ 
   enabled = false,
-  merchantId, 
+  shopSubdomain, 
   scenario,
   workflow,
   onError,
@@ -82,7 +90,7 @@ export function useWebSocketChat({
   useEffect(() => {
     wsLogger.debug('🎯 useWebSocketChat initialized', {
       enabled,
-      merchantId,
+      shopSubdomain,
       scenario,
       workflow
     });
@@ -182,16 +190,24 @@ export function useWebSocketChat({
   // Handle WebSocket messages
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
-      const data: WebSocketMessage = JSON.parse(event.data);
+      const data = JSON.parse(event.data);
+      
+      // Validate it's an outgoing message (from server)
+      if (!isOutgoingMessage(data)) {
+        wsLogger.warn('Received invalid message format', { data });
+        return;
+      }
+      
       wsLogger.debug('Received message', { type: data.type, data });
       
       switch (data.type) {
         case 'system':
-          if (data.message || data.text) {
+          const systemMsg = data as SystemMsg;
+          if (systemMsg.text) {
             const message: Message = {
               id: `system-${Date.now()}`,
               sender: 'system',
-              content: data.message || data.text || '',
+              content: systemMsg.text,
               timestamp: new Date().toISOString()
             };
             setState(prev => ({ ...prev, messages: [...prev.messages, message] }));
@@ -199,27 +215,32 @@ export function useWebSocketChat({
           break;
           
         case 'cj_thinking':
+          const thinkingMsg = data as CJThinkingMsg;
           setState(prev => ({ 
             ...prev, 
             messages: prev.messages.filter(msg => !msg.metadata?.isThinking),
             isTyping: true,
-            progress: data.progress || (data.data && 'status' in data.data ? data.data as Progress : null)
+            progress: thinkingMsg.data ? {
+              status: thinkingMsg.data.status as Progress['status'],
+              toolsCalled: thinkingMsg.data.toolsCalled || undefined,
+              currentTool: thinkingMsg.data.currentTool || undefined,
+              elapsed: thinkingMsg.data.elapsed || undefined
+            } : null
           }));
           break;
           
         case 'cj_message':
-          const messageData = data.data as { content?: string; timestamp?: string; factCheckStatus?: string; ui_elements?: any[] } | undefined;
-          console.log('[WebSocket] Parsing cj_message:', { messageData, fullData: data });
+          const cjMsg = data as CJMessageMsg;
+          console.log('[WebSocket] Parsing cj_message:', { messageData: cjMsg.data, fullData: cjMsg });
           const cjMessage: Message = {
             id: `cj-${Date.now()}`,
             sender: 'cj',
-            content: messageData?.content || data.message || data.text || '',
-            timestamp: messageData?.timestamp || new Date().toISOString(),
+            content: cjMsg.data.content,
+            timestamp: cjMsg.data.timestamp,
             metadata: {
-              ...data.metadata,
-              factCheckAvailable: messageData?.factCheckStatus === 'available'
+              factCheckAvailable: cjMsg.data.factCheckStatus === 'available'
             },
-            ui_elements: messageData?.ui_elements
+            ui_elements: cjMsg.data.ui_elements || undefined
           };
           console.log('[WebSocket] Created cj_message:', cjMessage);
           setState(prev => ({ 
@@ -234,7 +255,8 @@ export function useWebSocketChat({
           break;
           
         case 'error':
-          const errorMsg = data.error || data.message || 'Unknown error';
+          const errorData = data as ErrorMsg;
+          const errorMsg = errorData.text || 'Unknown error';
           const errorType: ErrorType = errorMsg.toLowerCase().includes('universe not found') 
             ? 'universe_not_found' 
             : 'unknown';
@@ -249,56 +271,120 @@ export function useWebSocketChat({
           }
           break;
           
+        case 'fact_check_started':
+          const factCheckStarted = data as FactCheckStartedMsg;
+          wsLogger.info('Fact check started', factCheckStarted.data);
+          // Update the message to show fact checking is in progress
+          const messageIndex = factCheckStarted.data.messageIndex;
+          setState(prev => ({
+            ...prev,
+            messages: prev.messages.map((msg, idx) => 
+              idx === messageIndex && msg.metadata 
+                ? { ...msg, metadata: { ...msg.metadata, isCheckingFacts: true } }
+                : msg
+            )
+          }));
+          break;
+          
+        case 'fact_check_complete':
+          const factCheckComplete = data as FactCheckCompleteMsg;
+          wsLogger.info('Fact check complete', factCheckComplete.data);
+          // Update the message with fact check results
+          const completeIndex = factCheckComplete.data.messageIndex;
+          setState(prev => ({
+            ...prev,
+            messages: prev.messages.map((msg, idx) => 
+              idx === completeIndex && msg.metadata 
+                ? { 
+                    ...msg, 
+                    metadata: { 
+                      ...msg.metadata, 
+                      isCheckingFacts: false,
+                      factCheckResult: factCheckComplete.data.result 
+                    } 
+                  }
+                : msg
+            )
+          }));
+          break;
+          
+        case 'fact_check_error':
+          const factCheckError = data as FactCheckErrorMsg;
+          wsLogger.error('Fact check error', factCheckError.data);
+          // Update the message to show fact check failed
+          const errorIndex = factCheckError.data.messageIndex;
+          setState(prev => ({
+            ...prev,
+            messages: prev.messages.map((msg, idx) => 
+              idx === errorIndex && msg.metadata 
+                ? { 
+                    ...msg, 
+                    metadata: { 
+                      ...msg.metadata, 
+                      isCheckingFacts: false,
+                      factCheckError: factCheckError.data.error 
+                    } 
+                  }
+                : msg
+            )
+          }));
+          break;
+          
         case 'fact_check_status':
-          wsLogger.info('Received fact check status', data.fact_check_status);
+          const factCheckStatusMsg = data as FactCheckStatusMsg;
+          wsLogger.info('Received fact check status', factCheckStatusMsg.data);
           break;
           
         case 'conversation_started':
-          wsLogger.info('Conversation started', data.data);
+          const conversationStarted = data as ConversationStartedMsg;
+          wsLogger.info('Conversation started', conversationStarted.data);
           // Capture the server-assigned conversation ID
-          const serverConversationId = data.data?.conversationId;
+          const serverConversationId = conversationStarted.data.conversationId;
           if (serverConversationId) {
             setState(prev => ({ ...prev, conversationId: serverConversationId }));
             wsLogger.info('Captured server-assigned conversation ID', { conversationId: serverConversationId });
           }
           // Update workflow from backend's authoritative state
-          const backendWorkflow = data.data?.workflow;
+          const backendWorkflow = conversationStarted.data.workflow;
           if (backendWorkflow && onWorkflowUpdatedRef.current) {
             wsLogger.info('Updating workflow from conversation_started', {
               workflow: backendWorkflow,
               source: 'backend'
             });
             // Update our internal ref
-            workflowRef.current = backendWorkflow;
+            workflowRef.current = backendWorkflow as WorkflowType;
             // Notify parent component
-            onWorkflowUpdatedRef.current(backendWorkflow, workflowRef.current);
+            onWorkflowUpdatedRef.current(backendWorkflow as WorkflowType, workflowRef.current);
           }
           break;
           
         case 'workflow_updated':
-          const { workflow: updatedWorkflow, previous } = data.data;
+          const workflowUpdated = data as WorkflowUpdatedMsg;
+          const { workflow: updatedWorkflow, previous } = workflowUpdated.data;
           wsLogger.info('Workflow updated by backend', { 
             from: previous, 
             to: updatedWorkflow 
           });
           // Update our internal ref
-          workflowRef.current = updatedWorkflow;
+          workflowRef.current = updatedWorkflow as WorkflowType;
           // Trigger callback to parent component
           if (onWorkflowUpdatedRef.current) {
-            onWorkflowUpdatedRef.current(updatedWorkflow, previous);
+            onWorkflowUpdatedRef.current(updatedWorkflow as WorkflowType, (previous || workflowRef.current) as WorkflowType);
           }
           break;
         
         case 'oauth_processed':
-          wsLogger.info('OAuth processed by backend', data.data);
+          const oauthProcessed = data as OAuthProcessedMsg;
+          wsLogger.info('OAuth processed by backend', oauthProcessed.data);
           if (onOAuthProcessedRef.current) {
-            onOAuthProcessedRef.current(data.data);
+            onOAuthProcessedRef.current(oauthProcessed.data);
           }
           break;
         
         case 'debug_response':
           // Format and log debug response
-          const debugData = data.data;
+          const debugResponse = data as DebugResponseMsg;
+          const debugData = debugResponse.data;
           console.group('%c🔍 CJ Backend Debug Response', 'color: #00D4FF; font-size: 14px; font-weight: bold');
           
           if (debugData.session) {
@@ -338,7 +424,8 @@ export function useWebSocketChat({
           
         case 'debug_event':
           // Live event streaming
-          const event = data.data;
+          const debugEvent = data as DebugEventMsg;
+          const event = debugEvent.data;
           console.log(`%c[${event.timestamp || new Date().toISOString()}]`, 'color: gray', event.type, event.data || '');
           break;
           
@@ -441,13 +528,29 @@ export function useWebSocketChat({
       setTimeout(() => {
         // Send start_conversation message
         // Server determines everything from session
-        const startData = {};
+        const startData: StartConversationData = {};
         
+        // Check if this is a post-OAuth redirect. If so, don't send a workflow preference.
+        // The backend will determine the correct workflow from the session cookie.
+        const params = new URLSearchParams(window.location.search);
+        const isOAuthReturn = params.get('oauth') === 'complete';
+
+        if (isOAuthReturn) {
+          wsLogger.info('💡 Post-OAuth redirect detected. Letting backend determine workflow.');
+        } else if (workflowRef.current) {
+          // Include workflow if provided and not an OAuth return
+          startData.workflow = workflowRef.current;
+        }
+        
+        // Include subdomain if provided
+        if (shopSubdomain) {
+          startData.shop_subdomain = shopSubdomain;
+        }
         
         // Debug: Log what we're sending
         wsLogger.info('📤 start_conversation data:', startData);
         wsLogger.info('📤 Current user session:', {
-          merchantId: localStorage.getItem('merchantId'),
+          shopSubdomain: localStorage.getItem('shopSubdomain'),
           shopDomain: localStorage.getItem('shopDomain')
         });
         
@@ -528,7 +631,7 @@ export function useWebSocketChat({
         return prev;
       });
     };
-  }, [merchantId, scenario, WS_BASE_URL, handleMessage, flushMessageQueue]); // Removed workflow to prevent reconnection on workflow change
+  }, [shopSubdomain, scenario, WS_BASE_URL, handleMessage, flushMessageQueue]); // Removed workflow to prevent reconnection on workflow change
 
   // Effect to manage connection lifecycle
   useEffect(() => {

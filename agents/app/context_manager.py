@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.models import Conversation, ConversationState
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 

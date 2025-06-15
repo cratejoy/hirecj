@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import enum
 
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 

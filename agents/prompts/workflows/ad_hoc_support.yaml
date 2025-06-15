@@ -9,11 +9,7 @@ requirements:
 
 # Workflow behavior configuration
 behavior:
-  initiator: "cj"
-  initial_action:
-    type: "static_message"
-    content: "Hey boss, what's up? 👋 Need help with anything today?"
-    add_to_history: true
+  initiator: "merchant"  # Merchant starts the conversation when they need help
 
 # IMPORTANT: Workflows define WHAT happens, not HOW to communicate
 # - Define milestones, data to pull, topics to cover

@@ -11,7 +11,7 @@ import litellm
 from app.models import Conversation, Message
 from shared.user_identity import get_user_facts, append_fact
 from app.prompts.loader import PromptLoader
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.config import settings
 
 logger = get_logger(__name__)

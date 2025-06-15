@@ -11,9 +11,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Add LightRAG to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "third-party" / "LightRAG"))
-
+# LightRAG is now installed as a package from local directory
 from lightrag import LightRAG, QueryParam
 from lightrag.llm.openai import gpt_4o_mini_complete, openai_embed
 from lightrag.kg.shared_storage import initialize_pipeline_status

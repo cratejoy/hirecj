@@ -9,7 +9,7 @@ import threading
 import nest_asyncio
 
 from app.config import settings
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 
 # Allow nested event loops
 nest_asyncio.apply()

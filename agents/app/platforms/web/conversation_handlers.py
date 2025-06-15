@@ -6,8 +6,22 @@ import asyncio
 
 from fastapi import WebSocket, BackgroundTasks
 
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.config import settings
+from shared.protocol.models import (
+    UserMsg,
+    EndConversationMsg,
+    FactCheckMsg,
+    CJMessageMsg,
+    CJMessageData,
+    SystemMsg,
+    FactCheckStartedMsg,
+    FactCheckStartedData,
+    FactCheckCompleteMsg,
+    FactCheckCompleteData,
+    FactCheckErrorMsg,
+    FactCheckErrorData,
+)
 
 if TYPE_CHECKING:
     from .platform import WebPlatform
@@ -23,15 +37,13 @@ class ConversationHandlers:
         self.platform = platform
 
     async def handle_message(
-        self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
+        self, websocket: WebSocket, conversation_id: str, message: UserMsg
     ):
         """Handle regular message."""
-        text = data.get("text", "").strip()
-        merchant = data.get("merchant_id", "demo_merchant")
-        scenario = data.get("scenario", "normal_day")
-
+        text = message.text.strip()
+        
         websocket_logger.info(
-            f"[MESSAGE_DEBUG] Processing message - conversation_id: {conversation_id}, text: '{text}', merchant: {merchant}, scenario: {scenario}"
+            f"[MESSAGE_DEBUG] Processing message - conversation_id: {conversation_id}, text: '{text}'"
         )
 
         # Validate message
@@ -73,61 +85,47 @@ class ConversationHandlers:
         # Handle structured response with UI elements
         if isinstance(response, dict) and response.get("type") == "message_with_ui":
             # Send response with UI elements
-            response_with_fact_check = {
-                "content": response["content"],
-                "factCheckStatus": "available",
-                "timestamp": datetime.now().isoformat(),
-                "ui_elements": response.get("ui_elements", [])
-            }
+            cj_msg = CJMessageMsg(
+                type="cj_message",
+                data=CJMessageData(
+                    content=response["content"],
+                    factCheckStatus="available",
+                    timestamp=datetime.now(),
+                    ui_elements=response.get("ui_elements", [])
+                )
+            )
             websocket_logger.info(
-                f"[WS_SEND] Sending CJ message with UI elements: content='{response_with_fact_check.get('content', '')[:100]}...' "
-                f"ui_elements={len(response_with_fact_check.get('ui_elements', []))} full_data={response_with_fact_check}"
+                f"[WS_SEND] Sending CJ message with UI elements: content='{cj_msg.data.content[:100]}...' "
+                f"ui_elements={len(cj_msg.data.ui_elements or [])} full_data={cj_msg.model_dump()}"
             )
         else:
             # Regular text response
-            response_with_fact_check = {
-                "content": response,
-                "factCheckStatus": "available",
-                "timestamp": datetime.now().isoformat(),
-            }
+            cj_msg = CJMessageMsg(
+                type="cj_message",
+                data=CJMessageData(
+                    content=response,
+                    factCheckStatus="available",
+                    timestamp=datetime.now()
+                )
+            )
             websocket_logger.info(
-                f"[WS_SEND] Sending CJ message response: content='{response_with_fact_check.get('content', '')[:100]}...' "
-                f"full_data={response_with_fact_check}"
+                f"[WS_SEND] Sending CJ message response: content='{cj_msg.data.content[:100]}...' "
+                f"full_data={cj_msg.model_dump()}"
             )
         
         # Check for suspicious content
-        if (
-            response_with_fact_check.get("content") == "0"
-            or response_with_fact_check.get("content") == 0
-        ):
+        if cj_msg.data.content == "0" or cj_msg.data.content == 0:
             websocket_logger.error(
-                f"[WS_ERROR] Sending message with content '0': {response_with_fact_check}"
+                f"[WS_ERROR] Sending message with content '0': {cj_msg.model_dump()}"
             )
-        await websocket.send_json(
-            {"type": "cj_message", "data": response_with_fact_check}
-        )
+        await self.platform.send_validated_message(websocket, cj_msg)
 
     async def handle_fact_check(
-        self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
+        self, websocket: WebSocket, conversation_id: str, message: FactCheckMsg
     ):
         """Handle fact-check request."""
-        fact_check_data = data.get("data", {})
-        if not isinstance(fact_check_data, dict):
-            await self.platform.send_error(websocket, "Invalid fact_check data format")
-            return
-
-        message_index = fact_check_data.get("messageIndex")
-        if message_index is None:
-            await self.platform.send_error(
-                websocket, "messageIndex is required for fact_check"
-            )
-            return
-
-        if not isinstance(message_index, int) or message_index < 0:
-            await self.platform.send_error(
-                websocket, "messageIndex must be a non-negative integer"
-            )
-            return
+        message_index = message.data.messageIndex
+        force_refresh = message.data.forceRefresh
 
         # Get current session
         session = self.platform.session_manager.get_session(conversation_id)
@@ -145,7 +143,7 @@ class ConversationHandlers:
             request = FactCheckRequest(
                 merchant_name=session.merchant_name,
                 scenario_name=session.scenario_name,
-                force_refresh=fact_check_data.get("forceRefresh", False),
+                force_refresh=force_refresh,
             )
 
             # Start fact-checking
@@ -158,15 +156,14 @@ class ConversationHandlers:
                 )
 
                 # Send initial status
-                await websocket.send_json(
-                    {
-                        "type": "fact_check_started",
-                        "data": {
-                            "messageIndex": message_index,
-                            "status": "checking",
-                        },
-                    }
+                fact_check_started = FactCheckStartedMsg(
+                    type="fact_check_started",
+                    data=FactCheckStartedData(
+                        messageIndex=message_index,
+                        status="checking"
+                    )
                 )
+                await self.platform.send_validated_message(websocket, fact_check_started)
 
                 # Create a task to poll for completion and send updates
                 asyncio.create_task(
@@ -176,18 +173,17 @@ class ConversationHandlers:
                 )
 
             except Exception as e:
-                await websocket.send_json(
-                    {
-                        "type": "fact_check_error",
-                        "data": {
-                            "messageIndex": message_index,
-                            "error": str(e),
-                        },
-                    }
+                fact_check_error = FactCheckErrorMsg(
+                    type="fact_check_error",
+                    data=FactCheckErrorData(
+                        messageIndex=message_index,
+                        error=str(e)
+                    )
                 )
+                await self.platform.send_validated_message(websocket, fact_check_error)
 
     async def handle_end_conversation(
-        self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
+        self, websocket: WebSocket, conversation_id: str, message: EndConversationMsg
     ):
         """Handle end_conversation message."""
         # Save conversation
@@ -198,9 +194,11 @@ class ConversationHandlers:
             # Real-time extraction already handles fact extraction
             logger.info(f"[CONVERSATION] Conversation {conversation_id} ended. Facts already extracted in real-time.")
                     
-        await websocket.send_json(
-            {"type": "system", "text": "Conversation saved. Goodbye!"}
+        system_msg = SystemMsg(
+            type="system",
+            text="Conversation saved. Goodbye!"
         )
+        await self.platform.send_validated_message(websocket, system_msg)
         await websocket.close()
 
     async def _monitor_fact_check(
@@ -221,21 +219,49 @@ class ConversationHandlers:
 
                     # Send completion message
                     try:
-                        await websocket.send_json(
-                            {
-                                "type": "fact_check_complete",
-                                "data": {
-                                    "messageIndex": message_index,
-                                    "result": {
-                                        "overall_status": result.overall_status,
-                                        "claim_count": len(result.claims),
-                                        "execution_time": getattr(
-                                            result, "execution_time", 0
-                                        ),
-                                    },
-                                },
-                            }
-                        )
+                        # Import the typed model
+                        from shared.protocol.models import FactCheckResultData
+                        
+                        # Handle different result types
+                        if isinstance(result, FactCheckResultData):
+                            # Use the typed result directly
+                            fact_check_complete = FactCheckCompleteMsg(
+                                type="fact_check_complete",
+                                data=FactCheckCompleteData(
+                                    messageIndex=message_index,
+                                    result=result
+                                )
+                            )
+                        elif isinstance(result, dict) and result.get("status") == "error":
+                            # Handle error case
+                            fact_check_error = FactCheckErrorMsg(
+                                type="fact_check_error",
+                                data=FactCheckErrorData(
+                                    messageIndex=message_index,
+                                    error=result.get("error", "Unknown error")
+                                )
+                            )
+                            await self.platform.send_validated_message(websocket, fact_check_error)
+                            return
+                        else:
+                            # Legacy support - create a minimal result
+                            from datetime import datetime
+                            minimal_result = FactCheckResultData(
+                                overall_status=getattr(result, "overall_status", "UNKNOWN"),
+                                claims=[],
+                                issues=[],
+                                execution_time=getattr(result, "execution_time", 0),
+                                checked_at=datetime.now()
+                            )
+                            fact_check_complete = FactCheckCompleteMsg(
+                                type="fact_check_complete",
+                                data=FactCheckCompleteData(
+                                    messageIndex=message_index,
+                                    result=minimal_result
+                                )
+                            )
+                        
+                        await self.platform.send_validated_message(websocket, fact_check_complete)
                     except Exception:
                         # WebSocket might be closed
                         pass
@@ -246,14 +272,13 @@ class ConversationHandlers:
 
         # Timeout - fact check is taking too long
         try:
-            await websocket.send_json(
-                {
-                    "type": "fact_check_error",
-                    "data": {
-                        "messageIndex": message_index,
-                        "error": "Fact check timed out after 30 seconds",
-                    },
-                }
+            fact_check_error = FactCheckErrorMsg(
+                type="fact_check_error",
+                data=FactCheckErrorData(
+                    messageIndex=message_index,
+                    error="Fact check timed out after 30 seconds"
+                )
             )
+            await self.platform.send_validated_message(websocket, fact_check_error)
         except Exception:
             pass
