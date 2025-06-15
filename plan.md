@@ -91,7 +91,7 @@ Each phase below requires **Amir's approval** before proceeding to the next phas
 - [x] Phase 3: Editor Protocol Setup ✅
 - [x] Phase 4: Editor Backend - WebSocket Endpoint Setup ✅ (Tested and working)
 - [x] Phase 5: Editor Backend - WebSocket Bridge Implementation ✅
-- [ ] Phase 6: Editor Backend - Message Forwarding Functions ⏸️ **[Get Amir Approval]**
+- [x] Phase 6: Editor Backend - Message Forwarding Functions ✅
 - [ ] Phase 7: Editor Backend - Message Transformation ⏸️ **[Get Amir Approval]**
 - [ ] Phase 8: Editor Backend - Router Integration ⏸️ **[Get Amir Approval]**
 - [ ] Phase 9: Agent Service - Test Mode Detection ⏸️ **[Get Amir Approval]**
@@ -265,37 +265,37 @@ async def playground_websocket(websocket: WebSocket):
 - Error messages sent to editor if agent is unavailable
 - Debug logging for message flow
 
-### Phase 6: Editor Backend - Message Forwarding Functions
+### Phase 6: Editor Backend - Message Forwarding Functions ✅
 **Goal**: Implement bidirectional message forwarding with validation
 
-1. **Create forwarding functions**:
-```python
-async def editor_to_agent(editor_ws, agent_ws, session_id):
-    """Forward messages from editor to agent service"""
-    try:
-        while True:
-            raw_msg = await editor_ws.receive_text()
-            msg = incoming_adapter.validate_json(raw_msg)
-            
-            # Transform playground messages
-            agent_msg = await transform_to_agent_message(msg, session_id)
-            await agent_ws.send(agent_msg.model_dump_json())
-            
-    except WebSocketDisconnect:
-        await agent_ws.close()
-    except ValidationError as e:
-        error_msg = ErrorMsg(type="error", data={"message": str(e)})
-        await editor_ws.send_text(error_msg.model_dump_json())
+**Status**: Completed and tested
 
-async def agent_to_editor(editor_ws, agent_ws):
-    """Forward messages from agent to editor"""
-    try:
-        async for raw_msg in agent_ws:
-            msg = outgoing_adapter.validate_json(raw_msg)
-            await editor_ws.send_text(raw_msg)
-    except websockets.exceptions.ConnectionClosed:
-        await editor_ws.close()
-```
+**Implementation Details**:
+1. ✅ Updated `editor_to_agent` function:
+   - Added validation using `incoming_adapter.validate_json()`
+   - Catches ValidationError and sends ErrorMsg back to editor
+   - Logs valid message types for debugging
+   - Messages still forwarded as-is (transformation in Phase 7)
+
+2. ✅ Updated `agent_to_editor` function:
+   - Added validation using `outgoing_adapter.validate_json()`
+   - Logs warnings for invalid agent messages but still forwards them
+   - Ensures agent protocol compliance monitoring
+
+3. ✅ Fixed ErrorMsg structure:
+   - Corrected to use `text` field instead of `data` field
+   - Applied fix to both validation errors and connection errors
+
+4. ✅ Created test script `test_phase6_validation.py`:
+   - Tests valid message acceptance
+   - Tests invalid message rejection with error response
+   - Tests unknown message type handling
+
+**Key Features**:
+- Type-safe message validation on both directions
+- Helpful error messages for debugging
+- Non-blocking validation for agent messages
+- Proper error message format
 
 ### Phase 7: Editor Backend - Message Transformation
 **Goal**: Transform playground messages to agent protocol

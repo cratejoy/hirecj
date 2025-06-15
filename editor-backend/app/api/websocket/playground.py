@@ -63,7 +63,7 @@ async def playground_websocket(websocket: WebSocket):
         logging.error(f"Failed to connect to agent service at {agent_ws_uri}")
         error_msg = ErrorMsg(
             type="error",
-            data={"message": "Agent service unavailable", "code": "AGENT_UNAVAILABLE"}
+            text="Agent service unavailable"
         )
         await websocket.send_text(error_msg.model_dump_json())
         await websocket.close(code=1011, reason="Agent service unavailable")
@@ -120,9 +120,23 @@ async def editor_to_agent(editor_ws: WebSocket, agent_ws, session_id: str):
             raw_msg = await editor_ws.receive_text()
             logging.debug(f"[{session_id}] Editor -> Agent: {raw_msg}")
             
-            # For now, forward messages as-is
-            # Validation and transformation will be added in Phase 6-7
-            await agent_ws.send(raw_msg)
+            try:
+                # Validate the incoming message
+                msg = incoming_adapter.validate_json(raw_msg)
+                logging.info(f"[{session_id}] Valid message type: {msg.type}")
+                
+                # For now, forward the original message
+                # Transformation will be added in Phase 7
+                await agent_ws.send(raw_msg)
+                
+            except ValidationError as e:
+                # Send error back to editor
+                logging.error(f"[{session_id}] Validation error: {e}")
+                error_msg = ErrorMsg(
+                    type="error",
+                    text=f"Invalid message format: {str(e)}"
+                )
+                await editor_ws.send_text(error_msg.model_dump_json())
             
     except WebSocketDisconnect:
         logging.info(f"[{session_id}] Editor disconnected")
@@ -145,8 +159,16 @@ async def agent_to_editor(editor_ws: WebSocket, agent_ws, session_id: str):
                 
             logging.debug(f"[{session_id}] Agent -> Editor: {raw_msg}")
             
-            # For now, forward messages as-is
-            # Validation will be added in Phase 6
+            try:
+                # Validate the outgoing message
+                msg = outgoing_adapter.validate_json(raw_msg)
+                logging.info(f"[{session_id}] Valid agent message type: {msg.type}")
+            except ValidationError as e:
+                # Log validation errors but still forward the message
+                # Agent should always send valid messages
+                logging.warning(f"[{session_id}] Agent sent invalid message: {e}")
+            
+            # Forward the message regardless of validation
             await editor_ws.send_text(raw_msg)
             
     except websockets.exceptions.ConnectionClosed:
