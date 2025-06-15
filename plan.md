@@ -1,5 +1,53 @@
 # LightRAG Implementation Plan & Roadmap for HireCJ Knowledge Graphs
 
+## 🌟 North Star Principles
+
+1. **Simplify, Simplify, Simplify**: Every decision should make the code simpler, not more complex
+   - This means: Don't add features we don't need yet
+   - This does NOT mean: Remove existing requirements or functionality
+   - Keep what's needed, remove what's not
+2. **No Cruft**: Remove all redundant code, validation, and unnecessary complexity
+3. **Break It & Fix It Right**: No backwards compatibility shims - make breaking changes and migrate properly
+4. **Long-term Elegance**: Choose performant, compiler-enforced solutions that prevent subtle bugs
+5. **Backend-Driven**: Let the backend handle complexity, frontend should be a thin client
+6. **Single Source of Truth**: One pattern, one way to do things, no alternatives
+7. **No Over-Engineering**: Design for current needs only - no hypothetical features, no "maybe later" code
+8. **Thoughtful Logging & Instrumentation**: We value visibility into system behavior with appropriate log levels
+   - Use proper log levels (debug, info, warning, error)
+   - Log important state changes and decisions
+   - But don't log sensitive data or spam the logs
+
+## 🤖 Operational Guidelines
+
+- **No Magic Values**: Never hardcode values inline. Use named constants, configuration, or explicit parameters
+  - ❌ `if count > 10:` 
+  - ✅ `if count > MAX_RETRIES:`
+- **No Unsolicited Optimizations**: Only implement what was explicitly requested
+  - Don't add caching unless asked
+  - Don't optimize algorithms unless asked
+  - Don't refactor unrelated code unless asked
+  - If you see an opportunity for improvement, mention it but don't implement it
+- **NEVER Create V2 Versions**: When asked to add functionality, ALWAYS update the existing code
+  - ❌ Creating `analytics_lib_v2.py`, `process_data_v2.py`, `utils_v2.py`, etc.
+  - ✅ Adding new functions to existing files
+  - ✅ Updating existing functions to support new parameters
+  - ✅ Refactoring existing code to handle new requirements
+- **Clean Up When Creating PRs**: When asked to create a pull request, ALWAYS:
+  - Remove any test files that are no longer needed
+  - Delete orphaned or superseded libraries
+  - Clean up temporary scripts
+  - Ensure no duplicate functionality remains
+  - The PR should be clean and ready to merge
+
+## Personal Preferences (Amir)
+- Always prefer the long term right solution that is elegant, performant and ideally compiler enforced
+- Never introduce backwards compatibility shims unless specifically requested
+- Prefer breaking changes and the hard work of migrating to the new single correct pattern
+- Don't introduce new features unless specifically asked to
+- Don't build in CI steps unless specifically asked to
+- Don't introduce benchmarking & performance management steps unless specifically asked to
+- Do not implement shims without explicit approval. They are hacks.
+
 ## Architecture Diagram
 
 ```
