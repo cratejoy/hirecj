@@ -44,6 +44,118 @@ outgoing_adapter = TypeAdapter(OutgoingMessage)
 
 @router.websocket("/ws/playground")
 async def playground_websocket(websocket: WebSocket):
+    """Handle WebSocket connections from the editor playground."""
     await websocket.accept()
-    logging.info("Playground WebSocket connected")
-    # Implementation continues in next phase
+    session_id = f"playground_{uuid.uuid4()}"
+    logging.info(f"Playground WebSocket connected: {session_id}")
+    
+    # Connect to agent service
+    agent_ws_uri = "ws://localhost:8000/ws/chat"
+    
+    try:
+        async with websockets.connect(agent_ws_uri) as agent_ws:
+            logging.info(f"Connected to agent service for session {session_id}")
+            
+            # Bridge connections
+            await bridge_connections(websocket, agent_ws, session_id)
+            
+    except websockets.exceptions.ConnectionRefusedError:
+        logging.error(f"Failed to connect to agent service at {agent_ws_uri}")
+        error_msg = ErrorMsg(
+            type="error",
+            data={"message": "Agent service unavailable", "code": "AGENT_UNAVAILABLE"}
+        )
+        await websocket.send_text(error_msg.model_dump_json())
+        await websocket.close(code=1011, reason="Agent service unavailable")
+        
+    except WebSocketDisconnect:
+        logging.info(f"Editor client disconnected: {session_id}")
+        
+    except Exception as e:
+        logging.error(f"WebSocket error for session {session_id}: {e}")
+        await websocket.close(code=1011, reason=str(e))
+
+
+async def bridge_connections(editor_ws: WebSocket, agent_ws, session_id: str):
+    """Bridge messages between editor and agent WebSocket connections."""
+    logging.info(f"Starting message bridge for session {session_id}")
+    
+    # Run both forwarding tasks concurrently
+    # If either task completes (due to disconnection), cancel the other
+    editor_task = asyncio.create_task(
+        editor_to_agent(editor_ws, agent_ws, session_id)
+    )
+    agent_task = asyncio.create_task(
+        agent_to_editor(editor_ws, agent_ws, session_id)
+    )
+    
+    try:
+        # Wait for either task to complete
+        done, pending = await asyncio.wait(
+            [editor_task, agent_task],
+            return_when=asyncio.FIRST_COMPLETED
+        )
+        
+        # Cancel the other task
+        for task in pending:
+            task.cancel()
+            
+    except Exception as e:
+        logging.error(f"Bridge error for session {session_id}: {e}")
+        
+    finally:
+        # Ensure both tasks are cleaned up
+        for task in [editor_task, agent_task]:
+            if not task.done():
+                task.cancel()
+                
+        logging.info(f"Message bridge closed for session {session_id}")
+
+
+async def editor_to_agent(editor_ws: WebSocket, agent_ws, session_id: str):
+    """Forward messages from editor to agent service."""
+    try:
+        while True:
+            # Receive message from editor
+            raw_msg = await editor_ws.receive_text()
+            logging.debug(f"[{session_id}] Editor -> Agent: {raw_msg}")
+            
+            # For now, forward messages as-is
+            # Validation and transformation will be added in Phase 6-7
+            await agent_ws.send(raw_msg)
+            
+    except WebSocketDisconnect:
+        logging.info(f"[{session_id}] Editor disconnected")
+        await agent_ws.close()
+        
+    except websockets.exceptions.ConnectionClosed:
+        logging.info(f"[{session_id}] Agent connection closed while forwarding from editor")
+        
+    except Exception as e:
+        logging.error(f"[{session_id}] Error forwarding editor->agent: {e}")
+        raise
+
+
+async def agent_to_editor(editor_ws: WebSocket, agent_ws, session_id: str):
+    """Forward messages from agent to editor."""
+    try:
+        async for raw_msg in agent_ws:
+            if isinstance(raw_msg, bytes):
+                raw_msg = raw_msg.decode('utf-8')
+                
+            logging.debug(f"[{session_id}] Agent -> Editor: {raw_msg}")
+            
+            # For now, forward messages as-is
+            # Validation will be added in Phase 6
+            await editor_ws.send_text(raw_msg)
+            
+    except websockets.exceptions.ConnectionClosed:
+        logging.info(f"[{session_id}] Agent disconnected")
+        await editor_ws.close()
+        
+    except WebSocketDisconnect:
+        logging.info(f"[{session_id}] Editor connection closed while forwarding from agent")
+        
+    except Exception as e:
+        logging.error(f"[{session_id}] Error forwarding agent->editor: {e}")
+        raise

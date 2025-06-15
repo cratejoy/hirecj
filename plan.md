@@ -89,8 +89,8 @@ Each phase below requires **Amir's approval** before proceeding to the next phas
 - [x] Phase 1: Protocol Models - Define Playground Messages ✅
 - [x] Phase 2: Protocol Generation - Update and Run ✅
 - [x] Phase 3: Editor Protocol Setup ✅
-- [x] Phase 4: Editor Backend - WebSocket Endpoint Setup ✅
-- [ ] Phase 5: Editor Backend - WebSocket Bridge Implementation ⏸️ **[Get Amir Approval]**
+- [x] Phase 4: Editor Backend - WebSocket Endpoint Setup ✅ (Tested and working)
+- [x] Phase 5: Editor Backend - WebSocket Bridge Implementation ✅
 - [ ] Phase 6: Editor Backend - Message Forwarding Functions ⏸️ **[Get Amir Approval]**
 - [ ] Phase 7: Editor Backend - Message Transformation ⏸️ **[Get Amir Approval]**
 - [ ] Phase 8: Editor Backend - Router Integration ⏸️ **[Get Amir Approval]**
@@ -240,33 +240,30 @@ async def playground_websocket(websocket: WebSocket):
 - TypeAdapter instances created for message validation
 - Endpoint available at `/ws/playground`
 
-### Phase 5: Editor Backend - WebSocket Bridge Implementation
+### Phase 5: Editor Backend - WebSocket Bridge Implementation ✅
 **Goal**: Create bidirectional message bridge
 
-1. **Add connection and bridging logic**:
-```python
-@router.websocket("/ws/playground")
-async def playground_websocket(websocket: WebSocket):
-    await websocket.accept()
-    agent_ws_uri = "ws://localhost:8000/ws/chat"
-    session_id = f"playground_{uuid.uuid4()}"
-    
-    try:
-        async with websockets.connect(agent_ws_uri) as agent_ws:
-            await bridge_connections(websocket, agent_ws, session_id)
-    except WebSocketDisconnect:
-        logging.info("Editor client disconnected")
-    except Exception as e:
-        logging.error(f"WebSocket error: {e}")
-        await websocket.close(code=1011, reason=str(e))
+**Status**: Completed and tested
 
-async def bridge_connections(editor_ws, agent_ws, session_id):
-    """Bridge messages between editor and agent"""
-    await asyncio.gather(
-        editor_to_agent(editor_ws, agent_ws, session_id),
-        agent_to_editor(editor_ws, agent_ws)
-    )
-```
+**Implementation Details**:
+1. ✅ Added `websockets==12.0` to requirements.txt
+2. ✅ Implemented full WebSocket bridge in `playground.py`:
+   - `playground_websocket`: Main endpoint that accepts editor connections and connects to agent
+   - `bridge_connections`: Manages bidirectional message flow using asyncio tasks
+   - `editor_to_agent`: Forwards messages from editor to agent service
+   - `agent_to_editor`: Forwards messages from agent to editor
+3. ✅ Added proper error handling:
+   - ConnectionRefusedError when agent service is unavailable
+   - Graceful disconnection handling for both sides
+   - Session ID tracking for debugging
+4. ✅ Created test script `test_phase5_bridge.py` to verify functionality
+
+**Key Features**:
+- Unique session IDs for each playground connection
+- Concurrent bidirectional message forwarding
+- Proper cleanup when either side disconnects
+- Error messages sent to editor if agent is unavailable
+- Debug logging for message flow
 
 ### Phase 6: Editor Backend - Message Forwarding Functions
 **Goal**: Implement bidirectional message forwarding with validation
