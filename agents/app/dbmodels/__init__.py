@@ -21,6 +21,11 @@ from .etl_tables import (
     SupportTicket,
 )
 
+# Import from view models
+from .view_models import (
+    FreshdeskUnifiedTicketView,
+)
+
 __all__ = [
     # Base models
     'Base',
@@ -34,6 +39,8 @@ __all__ = [
     'FreshdeskTicket',
     'FreshdeskConversation',
     'FreshdeskRating',
+    # View models
+    'FreshdeskUnifiedTicketView',
     # Aliases
     'Customer',
     'SupportTicket',

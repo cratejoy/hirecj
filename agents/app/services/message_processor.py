@@ -143,12 +143,20 @@ class MessageProcessor:
             # For system messages (OAuth context), provide clear instruction
             task_description = f"Context update: {message}\n\nRespond appropriately to this authentication update."
         else:
-            task_description = f"Respond to: {message}"
+            # Check if this is from the initial workflow action
+            if message.startswith("Start by showing me the daily support snapshot"):
+                task_description = (
+                    f"{message}\n\n"
+                    "IMPORTANT: You MUST use the get_daily_snapshot tool to fetch yesterday's metrics. "
+                    "Do not generate generic content - use the actual tool to get real data."
+                )
+            else:
+                task_description = f"Respond to: {message}"
             
         task = Task(
             description=task_description,
             agent=cj_agent,
-            expected_output="A helpful response",
+            expected_output="A helpful response using the appropriate tools when requested",
         )
 
         # Create crew and execute
