@@ -166,7 +166,7 @@ class WebSocketHandler:
 
             # Route based on message type using isinstance checks
             if isinstance(message, StartConversationMsg):
-                await self.message_handlers.handle_start_conversation(websocket, conversation_id, message, raw_data=data)
+                await self.message_handlers.handle_start_conversation(websocket, conversation_id, message)
             elif isinstance(message, UserMsg):
                 await self.message_handlers.handle_message(websocket, conversation_id, message)
             elif isinstance(message, EndConversationMsg):

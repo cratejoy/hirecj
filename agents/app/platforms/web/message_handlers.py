@@ -43,10 +43,10 @@ class MessageHandlers:
 
     # Route to session handlers
     async def handle_start_conversation(
-        self, websocket: WebSocket, conversation_id: str, message: StartConversationMsg, raw_data: Dict[str, Any] = None
+        self, websocket: WebSocket, conversation_id: str, message: StartConversationMsg
     ):
         """Route to session handler."""
-        await self.session.handle_start_conversation(websocket, conversation_id, message, raw_data)
+        await self.session.handle_start_conversation(websocket, conversation_id, message)
 
 
     async def handle_logout(

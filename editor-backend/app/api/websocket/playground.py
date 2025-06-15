@@ -56,43 +56,20 @@ async def transform_to_agent_message(msg: Any, session_id: str) -> Any:
     """
     if isinstance(msg, PlaygroundStartMsg):
         # Transform playground start to conversation start
-        # For now, use test data - real implementation would load from files
-        test_persona = {
-            "id": msg.persona_id,
-            "name": "Test Persona",
-            "description": "A test user persona for playground",
-        }
-        
-        test_scenario = {
-            "id": msg.scenario_id,
-            "name": "Test Scenario",
-            "description": "A test scenario for playground",
-        }
-        
-        # Create the start conversation data with test mode flag
+        # Use persona_id as shop_subdomain for anonymous sessions
         data = StartConversationData(
             workflow=msg.workflow,
+            shop_subdomain=msg.persona_id,  # Use persona_id as shop identifier
             scenario_id=msg.scenario_id
         )
         
-        # Create the start conversation message with test context
+        # Create the start conversation message
         start_msg = StartConversationMsg(
             type="start_conversation",
             data=data
         )
         
-        # Add test mode fields as a dict that we'll merge
-        # This is a workaround since StartConversationData doesn't have test_mode field
-        start_msg_dict = start_msg.model_dump()
-        start_msg_dict["data"]["test_mode"] = True
-        start_msg_dict["data"]["test_context"] = {
-            "persona": test_persona,
-            "scenario": test_scenario,
-            "trust_level": msg.trust_level,
-            "session_id": session_id
-        }
-        
-        return start_msg_dict
+        return start_msg
         
     elif isinstance(msg, PlaygroundResetMsg):
         # Transform reset to end conversation

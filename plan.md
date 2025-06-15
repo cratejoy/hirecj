@@ -50,7 +50,7 @@
 
 ## Executive Summary
 
-The editor playground needs to test agents without duplicating the complex production WebSocket infrastructure. This plan proposes a simplified test harness where the editor-backend acts as a proxy between the editor UI and the agent service, stripping away production concerns while maintaining the core conversation functionality.
+The editor playground needs to test agents without duplicating the complex production WebSocket infrastructure. This plan proposes a simplified approach where the editor-backend acts as a proxy between the editor UI and the agent service, leveraging the existing anonymous session support in the agent service rather than creating a separate test mode.
 
 ## Current Architecture Analysis
 
@@ -73,13 +73,13 @@ Protocol Types               Pydantic Models         CrewAI Agents
 
 ## Proposed Editor Architecture
 
-### Simplified Test Harness
+### Simplified Architecture
 ```
 Editor UI <--WebSocket--> Editor Backend <--WebSocket Client--> Agent Service
     |                           |                                     |
 Protocol Types           Message Transform                    Existing Agents
-Playground View         Test Context Injection               Real Workflows
-                       No Auth/Sessions                      Test Data Providers
+Playground View         Anonymous Sessions                    Real Workflows
+                       No Auth Required                      Real Data Providers
 ```
 
 ## Implementation Checklist
@@ -94,20 +94,17 @@ Each phase below requires **Amir's approval** before proceeding to the next phas
 - [x] Phase 6: Editor Backend - Message Forwarding Functions ✅
 - [x] Phase 7: Editor Backend - Message Transformation ✅
 - [x] Phase 8: Editor Backend - Router Integration ✅ (Already completed)
-- [x] Phase 9: Agent Service - Test Mode Detection ✅
-- [x] Phase 10: Agent Service - Test Mode Session Setup ✅ (Implemented in Phase 9)
-- [ ] Phase 11: Agent Service - Test Data Providers ⏸️ **[Get Amir Approval]**
-- [ ] Phase 12: Agent Service - Initialize Test Mode ⏸️ **[Get Amir Approval]**
-- [ ] Phase 13: Editor Frontend - Create usePlaygroundChat Hook ⏸️ **[Get Amir Approval]**
-- [ ] Phase 14: Editor Frontend - WebSocket Connection Management ⏸️ **[Get Amir Approval]**
-- [ ] Phase 15: Editor Frontend - Message Handling ⏸️ **[Get Amir Approval]**
-- [ ] Phase 16: Editor Frontend - Action Functions ⏸️ **[Get Amir Approval]**
-- [ ] Phase 17: Editor Frontend - Hook Lifecycle ⏸️ **[Get Amir Approval]**
-- [ ] Phase 18: Editor Frontend - PlaygroundView Integration ⏸️ **[Get Amir Approval]**
-- [ ] Phase 19: Testing Infrastructure ⏸️ **[Get Amir Approval]**
-- [ ] Phase 20: Documentation and Polish ⏸️ **[Get Amir Approval]**
+- [x] Phase 9: Revert Test Mode - Use Anonymous Sessions ✅
+- [ ] Phase 10: Editor Frontend - Create usePlaygroundChat Hook ⏸️ **[Get Amir Approval]**
+- [ ] Phase 11: Editor Frontend - WebSocket Connection Management ⏸️ **[Get Amir Approval]**
+- [ ] Phase 12: Editor Frontend - Message Handling ⏸️ **[Get Amir Approval]**
+- [ ] Phase 13: Editor Frontend - Action Functions ⏸️ **[Get Amir Approval]**
+- [ ] Phase 14: Editor Frontend - Hook Lifecycle ⏸️ **[Get Amir Approval]**
+- [ ] Phase 15: Editor Frontend - PlaygroundView Integration ⏸️ **[Get Amir Approval]**
+- [ ] Phase 16: Testing Infrastructure ⏸️ **[Get Amir Approval]**
+- [ ] Phase 17: Documentation and Polish ⏸️ **[Get Amir Approval]**
 
-## Implementation Plan (20 Phases)
+## Implementation Plan (17 Phases)
 
 ### Phase 1: Protocol Models - Define Playground Messages ✅
 **Goal**: Add playground-specific message types to the protocol
@@ -300,28 +297,27 @@ async def playground_websocket(websocket: WebSocket):
 ### Phase 7: Editor Backend - Message Transformation ✅
 **Goal**: Transform playground messages to agent protocol
 
-**Status**: Completed and tested
+**Status**: Needs simplification - remove test mode
 
-**Implementation Details**:
-1. ✅ Added imports for UserMsg and StartConversationData
-2. ✅ Created `transform_to_agent_message` function:
-   - Transforms PlaygroundStartMsg → StartConversationMsg with test_mode=true
-   - Transforms PlaygroundResetMsg → EndConversationMsg
-   - Passes through UserMsg and other messages unchanged
-3. ✅ Updated `editor_to_agent` to use transformation:
-   - Validates message first
-   - Transforms using the new function
-   - Sends transformed message to agent
-4. ✅ Created test script `test_phase7_transformation.py`
+**Updated Implementation**:
+1. Transform `PlaygroundStartMsg` → `StartConversationMsg`:
+   - Use `persona_id` as `shop_subdomain`
+   - Use `scenario_id` directly
+   - Use `workflow` from the message
+   - No test_mode flag or test_context
+2. Transform `PlaygroundResetMsg` → `EndConversationMsg`
+3. Pass through `UserMsg` and other messages unchanged
 
-**Key Features**:
-- PlaygroundStartMsg includes test_mode flag and test_context
-- Test context contains persona, scenario, trust_level, and session_id
-- Currently uses mock test data for persona/scenario (can load real data later)
-- Transformation happens after validation but before sending to agent
-- Dict-based transformation to add test_mode field not in original model
-
-**Note**: Agent service errors on test_mode messages are expected until Phase 9-10
+**Simplified transformation**:
+```python
+if isinstance(msg, PlaygroundStartMsg):
+    data = StartConversationData(
+        workflow=msg.workflow,
+        shop_subdomain=msg.persona_id,  # Use persona_id as shop identifier
+        scenario_id=msg.scenario_id
+    )
+    return StartConversationMsg(type="start_conversation", data=data)
+```
 
 ### Phase 8: Editor Backend - Router Integration ✅
 **Goal**: Register WebSocket router in main app
@@ -334,141 +330,34 @@ async def playground_websocket(websocket: WebSocket):
 - ✅ WebSocket endpoint accessible at `/ws/playground`
 - ✅ All previous phase tests confirm router is working
 
-### Phase 9: Agent Service - Test Mode Detection ✅
-**Goal**: Add test mode handling to conversation handler
+### Phase 9: Revert Test Mode - Use Anonymous Sessions
+**Goal**: Remove test mode and use existing anonymous session support
 
-**Status**: Completed and tested
+**Implementation Steps**:
+1. Revert changes from previous Phase 9:
+   - Remove test mode detection from `session_handlers.py`
+   - Remove `_handle_test_mode_start` method
+   - Remove raw_data parameter passing
+2. Simplify Phase 7 transformation:
+   - Remove test_mode flag and test_context
+   - Direct field mapping only
+3. Let agent service handle playground connections as anonymous sessions:
+   - Agent already supports anonymous connections
+   - No authentication required
+   - Uses real workflows and prompts
 
-**Implementation Details**:
-1. ✅ Modified `websocket_handler.py` to pass raw data to handlers
-2. ✅ Updated `message_handlers.py` to accept raw_data parameter
-3. ✅ Modified `session_handlers.py`:
-   - Added test mode detection in `handle_start_conversation`
-   - Created `_handle_test_mode_start` method
-   - Test mode bypasses authentication
-   - Creates test user with ID `test_user_{session_id}`
-   - Uses test persona and scenario data
-4. ✅ Created test script `test_phase9_test_mode.py`
-
-**Key Features**:
-- Detects `test_mode` flag in raw message data
-- Simulates authentication for test sessions
-- Uses playground session IDs
-- Sends proper conversation_started response
-- Normal mode unaffected
-
-### Phase 10: Agent Service - Test Mode Session Setup
-**Goal**: Configure test session properties
-
-1. **Create test mode handler method**:
-```python
-async def _handle_test_mode_start(self, data, test_context):
-    """Initialize test mode session"""
-    # Set session properties
-    self.session_id = test_context["session_id"]
-    self.user_id = f"test_user_{self.session_id}"
-    self.workflow = data["workflow"]
-    self.test_mode = True
-    
-    # Extract persona info
-    persona = test_context["persona"]
-    self.shop_subdomain = persona.get("business_subdomain", "test_shop")
-    
-    # Skip authentication
-    self.authenticated = True
-    self.anonymous = False
-    
-    logging.info(f"Test session configured for {self.shop_subdomain}")
-```
-
-### Phase 11: Agent Service - Test Data Providers
-**Goal**: Create test data provider classes
-
-1. **Create `agents/data_providers/test_providers.py`**:
-```python
-from typing import Dict, Any
-from agents.data_providers.base import (
-    MerchantDataProvider, MetricsProvider, UniverseProvider
-)
-
-class TestMerchantDataProvider(MerchantDataProvider):
-    """Provides test merchant data from persona configuration"""
-    
-    def __init__(self, test_context: Dict[str, Any]):
-        self.persona = test_context["persona"]
-        self.scenario = test_context["scenario"]
-        self.trust_level = test_context["trust_level"]
-        
-    async def get_business_name(self) -> str:
+**Benefits**:
+- No code bifurcation
+- Simpler maintenance
+- Uses real agent infrastructure
+- POC demonstrates actual functionality
         return self.persona.get("business_name", "Test Business")
         
     async def get_merchant_email(self) -> str:
         return self.persona.get("email", "test@example.com")
         
     async def get_industry(self) -> str:
-        return self.persona.get("industry", "E-commerce")
-        
-    async def get_trust_level(self) -> int:
-        return self.trust_level
-
-class TestMetricsProvider(MetricsProvider):
-    """Provides test metrics based on scenario configuration"""
-    
-    def __init__(self, test_context: Dict[str, Any]):
-        self.scenario = test_context["scenario"]
-        
-    async def get_current_metrics(self) -> Dict[str, Any]:
-        return self.scenario.get("metrics", {})
-        
-    async def get_historical_data(self, days: int) -> Dict[str, Any]:
-        return {"days": days, "data": []}
-
-class TestUniverseProvider(UniverseProvider):
-    """Provides test universe data"""
-    
-    def __init__(self, test_context: Dict[str, Any]):
-        self.test_context = test_context
-    
-    async def get_universe_data(self) -> Dict[str, Any]:
-        return {"test_mode": True, "universe": "playground"}
-```
-
-### Phase 12: Agent Service - Initialize Test Mode
-**Goal**: Complete test mode initialization with providers
-
-1. **Update test mode handler to use providers**:
-```python
-from agents.data_providers.test_providers import (
-    TestMerchantDataProvider, TestMetricsProvider, TestUniverseProvider
-)
-
-async def _handle_test_mode_start(self, data, test_context):
-    # ... previous setup code ...
-    
-    # Initialize test data providers
-    self.merchant_provider = TestMerchantDataProvider(test_context)
-    self.metrics_provider = TestMetricsProvider(test_context)
-    self.universe_provider = TestUniverseProvider(test_context)
-    
-    # Send conversation started
-    await self.send_validated_message(
-        ConversationStartedMsg(
-            type="conversation_started",
-            data={
-                "session_id": self.session_id,
-                "workflow": self.workflow,
-                "resumed": False,
-                "test_mode": True
-            }
-        )
-    )
-    
-    # Start the workflow
-    logging.info(f"Starting test workflow: {self.workflow}")
-    await self.workflow_manager.start_workflow(self.workflow)
-```
-
-### Phase 13: Editor Frontend - Create usePlaygroundChat Hook
+### Phase 10: Editor Frontend - Create usePlaygroundChat Hook
 **Goal**: Set up WebSocket hook with basic structure
 
 1. Create `editor/src/hooks/` directory
@@ -506,7 +395,7 @@ export function usePlaygroundChat() {
 }
 ```
 
-### Phase 14: Editor Frontend - WebSocket Connection Management
+### Phase 11: Editor Frontend - WebSocket Connection Management
 **Goal**: Implement connection with auto-reconnect
 
 1. **Add connection logic**:
@@ -538,7 +427,7 @@ const connect = useCallback(() => {
 }, []);
 ```
 
-### Phase 15: Editor Frontend - Message Handling
+### Phase 12: Editor Frontend - Message Handling
 **Goal**: Handle incoming WebSocket messages
 
 1. **Add message handler**:
@@ -570,7 +459,7 @@ ws.current.onmessage = (event) => {
 };
 ```
 
-### Phase 16: Editor Frontend - Action Functions
+### Phase 13: Editor Frontend - Action Functions
 **Goal**: Implement conversation control functions
 
 1. **Add action functions**:
@@ -630,7 +519,7 @@ const resetConversation = useCallback((
 }, []);
 ```
 
-### Phase 17: Editor Frontend - Hook Lifecycle
+### Phase 14: Editor Frontend - Hook Lifecycle
 **Goal**: Complete hook with lifecycle and return values
 
 1. **Add lifecycle and return**:
@@ -655,7 +544,7 @@ return {
 };
 ```
 
-### Phase 18: Editor Frontend - PlaygroundView Integration
+### Phase 15: Editor Frontend - PlaygroundView Integration
 **Goal**: Update PlaygroundView to use real WebSocket
 
 1. **Update `editor/src/views/PlaygroundView.tsx`**:
@@ -706,7 +595,7 @@ export function PlaygroundView() {
 }
 ```
 
-### Phase 19: Testing Infrastructure
+### Phase 16: Testing Infrastructure
 **Goal**: Implement end-to-end testing and session management
 
 1. **Test all workflows** with different personas/scenarios
@@ -724,7 +613,7 @@ class TestSessionManager:
 3. **Create test utilities** for conversation export/import
 4. **Add protocol message inspector** in editor UI
 
-### Phase 20: Documentation and Polish
+### Phase 17: Documentation and Polish
 **Goal**: Final polish and documentation
 
 1. **Update README files** with WebSocket setup instructions
