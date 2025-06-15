@@ -1,63 +1,880 @@
+# Agent Editor Playground - WebSocket Architecture Plan
 
-# Code Deduplication & Refactoring Plan
+## 🌟 North Star Principles
 
-This document tracks the effort to remove duplicated code and improve the maintainability of the monorepo.
+1. **Simplify, Simplify, Simplify**: Every decision should make the code simpler, not more complex
+   - This means: Don't add features we don't need yet
+   - This does NOT mean: Remove existing requirements or functionality
+   - Keep what's needed, remove what's not
+2. **No Cruft**: Remove all redundant code, validation, and unnecessary complexity
+3. **Break It & Fix It Right**: No backwards compatibility shims - make breaking changes and migrate properly
+4. **Long-term Elegance**: Choose performant, compiler-enforced solutions that prevent subtle bugs
+5. **Backend-Driven**: Let the backend handle complexity, frontend should be a thin client
+6. **Single Source of Truth**: One pattern, one way to do things, no alternatives
+7. **No Over-Engineering**: Design for current needs only - no hypothetical features, no "maybe later" code
+8. **Thoughtful Logging & Instrumentation**: We value visibility into system behavior with appropriate log levels
+   - Use proper log levels (debug, info, warning, error)
+   - Log important state changes and decisions
+   - But don't log sensitive data or spam the logs
 
-## Phase 1: Structural Consolidation (✅ Completed)
+## 🤖 Operational Guidelines
 
-This phase focused on centralizing shared modules that were copied across different services.
+- **No Magic Values**: Never hardcode values inline. Use named constants, configuration, or explicit parameters
+  - ❌ `if count > 10:` 
+  - ✅ `if count > MAX_RETRIES:`
+- **No Unsolicited Optimizations**: Only implement what was explicitly requested
+  - Don't add caching unless asked
+  - Don't optimize algorithms unless asked
+  - Don't refactor unrelated code unless asked
+  - If you see an opportunity for improvement, mention it but don't implement it
+- **NEVER Create V2 Versions**: When asked to add functionality, ALWAYS update the existing code
+  - ❌ Creating `analytics_lib_v2.py`, `process_data_v2.py`, `utils_v2.py`, etc.
+  - ✅ Adding new functions to existing files
+  - ✅ Updating existing functions to support new parameters
+  - ✅ Refactoring existing code to handle new requirements
+- **Clean Up When Creating PRs**: When asked to create a pull request, ALWAYS:
+  - Remove any test files that are no longer needed
+  - Delete orphaned or superseded libraries
+  - Clean up temporary scripts
+  - Ensure no duplicate functionality remains
+  - The PR should be clean and ready to merge
 
-### Summary of Actions
+## Personal Preferences (Amir)
+- Always prefer the long term right solution that is elegant, performant and ideally compiler enforced
+- Never introduce backwards compatibility shims unless specifically requested
+- Prefer breaking changes and the hard work of migrating to the new single correct pattern
+- Don't introduce new features unless specifically asked to
+- Don't build in CI steps unless specifically asked to
+- Don't introduce benchmarking & performance management steps unless specifically asked to
+- Do not implement shims without explicit approval. They are hacks.
 
--   **Consolidated Shared Backend Modules:** The duplicated `agents/shared/` and `auth/shared/` directories were removed. All their content was merged into a single top-level `/shared` library, which is now the single source of truth for shared Python code.
--   **Initial Frontend Cleanup:** The duplicated `editor/src/components/ui/button.tsx` component was removed as a first step towards a unified UI library.
--   **Fixed Intra-File Duplication:** Corrected syntax errors in several shared modules (`__init__.py`, `logging_config.py`, `user_identity.py`) caused by duplicated file content.
--   **Updated Service Dependencies:** The `agents` and `auth` services were configured to import from the new top-level `/shared` library.
+## Executive Summary
 
----
+The editor playground needs to test agents without duplicating the complex production WebSocket infrastructure. This plan proposes a simplified test harness where the editor-backend acts as a proxy between the editor UI and the agent service, stripping away production concerns while maintaining the core conversation functionality.
 
-## Phase 2: Code-Level & Functional Deduplication (Next Steps)
+## Current Architecture Analysis
 
-This phase addresses more subtle code-level duplication and functional overlaps that were identified after the initial structural consolidation.
+### Production Chat System (Post-Protocol Refactor)
+```
+Homepage (React) <--WebSocket--> Homepage Backend <---> Agent Service
+      |                              |                      |
+Protocol Types               Pydantic Models         CrewAI Agents
+(generated TS)              Session Management      Data Providers
+                           Auth/OAuth               Workflows
+```
 
-### 1. Backend Deduplication
+### Key Components After Protocol Refactor
+- **Shared Protocol**: `shared/protocol/models.py` defines all WebSocket messages using Pydantic v2
+- **Type Generation**: `pydantic2ts` generates TypeScript interfaces from Pydantic models
+- **Frontend**: Typed `useWebSocketChat` hook with full protocol type safety
+- **Message Validation**: Runtime validation using Pydantic's `TypeAdapter`
+- **Session Management**: Complex auth flows, anonymous/authenticated sessions, OAuth callbacks
+- **Workflow System**: Priority-based selection, workflow-specific agent behaviors
 
--   **Intra-File Duplication & Backups**
-    -   **Issue:** Several files still contain their entire content duplicated within the same file (e.g., `shared/db_models.py`, `shared/config_base.py`). A redundant `shared/env_loader.py.backup` file also exists.
-    -   **Recommendation:**
-        -   Edit the affected files to remove the duplicated blocks of code.
-        -   Delete the `shared/env_loader.py.backup` file.
+## Proposed Editor Architecture
 
--   **Centralize Logging Configuration**
-    -   **Issue:** `agents/app/logging_config.py` and `shared/logging_config.py` perform the same root logger configuration.
-    -   **Recommendation:** Standardize on the `shared/logging_config.py` version. Delete `agents/app/logging_config.py` and update all imports in the `agents` service to use the shared module.
+### Simplified Test Harness
+```
+Editor UI <--WebSocket--> Editor Backend <--WebSocket Client--> Agent Service
+    |                           |                                     |
+Protocol Types           Message Transform                    Existing Agents
+Playground View         Test Context Injection               Real Workflows
+                       No Auth/Sessions                      Test Data Providers
+```
 
--   **Consolidate Session Helpers**
-    -   **Issue:** Session cookie generation and validation logic is duplicated and has diverged between `auth/app/services/session_cookie.py` and various helpers in the `agents` service (e.g., `agents/app/middleware/load_user.py`).
-    -   **Recommendation:** Move the canonical session logic from `auth/app/services/session_cookie.py` to a new `shared/auth/session_cookie.py` file. Refactor both services to import and use this single helper.
+## Implementation Checklist
 
--   **Consolidate User Session Lookup**
-    -   **Issue:** The logic to find a user's active Shopify domain (`_get_active_shopify_domain`) is implemented differently in `agents/app/platforms/web/session_handlers.py` and `agents/app/services/session_manager.py`.
-    -   **Recommendation:** Consolidate this into a single, authoritative function within `agents/app/services/session_manager.py` and have the session handler call it.
+Each phase below requires **Amir's approval** before proceeding to the next phase.
 
--   **Remove Obsolete Tunnel Detector**
-    -   **Issue:** `auth/scripts/tunnel_detector.py` is an older, redundant version of the canonical `shared/detect_tunnels.py`.
-    -   **Recommendation:** Delete `auth/scripts/tunnel_detector.py` and update any build processes to use the shared script.
+- [ ] Phase 1: Protocol Models - Define Playground Messages ⏸️ **[Get Amir Approval]**
+- [ ] Phase 2: Protocol Generation - Update and Run ⏸️ **[Get Amir Approval]**
+- [ ] Phase 3: Editor Protocol Setup ⏸️ **[Get Amir Approval]**
+- [ ] Phase 4: Editor Backend - WebSocket Endpoint Setup ⏸️ **[Get Amir Approval]**
+- [ ] Phase 5: Editor Backend - WebSocket Bridge Implementation ⏸️ **[Get Amir Approval]**
+- [ ] Phase 6: Editor Backend - Message Forwarding Functions ⏸️ **[Get Amir Approval]**
+- [ ] Phase 7: Editor Backend - Message Transformation ⏸️ **[Get Amir Approval]**
+- [ ] Phase 8: Editor Backend - Router Integration ⏸️ **[Get Amir Approval]**
+- [ ] Phase 9: Agent Service - Test Mode Detection ⏸️ **[Get Amir Approval]**
+- [ ] Phase 10: Agent Service - Test Mode Session Setup ⏸️ **[Get Amir Approval]**
+- [ ] Phase 11: Agent Service - Test Data Providers ⏸️ **[Get Amir Approval]**
+- [ ] Phase 12: Agent Service - Initialize Test Mode ⏸️ **[Get Amir Approval]**
+- [ ] Phase 13: Editor Frontend - Create usePlaygroundChat Hook ⏸️ **[Get Amir Approval]**
+- [ ] Phase 14: Editor Frontend - WebSocket Connection Management ⏸️ **[Get Amir Approval]**
+- [ ] Phase 15: Editor Frontend - Message Handling ⏸️ **[Get Amir Approval]**
+- [ ] Phase 16: Editor Frontend - Action Functions ⏸️ **[Get Amir Approval]**
+- [ ] Phase 17: Editor Frontend - Hook Lifecycle ⏸️ **[Get Amir Approval]**
+- [ ] Phase 18: Editor Frontend - PlaygroundView Integration ⏸️ **[Get Amir Approval]**
+- [ ] Phase 19: Testing Infrastructure ⏸️ **[Get Amir Approval]**
+- [ ] Phase 20: Documentation and Polish ⏸️ **[Get Amir Approval]**
 
-### 2. Frontend Deduplication
+## Implementation Plan (20 Phases)
 
--   **Consolidate Demo Scripts**
-    -   **Issue:** `homepage/src/components/ScriptFlow.tsx` and `homepage/src/components/DemoScriptFlow.tsx` are functionally identical.
-    -   **Recommendation:** Choose one canonical version (`DemoScriptFlow.tsx` seems more current) and delete the other, updating any imports.
+### Phase 1: Protocol Models - Define Playground Messages
+**Goal**: Add playground-specific message types to the protocol
 
--   **Centralize `cn` Utility**
-    -   **Issue:** The `cn` utility function for Tailwind CSS classes is duplicated in `editor/src/lib/utils.ts` and `homepage/src/lib/utils.ts`.
-    -   **Recommendation:** Establish a shared frontend utility package (e.g., in `packages/utils`) and import `cn` from there in both applications.
+1. **Add to `shared/protocol/models.py`**:
+```python
+class PlaygroundStartMsg(BaseModel):
+    """Simplified start message for playground testing"""
+    type: Literal["playground_start"] = "playground_start"
+    workflow: str
+    persona_id: str
+    scenario_id: str
+    trust_level: int
+    
+class PlaygroundResetMsg(BaseModel):
+    """Reset playground conversation"""
+    type: Literal["playground_reset"] = "playground_reset"
+    reason: Literal["workflow_change", "user_clear"]
+    new_workflow: Optional[str] = None
 
--   **Abstract Chat Hooks**
-    -   **Issue:** The React hooks `useChat` and `useWebSocketChat` contain related logic for message handling and state management.
-    -   **Recommendation:** (Lower Priority) Consider refactoring them to use a common underlying hook (`useChatConnection`?) to reduce code duplication.
+# Update IncomingMessage union
+IncomingMessage = Union[
+    StartConversationMsg,
+    MessageMsg,
+    # ... existing messages ...
+    PlaygroundStartMsg,
+    PlaygroundResetMsg,
+]
+```
 
--   **Create a Shared UI Library**
-    -   **Issue:** Many core UI components (e.g., `Input`, `Card`, `Dialog`) are likely duplicated between `editor/src/components/ui/` and `homepage/src/components/ui/`.
-    -   **Recommendation:** Perform a full audit of the two `ui` directories and move all common components into a shared UI library (e.g., in `packages/ui`).
+### Phase 2: Protocol Generation - Update and Run
+**Goal**: Generate TypeScript types for editor
+
+1. **Update `shared/protocol/generate.sh`**:
+```bash
+# Add editor generation
+pydantic2ts --module models.py \
+  --output ../../editor/src/protocol/generated.ts \
+  --typescript-version 4.3
+```
+2. Run generation script: `cd shared/protocol && ./generate.sh`
+3. Verify and commit `editor/src/protocol/generated.ts`
+
+### Phase 3: Editor Protocol Setup
+**Goal**: Create protocol structure with type guards
+
+1. Create `editor/src/protocol/` directory
+2. **Create `editor/src/protocol/index.ts`**:
+```typescript
+// Re-export all generated types
+export * from './generated';
+
+// Playground-specific discriminated unions
+export type PlaygroundIncomingMessage = 
+  | PlaygroundStartMsg | PlaygroundResetMsg | MessageMsg;
+  
+export type PlaygroundOutgoingMessage =
+  | ConversationStartedMsg | CjMessageMsg | CjThinkingMsg 
+  | ErrorMsg | SystemMsg;
+
+// Type guards
+export function isPlaygroundStart(msg: IncomingMessage): msg is PlaygroundStartMsg {
+  return msg.type === 'playground_start';
+}
+export function isCjMessage(msg: OutgoingMessage): msg is CjMessageMsg {
+  return msg.type === 'cj_message';
+}
+```
+
+### Phase 4: Editor Backend - WebSocket Endpoint Setup
+**Goal**: Create basic WebSocket endpoint with protocol imports
+
+1. Create `editor-backend/app/api/websocket/` directory
+2. **Create `playground.py`**:
+```python
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from pydantic import TypeAdapter, ValidationError
+from shared.protocol.models import (
+    IncomingMessage, OutgoingMessage,
+    PlaygroundStartMsg, StartConversationMsg,
+    PlaygroundResetMsg, EndConversationMsg,
+    ErrorMsg
+)
+import websockets
+import asyncio
+import uuid
+import logging
+
+router = APIRouter()
+
+# Validation adapters
+incoming_adapter = TypeAdapter(IncomingMessage)
+outgoing_adapter = TypeAdapter(OutgoingMessage)
+
+@router.websocket("/ws/playground")
+async def playground_websocket(websocket: WebSocket):
+    await websocket.accept()
+    logging.info("Playground WebSocket connected")
+    # Implementation continues in next phase
+```
+
+### Phase 5: Editor Backend - WebSocket Bridge Implementation
+**Goal**: Create bidirectional message bridge
+
+1. **Add connection and bridging logic**:
+```python
+@router.websocket("/ws/playground")
+async def playground_websocket(websocket: WebSocket):
+    await websocket.accept()
+    agent_ws_uri = "ws://localhost:8000/ws/chat"
+    session_id = f"playground_{uuid.uuid4()}"
+    
+    try:
+        async with websockets.connect(agent_ws_uri) as agent_ws:
+            await bridge_connections(websocket, agent_ws, session_id)
+    except WebSocketDisconnect:
+        logging.info("Editor client disconnected")
+    except Exception as e:
+        logging.error(f"WebSocket error: {e}")
+        await websocket.close(code=1011, reason=str(e))
+
+async def bridge_connections(editor_ws, agent_ws, session_id):
+    """Bridge messages between editor and agent"""
+    await asyncio.gather(
+        editor_to_agent(editor_ws, agent_ws, session_id),
+        agent_to_editor(editor_ws, agent_ws)
+    )
+```
+
+### Phase 6: Editor Backend - Message Forwarding Functions
+**Goal**: Implement bidirectional message forwarding with validation
+
+1. **Create forwarding functions**:
+```python
+async def editor_to_agent(editor_ws, agent_ws, session_id):
+    """Forward messages from editor to agent service"""
+    try:
+        while True:
+            raw_msg = await editor_ws.receive_text()
+            msg = incoming_adapter.validate_json(raw_msg)
+            
+            # Transform playground messages
+            agent_msg = await transform_to_agent_message(msg, session_id)
+            await agent_ws.send(agent_msg.model_dump_json())
+            
+    except WebSocketDisconnect:
+        await agent_ws.close()
+    except ValidationError as e:
+        error_msg = ErrorMsg(type="error", data={"message": str(e)})
+        await editor_ws.send_text(error_msg.model_dump_json())
+
+async def agent_to_editor(editor_ws, agent_ws):
+    """Forward messages from agent to editor"""
+    try:
+        async for raw_msg in agent_ws:
+            msg = outgoing_adapter.validate_json(raw_msg)
+            await editor_ws.send_text(raw_msg)
+    except websockets.exceptions.ConnectionClosed:
+        await editor_ws.close()
+```
+
+### Phase 7: Editor Backend - Message Transformation
+**Goal**: Transform playground messages to agent protocol
+
+1. **Create transformation function**:
+```python
+from app.services import personas_service, scenarios_service
+
+async def transform_to_agent_message(msg, session_id):
+    """Transform playground messages to agent service messages"""
+    
+    if isinstance(msg, PlaygroundStartMsg):
+        # Load persona and scenario data
+        persona = await personas_service.get_persona(msg.persona_id)
+        scenario = await scenarios_service.get_scenario(msg.scenario_id)
+        
+        return StartConversationMsg(
+            type="start_conversation",
+            data={
+                "workflow": msg.workflow,
+                "test_mode": True,
+                "test_context": {
+                    "persona": persona.dict(),
+                    "scenario": scenario.dict(),
+                    "trust_level": msg.trust_level,
+                    "session_id": session_id
+                }
+            }
+        )
+        
+    elif isinstance(msg, PlaygroundResetMsg):
+        return EndConversationMsg(type="end_conversation")
+    
+    return msg  # Pass through other messages
+```
+
+### Phase 8: Editor Backend - Router Integration
+**Goal**: Register WebSocket router in main app
+
+1. **Update `editor-backend/app/main.py`**:
+```python
+from app.api.websocket import playground
+
+app.include_router(playground.router, tags=["websocket"])
+```
+
+### Phase 9: Agent Service - Test Mode Detection
+**Goal**: Add test mode handling to conversation handler
+
+1. **Update `agents/platforms/web/handlers/conversation.py`**:
+```python
+async def handle_start_conversation(self, msg: StartConversationMsg) -> None:
+    """Handle conversation start with test mode support"""
+    data = msg.data
+    
+    if data.get("test_mode"):
+        # Extract test context
+        test_context = data["test_context"]
+        session_id = test_context["session_id"]
+        
+        logging.info(f"Starting test mode session: {session_id}")
+        await self._handle_test_mode_start(data, test_context)
+    else:
+        # Normal production flow
+        await self._handle_production_start(msg)
+```
+
+### Phase 10: Agent Service - Test Mode Session Setup
+**Goal**: Configure test session properties
+
+1. **Create test mode handler method**:
+```python
+async def _handle_test_mode_start(self, data, test_context):
+    """Initialize test mode session"""
+    # Set session properties
+    self.session_id = test_context["session_id"]
+    self.user_id = f"test_user_{self.session_id}"
+    self.workflow = data["workflow"]
+    self.test_mode = True
+    
+    # Extract persona info
+    persona = test_context["persona"]
+    self.shop_subdomain = persona.get("business_subdomain", "test_shop")
+    
+    # Skip authentication
+    self.authenticated = True
+    self.anonymous = False
+    
+    logging.info(f"Test session configured for {self.shop_subdomain}")
+```
+
+### Phase 11: Agent Service - Test Data Providers
+**Goal**: Create test data provider classes
+
+1. **Create `agents/data_providers/test_providers.py`**:
+```python
+from typing import Dict, Any
+from agents.data_providers.base import (
+    MerchantDataProvider, MetricsProvider, UniverseProvider
+)
+
+class TestMerchantDataProvider(MerchantDataProvider):
+    """Provides test merchant data from persona configuration"""
+    
+    def __init__(self, test_context: Dict[str, Any]):
+        self.persona = test_context["persona"]
+        self.scenario = test_context["scenario"]
+        self.trust_level = test_context["trust_level"]
+        
+    async def get_business_name(self) -> str:
+        return self.persona.get("business_name", "Test Business")
+        
+    async def get_merchant_email(self) -> str:
+        return self.persona.get("email", "test@example.com")
+        
+    async def get_industry(self) -> str:
+        return self.persona.get("industry", "E-commerce")
+        
+    async def get_trust_level(self) -> int:
+        return self.trust_level
+
+class TestMetricsProvider(MetricsProvider):
+    """Provides test metrics based on scenario configuration"""
+    
+    def __init__(self, test_context: Dict[str, Any]):
+        self.scenario = test_context["scenario"]
+        
+    async def get_current_metrics(self) -> Dict[str, Any]:
+        return self.scenario.get("metrics", {})
+        
+    async def get_historical_data(self, days: int) -> Dict[str, Any]:
+        return {"days": days, "data": []}
+
+class TestUniverseProvider(UniverseProvider):
+    """Provides test universe data"""
+    
+    def __init__(self, test_context: Dict[str, Any]):
+        self.test_context = test_context
+    
+    async def get_universe_data(self) -> Dict[str, Any]:
+        return {"test_mode": True, "universe": "playground"}
+```
+
+### Phase 12: Agent Service - Initialize Test Mode
+**Goal**: Complete test mode initialization with providers
+
+1. **Update test mode handler to use providers**:
+```python
+from agents.data_providers.test_providers import (
+    TestMerchantDataProvider, TestMetricsProvider, TestUniverseProvider
+)
+
+async def _handle_test_mode_start(self, data, test_context):
+    # ... previous setup code ...
+    
+    # Initialize test data providers
+    self.merchant_provider = TestMerchantDataProvider(test_context)
+    self.metrics_provider = TestMetricsProvider(test_context)
+    self.universe_provider = TestUniverseProvider(test_context)
+    
+    # Send conversation started
+    await self.send_validated_message(
+        ConversationStartedMsg(
+            type="conversation_started",
+            data={
+                "session_id": self.session_id,
+                "workflow": self.workflow,
+                "resumed": False,
+                "test_mode": True
+            }
+        )
+    )
+    
+    # Start the workflow
+    logging.info(f"Starting test workflow: {self.workflow}")
+    await self.workflow_manager.start_workflow(self.workflow)
+```
+
+### Phase 13: Editor Frontend - Create usePlaygroundChat Hook
+**Goal**: Set up WebSocket hook with basic structure
+
+1. Create `editor/src/hooks/` directory
+2. **Create `editor/src/hooks/usePlaygroundChat.ts`**:
+```typescript
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { 
+  PlaygroundIncomingMessage, 
+  PlaygroundOutgoingMessage,
+  PlaygroundStartMsg,
+  PlaygroundResetMsg,
+  MessageMsg,
+  CjMessageMsg,
+  CjThinkingMsg,
+  ConversationStartedMsg
+} from '@/protocol';
+
+interface PlaygroundConfig {
+  workflow: string;
+  personaId: string;
+  scenarioId: string;
+  trustLevel: number;
+}
+
+export function usePlaygroundChat() {
+  const [messages, setMessages] = useState<CjMessageMsg[]>([]);
+  const [thinking, setThinking] = useState<CjThinkingMsg | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [conversationStarted, setConversationStarted] = useState(false);
+  
+  const ws = useRef<WebSocket | null>(null);
+  const reconnectTimeout = useRef<NodeJS.Timeout>();
+  
+  // Implementation continues...
+}
+```
+
+### Phase 14: Editor Frontend - WebSocket Connection Management
+**Goal**: Implement connection with auto-reconnect
+
+1. **Add connection logic**:
+```typescript
+const connect = useCallback(() => {
+  if (ws.current?.readyState === WebSocket.OPEN) return;
+  
+  const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/ws/playground`;
+  ws.current = new WebSocket(wsUrl);
+  
+  ws.current.onopen = () => {
+    console.log('WebSocket connected');
+    setIsConnected(true);
+    clearTimeout(reconnectTimeout.current);
+  };
+  
+  ws.current.onerror = (error) => {
+    console.error('WebSocket error:', error);
+  };
+  
+  ws.current.onclose = () => {
+    setIsConnected(false);
+    setConversationStarted(false);
+    clearTimeout(reconnectTimeout.current);
+    reconnectTimeout.current = setTimeout(connect, 1000);
+  };
+  
+  // Message handler next...
+}, []);
+```
+
+### Phase 15: Editor Frontend - Message Handling
+**Goal**: Handle incoming WebSocket messages
+
+1. **Add message handler**:
+```typescript
+ws.current.onmessage = (event) => {
+  const msg: PlaygroundOutgoingMessage = JSON.parse(event.data);
+  
+  switch (msg.type) {
+    case 'conversation_started':
+      setConversationStarted(true);
+      break;
+      
+    case 'cj_message':
+      setMessages(prev => [...prev, msg]);
+      setThinking(null);
+      break;
+      
+    case 'cj_thinking':
+      setThinking(msg);
+      break;
+      
+    case 'error':
+      console.error('WebSocket error:', msg.data);
+      break;
+      
+    default:
+      console.log('Unknown message type:', msg.type);
+  }
+};
+```
+
+### Phase 16: Editor Frontend - Action Functions
+**Goal**: Implement conversation control functions
+
+1. **Add action functions**:
+```typescript
+const startConversation = useCallback((config: PlaygroundConfig) => {
+  if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+    console.error('WebSocket not connected');
+    return;
+  }
+  
+  const msg: PlaygroundStartMsg = {
+    type: 'playground_start',
+    workflow: config.workflow,
+    persona_id: config.personaId,
+    scenario_id: config.scenarioId,
+    trust_level: config.trustLevel
+  };
+  
+  ws.current.send(JSON.stringify(msg));
+  setMessages([]);
+  setThinking(null);
+}, []);
+
+const sendMessage = useCallback((text: string) => {
+  if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+    console.error('WebSocket not connected');
+    return;
+  }
+  
+  const msg: MessageMsg = {
+    type: 'message',
+    data: { text }
+  };
+  
+  ws.current.send(JSON.stringify(msg));
+}, []);
+
+const resetConversation = useCallback((
+  reason: 'workflow_change' | 'user_clear', 
+  newWorkflow?: string
+) => {
+  if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+    console.error('WebSocket not connected');
+    return;
+  }
+  
+  const msg: PlaygroundResetMsg = {
+    type: 'playground_reset',
+    reason,
+    new_workflow: newWorkflow
+  };
+  
+  ws.current.send(JSON.stringify(msg));
+  setMessages([]);
+  setThinking(null);
+  setConversationStarted(false);
+}, []);
+```
+
+### Phase 17: Editor Frontend - Hook Lifecycle
+**Goal**: Complete hook with lifecycle and return values
+
+1. **Add lifecycle and return**:
+```typescript
+useEffect(() => {
+  connect();
+  
+  return () => {
+    clearTimeout(reconnectTimeout.current);
+    ws.current?.close();
+  };
+}, [connect]);
+
+return {
+  messages,
+  thinking,
+  isConnected,
+  conversationStarted,
+  startConversation,
+  sendMessage,
+  resetConversation
+};
+```
+
+### Phase 18: Editor Frontend - PlaygroundView Integration
+**Goal**: Update PlaygroundView to use real WebSocket
+
+1. **Update `editor/src/views/PlaygroundView.tsx`**:
+```typescript
+import { usePlaygroundChat } from '@/hooks/usePlaygroundChat';
+
+export function PlaygroundView() {
+  const {
+    messages,
+    thinking,
+    isConnected,
+    conversationStarted,
+    startConversation,
+    sendMessage,
+    resetConversation
+  } = usePlaygroundChat();
+  
+  // Remove all mock conversation logic
+  
+  const handleWorkflowChange = (newWorkflow: string) => {
+    if (conversationStarted) {
+      resetConversation('workflow_change', newWorkflow);
+    }
+    setSelectedWorkflow(newWorkflow);
+  };
+  
+  const handleStart = () => {
+    startConversation({
+      workflow: selectedWorkflow,
+      personaId: selectedPersona.id,
+      scenarioId: selectedScenario.id,
+      trustLevel: trustLevel
+    });
+  };
+  
+  // Add connection status UI
+  if (!isConnected) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-gray-500">
+          Connecting to playground service...
+        </div>
+      </div>
+    );
+  }
+  
+  // Rest of UI implementation...
+}
+```
+
+### Phase 19: Testing Infrastructure
+**Goal**: Implement end-to-end testing and session management
+
+1. **Test all workflows** with different personas/scenarios
+2. **Add session cleanup**:
+```python
+# In agent service
+class TestSessionManager:
+    async def cleanup_inactive_sessions(self):
+        """Remove test sessions after 30 minutes of inactivity"""
+        current_time = datetime.utcnow()
+        for session_id, last_activity in self.sessions.items():
+            if (current_time - last_activity).seconds > 1800:
+                await self.end_session(session_id)
+```
+3. **Create test utilities** for conversation export/import
+4. **Add protocol message inspector** in editor UI
+
+### Phase 20: Documentation and Polish
+**Goal**: Final polish and documentation
+
+1. **Update README files** with WebSocket setup instructions
+2. **Add error handling** for edge cases
+3. **Performance optimization**: connection pooling, message queuing
+4. **Security review**: ensure test mode isolation
+5. **Create developer guide** for adding new message types
+
+## Benefits
+
+1. **Protocol Consistency**: Uses the same TypeScript generation process as homepage
+2. **Type Safety**: End-to-end type safety from editor UI through to agent service
+3. **Minimal Duplication**: Reuses existing agent infrastructure and protocol
+4. **Simple Interface**: Editor doesn't need auth, sessions, or complex state
+5. **Real Testing**: Uses actual agent workflows and processing logic
+6. **Clean Separation**: Test mode clearly separated from production
+7. **Easy Maintenance**: Protocol changes automatically propagate to editor
+
+## Technical Decisions
+
+### Why Editor-Backend as Proxy?
+- Already exists with access to personas/scenarios data
+- Can transform messages and inject test context
+- Isolates test traffic from production
+- Enables editor-specific features without modifying agent service
+
+### Why Extend Existing Protocol?
+- Maintains type safety across the entire system
+- Leverages existing validation and generation infrastructure
+- Ensures compatibility with future protocol changes
+- Reduces maintenance burden
+
+### Why WebSocket vs REST?
+- Maintains same real-time feel as production
+- Supports progress updates (CJ thinking states)
+- Enables future features (conversation branching, interruption)
+- Consistent with production architecture
+
+## Security Considerations
+
+- Test mode only accessible through editor-backend
+- No access to real merchant data
+- Ephemeral sessions with automatic cleanup
+- Clear labeling of test vs production data
+- Rate limiting on playground endpoint
+- No authentication tokens in test mode
+
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                                EDITOR UI (Port 3457)                         │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                         PlaygroundView                              │     │
+│  │  • Workflow Selector                                                │     │
+│  │  • Persona/Scenario/Trust Level Controls                           │     │
+│  │  • Conversation UI (using protocol types)                          │     │
+│  │  • usePlaygroundChat() hook                                         │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                    │                                          │
+│                          Protocol Types (generated)                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        │ WebSocket
+                                        │ /api/ws/playground
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          EDITOR BACKEND (Port 8001)                          │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                    Playground WebSocket Handler                     │     │
+│  │  • Validates messages using Protocol TypeAdapter                    │     │
+│  │  • Transforms PlaygroundStartMsg → StartConversationMsg             │     │
+│  │  • Injects test_mode flag and test_context                         │     │
+│  │  • Bridges bidirectional message flow                               │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                    │                                          │
+│                          Protocol Models (Pydantic)                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                        │
+                                        │ WebSocket Client
+                                        │ ws://localhost:8000/ws/chat
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           AGENT SERVICE (Port 8000)                          │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                     WebSocket Handler (Enhanced)                    │     │
+│  │  • Recognizes test_mode flag in StartConversationMsg                │     │
+│  │  • Creates ephemeral test session (no auth required)                │     │
+│  │  • Initializes test data providers with persona/scenario            │     │
+│  │  • Routes to normal workflow processing                             │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                        │                                      │
+│                                        ▼                                      │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                    Test Data Providers                              │     │
+│  │  • TestMerchantDataProvider: Returns persona-based data             │     │
+│  │  • TestMetricsProvider: Generates scenario-appropriate metrics      │     │
+│  │  • TestUniverseProvider: Provides consistent test universe          │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+│                                        │                                      │
+│                                        ▼                                      │
+│  ┌────────────────────────────────────────────────────────────────────┐     │
+│  │                     CrewAI Agent Processing                         │     │
+│  │  • Uses selected workflow from editor                               │     │
+│  │  • Operates on test data (not production)                           │     │
+│  │  • Normal agent reasoning and tool usage                            │     │
+│  │  • Returns formatted responses via protocol                         │     │
+│  └────────────────────────────────────────────────────────────────────┘     │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Message Flow Example
+
+### Starting Agent-Initiated Conversation:
+
+1. **User clicks Play button in editor**
+   ```typescript
+   // Editor UI sends (using generated types):
+   const msg: PlaygroundStartMsg = {
+     type: 'playground_start',
+     workflow: 'daily_checkin',
+     persona_id: 'sarah_chen',
+     scenario_id: 'growth_stall', 
+     trust_level: 3
+   }
+   ```
+
+2. **Editor Backend transforms and forwards**
+   ```python
+   # Transforms to StartConversationMsg:
+   {
+     "type": "start_conversation",
+     "data": {
+       "workflow": "daily_checkin",
+       "test_mode": True,
+       "test_context": {
+         "persona": { /* full persona data */ },
+         "scenario": { /* full scenario data */ },
+         "trust_level": 3,
+         "session_id": "playground_abc123"
+       }
+     }
+   }
+   ```
+
+3. **Agent Service processes with test providers**
+   ```python
+   # Agent Service sends (using protocol):
+   CjThinkingMsg(
+     type="cj_thinking",
+     data={"progress": {"status": "analyzing_metrics"}}
+   )
+   
+   # Then:
+   CjMessageMsg(
+     type="cj_message",
+     data={
+       "content": "Good morning Sarah! I see you're up early...",
+       "timestamp": "2024-01-15T08:30:00Z"
+     }
+   )
+   ```
+
+4. **Editor Backend forwards unchanged**
+   - Protocol messages pass through without modification
+   - Type safety maintained end-to-end
+
+## Success Metrics
+
+- Zero duplicate agent logic
+- <100ms additional latency vs production
+- Same message types and flow as production
+- 100% type coverage with no any types
+- Seamless protocol updates via regeneration
+- Clear separation of test and production code
