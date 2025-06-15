@@ -256,7 +256,7 @@ Test data for different merchant types:
    - Editor Backend API: http://localhost:8001
    - Database API: http://localhost:8002
    - Auth API: http://localhost:8103
-   - Editor Frontend: http://localhost:3457
+   - Editor Frontend: http://localhost:3458
 
 ### Environment Variables
 Key configuration variables:

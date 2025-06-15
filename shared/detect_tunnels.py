@@ -14,7 +14,8 @@ SERVICES = {
     "auth": 8103,
     "agents": 8000,
     "database": 8002,
-    "knowledge": 8001,
+    "editor": 3458,
+    "editor-backend": 8001,
 }
 
 def get_tunnels() -> Dict[int, str]:
@@ -66,6 +67,13 @@ def write_root_tunnel_env(tunnels: Dict[int, str]):
             f.write(f"HOMEPAGE_URL={tunnels[SERVICES['homepage']]}\n")
             f.write(f"VITE_PUBLIC_URL={tunnels[SERVICES['homepage']]}\n")
         
+        # Editor service URLs
+        if SERVICES["editor"] in tunnels:
+            f.write(f"EDITOR_URL={tunnels[SERVICES['editor']]}\n")
+        
+        if SERVICES["editor-backend"] in tunnels:
+            f.write(f"EDITOR_BACKEND_URL={tunnels[SERVICES['editor-backend']]}\n")
+        
         # Generic PUBLIC_URL for any service that needs it
         # Use the agents service URL as the default public URL
         if SERVICES["agents"] in tunnels:
@@ -103,11 +111,28 @@ def main():
     
     # Also print a nice formatted table
     print("\n🌐 Service URLs:", file=sys.stderr)
-    print("-" * 60, file=sys.stderr)
-    for service, port in SERVICES.items():
+    print("-" * 70, file=sys.stderr)
+    
+    # Print main services first
+    main_services = ["homepage", "agents", "auth", "database"]
+    for service in main_services:
+        port = SERVICES[service]
         if port in tunnels:
-            print(f"{service:<12} → {tunnels[port]}", file=sys.stderr)
-    print("-" * 60, file=sys.stderr)
+            print(f"{service:<15} → {tunnels[port]}", file=sys.stderr)
+    
+    # Separator for editor services
+    print("-" * 70, file=sys.stderr)
+    print("📝 Editor Services:", file=sys.stderr)
+    print("-" * 70, file=sys.stderr)
+    
+    # Print editor services
+    editor_services = ["editor", "editor-backend"]
+    for service in editor_services:
+        port = SERVICES[service]
+        if port in tunnels:
+            print(f"{service:<15} → {tunnels[port]}", file=sys.stderr)
+    
+    print("-" * 70, file=sys.stderr)
     
     return 0
 

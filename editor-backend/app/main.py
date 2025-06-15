@@ -32,6 +32,7 @@ allowed_origins = settings.allowed_origins
 logger.info("🔧 CORS Configuration:")
 logger.info(f"  Frontend URL: {settings.frontend_url}")
 logger.info(f"  Public URL: {settings.public_url}")
+logger.info(f"  Editor URL: {settings.editor_url}")
 logger.info(f"  Allowed origins: {allowed_origins}")
 
 # Add CORS middleware

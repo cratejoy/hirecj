@@ -1,6 +1,7 @@
 """Configuration for the editor backend service."""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 from typing import Optional
 import os
 from pathlib import Path
@@ -9,6 +10,10 @@ from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent / "shared"))
 from config_base import ServiceConfig
+from env_loader import load_env_for_service
+
+# Load environment variables including tunnel config
+load_env_for_service("editor-backend")
 
 
 class Settings(ServiceConfig):
@@ -35,8 +40,9 @@ class Settings(ServiceConfig):
     scenarios_dir: Path = Path("../agents/prompts/scenarios")
     
     # CORS settings
-    frontend_url: str = "http://localhost:3457"
-    public_url: Optional[str] = None
+    frontend_url: str = "http://localhost:3458"
+    public_url: Optional[str] = Field(None, env="PUBLIC_URL")
+    editor_url: Optional[str] = Field(None, env="EDITOR_URL")  # From tunnel detection
     environment: str = "development"
     
     @property
@@ -44,12 +50,16 @@ class Settings(ServiceConfig):
         """Get allowed CORS origins."""
         origins = [
             self.frontend_url,
-            "http://localhost:3457",  # Editor frontend default
+            "http://localhost:3458",  # Editor frontend default
         ]
         
         # Add ngrok URLs if detected
         if self.public_url:
             origins.append(self.public_url)
+            
+        # Add editor URL from tunnel detection
+        if self.editor_url:
+            origins.append(self.editor_url)
             
         # Add custom domain if configured
         if "hirecj.ai" in self.frontend_url:
