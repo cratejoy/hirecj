@@ -98,8 +98,8 @@ Each phase below requires **Amir's approval** before proceeding to the next phas
 - [x] Phase 10: Editor Frontend - Create usePlaygroundChat Hook ✅
 - [x] Phase 11: Editor Frontend - WebSocket Connection Management ✅
 - [x] Phase 12: Editor Frontend - Message Handling ✅
-- [ ] Phase 13: Editor Frontend - Action Functions ⏸️ **[Get Amir Approval]**
-- [ ] Phase 14: Editor Frontend - Hook Lifecycle ⏸️ **[Get Amir Approval]**
+- [x] Phase 13: Editor Frontend - Action Functions ✅
+- [x] Phase 14: Editor Frontend - Hook Lifecycle ✅
 - [ ] Phase 15: Editor Frontend - PlaygroundView Integration ⏸️ **[Get Amir Approval]**
 - [ ] Phase 16: Testing Infrastructure ⏸️ **[Get Amir Approval]**
 - [ ] Phase 17: Documentation and Polish ⏸️ **[Get Amir Approval]**
@@ -598,8 +598,12 @@ export function PlaygroundView() {
 ### Phase 16: Testing Infrastructure
 **Goal**: Implement end-to-end testing and session management
 
-1. **Test all workflows** with different personas/scenarios
-2. **Add session cleanup**:
+1. **Create /tests route** in editor frontend for integrated testing
+   - TestsView component at `/editor/src/views/TestsView.tsx`
+   - Properly handles CORS and ngrok configuration
+   - Provides UI for testing all WebSocket functionality
+2. **Test all workflows** with different personas/scenarios
+3. **Add session cleanup**:
 ```python
 # In agent service
 class TestSessionManager:
@@ -610,8 +614,8 @@ class TestSessionManager:
             if (current_time - last_activity).seconds > 1800:
                 await self.end_session(session_id)
 ```
-3. **Create test utilities** for conversation export/import
-4. **Add protocol message inspector** in editor UI
+4. **Create test utilities** for conversation export/import
+5. **Add protocol message inspector** in editor UI
 
 ### Phase 17: Documentation and Polish
 **Goal**: Final polish and documentation

@@ -9,7 +9,8 @@ import {
   GitBranch, 
   Wrench,
   Settings,
-  ChevronRight
+  ChevronRight,
+  FlaskConical
 } from 'lucide-react'
 
 interface EditorLayoutProps {
@@ -53,6 +54,12 @@ const navItems = [
     href: '/settings',
     description: 'Editor configuration',
     separator: true
+  },
+  {
+    title: 'Tests',
+    icon: FlaskConical,
+    href: '/tests',
+    description: 'WebSocket testing tools'
   }
 ]
 

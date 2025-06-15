@@ -5,6 +5,7 @@ import { UserPersonasView } from '@/views/UserPersonasView'
 import { SystemPromptsView } from '@/views/SystemPromptsView'
 import { WorkflowEditorView } from '@/views/WorkflowEditorView'
 import { ToolEditorView } from '@/views/ToolEditorView'
+import { TestsView } from '@/views/TestsView'
 import { Toaster } from '@/components/ui/toaster'
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
           </div>
         </div>
       </Route>
+      <Route path="/tests" component={TestsView} />
     </EditorLayout>
     <Toaster />
     </>

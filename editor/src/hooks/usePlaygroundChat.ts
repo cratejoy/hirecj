@@ -43,7 +43,8 @@ export function usePlaygroundChat() {
       console.error('WebSocket error:', error);
     };
     
-    ws.current.onclose = () => {
+    ws.current.onclose = (event) => {
+      console.log(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
       setIsConnected(false);
       setConversationStarted(false);
       clearTimeout(reconnectTimeout.current);
@@ -52,6 +53,7 @@ export function usePlaygroundChat() {
     
     ws.current.onmessage = (event) => {
       const msg: PlaygroundOutgoingMessage = JSON.parse(event.data);
+      console.log('Received message:', msg.type, msg);
       
       switch (msg.type) {
         case 'conversation_started':
@@ -91,15 +93,94 @@ export function usePlaygroundChat() {
     }
   }, []);
   
-  // Placeholder return for now
+  // Action functions
+  const startConversation = useCallback((config: PlaygroundConfig) => {
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket not connected. Current state:', ws.current?.readyState);
+      // If we're in CONNECTING state, retry in a moment
+      if (ws.current?.readyState === WebSocket.CONNECTING) {
+        setTimeout(() => startConversation(config), 500);
+      }
+      return;
+    }
+    
+    const msg: PlaygroundStartMsg = {
+      type: 'playground_start',
+      workflow: config.workflow,
+      persona_id: config.personaId,
+      scenario_id: config.scenarioId,
+      trust_level: config.trustLevel
+    };
+    
+    console.log('Sending start conversation:', msg);
+    ws.current.send(JSON.stringify(msg));
+    setMessages([]);
+    setThinking(null);
+    // Reset conversation started flag to allow re-starting
+    setConversationStarted(false);
+  }, []);
+  
+  const sendMessage = useCallback((text: string) => {
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket not connected');
+      return;
+    }
+    
+    const msg: MessageMsg = {
+      type: 'message',
+      text
+    };
+    
+    ws.current.send(JSON.stringify(msg));
+  }, []);
+  
+  const resetConversation = useCallback((
+    reason: 'workflow_change' | 'user_clear', 
+    new_workflow?: string
+  ) => {
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      console.error('WebSocket not connected');
+      return;
+    }
+    
+    const msg: PlaygroundResetMsg = {
+      type: 'playground_reset',
+      reason,
+      new_workflow
+    };
+    
+    console.log('Sending reset:', msg);
+    ws.current.send(JSON.stringify(msg));
+    setMessages([]);
+    setThinking(null);
+    setConversationStarted(false);
+    
+    // The server will close the connection after reset, so disconnect and let auto-reconnect handle it
+    setTimeout(() => {
+      if (ws.current && ws.current.readyState !== WebSocket.CLOSED) {
+        console.log('Closing WebSocket after reset to force reconnect');
+        ws.current.close();
+      }
+    }, 100); // Small delay to ensure reset message is sent
+  }, []);
+  
+  // Lifecycle management
+  useEffect(() => {
+    connect();
+    
+    return () => {
+      clearTimeout(reconnectTimeout.current);
+      ws.current?.close();
+    };
+  }, [connect]);
+  
   return {
     messages,
     thinking,
     isConnected,
     conversationStarted,
-    // Action functions will be added in Phase 13
-    startConversation: () => {},
-    sendMessage: () => {},
-    resetConversation: () => {}
+    startConversation,
+    sendMessage,
+    resetConversation
   };
 }
