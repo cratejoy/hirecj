@@ -26,7 +26,40 @@ export function usePlaygroundChat() {
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<NodeJS.Timeout>();
   
-  // Implementation continues in Phase 11...
+  // Connection management
+  const connect = useCallback(() => {
+    if (ws.current?.readyState === WebSocket.OPEN) return;
+    
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/playground`;
+    ws.current = new WebSocket(wsUrl);
+    
+    ws.current.onopen = () => {
+      console.log('WebSocket connected');
+      setIsConnected(true);
+      clearTimeout(reconnectTimeout.current);
+    };
+    
+    ws.current.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+    
+    ws.current.onclose = () => {
+      setIsConnected(false);
+      setConversationStarted(false);
+      clearTimeout(reconnectTimeout.current);
+      reconnectTimeout.current = setTimeout(connect, 1000);
+    };
+    
+    // Message handler will be added in Phase 12
+  }, []);
+  
+  const disconnect = useCallback(() => {
+    clearTimeout(reconnectTimeout.current);
+    if (ws.current) {
+      ws.current.close();
+      ws.current = null;
+    }
+  }, []);
   
   // Placeholder return for now
   return {
