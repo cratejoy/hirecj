@@ -418,6 +418,83 @@ The editor's Grounding views will integrate as follows:
 4. **Query Optimization**: Corpus-specific indices in PostgreSQL
 5. **Connection Pooling**: Efficient database connection management
 
+## Implementation Checklist
+
+### Phase 0: Operational Setup - Dynamic Namespace Management ⏳
+- [ ] Create knowledge directory structure
+- [ ] Set up FastAPI server with dynamic namespace registry
+- [ ] Implement namespace CRUD endpoints
+- [ ] Add document ingestion endpoints for any namespace
+- [ ] Implement query endpoints with namespace isolation
+- [ ] Create example usage script
+- [ ] Integrate with HireCJ dev environment (port 8004)
+- [ ] Update root Makefile for `make dev-knowledge`
+- [ ] Add to tmux window configuration
+- [ ] Test namespace switching and data isolation
+- [ ] Verify environment variable distribution
+- [ ] Create basic health check endpoint
+- [ ] Write setup and installation scripts
+
+### Milestone 1: Generic Knowledge Management ⏸️
+- [ ] Add batch file ingestion support (TXT, PDF, MD, JSON)
+- [ ] Implement URL content fetching
+- [ ] Create content preprocessing pipeline
+- [ ] Add multi-namespace search capability
+- [ ] Implement all 4 query modes (naive, local, global, hybrid)
+- [ ] Add metadata extraction and tracking
+- [ ] Create source tracking system
+- [ ] Test with 10+ different namespace types
+- [ ] Verify query response time < 1 second
+- [ ] Implement batch ingestion for 100+ documents
+- [ ] Create universal ingestion script
+
+### Milestone 2: Multi-Corpus & Basic Management ⏸️
+- [ ] Create Customer Support corpus
+- [ ] Create Technical Documentation corpus
+- [ ] Migrate from file storage to PostgreSQL
+- [ ] Implement corpus isolation verification
+- [ ] Add PDF and Markdown processors
+- [ ] Create batch file processing system
+- [ ] Implement basic deduplication
+- [ ] Build REST API for corpus management
+- [ ] Create simple web UI for corpus selection
+- [ ] Add basic authentication
+- [ ] Test PostgreSQL backup/restore procedures
+- [ ] Verify cross-corpus query functionality
+
+### Milestone 3: Dynamic Sources & Processing Pipeline ⏸️
+- [ ] Implement web crawler for documentation sites
+- [ ] Create RSS feed monitor
+- [ ] Build URL list batch processor
+- [ ] Design visual processing queue
+- [ ] Add pause/resume functionality
+- [ ] Implement error handling and retry logic
+- [ ] Create processing status API
+- [ ] Set up WebSocket for live updates
+- [ ] Add progress tracking per source
+- [ ] Implement processing history log
+- [ ] Create change detection for web sources
+- [ ] Build incremental update system
+- [ ] Add update scheduling
+
+### Milestone 4: Advanced Features & Production Readiness ⏸️
+- [ ] Implement YouTube video transcription
+- [ ] Add podcast/audio processing
+- [ ] Create structured data extraction (JSON, CSV)
+- [ ] Implement auto-categorization of content
+- [ ] Add quality scoring for sources
+- [ ] Build duplicate detection across sources
+- [ ] Create content freshness tracking
+- [ ] Add scheduled processing (cron-like)
+- [ ] Implement multi-user corpus permissions
+- [ ] Create audit logging system
+- [ ] Build performance monitoring dashboard
+- [ ] Add query result explanations
+- [ ] Implement source attribution in results
+- [ ] Create relevance tuning interface
+- [ ] Build query analytics system
+- [ ] Full integration with HireCJ editor
+
 ## Implementation Roadmap
 
 ### Overview
