@@ -229,7 +229,10 @@ class SessionHandlers:
         workflow_handlers = WorkflowHandlers(self.platform)
 
         await workflow_handlers._setup_progress_callback(websocket)
-        await workflow_handlers._handle_initial_workflow_action(websocket, session, workflow)
+        
+        # Only handle initial workflow action for new sessions, not reconnections
+        if not existing_session:
+            await workflow_handlers._handle_initial_workflow_action(websocket, session, workflow)
 
 
     async def handle_logout(
@@ -274,6 +277,10 @@ class SessionHandlers:
         After this call, session.oauth_metadata is populated so that
         create_cj_agent() will load Shopify tools automatically.
         """
+        # DIAGNOSTIC: Log OAuth completion handler
+        from datetime import datetime
+        logger.warning(f"[OAUTH_HOOK] OAuth complete handler called - conversation_id={conversation_id}, "
+                      f"timestamp={datetime.now()}")
         # Check if oauth_metadata already exists in ws_session from cookie
         ws_session = self.platform.sessions.get(conversation_id, {})
         if oauth_metadata := ws_session.get("oauth_metadata"):

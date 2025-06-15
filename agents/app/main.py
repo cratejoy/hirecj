@@ -29,7 +29,7 @@ from app.api.routes import internal as internal_router
 from app.constants import HTTPStatus, WebSocketCloseCodes
 
 # Initialize logging
-setup_logging(service_name="agents", level=settings.log_level, log_dir=settings.logs_dir)
+setup_logging(service_name="agents", log_level=settings.log_level, log_dir=settings.logs_dir)
 
 # Set environment variables for litellm if they're not already set
 if settings.openai_api_key and not os.getenv("OPENAI_API_KEY"):

@@ -7,8 +7,8 @@ This module provides a standardized way to run the service with:
 import os
 import sys
 
-# Ensure the parent directory is in the path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Ensure the root directory is in the path (for shared modules)
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
 def main():

@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import WebSocket, BackgroundTasks
 
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.config import settings
 from shared.protocol.models import (
     UserMsg,

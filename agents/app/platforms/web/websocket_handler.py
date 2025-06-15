@@ -8,7 +8,7 @@ import asyncio
 from fastapi import WebSocket
 from pydantic import ValidationError, TypeAdapter
 
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.services.fact_extractor import FactExtractor
 from app.constants import WebSocketCloseCodes
 from shared.protocol.models import (

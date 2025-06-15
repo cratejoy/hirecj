@@ -31,7 +31,7 @@ export interface CJThinkingMsg {
 }
 export interface ConversationStartedData {
   conversationId: string;
-  merchantId?: string | null;
+  shopSubdomain?: string | null;
   scenario?: string | null;
   workflow: string;
   sessionId?: string | null;
@@ -158,6 +158,7 @@ export interface OAuthProcessedData {
   is_new?: boolean | null;
   merchant_id?: number | null;
   shop_domain?: string | null;
+  shop_subdomain?: string | null;
   error?: string | null;
 }
 export interface OAuthProcessedMsg {
@@ -173,7 +174,7 @@ export interface PongMsg {
 }
 export interface StartConversationData {
   workflow?: string | null;
-  merchant_id?: string | null;
+  shop_subdomain?: string | null;
   scenario_id?: string | null;
 }
 export interface StartConversationMsg {

@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import WebSocket
 
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.models import Message
 from shared.protocol.models import (
     WorkflowTransitionMsg,
@@ -40,6 +40,12 @@ class WorkflowHandlers:
         """Handle workflow_transition message."""
         new_workflow = message.data.new_workflow
         user_initiated = message.data.user_initiated
+        
+        # DIAGNOSTIC: Log workflow transition
+        from datetime import datetime
+        logger.warning(f"[WORKFLOW_HOOK] Workflow transition - to={new_workflow}, "
+                      f"user_initiated={user_initiated}, conversation_id={conversation_id}, "
+                      f"timestamp={datetime.now()}")
         
         # Get current session
         session = self.platform.session_manager.get_session(conversation_id)
@@ -231,6 +237,13 @@ class WorkflowHandlers:
         self, websocket: WebSocket, session: Any, workflow: str
     ):
         """Handle initial workflow action."""
+        # DIAGNOSTIC: Log initial workflow action
+        from datetime import datetime
+        logger.warning(f"[WORKFLOW_INITIAL] Handling initial action for workflow={workflow}, "
+                      f"session_id={session.id if session else 'None'}, "
+                      f"has_oauth={bool(getattr(session, 'oauth_metadata', None))}, "
+                      f"timestamp={datetime.now()}")
+        
         # Get workflow behavior
         workflow_behavior = self.platform.workflow_loader.get_workflow_behavior(workflow)
         initial_action = workflow_behavior.get('initial_action')

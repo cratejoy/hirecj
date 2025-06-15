@@ -95,6 +95,8 @@ dev-all: env-distribute
 	tmux send-keys -t hirecj-dev:3 'make dev-editor-backend' C-m
 	tmux new-window -t hirecj-dev:4 -n editor
 	tmux send-keys -t hirecj-dev:4 'make dev-editor' C-m
+	tmux new-window -t hirecj-dev:5 -n tool-calls
+	tmux send-keys -t hirecj-dev:5 'tail -f logs/tool_calls.log' C-m
 	@if [ -z "$$TMUX" ]; then \
 		tmux attach -t hirecj-dev; \
 	else \
@@ -236,7 +238,7 @@ dev-tunnels-tmux: env-distribute
 		exit 1; \
 	fi
 	@tmux new-session -d -s hirecj-tunnels -n urls
-	@tmux send-keys -t hirecj-tunnels:0 'sleep 2 && make detect-tunnels && echo "" && echo "✅ Tunnels configured! Service URLs are shown above." && echo "" && echo "Press Ctrl+b then a number to switch windows:" && echo "  0 - This URL list" && echo "  1 - Ngrok tunnels" && echo "  2 - Agents service" && echo "  3 - Auth service" && echo "  4 - Database service" && echo "  5 - Homepage" && echo "  6 - Editor backend" && echo "  7 - Editor frontend" && echo "  8 - Logs" && echo ""' C-m
+	@tmux send-keys -t hirecj-tunnels:0 'sleep 2 && make detect-tunnels && echo "" && echo "✅ Tunnels configured! Service URLs are shown above." && echo "" && echo "Press Ctrl+b then a number to switch windows:" && echo "  0 - This URL list" && echo "  1 - Ngrok tunnels" && echo "  2 - Agents service" && echo "  3 - Auth service" && echo "  4 - Database service" && echo "  5 - Homepage" && echo "  6 - Editor backend" && echo "  7 - Editor frontend" && echo "  8 - Tool calls" && echo "  9 - Logs" && echo ""' C-m
 	@tmux new-window -t hirecj-tunnels:1 -n ngrok
 	@tmux send-keys -t hirecj-tunnels:1 'make tunnels' C-m
 	@tmux new-window -t hirecj-tunnels:2 -n agents
@@ -251,8 +253,10 @@ dev-tunnels-tmux: env-distribute
 	@tmux send-keys -t hirecj-tunnels:6 'sleep 3 && make dev-editor-backend' C-m
 	@tmux new-window -t hirecj-tunnels:7 -n editor-frontend  
 	@tmux send-keys -t hirecj-tunnels:7 'sleep 3 && make dev-editor' C-m
-	@tmux new-window -t hirecj-tunnels:8 -n logs
-	@tmux send-keys -t hirecj-tunnels:8 'sleep 10 && find agents/logs auth/logs homepage/logs database/logs editor/logs -name "*.log" -type f 2>/dev/null | xargs tail -f' C-m
+	@tmux new-window -t hirecj-tunnels:8 -n tool-calls
+	@tmux send-keys -t hirecj-tunnels:8 'sleep 5 && tail -f logs/tool_calls.log' C-m
+	@tmux new-window -t hirecj-tunnels:9 -n logs
+	@tmux send-keys -t hirecj-tunnels:9 'sleep 10 && find agents/logs auth/logs homepage/logs database/logs editor/logs -name "*.log" -type f 2>/dev/null | xargs tail -f' C-m
 	@tmux select-window -t hirecj-tunnels:0
 	@tmux attach -t hirecj-tunnels
 

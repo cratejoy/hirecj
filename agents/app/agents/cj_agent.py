@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional, List
 from crewai import Agent
 from app.models import ConversationState
 from app.model_config.simple_config import get_model, get_provider, ModelPurpose
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.config import settings
 from app.agents.universe_data_agent import UniverseDataAgent
 
@@ -54,6 +54,11 @@ class CJAgent:
         self.scenario_context = kwargs.pop("scenario_context", "")
         self.verbose = kwargs.pop("verbose", True)
         self.oauth_metadata = kwargs.pop("oauth_metadata", None)
+        
+        # DIAGNOSTIC: Log agent initialization
+        from datetime import datetime
+        logger.warning(f"[AGENT_INIT] Creating CJ agent - merchant={merchant_name}, workflow={self.workflow_name}, "
+                      f"oauth_present={bool(self.oauth_metadata)}, timestamp={datetime.now()}")
 
         # Log memory status
         if self.user_id:
@@ -163,6 +168,7 @@ class CJAgent:
                 logger.warning(f"[CJ_AGENT] Could not load database tools: {e}")
 
         # Conditionally load Shopify tools if OAuth metadata is present
+        logger.info(f"[CJ_AGENT] OAuth metadata check: oauth_metadata={self.oauth_metadata}")
         if self.oauth_metadata and self.oauth_metadata.get("provider") == "shopify":
             try:
                 from app.agents.shopify_tools import create_shopify_tools
@@ -174,6 +180,8 @@ class CJAgent:
                 logger.info(f"[CJ_AGENT] Shopify tools: {', '.join(shopify_tool_names)}")
             except Exception as e:
                 logger.warning(f"[CJ_AGENT] Could not load Shopify tools: {e}")
+        else:
+            logger.info(f"[CJ_AGENT] Shopify tools not loaded: oauth_metadata={self.oauth_metadata}")
 
         if not self.data_agent:
             logger.debug("[CJ_AGENT] No data agent provided, skipping universe tools")
@@ -360,6 +368,12 @@ def create_cj_agent(
     Returns:
         Configured CJ agent ready for use
     """
+    # DIAGNOSTIC: Log agent creation
+    from datetime import datetime
+    logger.warning(f"[AGENT_CREATE] create_cj_agent called - merchant={merchant_name}, scenario={scenario_name}, "
+                  f"workflow={workflow_name}, oauth_present={bool(oauth_metadata)}, "
+                  f"has_existing_state={bool(conversation_state)}, timestamp={datetime.now()}")
+    
     cj = CJAgent(
         merchant_name=merchant_name,
         scenario_name=scenario_name,

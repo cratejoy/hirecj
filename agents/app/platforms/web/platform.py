@@ -18,7 +18,7 @@ from ..base import (
     Participant,
     Conversation,
 )
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 from app.services.session_manager import SessionManager
 from app.services.message_processor import MessageProcessor
 from app.services.conversation_storage import ConversationStorage

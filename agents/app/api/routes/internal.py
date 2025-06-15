@@ -1,7 +1,7 @@
 """Internal API endpoints for service-to-service communication."""
 
 from fastapi import APIRouter
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 

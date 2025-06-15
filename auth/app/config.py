@@ -9,6 +9,8 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Add parent directories to path to import shared modules
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from shared.env_loader import load_env_for_service
 
 logger = logging.getLogger(__name__)

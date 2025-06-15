@@ -9,7 +9,7 @@ import json
 
 from app.services.shopify_data_fetcher import ShopifyDataFetcher
 from app.services.merchant_service import merchant_service
-from app.logging_config import get_logger
+from shared.logging_config import get_logger
 
 logger = get_logger(__name__)
 
