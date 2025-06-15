@@ -150,8 +150,8 @@ export function usePlaygroundChat() {
     ws.current.send(JSON.stringify(msg));
     setMessages([]);
     setThinking(null);
-    // Reset conversation started flag to allow re-starting
-    setConversationStarted(false);
+    // Set conversation started optimistically - server will confirm
+    setConversationStarted(true);
   }, []);
   
   const sendMessage = useCallback((text: string) => {
