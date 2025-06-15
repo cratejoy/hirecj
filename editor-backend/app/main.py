@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.logging_config import setup_logging
 from app.api.routes import prompts, personas, workflows
+from app.api.websocket import playground
 
 # Initialize logging
 setup_logging()
@@ -121,6 +122,9 @@ async def test_cors():
 app.include_router(prompts.router)
 app.include_router(personas.router)
 app.include_router(workflows.router)
+
+# Include WebSocket router
+app.include_router(playground.router)
 
 
 # Global exception handler
