@@ -25,6 +25,13 @@ export PYTHONPATH="${PWD}:${PYTHONPATH}"
 
 # Generate TypeScript from Pydantic models
 echo "Running pydantic2ts..."
-pydantic2ts --module shared.protocol.models --output homepage/src/protocol/generated.ts
 
-echo "✅ TypeScript types generated successfully at homepage/src/protocol/generated.ts"
+# Generate for homepage
+pydantic2ts --module shared.protocol.models --output homepage/src/protocol/generated.ts
+echo "✅ TypeScript types generated for homepage at homepage/src/protocol/generated.ts"
+
+# Generate for editor
+pydantic2ts --module shared.protocol.models --output editor/src/protocol/generated.ts
+echo "✅ TypeScript types generated for editor at editor/src/protocol/generated.ts"
+
+echo "✅ All TypeScript types generated successfully!"
