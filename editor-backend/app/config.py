@@ -39,6 +39,9 @@ class Settings(ServiceConfig):
     workflows_dir: Path = Path("../agents/prompts/workflows")
     scenarios_dir: Path = Path("../agents/prompts/scenarios")
     
+    # Agent service connection
+    agents_service_url: str = Field("http://localhost:8000", env="AGENTS_SERVICE_URL")
+    
     # CORS settings
     frontend_url: str = "http://localhost:3458"
     public_url: Optional[str] = Field(None, env="PUBLIC_URL")

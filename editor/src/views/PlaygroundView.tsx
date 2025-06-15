@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Card } from '@/components/ui/card'
@@ -21,6 +21,7 @@ import {
 import { AgentInitiatedView } from '@/components/playground/AgentInitiatedView'
 import { MerchantInitiatedView } from '@/components/playground/MerchantInitiatedView'
 import { ConfigurationBar } from '@/components/playground/ConfigurationBar'
+import { usePlaygroundChat } from '@/hooks/usePlaygroundChat'
 
 const API_BASE = '/api/v1'
 
@@ -50,6 +51,17 @@ interface WorkflowListItem {
 }
 
 export function PlaygroundView() {
+  // WebSocket hook
+  const {
+    messages: wsMessages,
+    thinking,
+    isConnected,
+    conversationStarted,
+    startConversation: wsStartConversation,
+    sendMessage: wsSendMessage,
+    resetConversation
+  } = usePlaygroundChat()
+
   // State for configuration
   const [workflows, setWorkflows] = useState<WorkflowListItem[]>([])
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string>('')
@@ -59,12 +71,10 @@ export function PlaygroundView() {
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [selectedScenario, setSelectedScenario] = useState<string>('')
   
-  // State for conversation
-  const [conversationStarted, setConversationStarted] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
+  // State for user messages tracking (since hook only returns agent messages)
+  const [localUserMessages, setLocalUserMessages] = useState<{[key: number]: string}>({})
   const [inputMessage, setInputMessage] = useState('')
   const [loading, setLoading] = useState(false)
-  const [sendingMessage, setSendingMessage] = useState(false)
   
   // UI state
   const [workflowExpanded, setWorkflowExpanded] = useState(false)
@@ -79,12 +89,20 @@ export function PlaygroundView() {
     loadScenarios()
   }, [])
 
+  // Track previous workflow to detect changes
+  const prevWorkflowRef = useRef<string>('')
+  
   // Load workflow YAML when selection changes
   useEffect(() => {
     if (selectedWorkflowId) {
+      // If conversation is active and workflow actually changed, reset it
+      if (conversationStarted && prevWorkflowRef.current && prevWorkflowRef.current !== selectedWorkflowId) {
+        resetConversation('workflow_change', selectedWorkflowId)
+      }
+      prevWorkflowRef.current = selectedWorkflowId
       loadWorkflowYaml(selectedWorkflowId)
     }
-  }, [selectedWorkflowId])
+  }, [selectedWorkflowId, conversationStarted, resetConversation])
 
   const loadWorkflows = async () => {
     try {
@@ -139,10 +157,6 @@ export function PlaygroundView() {
       const data = await response.json()
       const parsed = parseWorkflow(data.content)
       setWorkflow(parsed)
-      
-      // Reset conversation when workflow changes
-      setConversationStarted(false)
-      setMessages([])
     } catch (error) {
       toast({
         title: 'Error',
@@ -154,46 +168,29 @@ export function PlaygroundView() {
     }
   }
 
-  const startConversation = async () => {
-    if (!workflow) return
+  const startConversation = () => {
+    if (!workflow || !selectedPersona || !selectedScenario) return
     
-    setConversationStarted(true)
-    
-    // If agent-initiated, simulate getting the initial message
-    if (isAgentInitiated(workflow)) {
-      const initialMessage = workflow.behavior?.initial_action
-      if (initialMessage?.type === 'static_message' && initialMessage.content) {
-        addMessage('agent', initialMessage.content)
-      } else {
-        // Simulate process_message
-        addMessage('agent', 'Good morning! Let me check your current metrics...')
-      }
-    }
+    wsStartConversation({
+      workflow: selectedWorkflowId,
+      personaId: selectedPersona,
+      scenarioId: selectedScenario,
+      trustLevel: trustLevel
+    })
   }
 
-  const sendMessage = async (content: string) => {
+  const sendMessage = (content: string) => {
     if (!content.trim()) return
     
-    // Add user message
-    addMessage('user', content)
-    setInputMessage('')
+    // Track user message locally (since hook only gives us agent messages)
+    setLocalUserMessages(prev => ({
+      ...prev,
+      [wsMessages.length]: content
+    }))
     
-    // Simulate agent response
-    setSendingMessage(true)
-    setTimeout(() => {
-      addMessage('agent', `I understand you're asking about "${content}". Let me help you with that...`)
-      setSendingMessage(false)
-    }, 1000)
-  }
-
-  const addMessage = (role: 'agent' | 'user', content: string) => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      role,
-      content,
-      timestamp: new Date().toISOString(),
-    }
-    setMessages(prev => [...prev, newMessage])
+    // Send message via WebSocket
+    wsSendMessage(content)
+    setInputMessage('')
   }
 
   const handleInputKeyPress = (e: React.KeyboardEvent) => {
@@ -203,9 +200,48 @@ export function PlaygroundView() {
     }
   }
 
+  // Combine agent messages from WebSocket with local user messages
+  const messages: Message[] = React.useMemo(() => {
+    const combined: Message[] = []
+    
+    wsMessages.forEach((msg, index) => {
+      // Add user message if exists before this agent message
+      if (localUserMessages[index]) {
+        combined.push({
+          id: `user-${index}`,
+          role: 'user',
+          content: localUserMessages[index],
+          timestamp: new Date(msg.data.timestamp).toISOString()
+        })
+      }
+      
+      // Add agent message
+      combined.push({
+        id: `agent-${index}`,
+        role: 'agent',
+        content: msg.data.content,
+        timestamp: msg.data.timestamp
+      })
+    })
+    
+    return combined
+  }, [wsMessages, localUserMessages])
+
   // Get selected persona and scenario objects
   const selectedPersonaObj = personas.find(p => p.id === selectedPersona)
   const selectedScenarioObj = scenarios.find(s => s.id === selectedScenario)
+
+  // Show connecting status if not connected
+  if (!isConnected) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Connecting to playground service...</p>
+        </div>
+      </div>
+    )
+  }
 
   // If conversation hasn't started, show starter view
   if (!conversationStarted && workflow) {
@@ -226,8 +262,14 @@ export function PlaygroundView() {
         scenario={selectedScenarioObj}
         trustLevel={trustLevel}
         onSendMessage={(message) => {
-          sendMessage(message)
-          setConversationStarted(true)
+          // For merchant-initiated, we need to start the conversation first
+          if (!conversationStarted) {
+            startConversation()
+            // Give the conversation a moment to start before sending the message
+            setTimeout(() => sendMessage(message), 100)
+          } else {
+            sendMessage(message)
+          }
         }}
         disabled={loading}
       />
@@ -361,10 +403,10 @@ export function PlaygroundView() {
                   )}
                 </div>
               ))}
-              {sendingMessage && (
+              {thinking && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">CJ is typing...</span>
+                  <span className="text-sm">CJ is {thinking.data.status}...</span>
                 </div>
               )}
             </div>
@@ -378,12 +420,12 @@ export function PlaygroundView() {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleInputKeyPress}
-                disabled={sendingMessage}
+                disabled={!conversationStarted}
                 className="flex-1"
               />
               <Button
                 onClick={() => sendMessage(inputMessage)}
-                disabled={!inputMessage.trim() || sendingMessage}
+                disabled={!inputMessage.trim() || !conversationStarted}
                 size="icon"
               >
                 <Send className="h-4 w-4" />

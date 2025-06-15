@@ -100,7 +100,7 @@ Each phase below requires **Amir's approval** before proceeding to the next phas
 - [x] Phase 12: Editor Frontend - Message Handling ✅
 - [x] Phase 13: Editor Frontend - Action Functions ✅
 - [x] Phase 14: Editor Frontend - Hook Lifecycle ✅
-- [ ] Phase 15: Editor Frontend - PlaygroundView Integration ⏸️ **[Get Amir Approval]**
+- [x] Phase 15: Editor Frontend - PlaygroundView Integration ✅
 - [ ] Phase 16: Testing Infrastructure ⏸️ **[Get Amir Approval]**
 - [ ] Phase 17: Documentation and Polish ⏸️ **[Get Amir Approval]**
 
@@ -544,56 +544,29 @@ return {
 };
 ```
 
-### Phase 15: Editor Frontend - PlaygroundView Integration
+### Phase 15: Editor Frontend - PlaygroundView Integration ✅
 **Goal**: Update PlaygroundView to use real WebSocket
 
-1. **Update `editor/src/views/PlaygroundView.tsx`**:
-```typescript
-import { usePlaygroundChat } from '@/hooks/usePlaygroundChat';
+**Status**: Completed with enhancements
 
-export function PlaygroundView() {
-  const {
-    messages,
-    thinking,
-    isConnected,
-    conversationStarted,
-    startConversation,
-    sendMessage,
-    resetConversation
-  } = usePlaygroundChat();
-  
-  // Remove all mock conversation logic
-  
-  const handleWorkflowChange = (newWorkflow: string) => {
-    if (conversationStarted) {
-      resetConversation('workflow_change', newWorkflow);
-    }
-    setSelectedWorkflow(newWorkflow);
-  };
-  
-  const handleStart = () => {
-    startConversation({
-      workflow: selectedWorkflow,
-      personaId: selectedPersona.id,
-      scenarioId: selectedScenario.id,
-      trustLevel: trustLevel
-    });
-  };
-  
-  // Add connection status UI
-  if (!isConnected) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500">
-          Connecting to playground service...
-        </div>
-      </div>
-    );
-  }
-  
-  // Rest of UI implementation...
-}
-```
+**Implementation Details**:
+1. ✅ Imported usePlaygroundChat hook and replaced mock state with hook values
+2. ✅ Updated startConversation to use WebSocket with proper config
+3. ✅ Replaced mock sendMessage with WebSocket implementation
+4. ✅ Added message combining logic to merge agent messages with locally tracked user messages
+5. ✅ Added connection status check with loading indicator
+6. ✅ Updated thinking indicator to show real thinking state from hook
+7. ✅ Fixed workflow change detection to properly reset conversations
+8. ✅ Updated merchant-initiated view to start conversation before sending first message
+9. ✅ Removed references to non-existent sendingMessage state
+10. ✅ Added proper TypeScript types and fixed all compilation errors
+
+**Key Changes**:
+- Workflow change detection using useRef to track previous workflow ID
+- Merchant-initiated conversations now properly start before sending message
+- Input fields disabled based on conversationStarted state
+- All mock conversation logic removed
+- Real-time thinking states displayed from WebSocket
 
 ### Phase 16: Testing Infrastructure
 **Goal**: Implement end-to-end testing and session management

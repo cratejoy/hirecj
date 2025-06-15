@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { 
-  PlaygroundIncomingMessage, 
   PlaygroundOutgoingMessage,
   PlaygroundStartMsg,
   PlaygroundResetMsg,
   MessageMsg,
   CJMessageMsg,
-  CJThinkingMsg,
-  ConversationStartedMsg
+  CJThinkingMsg
 } from '@/protocol';
 
 interface PlaygroundConfig {
@@ -25,30 +23,75 @@ export function usePlaygroundChat() {
   
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<NodeJS.Timeout>();
+  const reconnectAttempts = useRef(0);
+  
+  // Compute WebSocket base URL similar to homepage
+  const WS_BASE_URL = useMemo(() => {
+    // Check if we have a backend URL configured
+    const backendUrl = import.meta.env.VITE_EDITOR_BACKEND_URL;
+    
+    // In proxy mode, VITE_EDITOR_BACKEND_URL is set to empty string
+    if (backendUrl && backendUrl !== '') {
+      // Use direct backend URL (cross-domain)
+      const url = new URL(backendUrl);
+      return url.protocol === 'https:' ? `wss://${url.host}` : `ws://${url.host}`;
+    }
+    
+    // Use same-origin WebSocket (through Vite proxy)
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    return `${protocol}//${host}`;
+  }, []);
   
   // Connection management
   const connect = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) return;
     
-    const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/playground`;
-    ws.current = new WebSocket(wsUrl);
+    const wsUrl = `${WS_BASE_URL}/ws/playground`;
+    console.log('  Full URL:', window.location.href);
+    
+    try {
+      ws.current = new WebSocket(wsUrl);
+    } catch (error) {
+      console.error('❌ Failed to create WebSocket:', error);
+      return;
+    }
     
     ws.current.onopen = () => {
-      console.log('WebSocket connected');
+      console.log('✅ WebSocket connected successfully');
       setIsConnected(true);
       clearTimeout(reconnectTimeout.current);
+      reconnectAttempts.current = 0; // Reset reconnect attempts on successful connection
     };
     
     ws.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error('❌ WebSocket error:', error);
+      console.error('  Type:', error.type);
+      console.error('  Target:', error.target);
+      if (error.target) {
+        console.error('  URL:', (error.target as WebSocket).url);
+        console.error('  ReadyState:', (error.target as WebSocket).readyState);
+      }
     };
     
     ws.current.onclose = (event) => {
-      console.log(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
+      console.log(`🔒 WebSocket closed: code=${event.code}, reason=${event.reason}, wasClean=${event.wasClean}`);
       setIsConnected(false);
       setConversationStarted(false);
       clearTimeout(reconnectTimeout.current);
-      reconnectTimeout.current = setTimeout(connect, 1000);
+      
+      // Different reconnect strategies based on close code
+      if (event.code === 1006) {
+        console.log('⚠️  Abnormal closure - likely connection refused or network error');
+      }
+      
+      // Reconnect with exponential backoff
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
+      console.log(`⏳ Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current + 1})`);
+      reconnectTimeout.current = setTimeout(() => {
+        reconnectAttempts.current++;
+        connect();
+      }, delay);
     };
     
     ws.current.onmessage = (event) => {
@@ -78,20 +121,11 @@ export function usePlaygroundChat() {
           break;
           
         default:
-          // TypeScript exhaustiveness check
-          const _exhaustive: never = msg;
           console.log('Unknown message type:', (msg as any).type);
       }
     };
-  }, []);
+  }, [WS_BASE_URL]);
   
-  const disconnect = useCallback(() => {
-    clearTimeout(reconnectTimeout.current);
-    if (ws.current) {
-      ws.current.close();
-      ws.current = null;
-    }
-  }, []);
   
   // Action functions
   const startConversation = useCallback((config: PlaygroundConfig) => {

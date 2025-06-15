@@ -27,20 +27,47 @@ export default defineConfig(({ mode }) => {
   const editorUrl = tunnelEnv.EDITOR_URL || env.VITE_PUBLIC_URL || ''
   const editorBackendUrl = tunnelEnv.EDITOR_BACKEND_URL || env.VITE_EDITOR_BACKEND_URL || 'http://localhost:8001'
   
+  // Check if we should use proxy mode
+  let shouldUseProxy = false
+  if (editorUrl && editorBackendUrl) {
+    try {
+      const editorDomain = new URL(editorUrl).hostname
+      const backendDomain = new URL(editorBackendUrl).hostname
+      
+      // Use proxy when:
+      // 1. Both on localhost (development)
+      // 2. Editor is on amir-editor.hirecj.ai (always use proxy for this domain)
+      shouldUseProxy = (
+        (editorDomain === backendDomain) || 
+        (editorDomain.includes('localhost') && backendDomain.includes('localhost')) ||
+        (editorUrl.includes('amir-editor.hirecj.ai')) // Always use proxy for reserved domain
+      )
+    } catch {
+      // Default to not using proxy on parse error
+    }
+  }
+  
   // Merge environment variables
   const mergedEnv = {
     ...env,
     VITE_PUBLIC_URL: editorUrl,
-    VITE_EDITOR_BACKEND_URL: editorBackendUrl
+    VITE_EDITOR_BACKEND_URL: shouldUseProxy ? '' : editorBackendUrl
   }
   
-  // Check if running through ngrok
-  const isNgrok = editorUrl?.includes('ngrok') || editorUrl?.includes('.app')
+  // Check if running through ngrok or reserved domain
+  const isNgrok = editorUrl?.includes('ngrok') || editorUrl?.includes('.app') || editorUrl?.includes('hirecj.ai')
   
   console.log('=== Editor Vite Config ===')
   console.log('Editor URL:', editorUrl || 'http://localhost:3458')
   console.log('Editor Backend URL:', editorBackendUrl)
-  console.log('Is ngrok:', isNgrok)
+  console.log('Should use proxy:', shouldUseProxy)
+  if (shouldUseProxy) {
+    console.log('✅ PROXY MODE ACTIVE - All requests will be proxied through', editorUrl)
+    console.log('  API requests: /api/* → ' + editorBackendUrl)
+    console.log('  WebSocket: /ws/playground → ' + editorBackendUrl)
+  } else {
+    console.log('❌ DIRECT MODE - Frontend will connect directly to backend')
+  }
   console.log('=========================')
   
   return {
@@ -54,14 +81,30 @@ export default defineConfig(({ mode }) => {
       port: 3458,
       host: true, // This allows all hosts
       proxy: {
-        '/api': {
-          target: editorBackendUrl,
+        // Order matters - more specific paths first
+        '/ws/playground': {
+          target: tunnelEnv.EDITOR_BACKEND_URL || editorBackendUrl,
           changeOrigin: true,
+          ws: true,
+          secure: false,
+          // Ensure headers are passed correctly for WebSocket upgrade
+          headers: {
+            'Origin': tunnelEnv.EDITOR_BACKEND_URL || editorBackendUrl
+          },
+          configure: (proxy, options) => {
+            proxy.on('error', (err, req, res) => {
+              console.error('WebSocket proxy error:', err);
+            });
+            
+            proxy.on('proxyReqWs', (proxyReq, req, socket, options, head) => {
+              // Ensure proper headers for WebSocket upgrade
+              proxyReq.setHeader('Origin', options.target.href);
+            });
+          }
         },
-        '/ws': {
-          target: editorBackendUrl,
+        '/api': {
+          target: tunnelEnv.EDITOR_BACKEND_URL || editorBackendUrl,
           changeOrigin: true,
-          ws: true
         }
       },
       // Fix HMR for ngrok

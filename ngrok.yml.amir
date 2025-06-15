@@ -25,5 +25,16 @@ tunnels:
     
   knowledge:
     proto: http
+    addr: 8004
+    inspect: true
+    
+  editor-backend:
+    proto: http
     addr: 8001
+    inspect: true
+    
+  editor:
+    proto: http
+    addr: 3458
+    hostname: amir-editor.hirecj.ai
     inspect: true

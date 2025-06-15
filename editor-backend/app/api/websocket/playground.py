@@ -3,10 +3,13 @@ import json
 import uuid
 import logging
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import TypeAdapter, ValidationError
 import websockets
+
+from app.config import settings
 
 # Import protocol models - the shared module is installed in the venv
 # When running with uvicorn, the PYTHONPATH will be set correctly
@@ -87,7 +90,12 @@ async def playground_websocket(websocket: WebSocket):
     logging.info(f"Playground WebSocket connected: {session_id}")
     
     # Connect to agent service
-    agent_ws_uri = "ws://localhost:8000/ws/chat"
+    # Use the agents service URL from configuration
+    agents_url = urlparse(settings.agents_service_url)
+    # Convert http/https to ws/wss
+    ws_scheme = 'wss' if agents_url.scheme == 'https' else 'ws'
+    agent_ws_uri = f"{ws_scheme}://{agents_url.netloc}/ws/chat"
+    logging.info(f"Connecting to agent service at: {agent_ws_uri}")
     
     try:
         async with websockets.connect(agent_ws_uri) as agent_ws:
