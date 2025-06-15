@@ -29,7 +29,7 @@ The Agent Editor provides a unified environment to:
    npm run dev
    ```
 
-4. Open http://localhost:3457 in your browser
+4. Open http://localhost:3458 in your browser
 
 ## Features
 
@@ -86,7 +86,7 @@ editor/
 ## Development
 
 The editor consists of two parts:
-- **Frontend**: React/Vite application running on port 3457
+- **Frontend**: React/Vite application running on port 3458
 - **Backend**: FastAPI service running on port 8001 (separate from agent service)
 
 ### Running Both Services

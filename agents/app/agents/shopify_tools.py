@@ -16,6 +16,10 @@ logger = get_logger(__name__)
 
 def _get_data_fetcher(shop_domain: str) -> Optional[ShopifyDataFetcher]:
     """Helper to get an authenticated ShopifyDataFetcher."""
+    # Ensure shop_domain has .myshopify.com if it's just a subdomain
+    if '.' not in shop_domain:
+        shop_domain = f"{shop_domain}.myshopify.com"
+    
     # This is a synchronous call to the merchant service
     access_token = merchant_service.get_shopify_token(shop_domain)
     if not access_token:

@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import select, update          # NEW
 from shared.db_models import WebSession, MerchantToken, MerchantIntegration, Merchant  # NEW
 from app.utils.supabase_util import get_db_session
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from app.services.merchant_service import merchant_service
 
 from fastapi import WebSocket

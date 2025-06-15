@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.logging_config import setup_logging
 from app.api.routes import prompts, personas, workflows
+from app.api.websocket import playground
 
 # Initialize logging
 setup_logging()
@@ -31,6 +32,7 @@ allowed_origins = settings.allowed_origins
 logger.info("🔧 CORS Configuration:")
 logger.info(f"  Frontend URL: {settings.frontend_url}")
 logger.info(f"  Public URL: {settings.public_url}")
+logger.info(f"  Editor URL: {settings.editor_url}")
 logger.info(f"  Allowed origins: {allowed_origins}")
 
 # Add CORS middleware
@@ -121,6 +123,9 @@ async def test_cors():
 app.include_router(prompts.router)
 app.include_router(personas.router)
 app.include_router(workflows.router)
+
+# Include WebSocket router
+app.include_router(playground.router)
 
 
 # Global exception handler

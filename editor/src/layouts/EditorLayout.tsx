@@ -9,7 +9,8 @@ import {
   GitBranch, 
   Wrench,
   Settings,
-  ChevronRight
+  ChevronRight,
+  FlaskConical
 } from 'lucide-react'
 
 interface EditorLayoutProps {
@@ -53,6 +54,12 @@ const navItems = [
     href: '/settings',
     description: 'Editor configuration',
     separator: true
+  },
+  {
+    title: 'Tests',
+    icon: FlaskConical,
+    href: '/tests',
+    description: 'WebSocket testing tools'
   }
 ]
 
@@ -81,38 +88,36 @@ export function EditorLayout({ children }: EditorLayoutProps) {
                     {item.separator && index > 0 && (
                       <div className="my-4 border-t border-border/50" />
                     )}
-                    <Link href={item.href}>
-                      <a className="block">
-                        <div
-                          className={cn(
-                            'flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition-all',
-                            isActive 
-                              ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90' 
-                              : 'hover:bg-accent/50 text-foreground/70 hover:text-foreground'
-                          )}
-                        >
-                          <item.icon className={cn(
-                            "h-5 w-5 shrink-0 transition-colors",
+                    <Link href={item.href} className="block">
+                      <div
+                        className={cn(
+                          'flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition-all',
+                          isActive 
+                            ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90' 
+                            : 'hover:bg-accent/50 text-foreground/70 hover:text-foreground'
+                        )}
+                      >
+                        <item.icon className={cn(
+                          "h-5 w-5 shrink-0 transition-colors",
+                          isActive ? "text-primary-foreground" : ""
+                        )} />
+                        <div className="flex-1 space-y-1">
+                          <div className={cn(
+                            "font-medium leading-none",
                             isActive ? "text-primary-foreground" : ""
-                          )} />
-                          <div className="flex-1 space-y-1">
-                            <div className={cn(
-                              "font-medium leading-none",
-                              isActive ? "text-primary-foreground" : ""
-                            )}>
-                              {item.title}
-                            </div>
-                            {isActive && (
-                              <div className="text-xs opacity-90 leading-normal">
-                                {item.description}
-                              </div>
-                            )}
+                          )}>
+                            {item.title}
                           </div>
                           {isActive && (
-                            <ChevronRight className="h-4 w-4 opacity-75" />
+                            <div className="text-xs opacity-90 leading-normal">
+                              {item.description}
+                            </div>
                           )}
                         </div>
-                      </a>
+                        {isActive && (
+                          <ChevronRight className="h-4 w-4 opacity-75" />
+                        )}
+                      </div>
                     </Link>
                   </React.Fragment>
                 )

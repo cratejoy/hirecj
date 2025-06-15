@@ -13,5 +13,5 @@ def setup_logging():
     """Setup logging for editor backend service."""
     shared_setup_logging(
         service_name="editor-backend",
-        level="INFO"
+        log_level="INFO"
     )
