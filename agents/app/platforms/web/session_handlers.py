@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import select, update          # NEW
 from shared.db_models import WebSession, MerchantToken, MerchantIntegration, Merchant  # NEW
 from app.utils.supabase_util import get_db_session
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 from app.services.merchant_service import merchant_service
 
 from fastapi import WebSocket
@@ -108,9 +108,14 @@ class SessionHandlers:
             db.commit()
 
     async def handle_start_conversation(
-        self, websocket: WebSocket, conversation_id: str, message: StartConversationMsg
+        self, websocket: WebSocket, conversation_id: str, message: StartConversationMsg, raw_data: Dict[str, Any] = None
     ):
         """Handle start_conversation message."""
+        # Check for test mode
+        if raw_data and raw_data.get("data", {}).get("test_mode"):
+            await self._handle_test_mode_start(websocket, conversation_id, message, raw_data)
+            return
+            
         # Initialize conversation with CrewAI
         start_data = message.data
 
@@ -373,3 +378,78 @@ class SessionHandlers:
             )
         )
         await self.platform.send_validated_message(websocket, processed_msg)
+    
+    async def _handle_test_mode_start(
+        self, websocket: WebSocket, conversation_id: str, message: StartConversationMsg, raw_data: Dict[str, Any]
+    ):
+        """Handle test mode conversation start from playground."""
+        logger.info(f"[TEST_MODE] Starting test mode session for {conversation_id}")
+        
+        # Extract test context from raw data
+        test_context = raw_data.get("data", {}).get("test_context", {})
+        session_id = test_context.get("session_id", conversation_id)
+        persona = test_context.get("persona", {})
+        scenario = test_context.get("scenario", {})
+        trust_level = test_context.get("trust_level", 3)
+        
+        # Get workflow from message data
+        start_data = message.data
+        workflow = start_data.workflow or "ad_hoc_support"
+        
+        # Set up test session in platform sessions
+        ws_session = self.platform.sessions.setdefault(conversation_id, {})
+        ws_session["test_mode"] = True
+        ws_session["authenticated"] = True  # Simulate authentication
+        ws_session["user_id"] = f"test_user_{session_id}"
+        ws_session["session_id"] = session_id
+        ws_session["trust_level"] = trust_level
+        
+        # Extract merchant from persona or use default
+        merchant = persona.get("business_subdomain", "test_shop")
+        scenario_name = scenario.get("name", "test_scenario")
+        
+        logger.info(
+            f"[TEST_MODE] Creating test session: "
+            f"user_id={ws_session['user_id']}, merchant={merchant}, "
+            f"scenario={scenario_name}, workflow={workflow}"
+        )
+        
+        try:
+            # Create session with test data
+            session = await self.session_handler.create_session(
+                conversation_id, 
+                merchant, 
+                scenario_name, 
+                workflow, 
+                ws_session, 
+                ws_session["user_id"]
+            )
+            
+            # Send conversation started message
+            started_msg = ConversationStartedMsg(
+                type="conversation_started",
+                data=ConversationStartedData(
+                    conversationId=conversation_id,
+                    shopSubdomain=merchant,
+                    scenario=scenario_name,
+                    workflow=workflow,
+                    sessionId=session_id,
+                    resumed=False,
+                    connected_at=datetime.now().isoformat(),
+                    messageCount=0,
+                    workflow_requirements=self.platform.workflow_loader.get_workflow(workflow).get('requirements', {})
+                )
+            )
+            
+            await self.platform.send_validated_message(websocket, started_msg)
+            
+            # Send initial message if configured
+            initial_msg = session.conversation.state.initial_message
+            if initial_msg:
+                await self.platform._send_ai_message(websocket, initial_msg, session.conversation)
+                
+        except Exception as e:
+            logger.error(f"[TEST_MODE] Failed to start test mode session: {e}")
+            await self.platform.send_error(
+                websocket, f"Failed to start test mode session: {str(e)}"
+            )

@@ -94,7 +94,7 @@ Each phase below requires **Amir's approval** before proceeding to the next phas
 - [x] Phase 6: Editor Backend - Message Forwarding Functions ✅
 - [x] Phase 7: Editor Backend - Message Transformation ✅
 - [x] Phase 8: Editor Backend - Router Integration ✅ (Already completed)
-- [ ] Phase 9: Agent Service - Test Mode Detection ⏸️ **[Get Amir Approval]**
+- [x] Phase 9: Agent Service - Test Mode Detection ✅
 - [ ] Phase 10: Agent Service - Test Mode Session Setup ⏸️ **[Get Amir Approval]**
 - [ ] Phase 11: Agent Service - Test Data Providers ⏸️ **[Get Amir Approval]**
 - [ ] Phase 12: Agent Service - Initialize Test Mode ⏸️ **[Get Amir Approval]**
@@ -334,26 +334,28 @@ async def playground_websocket(websocket: WebSocket):
 - ✅ WebSocket endpoint accessible at `/ws/playground`
 - ✅ All previous phase tests confirm router is working
 
-### Phase 9: Agent Service - Test Mode Detection
+### Phase 9: Agent Service - Test Mode Detection ✅
 **Goal**: Add test mode handling to conversation handler
 
-1. **Update `agents/platforms/web/handlers/conversation.py`**:
-```python
-async def handle_start_conversation(self, msg: StartConversationMsg) -> None:
-    """Handle conversation start with test mode support"""
-    data = msg.data
-    
-    if data.get("test_mode"):
-        # Extract test context
-        test_context = data["test_context"]
-        session_id = test_context["session_id"]
-        
-        logging.info(f"Starting test mode session: {session_id}")
-        await self._handle_test_mode_start(data, test_context)
-    else:
-        # Normal production flow
-        await self._handle_production_start(msg)
-```
+**Status**: Completed and tested
+
+**Implementation Details**:
+1. ✅ Modified `websocket_handler.py` to pass raw data to handlers
+2. ✅ Updated `message_handlers.py` to accept raw_data parameter
+3. ✅ Modified `session_handlers.py`:
+   - Added test mode detection in `handle_start_conversation`
+   - Created `_handle_test_mode_start` method
+   - Test mode bypasses authentication
+   - Creates test user with ID `test_user_{session_id}`
+   - Uses test persona and scenario data
+4. ✅ Created test script `test_phase9_test_mode.py`
+
+**Key Features**:
+- Detects `test_mode` flag in raw message data
+- Simulates authentication for test sessions
+- Uses playground session IDs
+- Sends proper conversation_started response
+- Normal mode unaffected
 
 ### Phase 10: Agent Service - Test Mode Session Setup
 **Goal**: Configure test session properties
