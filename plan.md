@@ -93,7 +93,7 @@ Each phase below requires **Amir's approval** before proceeding to the next phas
 - [x] Phase 5: Editor Backend - WebSocket Bridge Implementation ✅
 - [x] Phase 6: Editor Backend - Message Forwarding Functions ✅
 - [x] Phase 7: Editor Backend - Message Transformation ✅
-- [ ] Phase 8: Editor Backend - Router Integration ⏸️ **[Get Amir Approval]**
+- [x] Phase 8: Editor Backend - Router Integration ✅ (Already completed)
 - [ ] Phase 9: Agent Service - Test Mode Detection ⏸️ **[Get Amir Approval]**
 - [ ] Phase 10: Agent Service - Test Mode Session Setup ⏸️ **[Get Amir Approval]**
 - [ ] Phase 11: Agent Service - Test Data Providers ⏸️ **[Get Amir Approval]**
@@ -323,15 +323,16 @@ async def playground_websocket(websocket: WebSocket):
 
 **Note**: Agent service errors on test_mode messages are expected until Phase 9-10
 
-### Phase 8: Editor Backend - Router Integration
+### Phase 8: Editor Backend - Router Integration ✅
 **Goal**: Register WebSocket router in main app
 
-1. **Update `editor-backend/app/main.py`**:
-```python
-from app.api.websocket import playground
+**Status**: Already completed during initial implementation
 
-app.include_router(playground.router, tags=["websocket"])
-```
+**Verification**:
+- ✅ Import exists: `from app.api.websocket import playground` (line 15)
+- ✅ Router included: `app.include_router(playground.router)` (line 127)
+- ✅ WebSocket endpoint accessible at `/ws/playground`
+- ✅ All previous phase tests confirm router is working
 
 ### Phase 9: Agent Service - Test Mode Detection
 **Goal**: Add test mode handling to conversation handler
