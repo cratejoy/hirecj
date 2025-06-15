@@ -50,7 +50,37 @@ export function usePlaygroundChat() {
       reconnectTimeout.current = setTimeout(connect, 1000);
     };
     
-    // Message handler will be added in Phase 12
+    ws.current.onmessage = (event) => {
+      const msg: PlaygroundOutgoingMessage = JSON.parse(event.data);
+      
+      switch (msg.type) {
+        case 'conversation_started':
+          setConversationStarted(true);
+          break;
+          
+        case 'cj_message':
+          setMessages(prev => [...prev, msg]);
+          setThinking(null);
+          break;
+          
+        case 'cj_thinking':
+          setThinking(msg);
+          break;
+          
+        case 'error':
+          console.error('WebSocket error:', msg.text);
+          break;
+          
+        case 'system':
+          console.log('System message:', msg.text);
+          break;
+          
+        default:
+          // TypeScript exhaustiveness check
+          const _exhaustive: never = msg;
+          console.log('Unknown message type:', (msg as any).type);
+      }
+    };
   }, []);
   
   const disconnect = useCallback(() => {
