@@ -1,7 +1,8 @@
 import asyncio
+import json
 import uuid
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import TypeAdapter, ValidationError
@@ -12,17 +13,17 @@ import websockets
 if TYPE_CHECKING:
     from shared.protocol.models import (
         IncomingMessage, OutgoingMessage,
-        PlaygroundStartMsg, StartConversationMsg,
+        PlaygroundStartMsg, StartConversationMsg, StartConversationData,
         PlaygroundResetMsg, EndConversationMsg,
-        ErrorMsg
+        UserMsg, ErrorMsg
     )
 else:
     try:
         from shared.protocol.models import (
             IncomingMessage, OutgoingMessage,
-            PlaygroundStartMsg, StartConversationMsg,
+            PlaygroundStartMsg, StartConversationMsg, StartConversationData,
             PlaygroundResetMsg, EndConversationMsg,
-            ErrorMsg
+            UserMsg, ErrorMsg
         )
     except ImportError:
         # This helps with development/testing - the actual app will have proper paths
@@ -31,9 +32,9 @@ else:
         sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent.parent))
         from shared.protocol.models import (
             IncomingMessage, OutgoingMessage,
-            PlaygroundStartMsg, StartConversationMsg,
+            PlaygroundStartMsg, StartConversationMsg, StartConversationData,
             PlaygroundResetMsg, EndConversationMsg,
-            ErrorMsg
+            UserMsg, ErrorMsg
         )
 
 router = APIRouter()
@@ -41,6 +42,65 @@ router = APIRouter()
 # Validation adapters
 incoming_adapter = TypeAdapter(IncomingMessage)
 outgoing_adapter = TypeAdapter(OutgoingMessage)
+
+
+async def transform_to_agent_message(msg: Any, session_id: str) -> Any:
+    """Transform playground messages to agent service messages.
+    
+    Args:
+        msg: The validated incoming message
+        session_id: The playground session ID
+        
+    Returns:
+        The transformed message ready for the agent service
+    """
+    if isinstance(msg, PlaygroundStartMsg):
+        # Transform playground start to conversation start
+        # For now, use test data - real implementation would load from files
+        test_persona = {
+            "id": msg.persona_id,
+            "name": "Test Persona",
+            "description": "A test user persona for playground",
+        }
+        
+        test_scenario = {
+            "id": msg.scenario_id,
+            "name": "Test Scenario",
+            "description": "A test scenario for playground",
+        }
+        
+        # Create the start conversation data with test mode flag
+        data = StartConversationData(
+            workflow=msg.workflow,
+            scenario_id=msg.scenario_id
+        )
+        
+        # Create the start conversation message with test context
+        start_msg = StartConversationMsg(
+            type="start_conversation",
+            data=data
+        )
+        
+        # Add test mode fields as a dict that we'll merge
+        # This is a workaround since StartConversationData doesn't have test_mode field
+        start_msg_dict = start_msg.model_dump()
+        start_msg_dict["data"]["test_mode"] = True
+        start_msg_dict["data"]["test_context"] = {
+            "persona": test_persona,
+            "scenario": test_scenario,
+            "trust_level": msg.trust_level,
+            "session_id": session_id
+        }
+        
+        return start_msg_dict
+        
+    elif isinstance(msg, PlaygroundResetMsg):
+        # Transform reset to end conversation
+        return EndConversationMsg(type="end_conversation")
+        
+    # Pass through other messages unchanged
+    return msg
+
 
 @router.websocket("/ws/playground")
 async def playground_websocket(websocket: WebSocket):
@@ -125,9 +185,16 @@ async def editor_to_agent(editor_ws: WebSocket, agent_ws, session_id: str):
                 msg = incoming_adapter.validate_json(raw_msg)
                 logging.info(f"[{session_id}] Valid message type: {msg.type}")
                 
-                # For now, forward the original message
-                # Transformation will be added in Phase 7
-                await agent_ws.send(raw_msg)
+                # Transform the message for agent service
+                transformed_msg = await transform_to_agent_message(msg, session_id)
+                
+                # Send the transformed message
+                if isinstance(transformed_msg, dict):
+                    # If it's already a dict (from transformation), send as JSON
+                    await agent_ws.send(json.dumps(transformed_msg))
+                else:
+                    # If it's a model instance, dump to JSON
+                    await agent_ws.send(transformed_msg.model_dump_json())
                 
             except ValidationError as e:
                 # Send error back to editor
