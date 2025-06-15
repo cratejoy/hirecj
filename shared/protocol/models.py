@@ -136,6 +136,23 @@ class SystemEventMsg(BaseModel):
     type: Literal["system_event"]
     data: Dict[str, Any]
 
+
+class PlaygroundStartMsg(BaseModel):
+    """Simplified start message for playground testing"""
+    type: Literal["playground_start"]
+    workflow: str
+    persona_id: str
+    scenario_id: str
+    trust_level: int
+
+
+class PlaygroundResetMsg(BaseModel):
+    """Reset playground conversation"""
+    type: Literal["playground_reset"]
+    reason: Literal["workflow_change", "user_clear"]
+    new_workflow: Optional[str] = None
+
+
 IncomingMessage = Annotated[
     Union[
         StartConversationMsg,
@@ -148,6 +165,8 @@ IncomingMessage = Annotated[
         LogoutMsg,
         OAuthCompleteMsg,
         SystemEventMsg,
+        PlaygroundStartMsg,
+        PlaygroundResetMsg,
     ],
     Field(discriminator="type"),
 ]
