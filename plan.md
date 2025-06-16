@@ -510,151 +510,91 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can ingest various formats and URLs successfully
 
-### Milestone 2: Multi-Corpus & Basic Management
+### Milestone 2: Knowledge Management UI Enhancement
 
-#### Phase 2.1: PostgreSQL Migration ⏸️
-**Deliverable**: PostgreSQL backend operational
-- [ ] Set up PostgreSQL with pgvector extension
-- [ ] Migrate from file storage to PostgreSQL
-- [ ] Test PostgreSQL backup/restore procedures
-- [ ] Verify performance meets requirements
+#### Phase 2.1: Complete Backend API Features ⏸️
+**Deliverable**: Missing API endpoints to support the UI
+- [ ] Add document statistics API (count, last updated per namespace)
+- [ ] Create processing status endpoints for tracking uploads
+- [ ] Add batch operation status tracking
+- [ ] Implement error detail reporting for failed ingestions
 
-**Success Criteria**: All data stored in PostgreSQL, backup/restore works
+**Success Criteria**: UI can display real document counts and processing status
 
-#### Phase 2.2: Multiple Corpora Setup ⏸️
-**Deliverable**: 3 distinct corpora with isolation
-- [ ] Create Product Knowledge corpus
-- [ ] Create Customer Support corpus
-- [ ] Create Technical Documentation corpus
-- [ ] Implement corpus isolation verification
+#### Phase 2.2: Enhance Existing UI Components ⏸️
+**Deliverable**: Polish existing React components with real data
+- [ ] Update KnowledgeListView to show actual document counts
+- [ ] Display real last_updated timestamps
+- [ ] Add loading states and better error messages
+- [ ] Show upload progress for each file in KnowledgeDetailView
+- [ ] Add file type indicators (.txt, .md, .json)
+- [ ] Display query response times
+- [ ] Fix mobile responsive issues
 
-**Success Criteria**: Data isolation verified between all corpora
+**Success Criteria**: UI shows accurate data with smooth user experience
 
-#### Phase 2.3: Enhanced Processing ⏸️
-**Deliverable**: Advanced file processing features
-- [ ] Add PDF processor with text extraction
-- [ ] Add Markdown processor with formatting
-- [ ] Create batch file processing system
-- [ ] Implement basic deduplication
+#### Phase 2.3: Add Processing Status View ⏸️
+**Deliverable**: New view for processing queue visibility
+- [ ] Create new route /knowledge/:graphId/processing
+- [ ] Build ProcessingStatusView component
+- [ ] Show active uploads with progress bars
+- [ ] Display queue of pending items
+- [ ] Add completed items history
+- [ ] Include error details panel
 
-**Success Criteria**: Can process mixed file types in batches
+**Success Criteria**: Users can monitor all processing activities
 
-#### Phase 2.4: Web UI & Management API ⏸️
-**Deliverable**: Basic web interface for corpus management
-- [ ] Build REST API for corpus management
-- [ ] Create simple web UI for corpus selection
-- [ ] Add basic authentication
+### Milestone 3: Dynamic Sources & Processing Pipeline
 
-**Success Criteria**: Full visibility into content processing pipeline
-
-### Milestone 3: Database & Advanced Processing
-
-#### Phase 3.1: PostgreSQL Migration ⏸️
-**Deliverable**: PostgreSQL backend operational
-- [ ] Set up PostgreSQL with pgvector extension
-- [ ] Migrate from file storage to PostgreSQL
-- [ ] Test PostgreSQL backup/restore procedures
-- [ ] Verify performance meets requirements
-- [ ] Update UI to show PostgreSQL metrics
-
-**Success Criteria**: All data stored in PostgreSQL, backup/restore works
-
-#### Phase 3.2: Enhanced Processing ⏸️
-**Deliverable**: Advanced file processing features
-- [ ] Add PDF processor with text extraction
-- [ ] Implement advanced Markdown processing
-- [ ] Create batch file processing system
-- [ ] Add deduplication system
-- [ ] Update UI with format-specific options
-
-**Success Criteria**: Can process mixed file types with UI feedback
-
-#### Phase 3.3: Batch Processing System ⏸️
-**Deliverable**: Scalable batch operations
-- [ ] Design queue-based batch processor
-- [ ] Implement parallel processing
-- [ ] Add batch operation UI
-- [ ] Create batch monitoring dashboard
-- [ ] Build batch history and analytics
-
-**Success Criteria**: Can process 1000+ documents efficiently
-
-#### Phase 3.4: Multiple Corpora Setup ⏸️
-**Deliverable**: Multi-corpus support with isolation
-- [ ] Implement corpus abstraction layer
-- [ ] Create corpus management UI
-- [ ] Add corpus switching interface
-- [ ] Build cross-corpus search UI
-- [ ] Verify corpus isolation
-
-**Success Criteria**: Multiple isolated corpora manageable via UI
-
-### Milestone 4: Dynamic Sources & Processing Pipeline
-
-#### Phase 4.0: Multi-namespace Operations ⏸️
-**Deliverable**: Cross-namespace search working
-- [ ] Add multi-namespace search capability
-- [ ] Test with 10+ different namespace types
-- [ ] Implement batch ingestion for 100+ documents
-- [ ] Verify cross-namespace query functionality
-
-**Success Criteria**: Can search across multiple namespaces efficiently
-
-#### Phase 4.1: Web Crawler Implementation ⏸️
+#### Phase 3.1: Web Crawler Implementation ⏸️
 **Deliverable**: Working web crawler for documentation
 - [ ] Implement basic web crawler
 - [ ] Add crawl depth and pattern configuration
 - [ ] Test with documentation sites
+- [ ] Create UI for crawler configuration
 
 **Success Criteria**: Can crawl and index entire doc site
 
-#### Phase 4.2: Additional Source Types ⏸️
+#### Phase 3.2: Additional Source Types ⏸️
 **Deliverable**: RSS and URL list processing
 - [ ] Create RSS feed monitor
 - [ ] Build URL list batch processor
 - [ ] Add source configuration management
+- [ ] UI for managing different source types
 
 **Success Criteria**: Can monitor RSS feeds and process URL lists
 
-#### Phase 4.3: Processing Pipeline Core ⏸️
+#### Phase 3.3: Processing Pipeline Core ⏸️
 **Deliverable**: Queue-based processing system
 - [ ] Design processing queue architecture
 - [ ] Implement error handling and retry logic
 - [ ] Add pause/resume functionality
 - [ ] Create processing status API
-- [ ] Implement processing history log
+- [ ] WebSocket for real-time updates
 
 **Success Criteria**: Robust queue handles failures gracefully
 
-#### Phase 4.4: Real-time Updates ⏸️
-**Deliverable**: Live processing status via WebSocket
-- [ ] Set up WebSocket for live updates
+#### Phase 3.4: Real-time Processing UI ⏸️
+**Deliverable**: Live processing status visibility
+- [ ] Enhance ProcessingStatusView with WebSocket
 - [ ] Add progress tracking per source
-- [ ] Enhance processing queue UI with real-time updates
-- [ ] Add live notifications for completed tasks
-- [ ] Implement collaborative features (multiple users)
+- [ ] Create visual processing queue
+- [ ] Implement processing history log
 
 **Success Criteria**: Real-time updates with < 500ms latency
 
-#### Phase 4.5: Incremental Processing ⏸️
-**Deliverable**: Efficient update system
-- [ ] Create change detection for web sources
-- [ ] Build incremental update system
-- [ ] Add update scheduling (cron-like)
+### Milestone 4: Advanced Features & Production Readiness
 
-**Success Criteria**: Only new/changed content is processed
-
-### Milestone 5: Advanced Features & Production Readiness
-
-#### Phase 5.1: Media Processing ⏸️
+#### Phase 4.1: Media Processing ⏸️
 **Deliverable**: YouTube and audio transcription
 - [ ] Implement YouTube video transcription
 - [ ] Add podcast/audio processing
 - [ ] Create media metadata extraction
+- [ ] Build UI for media source configuration
 
 **Success Criteria**: Can transcribe and index video/audio content
 
-#### Phase 5.2: Content Intelligence ⏸️
+#### Phase 4.2: Content Intelligence ⏸️
 **Deliverable**: Smart content features
 - [ ] Implement auto-categorization of content
 - [ ] Add quality scoring for sources
@@ -663,15 +603,7 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Content automatically categorized and scored
 
-#### Phase 5.3: Structured Data Support ⏸️
-**Deliverable**: Enhanced data extraction
-- [ ] Create structured data extraction (JSON, CSV)
-- [ ] Add query result explanations
-- [ ] Implement source attribution in results
-
-**Success Criteria**: Can extract and query structured data
-
-#### Phase 5.4: Production Infrastructure ⏸️
+#### Phase 4.3: Production Infrastructure ⏸️
 **Deliverable**: Production-ready monitoring and security
 - [ ] Implement multi-user corpus permissions
 - [ ] Create audit logging system
@@ -680,17 +612,70 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: System ready for production deployment
 
-#### Phase 5.5: Full Editor Integration ⏸️
-**Deliverable**: Complete integration with HireCJ editor
-- [ ] Evolve basic UI into full Grounding View from editor design
+#### Phase 4.4: Advanced Query Features ⏸️
+**Deliverable**: Enhanced query capabilities
+- [ ] Add query result explanations
+- [ ] Implement source attribution in results
 - [ ] Create relevance tuning interface
 - [ ] Build query analytics system
-- [ ] Add AI-driven feedback and improvement features
-- [ ] Implement knowledge graph visualization
-- [ ] Integrate with agent playground for testing
-- [ ] Complete end-to-end testing
 
-**Success Criteria**: Seamless integration with all editor features
+**Success Criteria**: Rich query features with full transparency
+
+#### Phase 4.5: PostgreSQL Migration ⏸️
+**Deliverable**: Scalable database backend
+- [ ] Set up PostgreSQL with pgvector extension
+- [ ] Migrate from file storage to PostgreSQL
+- [ ] Optimize for 1M+ documents
+- [ ] Implement backup/restore procedures
+
+**Success Criteria**: System handles 1M+ documents with 99.9% uptime
+
+### Milestone 5: Full Editor Integration & Advanced UI
+
+#### Phase 5.1: Grounding View Evolution ⏸️
+**Deliverable**: Transform basic UI into full Grounding View
+- [ ] Implement full editor_design.md Grounding View layout
+- [ ] Add knowledge graph visualization
+- [ ] Create advanced filtering and search UI
+- [ ] Build multi-corpus management interface
+
+**Success Criteria**: UI matches editor design specifications
+
+#### Phase 5.2: Agent Integration ⏸️
+**Deliverable**: Connect knowledge to agent playground
+- [ ] Integrate knowledge graphs with agent testing
+- [ ] Add grounding context to agent responses
+- [ ] Create knowledge-aware agent prompts
+- [ ] Build testing scenarios with knowledge
+
+**Success Criteria**: Agents can seamlessly use knowledge graphs
+
+#### Phase 5.3: AI-Driven Features ⏸️
+**Deliverable**: Intelligent knowledge management
+- [ ] Add AI-driven content suggestions
+- [ ] Implement feedback-based improvements
+- [ ] Create smart categorization UI
+- [ ] Build relevance tuning interface
+
+**Success Criteria**: AI enhances knowledge management workflow
+
+#### Phase 5.4: Analytics & Insights ⏸️
+**Deliverable**: Comprehensive analytics dashboard
+- [ ] Build query analytics system
+- [ ] Create usage pattern visualization
+- [ ] Add performance metrics dashboard
+- [ ] Implement knowledge gap analysis
+
+**Success Criteria**: Full visibility into knowledge usage
+
+#### Phase 5.5: Final Polish & Testing ⏸️
+**Deliverable**: Production-ready integrated system
+- [ ] Complete end-to-end testing
+- [ ] Performance optimization
+- [ ] Documentation and tutorials
+- [ ] Migration tools for existing data
+
+**Success Criteria**: System ready for full production rollout
 
 ## Implementation Roadmap
 
@@ -1939,15 +1924,15 @@ Milestone 4
 
 #### Technical Risks
 1. **LightRAG Performance**: Test with increasing data volumes at each milestone
-2. **Storage Scaling**: PostgreSQL optimization in Milestone 2
+2. **Storage Scaling**: PostgreSQL migration in Milestone 4
 3. **Processing Bottlenecks**: Queue system in Milestone 3
 4. **Transcription Costs**: Evaluate in Milestone 4, consider alternatives
 
 #### Product Risks
-1. **User Adoption**: Simple UI in Milestone 2 for early feedback
+1. **User Adoption**: Enhanced UI in Milestone 2 for early feedback
 2. **Query Relevance**: A/B test query modes throughout
 3. **Source Quality**: Quality scoring in Milestone 4
-4. **Integration Complexity**: API-first approach from Milestone 2
+4. **Integration Complexity**: Leverage existing editor patterns from Milestone 2
 
 ---
 
@@ -1955,7 +1940,8 @@ Milestone 4
 
 | Milestone | Documents | Query Latency | Uptime | User Satisfaction |
 |-----------|-----------|---------------|---------|-------------------|
-| MVP       | 1K+       | < 2s          | 95%     | Internal testing  |
+| 0         | 100+      | < 2s          | 95%     | Internal testing  |
+| 1         | 1K+       | < 1s          | 95%     | Developer testing |
 | 2         | 10K+      | < 1s          | 98%     | Beta users        |
 | 3         | 100K+     | < 500ms       | 99%     | Early adopters    |
 | 4         | 1M+       | < 500ms       | 99.9%   | Production ready  |
@@ -1969,8 +1955,8 @@ Milestone 4
 - Is the knowledge graph approach valuable for our use case?
 
 **After Milestone 2**:
-- Can we effectively isolate and manage multiple corpora?
-- Does PostgreSQL meet our performance needs?
+- Is the UI intuitive for non-technical users?
+- Does the processing status view provide adequate visibility?
 
 **After Milestone 3**:
 - Is automated ingestion reliable enough?
