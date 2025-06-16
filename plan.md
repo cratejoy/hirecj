@@ -420,80 +420,209 @@ The editor's Grounding views will integrate as follows:
 
 ## Implementation Checklist
 
-### Phase 0: Operational Setup - Dynamic Namespace Management ⏳
+### Phase 0: Operational Setup
+
+#### Phase 0.1: Core API Infrastructure ⏳
+**Deliverable**: Basic FastAPI server running on port 8004
 - [ ] Create knowledge directory structure
-- [ ] Set up FastAPI server with dynamic namespace registry
-- [ ] Implement namespace CRUD endpoints
+- [ ] Set up FastAPI server with basic configuration
+- [ ] Create basic health check endpoint
+- [ ] Write initial requirements.txt
+
+**Success Criteria**: Server starts, health check returns 200 OK
+
+#### Phase 0.2: Namespace Management ⏸️
+**Deliverable**: Working namespace CRUD operations
+- [ ] Implement dynamic namespace registry
+- [ ] Create namespace CRUD endpoints
+- [ ] Add namespace persistence to disk
+- [ ] Test namespace switching and data isolation
+
+**Success Criteria**: Can create, list, and delete namespaces via API
+
+#### Phase 0.3: Basic Operations ⏸️
+**Deliverable**: Document ingestion and query working
 - [ ] Add document ingestion endpoints for any namespace
 - [ ] Implement query endpoints with namespace isolation
 - [ ] Create example usage script
+- [ ] Write setup and installation scripts
+
+**Success Criteria**: Can ingest and query documents in isolated namespaces
+
+#### Phase 0.4: HireCJ Integration ⏸️
+**Deliverable**: Service integrated into dev environment
 - [ ] Integrate with HireCJ dev environment (port 8004)
 - [ ] Update root Makefile for `make dev-knowledge`
 - [ ] Add to tmux window configuration
-- [ ] Test namespace switching and data isolation
 - [ ] Verify environment variable distribution
-- [ ] Create basic health check endpoint
-- [ ] Write setup and installation scripts
+- [ ] Update scripts/distribute_env.py
 
-### Milestone 1: Generic Knowledge Management ⏸️
-- [ ] Add batch file ingestion support (TXT, PDF, MD, JSON)
+**Success Criteria**: `make dev-knowledge` starts the service with proper config
+
+### Milestone 1: Generic Knowledge Management
+
+#### Phase 1.1: Basic Document Ingestion ⏸️
+**Deliverable**: Text file ingestion working
+- [ ] Add single text file ingestion support
+- [ ] Implement batch file upload for text files
+- [ ] Create basic metadata extraction
+- [ ] Add source tracking for ingested documents
+
+**Success Criteria**: Can batch ingest 10+ text files with metadata
+
+#### Phase 1.2: Query System Implementation ⏸️
+**Deliverable**: All query modes functional
+- [ ] Implement naive query mode
+- [ ] Implement local and global query modes
+- [ ] Implement hybrid query mode
+- [ ] Verify query response time < 1 second
+
+**Success Criteria**: All 4 query modes return relevant results
+
+#### Phase 1.3: Enhanced Ingestion ⏸️
+**Deliverable**: Multi-format support and preprocessing
+- [ ] Add PDF, Markdown, JSON support
 - [ ] Implement URL content fetching
 - [ ] Create content preprocessing pipeline
-- [ ] Add multi-namespace search capability
-- [ ] Implement all 4 query modes (naive, local, global, hybrid)
-- [ ] Add metadata extraction and tracking
-- [ ] Create source tracking system
-- [ ] Test with 10+ different namespace types
-- [ ] Verify query response time < 1 second
-- [ ] Implement batch ingestion for 100+ documents
 - [ ] Create universal ingestion script
 
-### Milestone 2: Multi-Corpus & Basic Management ⏸️
+**Success Criteria**: Can ingest various formats and URLs successfully
+
+#### Phase 1.4: Multi-namespace Operations ⏸️
+**Deliverable**: Cross-namespace search working
+- [ ] Add multi-namespace search capability
+- [ ] Test with 10+ different namespace types
+- [ ] Implement batch ingestion for 100+ documents
+
+**Success Criteria**: Can search across multiple namespaces efficiently
+
+### Milestone 2: Multi-Corpus & Basic Management
+
+#### Phase 2.1: PostgreSQL Migration ⏸️
+**Deliverable**: PostgreSQL backend operational
+- [ ] Set up PostgreSQL with pgvector extension
+- [ ] Migrate from file storage to PostgreSQL
+- [ ] Test PostgreSQL backup/restore procedures
+- [ ] Verify performance meets requirements
+
+**Success Criteria**: All data stored in PostgreSQL, backup/restore works
+
+#### Phase 2.2: Multiple Corpora Setup ⏸️
+**Deliverable**: 3 distinct corpora with isolation
+- [ ] Create Product Knowledge corpus
 - [ ] Create Customer Support corpus
 - [ ] Create Technical Documentation corpus
-- [ ] Migrate from file storage to PostgreSQL
 - [ ] Implement corpus isolation verification
-- [ ] Add PDF and Markdown processors
+
+**Success Criteria**: Data isolation verified between all corpora
+
+#### Phase 2.3: Enhanced Processing ⏸️
+**Deliverable**: Advanced file processing features
+- [ ] Add PDF processor with text extraction
+- [ ] Add Markdown processor with formatting
 - [ ] Create batch file processing system
 - [ ] Implement basic deduplication
+
+**Success Criteria**: Can process mixed file types in batches
+
+#### Phase 2.4: Web UI & Management API ⏸️
+**Deliverable**: Basic web interface for corpus management
 - [ ] Build REST API for corpus management
 - [ ] Create simple web UI for corpus selection
 - [ ] Add basic authentication
-- [ ] Test PostgreSQL backup/restore procedures
 - [ ] Verify cross-corpus query functionality
 
-### Milestone 3: Dynamic Sources & Processing Pipeline ⏸️
-- [ ] Implement web crawler for documentation sites
+**Success Criteria**: Non-technical users can manage corpora via UI
+
+### Milestone 3: Dynamic Sources & Processing Pipeline
+
+#### Phase 3.1: Web Crawler Implementation ⏸️
+**Deliverable**: Working web crawler for documentation
+- [ ] Implement basic web crawler
+- [ ] Add crawl depth and pattern configuration
+- [ ] Test with documentation sites
+
+**Success Criteria**: Can crawl and index entire doc site
+
+#### Phase 3.2: Additional Source Types ⏸️
+**Deliverable**: RSS and URL list processing
 - [ ] Create RSS feed monitor
 - [ ] Build URL list batch processor
-- [ ] Design visual processing queue
-- [ ] Add pause/resume functionality
+- [ ] Add source configuration management
+
+**Success Criteria**: Can monitor RSS feeds and process URL lists
+
+#### Phase 3.3: Processing Pipeline Core ⏸️
+**Deliverable**: Queue-based processing system
+- [ ] Design processing queue architecture
 - [ ] Implement error handling and retry logic
+- [ ] Add pause/resume functionality
 - [ ] Create processing status API
+- [ ] Implement processing history log
+
+**Success Criteria**: Robust queue handles failures gracefully
+
+#### Phase 3.4: Real-time Updates ⏸️
+**Deliverable**: Live processing status via WebSocket
 - [ ] Set up WebSocket for live updates
 - [ ] Add progress tracking per source
-- [ ] Implement processing history log
+- [ ] Create visual processing queue UI
+
+**Success Criteria**: Real-time updates with < 500ms latency
+
+#### Phase 3.5: Incremental Processing ⏸️
+**Deliverable**: Efficient update system
 - [ ] Create change detection for web sources
 - [ ] Build incremental update system
-- [ ] Add update scheduling
+- [ ] Add update scheduling (cron-like)
 
-### Milestone 4: Advanced Features & Production Readiness ⏸️
+**Success Criteria**: Only new/changed content is processed
+
+### Milestone 4: Advanced Features & Production Readiness
+
+#### Phase 4.1: Media Processing ⏸️
+**Deliverable**: YouTube and audio transcription
 - [ ] Implement YouTube video transcription
 - [ ] Add podcast/audio processing
-- [ ] Create structured data extraction (JSON, CSV)
+- [ ] Create media metadata extraction
+
+**Success Criteria**: Can transcribe and index video/audio content
+
+#### Phase 4.2: Content Intelligence ⏸️
+**Deliverable**: Smart content features
 - [ ] Implement auto-categorization of content
 - [ ] Add quality scoring for sources
 - [ ] Build duplicate detection across sources
 - [ ] Create content freshness tracking
-- [ ] Add scheduled processing (cron-like)
+
+**Success Criteria**: Content automatically categorized and scored
+
+#### Phase 4.3: Structured Data Support ⏸️
+**Deliverable**: Enhanced data extraction
+- [ ] Create structured data extraction (JSON, CSV)
+- [ ] Add query result explanations
+- [ ] Implement source attribution in results
+
+**Success Criteria**: Can extract and query structured data
+
+#### Phase 4.4: Production Infrastructure ⏸️
+**Deliverable**: Production-ready monitoring and security
 - [ ] Implement multi-user corpus permissions
 - [ ] Create audit logging system
 - [ ] Build performance monitoring dashboard
-- [ ] Add query result explanations
-- [ ] Implement source attribution in results
+- [ ] Add scheduled processing automation
+
+**Success Criteria**: System ready for production deployment
+
+#### Phase 4.5: Full Editor Integration ⏸️
+**Deliverable**: Complete integration with HireCJ editor
 - [ ] Create relevance tuning interface
 - [ ] Build query analytics system
-- [ ] Full integration with HireCJ editor
+- [ ] Integrate with editor grounding views
+- [ ] Add knowledge graph visualization
+- [ ] Complete end-to-end testing
+
+**Success Criteria**: Seamless integration with all editor features
 
 ## Implementation Roadmap
 
