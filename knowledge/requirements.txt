@@ -1,6 +1,10 @@
-# Knowledge API Requirements - Phase 0.1
-# Minimal dependencies for core API infrastructure
+# Knowledge API Requirements - Phase 0.2
+# Dependencies for namespace management and LightRAG integration
 
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.9.0
+lightrag-hku==0.1.0
+aiohttp==3.9.1
+psycopg2-binary==2.9.9
+python-multipart==0.0.6
