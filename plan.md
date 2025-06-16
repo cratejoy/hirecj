@@ -420,7 +420,7 @@ The editor's Grounding views will integrate as follows:
 
 ## Implementation Checklist
 
-### Phase 0: Operational Setup
+### Milestone 0: Operational Setup
 
 #### Phase 0.1: Core API Infrastructure ⏳
 **Deliverable**: Basic FastAPI server running on port 8004
@@ -632,7 +632,7 @@ This roadmap defines progressive milestones to prove out the LightRAG knowledge 
 
 ---
 
-### Phase 0: Operational Setup - Dynamic Namespace Management
+### Milestone 0: Operational Setup - Dynamic Namespace Management
 
 **Goal: Create an API server with dynamic namespace creation and management**
 
