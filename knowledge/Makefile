@@ -1,51 +1,52 @@
-# Minimal Makefile for hirecj-knowledge
-# Most commands should be run from the root monorepo
+# Knowledge Service Makefile
 
-.PHONY: run test help install
+.PHONY: help install dev test clean setup example test-namespace test-operations
 
 help:
-	@echo "This is a minimal Makefile. Use the root Makefile for most operations:"
-	@echo "  cd .. && make dev-knowledge  # Run the service"
-	@echo "  cd .. && make test-knowledge # Run tests"
-	@echo "  cd .. && make install        # Install dependencies"
-
-run:
-	@echo "Starting knowledge service..."
-	@cd .. && make dev-knowledge
-
-test:
-	@echo "Running knowledge tests..."
-	@cd .. && make test-knowledge
+	@echo "Knowledge Service - Available commands:"
+	@echo "  make install        - Install dependencies"
+	@echo "  make dev            - Run development server"
+	@echo "  make test           - Test the health endpoint"
+	@echo "  make setup          - Run setup script"
+	@echo "  make example        - Run example usage (Phase 0.3)"
+	@echo "  make test-namespace - Test namespace operations (Phase 0.2)"
+	@echo "  make test-operations - Test document operations (Phase 0.3)"
+	@echo "  make clean          - Clean up files"
 
 install:
-	@echo "Installing dependencies..."
+	@echo "📦 Installing dependencies..."
 	python -m venv venv
+	venv/bin/pip install --upgrade pip
 	venv/bin/pip install -r requirements.txt
-	venv/bin/pip install -e ./LightRAG
 
-# Local development commands
-demo:
-	venv/bin/python -m src demo
+dev:
+	@echo "🚀 Starting Knowledge API server..."
+	venv/bin/python scripts/run_api_server.py
 
-ingest:
-	venv/bin/python -m src ingest
-
-ingest-add:
-	@echo "Usage: make ingest-add URL=<url> [LIMIT=<n>]"
-	@echo "Example: make ingest-add URL=https://example.com/feed.rss LIMIT=5"
-	@[ -n "$(URL)" ] || (echo "Error: URL is required" && exit 1)
-	venv/bin/python -m src ingest add "$(URL)" $(if $(LIMIT),--limit $(LIMIT))
-
-ingest-process:
-	venv/bin/python -m src ingest process
-
-ingest-status:
-	venv/bin/python -m src ingest status
-
-server:
-	./run_lightrag_server.sh
+test:
+	@echo "🧪 Testing health endpoint..."
+	@curl -s http://localhost:8004/health | python -m json.tool
 
 clean:
-	rm -rf venv __pycache__ src/__pycache__
-	rm -rf lightrag_transcripts_db
-	rm -rf content/inbox/* content/downloading/* content/downloaded/* content/audio/* content/chunks/* content/transcribing/* content/transcripts/* content/loaded/* content/failed/*
+	@echo "🧹 Cleaning up..."
+	@find . -type d -name "__pycache__" -exec rm -rf {} +
+	@find . -type f -name "*.pyc" -delete
+	@rm -rf venv
+	@echo "✅ Cleaned"
+
+# Phase 0.3 targets
+setup:
+	@echo "🔧 Running setup script..."
+	@bash scripts/setup.sh
+
+example:
+	@echo "🚀 Running example usage..."
+	@venv/bin/python scripts/example_usage.py
+
+test-namespace:
+	@echo "🧪 Testing namespace operations..."
+	@venv/bin/python scripts/test_namespaces.py
+
+test-operations:
+	@echo "🧪 Testing document operations..."
+	@venv/bin/python scripts/test_basic_operations.py
