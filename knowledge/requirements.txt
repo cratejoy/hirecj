@@ -4,8 +4,9 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 pydantic==2.9.0
-lightrag-hku==1.0.0
+git+https://github.com/HKUDS/LightRAG.git
 aiohttp==3.9.1
+aiofiles==23.2.1
 aioboto3==12.3.0
 psycopg2-binary==2.9.9
 python-multipart==0.0.6

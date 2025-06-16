@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.logging_config import setup_logging
-from app.api.routes import prompts, personas, workflows
+from app.api.routes import prompts, personas, workflows, knowledge
 from app.api.websocket import playground
 
 # Initialize logging
@@ -87,6 +87,7 @@ async def root():
             "prompts": "/api/v1/prompts",
             "personas": "/api/v1/personas", 
             "workflows": "/api/v1/workflows",
+            "knowledge": "/api/v1/knowledge",
             "health": "/health",
             "api_docs": "/docs",
         },
@@ -123,6 +124,7 @@ async def test_cors():
 app.include_router(prompts.router)
 app.include_router(personas.router)
 app.include_router(workflows.router)
+app.include_router(knowledge.router)
 
 # Include WebSocket router
 app.include_router(playground.router)

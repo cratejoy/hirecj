@@ -420,6 +420,30 @@ The editor's Grounding views will integrate as follows:
 
 ## Implementation Checklist
 
+### Recent Enhancements
+
+#### Knowledge CLI Tool ✅
+**Deliverable**: User-friendly command-line interface for document ingestion
+- [x] Created `scripts/knowledge.py` with comprehensive CLI commands
+- [x] Implemented `ingest` command with support for:
+  - Files, directories, URLs, and glob patterns
+  - Parallel uploads with semaphore rate limiting
+  - Progress bars and colored output
+  - Auto-create namespace option
+  - Metadata support
+- [x] Implemented `list` command showing namespaces with statistics
+- [x] Implemented `create` command for new namespace creation
+- [x] Implemented `stats` command for detailed namespace statistics  
+- [x] Implemented `config` command for CLI configuration management
+- [x] Created supporting modules in `scripts/lib/`:
+  - `ingester.py`: Enhanced ingestion with progress tracking
+  - `namespace_manager.py`: Namespace operations
+  - `config.py`: Configuration persistence in `~/.knowledge/config.json`
+  - `utils.py`: Formatting utilities and progress bars
+- [x] Added Makefile commands for easy CLI usage
+
+**Success Criteria**: Users can easily ingest documents from command line with a simple interface
+
 ### Milestone 0: Operational Setup
 
 #### Phase 0.1: Core API Infrastructure ✅
@@ -510,151 +534,100 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can ingest various formats and URLs successfully
 
-### Milestone 2: Multi-Corpus & Basic Management
+### Milestone 2: Knowledge Management UI Enhancement
 
-#### Phase 2.1: PostgreSQL Migration ⏸️
-**Deliverable**: PostgreSQL backend operational
-- [ ] Set up PostgreSQL with pgvector extension
-- [ ] Migrate from file storage to PostgreSQL
-- [ ] Test PostgreSQL backup/restore procedures
-- [ ] Verify performance meets requirements
+#### Phase 2.1: Complete Backend API Features ✅
+**Deliverable**: Missing API endpoints to support the UI
+- [x] Add document statistics API (count, last updated per namespace) ✅
+- [x] Implement get_docs_by_status using LightRAG's official API ✅
+- [x] Update editor-backend proxy to include statistics in graph list ✅
+- [x] Add dedicated statistics proxy endpoint ✅
+- [x] Create stuck document detection (documents stuck in processing/pending) ✅
+- [x] Add stuck document counts to statistics endpoint ✅
+- [x] Create /stuck endpoint for detailed stuck document info ✅
+- [ ] Add batch operation status tracking
+- [ ] Implement error detail reporting for failed ingestions
 
-**Success Criteria**: All data stored in PostgreSQL, backup/restore works
+**Success Criteria**: UI can display real document counts and processing status ✅ (Mostly complete)
 
-#### Phase 2.2: Multiple Corpora Setup ⏸️
-**Deliverable**: 3 distinct corpora with isolation
-- [ ] Create Product Knowledge corpus
-- [ ] Create Customer Support corpus
-- [ ] Create Technical Documentation corpus
-- [ ] Implement corpus isolation verification
+#### Phase 2.2: Enhance Existing UI Components ✅
+**Deliverable**: Polish existing React components with real data
+- [x] Update KnowledgeListView to show actual document counts ✅
+- [x] Display real last_updated timestamps ✅
+- [x] Add file type indicators (.txt, .md, .json) ✅
+- [x] Display query response times ✅
+- [x] Add stuck document indicators in KnowledgeListView ✅
+- [x] Add processing status section in KnowledgeDetailView ✅
+- [x] Show stuck documents with time stuck and details ✅
+- [x] Add automatic refresh (30s interval) for stuck documents ✅
+- [ ] Add loading states and better error messages (moved to later phase)
+- [ ] Show upload progress for each file in KnowledgeDetailView (API limitation)
+- [ ] Fix mobile responsive issues (out of scope)
 
-**Success Criteria**: Data isolation verified between all corpora
+**Success Criteria**: UI shows accurate data with smooth user experience and clear stuck document indicators ✅
 
-#### Phase 2.3: Enhanced Processing ⏸️
-**Deliverable**: Advanced file processing features
-- [ ] Add PDF processor with text extraction
-- [ ] Add Markdown processor with formatting
-- [ ] Create batch file processing system
-- [ ] Implement basic deduplication
+#### Phase 2.3: Add Processing Status View ⏸️
+**Deliverable**: New view for processing queue visibility
+- [ ] Create new route /knowledge/:graphId/processing
+- [ ] Build ProcessingStatusView component
+- [ ] Show active uploads with progress bars
+- [ ] Display queue of pending items
+- [ ] Add completed items history
+- [ ] Include error details panel
 
-**Success Criteria**: Can process mixed file types in batches
+**Success Criteria**: Users can monitor all processing activities
 
-#### Phase 2.4: Web UI & Management API ⏸️
-**Deliverable**: Basic web interface for corpus management
-- [ ] Build REST API for corpus management
-- [ ] Create simple web UI for corpus selection
-- [ ] Add basic authentication
+### Milestone 3: Dynamic Sources & Processing Pipeline
 
-**Success Criteria**: Full visibility into content processing pipeline
-
-### Milestone 3: Database & Advanced Processing
-
-#### Phase 3.1: PostgreSQL Migration ⏸️
-**Deliverable**: PostgreSQL backend operational
-- [ ] Set up PostgreSQL with pgvector extension
-- [ ] Migrate from file storage to PostgreSQL
-- [ ] Test PostgreSQL backup/restore procedures
-- [ ] Verify performance meets requirements
-- [ ] Update UI to show PostgreSQL metrics
-
-**Success Criteria**: All data stored in PostgreSQL, backup/restore works
-
-#### Phase 3.2: Enhanced Processing ⏸️
-**Deliverable**: Advanced file processing features
-- [ ] Add PDF processor with text extraction
-- [ ] Implement advanced Markdown processing
-- [ ] Create batch file processing system
-- [ ] Add deduplication system
-- [ ] Update UI with format-specific options
-
-**Success Criteria**: Can process mixed file types with UI feedback
-
-#### Phase 3.3: Batch Processing System ⏸️
-**Deliverable**: Scalable batch operations
-- [ ] Design queue-based batch processor
-- [ ] Implement parallel processing
-- [ ] Add batch operation UI
-- [ ] Create batch monitoring dashboard
-- [ ] Build batch history and analytics
-
-**Success Criteria**: Can process 1000+ documents efficiently
-
-#### Phase 3.4: Multiple Corpora Setup ⏸️
-**Deliverable**: Multi-corpus support with isolation
-- [ ] Implement corpus abstraction layer
-- [ ] Create corpus management UI
-- [ ] Add corpus switching interface
-- [ ] Build cross-corpus search UI
-- [ ] Verify corpus isolation
-
-**Success Criteria**: Multiple isolated corpora manageable via UI
-
-### Milestone 4: Dynamic Sources & Processing Pipeline
-
-#### Phase 4.0: Multi-namespace Operations ⏸️
-**Deliverable**: Cross-namespace search working
-- [ ] Add multi-namespace search capability
-- [ ] Test with 10+ different namespace types
-- [ ] Implement batch ingestion for 100+ documents
-- [ ] Verify cross-namespace query functionality
-
-**Success Criteria**: Can search across multiple namespaces efficiently
-
-#### Phase 4.1: Web Crawler Implementation ⏸️
+#### Phase 3.1: Web Crawler Implementation ⏸️
 **Deliverable**: Working web crawler for documentation
 - [ ] Implement basic web crawler
 - [ ] Add crawl depth and pattern configuration
 - [ ] Test with documentation sites
+- [ ] Create UI for crawler configuration
 
 **Success Criteria**: Can crawl and index entire doc site
 
-#### Phase 4.2: Additional Source Types ⏸️
+#### Phase 3.2: Additional Source Types ⏸️
 **Deliverable**: RSS and URL list processing
 - [ ] Create RSS feed monitor
 - [ ] Build URL list batch processor
 - [ ] Add source configuration management
+- [ ] UI for managing different source types
 
 **Success Criteria**: Can monitor RSS feeds and process URL lists
 
-#### Phase 4.3: Processing Pipeline Core ⏸️
+#### Phase 3.3: Processing Pipeline Core ⏸️
 **Deliverable**: Queue-based processing system
 - [ ] Design processing queue architecture
 - [ ] Implement error handling and retry logic
 - [ ] Add pause/resume functionality
 - [ ] Create processing status API
-- [ ] Implement processing history log
+- [ ] WebSocket for real-time updates
 
 **Success Criteria**: Robust queue handles failures gracefully
 
-#### Phase 4.4: Real-time Updates ⏸️
-**Deliverable**: Live processing status via WebSocket
-- [ ] Set up WebSocket for live updates
+#### Phase 3.4: Real-time Processing UI ⏸️
+**Deliverable**: Live processing status visibility
+- [ ] Enhance ProcessingStatusView with WebSocket
 - [ ] Add progress tracking per source
-- [ ] Enhance processing queue UI with real-time updates
-- [ ] Add live notifications for completed tasks
-- [ ] Implement collaborative features (multiple users)
+- [ ] Create visual processing queue
+- [ ] Implement processing history log
 
 **Success Criteria**: Real-time updates with < 500ms latency
 
-#### Phase 4.5: Incremental Processing ⏸️
-**Deliverable**: Efficient update system
-- [ ] Create change detection for web sources
-- [ ] Build incremental update system
-- [ ] Add update scheduling (cron-like)
+### Milestone 4: Advanced Features & Production Readiness
 
-**Success Criteria**: Only new/changed content is processed
-
-### Milestone 5: Advanced Features & Production Readiness
-
-#### Phase 5.1: Media Processing ⏸️
+#### Phase 4.1: Media Processing ⏸️
 **Deliverable**: YouTube and audio transcription
 - [ ] Implement YouTube video transcription
 - [ ] Add podcast/audio processing
 - [ ] Create media metadata extraction
+- [ ] Build UI for media source configuration
 
 **Success Criteria**: Can transcribe and index video/audio content
 
-#### Phase 5.2: Content Intelligence ⏸️
+#### Phase 4.2: Content Intelligence ⏸️
 **Deliverable**: Smart content features
 - [ ] Implement auto-categorization of content
 - [ ] Add quality scoring for sources
@@ -663,15 +636,7 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Content automatically categorized and scored
 
-#### Phase 5.3: Structured Data Support ⏸️
-**Deliverable**: Enhanced data extraction
-- [ ] Create structured data extraction (JSON, CSV)
-- [ ] Add query result explanations
-- [ ] Implement source attribution in results
-
-**Success Criteria**: Can extract and query structured data
-
-#### Phase 5.4: Production Infrastructure ⏸️
+#### Phase 4.3: Production Infrastructure ⏸️
 **Deliverable**: Production-ready monitoring and security
 - [ ] Implement multi-user corpus permissions
 - [ ] Create audit logging system
@@ -680,17 +645,70 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: System ready for production deployment
 
-#### Phase 5.5: Full Editor Integration ⏸️
-**Deliverable**: Complete integration with HireCJ editor
-- [ ] Evolve basic UI into full Grounding View from editor design
+#### Phase 4.4: Advanced Query Features ⏸️
+**Deliverable**: Enhanced query capabilities
+- [ ] Add query result explanations
+- [ ] Implement source attribution in results
 - [ ] Create relevance tuning interface
 - [ ] Build query analytics system
-- [ ] Add AI-driven feedback and improvement features
-- [ ] Implement knowledge graph visualization
-- [ ] Integrate with agent playground for testing
-- [ ] Complete end-to-end testing
 
-**Success Criteria**: Seamless integration with all editor features
+**Success Criteria**: Rich query features with full transparency
+
+#### Phase 4.5: PostgreSQL Migration ⏸️
+**Deliverable**: Scalable database backend
+- [ ] Set up PostgreSQL with pgvector extension
+- [ ] Migrate from file storage to PostgreSQL
+- [ ] Optimize for 1M+ documents
+- [ ] Implement backup/restore procedures
+
+**Success Criteria**: System handles 1M+ documents with 99.9% uptime
+
+### Milestone 5: Full Editor Integration & Advanced UI
+
+#### Phase 5.1: Grounding View Evolution ⏸️
+**Deliverable**: Transform basic UI into full Grounding View
+- [ ] Implement full editor_design.md Grounding View layout
+- [ ] Add knowledge graph visualization
+- [ ] Create advanced filtering and search UI
+- [ ] Build multi-corpus management interface
+
+**Success Criteria**: UI matches editor design specifications
+
+#### Phase 5.2: Agent Integration ⏸️
+**Deliverable**: Connect knowledge to agent playground
+- [ ] Integrate knowledge graphs with agent testing
+- [ ] Add grounding context to agent responses
+- [ ] Create knowledge-aware agent prompts
+- [ ] Build testing scenarios with knowledge
+
+**Success Criteria**: Agents can seamlessly use knowledge graphs
+
+#### Phase 5.3: AI-Driven Features ⏸️
+**Deliverable**: Intelligent knowledge management
+- [ ] Add AI-driven content suggestions
+- [ ] Implement feedback-based improvements
+- [ ] Create smart categorization UI
+- [ ] Build relevance tuning interface
+
+**Success Criteria**: AI enhances knowledge management workflow
+
+#### Phase 5.4: Analytics & Insights ⏸️
+**Deliverable**: Comprehensive analytics dashboard
+- [ ] Build query analytics system
+- [ ] Create usage pattern visualization
+- [ ] Add performance metrics dashboard
+- [ ] Implement knowledge gap analysis
+
+**Success Criteria**: Full visibility into knowledge usage
+
+#### Phase 5.5: Final Polish & Testing ⏸️
+**Deliverable**: Production-ready integrated system
+- [ ] Complete end-to-end testing
+- [ ] Performance optimization
+- [ ] Documentation and tutorials
+- [ ] Migration tools for existing data
+
+**Success Criteria**: System ready for full production rollout
 
 ## Implementation Roadmap
 
@@ -1562,94 +1580,224 @@ done
 
 ---
 
-### Milestone 2: Knowledge Management UI
+### Milestone 2: Knowledge Management UI Enhancement
 
-**Goal: Create web interface for knowledge graph management**
+**Goal: Complete and enhance the existing knowledge UI in the editor**
 
-#### New Functionality
-- **Web UI Framework**:
-  - FastAPI with Jinja2 templates
-  - Tailwind CSS for styling
-  - Alpine.js for interactivity
-  - Mobile-responsive design
-- **Namespace Management UI**:
-  - List view with statistics
-  - Create/delete namespaces
-  - Namespace detail pages
-  - Visual status indicators
-- **Content Upload Interface**:
-  - Drag-and-drop file upload
-  - URL input for web content
-  - Batch upload with progress
-  - File type validation feedback
-- **Query Testing UI**:
-  - Interactive query interface
-  - Mode selector (naive/local/global/hybrid)
-  - Formatted result display
-  - Query history tracking
-- **Processing Status UI**:
-  - Real-time queue visualization
-  - Progress bars for active tasks
-  - Error/warning display
-  - Processing history
+**Context**: The editor already has React-based Knowledge views (list and detail) that connect to the knowledge service via the editor-backend proxy. We need to complete missing features and enhance the UI.
 
-#### Success Criteria
-- ✓ Non-technical users can manage namespaces visually
-- ✓ Drag-and-drop file upload works smoothly
-- ✓ Query results display with proper formatting
-- ✓ Processing status updates without page refresh
-- ✓ Mobile-friendly responsive design
+#### Phase 2.1: Complete Backend API Features ✅
+**Deliverable**: Missing API endpoints to support the UI
+- [x] Add document statistics API (count, last updated per namespace) ✅
+- [x] Implement get_docs_by_status using LightRAG's official API ✅
+- [x] Update editor-backend proxy to include statistics in graph list ✅
+- [x] Add dedicated statistics proxy endpoint ✅
+- [x] Create stuck document detection (documents stuck in processing/pending) ✅
+- [x] Add stuck document counts to statistics endpoint ✅
+- [x] Create /stuck endpoint for detailed stuck document info ✅
+- [ ] Add batch operation status tracking
+- [ ] Implement error detail reporting for failed ingestions
 
-#### Interface at Completion
+**Success Criteria**: UI can display real document counts and processing status ✅ (Mostly complete)
 
+#### Phase 2.2: Enhance Existing UI Components ✅
+**Deliverable**: Polish existing React components with real data
+- [x] Update KnowledgeListView to show actual document counts ✅
+- [x] Display real last_updated timestamps ✅
+- [x] Add file type indicators (.txt, .md, .json) ✅
+- [x] Display query response times ✅
+- [x] Add stuck document indicators in KnowledgeListView ✅
+- [x] Add processing status section in KnowledgeDetailView ✅
+- [x] Show stuck documents with time stuck and details ✅
+- [x] Add automatic refresh (30s interval) for stuck documents ✅
+- [ ] Add loading states and better error messages (moved to later phase)
+- [ ] Show upload progress for each file in KnowledgeDetailView (API limitation)
+- [ ] Fix mobile responsive issues (out of scope)
+
+**Success Criteria**: UI shows accurate data with smooth user experience and clear stuck document indicators ✅
+
+#### Phase 2.3: Add Processing Status View ⏸️
+**Deliverable**: New view for processing queue visibility
+- [ ] Create new route /knowledge/:graphId/processing
+- [ ] Build ProcessingStatusView component
+- [ ] Show active uploads with progress bars
+- [ ] Display queue of pending items
+- [ ] Add completed items history
+- [ ] Include error details panel
+
+**Success Criteria**: Users can monitor all processing activities
+
+#### Phase 2.4: Non-Blocking Document Processing ✅
+**Deliverable**: Implement background processing for document ingestion
+- [x] Add FastAPI BackgroundTasks to document endpoints ✅
+- [x] Implement background processing functions for single documents ✅
+- [x] Update batch upload to use background processing ✅
+- [x] Modify URL ingestion to process content in background ✅
+- [x] Return immediate responses with "pending" status ✅
+- [x] Ensure document IDs are generated upfront for tracking ✅
+- [x] Add proper error logging for background tasks ✅
+- [x] Test with high volume document uploads ✅
+
+**Success Criteria**: API returns immediately while documents process in background ✅
+
+**Implementation Details**:
+- Document processing no longer blocks API responses
+- Users get instant feedback with document IDs
+- Existing status tracking endpoints continue to work
+- Stuck document detection remains functional
+- Background errors are properly logged
+
+#### Technical Stack
+- **Frontend**: React 18 + TypeScript + Vite (existing editor)
+- **UI Components**: Tailwind CSS + shadcn/ui + Radix UI (already in use)
+- **Backend**: FastAPI (editor-backend proxy to knowledge service)
+- **Routing**: Wouter (existing routes at /knowledge and /knowledge/:graphId)
+
+#### Implementation Approach
+1. **Backend First**: Add missing endpoints to knowledge service
+2. **Proxy Updates**: Update editor-backend proxy to expose new endpoints
+3. **UI Enhancements**: Update existing React components with real data
+4. **New Components**: Add ProcessingStatusView for queue visibility
+5. **Testing**: Verify file uploads, error handling, and mobile responsiveness
+
+#### Phase 2.1 Implementation Details: Document Statistics API
+
+**Using LightRAG's Official API Methods**
+
+LightRAG provides official methods for tracking document status without accessing internal storage:
+
+1. **`get_status_counts()`** - Returns document counts by status
+   - Returns: `dict[str, int]` with counts for each DocStatus
+   - Example: `{"pending": 0, "processing": 2, "processed": 247, "failed": 1}`
+
+2. **`get_docs_by_status(status: DocStatus)`** - Returns documents with specific status
+   - DocStatus enum values: PENDING, PROCESSING, PROCESSED, FAILED
+   - Returns: `dict[str, DocProcessingStatus]` keyed by document ID
+
+3. **DocProcessingStatus fields**:
+   - `updated_at`: ISO format timestamp of last update
+   - `chunks_count`: Number of chunks created
+   - `content_length`: Total document length
+   - `status`: Current DocStatus
+   - `error`: Error message if failed
+
+**New Endpoint Implementation**:
+
+```python
+@app.get("/api/namespaces/{namespace_id}/statistics")
+async def get_namespace_statistics(namespace_id: str):
+    """Get statistics for a namespace using LightRAG's official API"""
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
+    async with get_lightrag_instance(namespace_id) as rag:
+        # Get document counts by status
+        status_counts = await rag.get_status_counts()
+        
+        # Get processed documents to find last updated time
+        processed_docs = await rag.get_docs_by_status(DocStatus.PROCESSED)
+        
+        # Calculate statistics
+        document_count = status_counts.get("processed", 0)
+        total_chunks = sum(doc.chunks_count or 0 for doc in processed_docs.values())
+        
+        # Find most recent update
+        last_updated = None
+        if processed_docs:
+            last_updated = max(doc.updated_at for doc in processed_docs.values())
+        
+        return {
+            "namespace_id": namespace_id,
+            "document_count": document_count,
+            "last_updated": last_updated,
+            "total_chunks": total_chunks,
+            "status_breakdown": status_counts,
+            "failed_count": status_counts.get("failed", 0),
+            "pending_count": status_counts.get("pending", 0) + status_counts.get("processing", 0)
+        }
 ```
-Basic Web UI - Knowledge Graphs List View (based on editor_design.md Grounding View lines 404-439)
-+------------------+-----------------------------------------------------------------------------------------------------+
-|                  |                                    KNOWLEDGE GRAPHS                                                 |
-|  HireCJ RAG      +-----------------------------------------------------------------------------------------------------+
-|                  | Manage your knowledge bases                                                        [+ New Graph] |
-+------------------+-----------------------------------------------------------------------------------------------------+
-|                  |                                                                                                     |
-| Navigation:      | AVAILABLE KNOWLEDGE GRAPHS                                                                          |
-|                  | ┌─────────────────────────────────────────────────────────────────────────────────────────────┐   |
-| [Knowledge]      | │                                                                                              │   |
-| [Query]          | │ ┌────────────────────────────┐  ┌────────────────────────────┐  ┌──────────────────────┐   │   |
-| [Status]         | │ │    Product Knowledge         │  │    Customer Support          │  │   Tech Docs        │   │   |
-|                  | │ │                              │  │                              │  │                    │   │   |
-|                  | │ │ 📚 247 documents            │  │ 💬 0 documents               │  │ 🔧 0 documents     │   │   |
-|                  | │ │ 📊 Last updated: 5m ago     │  │ 📊 Empty                     │  │ 📊 Empty           │   │   |
-|                  | │ │                              │  │                              │  │                    │   │   |
-|                  | │ │ Status: ✅ Active            │  │ Status: 🆕 New               │  │ Status: 🆕 New     │   │   |
-|                  | │ │                              │  │                              │  │                    │   │   |
-|                  | │ │ [Upload Files →]            │  │ [Upload Files →]            │  │ [Upload Files →]  │   │   |
-|                  | │ └────────────────────────────┘  └────────────────────────────┘  └──────────────────────┘   │   |
-|                  | │                                                                                              │   |
-|                  | └─────────────────────────────────────────────────────────────────────────────────────────────┘   |
-+------------------+-----------------------------------------------------------------------------------------------------+
 
-Query Interface:
-+------------------+-----------------------------------------------------------------------------------------------------+
-|                  |                                    QUERY INTERFACE                                                  |
-|  HireCJ RAG      +-----------------------------------------------------------------------------------------------------+
-|                  | Search across knowledge graphs                                                                      |
-+------------------+-----------------------------------------------------------------------------------------------------+
-|                  | Query: [What are the laptop RAM upgrade options?                                              ]    |
-|                  | Corpus: [All ▼]  [Product Knowledge] [Customer Support] [Tech Docs]     Mode: [Hybrid ▼]           |
-|                  | [🔍 Search]                                                                                         |
-|                  |                                                                                                     |
-|                  | Results from: Product Knowledge                                                                     |
-|                  | ┌─────────────────────────────────────────────────────────────────────────────────────────────┐   |
-|                  | │ 1. Dell XPS 15 supports user-upgradeable RAM up to 64GB using standard SO-DIMM slots...     │   |
-|                  | │ 2. MacBook Pro models from 2022 onwards have soldered RAM that cannot be upgraded...        │   |
-|                  | └─────────────────────────────────────────────────────────────────────────────────────────────┘   |
-+------------------+-----------------------------------------------------------------------------------------------------+
+**Editor-Backend Proxy Update**:
+
+The existing proxy at `/api/v1/knowledge/graphs` needs to be enhanced to include statistics:
+
+```python
+@router.get("/graphs")
+async def list_knowledge_graphs():
+    """List all knowledge graphs with statistics"""
+    # ... existing code ...
+    
+    # For each namespace, fetch statistics
+    for graph in graphs:
+        try:
+            stats_response = await async_client.get(
+                f"{KNOWLEDGE_SERVICE_URL}/api/namespaces/{graph['id']}/statistics"
+            )
+            if stats_response.status_code == 200:
+                stats = stats_response.json()
+                graph["document_count"] = stats["document_count"]
+                graph["last_updated"] = stats["last_updated"]
+        except Exception as e:
+            logger.warning(f"Failed to fetch stats for {graph['id']}: {e}")
+    
+    return {"graphs": graphs, "count": len(graphs)}
+```
+
+**Advantages of this approach**:
+- Uses official LightRAG API - no hacks
+- Thread-safe and reliable
+- Accurate counts from the source of truth
+- Includes status breakdown for debugging
+- Extensible for future statistics
+
+**Performance considerations**:
+- `get_status_counts()` is fast - just returns counts
+- `get_docs_by_status()` may be slower with many documents
+- Consider caching statistics for large namespaces
+- Could optimize by only fetching recent documents for last_updated
+
+#### Interface Enhancements
+
+**Enhanced Knowledge List View** (existing at /knowledge):
+- Currently shows hardcoded "0 documents" → Will show actual counts
+- Empty namespaces show proper empty states
+- Loading states during operations
+- Better error messages
+
+**Enhanced Knowledge Detail View** (existing at /knowledge/:graphId):
+- File upload with progress indicators
+- Clear file type support (.txt, .md, .json)
+- Query response times displayed
+- Better error handling for failed uploads
+
+**New Processing Status View** (/knowledge/:graphId/processing):
+```
+Processing Status - Product Knowledge
+┌─────────────────────────────────────────────────────────────────────┐
+│ Active Uploads (3)                                              │
+├─────────────────────────────────────────────────────────────────────┤
+│ 📄 product-guide.md        ████████░░ 80%  ~30s remaining         │
+│ 📄 specifications.txt      ████░░░░░░ 45%  ~1m remaining          │
+│ 🔗 https://docs.example    ██░░░░░░░░ 20%  Fetching content...    │
+├─────────────────────────────────────────────────────────────────────┤
+│ Queued (5 items)                                                   │
+│ • features.json                                                    │
+│ • changelog.md                                                     │
+│ • readme.txt                                                       │
+├─────────────────────────────────────────────────────────────────────┤
+│ Recent Completions                                                 │
+│ ✅ tutorial.md             247 chunks    2 minutes ago            │
+│ ❌ invalid.pdf             PDF not supported  5 minutes ago       │
+│ ✅ faq.json               89 chunks     10 minutes ago           │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Key Learnings to Capture
-- Namespace strategy effectiveness
-- PostgreSQL configuration optimizations
-- Cross-corpus query strategies
-- Storage migration challenges
+- React component patterns in the editor
+- API proxy architecture effectiveness
+- File upload UX patterns
+- Error handling strategies
+- Real-time status update approaches
 
 ---
 
@@ -1934,15 +2082,15 @@ Milestone 4
 
 #### Technical Risks
 1. **LightRAG Performance**: Test with increasing data volumes at each milestone
-2. **Storage Scaling**: PostgreSQL optimization in Milestone 2
+2. **Storage Scaling**: PostgreSQL migration in Milestone 4
 3. **Processing Bottlenecks**: Queue system in Milestone 3
 4. **Transcription Costs**: Evaluate in Milestone 4, consider alternatives
 
 #### Product Risks
-1. **User Adoption**: Simple UI in Milestone 2 for early feedback
+1. **User Adoption**: Enhanced UI in Milestone 2 for early feedback
 2. **Query Relevance**: A/B test query modes throughout
 3. **Source Quality**: Quality scoring in Milestone 4
-4. **Integration Complexity**: API-first approach from Milestone 2
+4. **Integration Complexity**: Leverage existing editor patterns from Milestone 2
 
 ---
 
@@ -1950,7 +2098,8 @@ Milestone 4
 
 | Milestone | Documents | Query Latency | Uptime | User Satisfaction |
 |-----------|-----------|---------------|---------|-------------------|
-| MVP       | 1K+       | < 2s          | 95%     | Internal testing  |
+| 0         | 100+      | < 2s          | 95%     | Internal testing  |
+| 1         | 1K+       | < 1s          | 95%     | Developer testing |
 | 2         | 10K+      | < 1s          | 98%     | Beta users        |
 | 3         | 100K+     | < 500ms       | 99%     | Early adopters    |
 | 4         | 1M+       | < 500ms       | 99.9%   | Production ready  |
@@ -1964,8 +2113,8 @@ Milestone 4
 - Is the knowledge graph approach valuable for our use case?
 
 **After Milestone 2**:
-- Can we effectively isolate and manage multiple corpora?
-- Does PostgreSQL meet our performance needs?
+- Is the UI intuitive for non-technical users?
+- Does the processing status view provide adequate visibility?
 
 **After Milestone 3**:
 - Is automated ingestion reliable enough?
