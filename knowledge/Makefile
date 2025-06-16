@@ -1,6 +1,6 @@
 # Knowledge Service Makefile
 
-.PHONY: help install dev test clean setup example test-namespace test-operations
+.PHONY: help install dev test clean setup example test-namespace test-operations test-file-upload
 
 help:
 	@echo "Knowledge Service - Available commands:"
@@ -11,6 +11,7 @@ help:
 	@echo "  make example        - Run example usage (Phase 0.3)"
 	@echo "  make test-namespace - Test namespace operations (Phase 0.2)"
 	@echo "  make test-operations - Test document operations (Phase 0.3)"
+	@echo "  make test-file-upload - Test file upload operations (Phase 1.1)"
 	@echo "  make clean          - Clean up files"
 
 install:
@@ -50,3 +51,7 @@ test-namespace:
 test-operations:
 	@echo "🧪 Testing document operations..."
 	@venv/bin/python scripts/test_basic_operations.py
+
+test-file-upload:
+	@echo "🧪 Testing file upload operations..."
+	@venv/bin/python scripts/test_file_upload.py

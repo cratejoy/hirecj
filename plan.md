@@ -481,12 +481,12 @@ The editor's Grounding views will integrate as follows:
 
 ### Milestone 1: Generic Knowledge Management
 
-#### Phase 1.1: Basic Document Ingestion ⏸️
+#### Phase 1.1: Basic Document Ingestion ✅
 **Deliverable**: Text file ingestion working
-- [ ] Add single text file ingestion support
-- [ ] Implement batch file upload for text files
-- [ ] Create basic metadata extraction
-- [ ] Add source tracking for ingested documents
+- [x] Add single text file ingestion support
+- [x] Implement batch file upload for text files
+- [x] Create basic metadata extraction
+- [x] Add source tracking for ingested documents
 
 **Success Criteria**: Can batch ingest 10+ text files with metadata
 

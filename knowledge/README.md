@@ -14,6 +14,10 @@ This phase adds namespace CRUD operations with LightRAG integration.
 
 This phase adds document ingestion and query functionality.
 
+## Phase 1.1: Basic Document Ingestion ✅
+
+This phase adds file upload support for text files (.txt, .md).
+
 ### Directory Structure
 
 ```
@@ -62,8 +66,10 @@ knowledge/
 - `GET /api/namespaces/{namespace_id}` - Get specific namespace details
 - `DELETE /api/namespaces/{namespace_id}` - Delete a namespace
 
-#### Document Operations (Phase 0.3)
-- `POST /api/{namespace_id}/documents` - Add documents to a namespace
+#### Document Operations (Phase 0.3 & 1.1)
+- `POST /api/{namespace_id}/documents` - Add documents to a namespace (JSON)
+- `POST /api/{namespace_id}/documents/upload` - Upload single file (Phase 1.1)
+- `POST /api/{namespace_id}/documents/batch-upload` - Upload multiple files (Phase 1.1)
 - `POST /api/{namespace_id}/query` - Query knowledge in a namespace
 
 ### Phase 0.1 Success Criteria ✅

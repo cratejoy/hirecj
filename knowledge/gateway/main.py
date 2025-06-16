@@ -2,7 +2,7 @@
 Knowledge API Server - Phase 0.3: Basic Operations
 FastAPI server with document ingestion and query functionality
 """
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, UploadFile, File
 from lightrag import LightRAG, QueryParam
 from lightrag.llm.openai import gpt_4o_mini_complete, openai_embed
 from lightrag.kg.shared_storage import initialize_pipeline_status
@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, List
+import aiofiles
 import json
 import re
 import os
@@ -30,6 +31,13 @@ BASE_CONFIG = {
     "working_dir": str(KNOWLEDGE_DIR),
     "llm_model_name": os.getenv("LLM_MODEL", "gpt-4o-mini"),
 }
+
+# Supported file extensions for Phase 1.1
+SUPPORTED_FILE_EXTENSIONS = {".txt", ".md"}
+
+def is_supported_file(filename: str) -> bool:
+    """Check if file extension is supported"""
+    return any(filename.lower().endswith(ext) for ext in SUPPORTED_FILE_EXTENSIONS)
 
 # Models
 class NamespaceConfig(BaseModel):
@@ -267,6 +275,123 @@ async def add_document(namespace_id: str, doc: Document):
         "namespace": namespace_id,
         "content_length": len(doc.content),
         "metadata": doc.metadata
+    }
+
+@app.post("/api/{namespace_id}/documents/upload")
+async def upload_document(namespace_id: str, file: UploadFile = File(...)):
+    """Upload single file to namespace"""
+    # Validate file type
+    if not is_supported_file(file.filename):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type. Supported types: {', '.join(SUPPORTED_FILE_EXTENSIONS)}"
+        )
+    
+    # Read file content
+    try:
+        content = await file.read()
+        text_content = content.decode('utf-8')
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="File must be UTF-8 encoded text"
+        )
+    except Exception as e:
+        logger.error(f"Error reading file {file.filename}: {e}")
+        raise HTTPException(status_code=500, detail="Error reading file")
+    
+    # Extract metadata
+    metadata = {
+        "source": file.filename,
+        "file_size": len(content),
+        "upload_time": datetime.now().isoformat(),
+        "file_type": file.content_type or "text/plain"
+    }
+    
+    # Ingest into LightRAG
+    async with get_lightrag_instance(namespace_id) as rag:
+        await rag.ainsert(text_content)
+        logger.info(f"Uploaded file to namespace '{namespace_id}': {file.filename} ({len(content)} bytes)")
+    
+    return {
+        "message": "File uploaded successfully",
+        "namespace": namespace_id,
+        "filename": file.filename,
+        "content_length": len(text_content),
+        "metadata": metadata
+    }
+
+@app.post("/api/{namespace_id}/documents/batch-upload")
+async def upload_documents_batch(namespace_id: str, files: List[UploadFile] = File(...)):
+    """Upload multiple files to namespace"""
+    results = []
+    failed_files = []
+    
+    for file in files:
+        # Validate file type
+        if not is_supported_file(file.filename):
+            failed_files.append({
+                "filename": file.filename,
+                "error": f"Unsupported file type"
+            })
+            continue
+        
+        # Read and process file
+        try:
+            content = await file.read()
+            text_content = content.decode('utf-8')
+            
+            # Extract metadata
+            metadata = {
+                "source": file.filename,
+                "file_size": len(content),
+                "upload_time": datetime.now().isoformat(),
+                "file_type": file.content_type or "text/plain"
+            }
+            
+            # Ingest into LightRAG
+            async with get_lightrag_instance(namespace_id) as rag:
+                await rag.ainsert(text_content)
+            
+            results.append({
+                "filename": file.filename,
+                "content_length": len(text_content),
+                "metadata": metadata
+            })
+            logger.info(f"Uploaded file to namespace '{namespace_id}': {file.filename}")
+            
+        except UnicodeDecodeError:
+            failed_files.append({
+                "filename": file.filename,
+                "error": "File must be UTF-8 encoded text"
+            })
+        except Exception as e:
+            logger.error(f"Error processing file {file.filename}: {e}")
+            failed_files.append({
+                "filename": file.filename,
+                "error": str(e)
+            })
+    
+    # Determine status
+    total_files = len(files)
+    successful_files = len(results)
+    
+    if successful_files == total_files:
+        status = "success"
+        message = f"All {total_files} files uploaded successfully"
+    elif successful_files > 0:
+        status = "partial_success"
+        message = f"Uploaded {successful_files} out of {total_files} files"
+    else:
+        status = "failure"
+        message = "No files were uploaded successfully"
+    
+    return {
+        "status": status,
+        "message": message,
+        "namespace": namespace_id,
+        "successful_uploads": results,
+        "failed_uploads": failed_files
     }
 
 @app.post("/api/{namespace_id}/query")
