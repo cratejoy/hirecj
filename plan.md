@@ -420,6 +420,30 @@ The editor's Grounding views will integrate as follows:
 
 ## Implementation Checklist
 
+### Recent Enhancements
+
+#### Knowledge CLI Tool ✅
+**Deliverable**: User-friendly command-line interface for document ingestion
+- [x] Created `scripts/knowledge.py` with comprehensive CLI commands
+- [x] Implemented `ingest` command with support for:
+  - Files, directories, URLs, and glob patterns
+  - Parallel uploads with semaphore rate limiting
+  - Progress bars and colored output
+  - Auto-create namespace option
+  - Metadata support
+- [x] Implemented `list` command showing namespaces with statistics
+- [x] Implemented `create` command for new namespace creation
+- [x] Implemented `stats` command for detailed namespace statistics  
+- [x] Implemented `config` command for CLI configuration management
+- [x] Created supporting modules in `scripts/lib/`:
+  - `ingester.py`: Enhanced ingestion with progress tracking
+  - `namespace_manager.py`: Namespace operations
+  - `config.py`: Configuration persistence in `~/.knowledge/config.json`
+  - `utils.py`: Formatting utilities and progress bars
+- [x] Added Makefile commands for easy CLI usage
+
+**Success Criteria**: Users can easily ingest documents from command line with a simple interface
+
 ### Milestone 0: Operational Setup
 
 #### Phase 0.1: Core API Infrastructure ✅
@@ -1602,6 +1626,26 @@ done
 - [ ] Include error details panel
 
 **Success Criteria**: Users can monitor all processing activities
+
+#### Phase 2.4: Non-Blocking Document Processing ✅
+**Deliverable**: Implement background processing for document ingestion
+- [x] Add FastAPI BackgroundTasks to document endpoints ✅
+- [x] Implement background processing functions for single documents ✅
+- [x] Update batch upload to use background processing ✅
+- [x] Modify URL ingestion to process content in background ✅
+- [x] Return immediate responses with "pending" status ✅
+- [x] Ensure document IDs are generated upfront for tracking ✅
+- [x] Add proper error logging for background tasks ✅
+- [x] Test with high volume document uploads ✅
+
+**Success Criteria**: API returns immediately while documents process in background ✅
+
+**Implementation Details**:
+- Document processing no longer blocks API responses
+- Users get instant feedback with document IDs
+- Existing status tracking endpoints continue to work
+- Stuck document detection remains functional
+- Background errors are properly logged
 
 #### Technical Stack
 - **Frontend**: React 18 + TypeScript + Vite (existing editor)

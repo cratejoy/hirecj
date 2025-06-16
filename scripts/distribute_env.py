@@ -173,9 +173,29 @@ SERVICE_VARS = {
             # LightRAG configuration
             "KNOWLEDGE_DIR",
             "KNOWLEDGE_API_PORT",
+            "LIGHTRAG_LOG_LEVEL",
             
-            # Model configuration (shared with agents)
+            # LightRAG Model configuration
             "OPENAI_API_KEY",
+            "OPENAI_API_BASE",
+            "LIGHTRAG_LLM_MODEL",
+            "LIGHTRAG_EMBEDDING_MODEL",
+            "LIGHTRAG_MAX_TOKENS",
+            "LIGHTRAG_MAX_ASYNC",
+            
+            # LightRAG Chunking configuration
+            "LIGHTRAG_CHUNK_SIZE",
+            "LIGHTRAG_CHUNK_OVERLAP_SIZE",
+            
+            # LightRAG Embedding configuration
+            "LIGHTRAG_EMBEDDING_BATCH_NUM",
+            "LIGHTRAG_EMBEDDING_FUNC_MAX_ASYNC",
+            
+            # LightRAG Processing configuration
+            "LIGHTRAG_MAX_TOKEN_SUMMARY",
+            "LIGHTRAG_FORCE_LLM_SUMMARY_ON_MERGE",
+            
+            # Legacy model configuration (for backward compatibility)
             "LLM_MODEL",
             "EMBEDDING_MODEL",
             

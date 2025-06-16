@@ -4,15 +4,14 @@ FastAPI server with document ingestion and query functionality
 """
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, UploadFile, File
 from lightrag import LightRAG, QueryParam
-from lightrag.llm.openai import gpt_4o_mini_complete, openai_embed
+from lightrag.llm.openai import gpt_4o_mini_complete, gpt_4o_complete, openai_complete, openai_embed
 from lightrag.kg.shared_storage import initialize_pipeline_status
 from lightrag.base import DocStatus
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, List, Any
-import aiofiles
+from typing import Dict, Optional, List, Any, Callable
 import requests
 from urllib.parse import urlparse
 import json
@@ -34,13 +33,118 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def configure_lightrag_logging():
+    """Configure LightRAG logger to output to console"""
+    try:
+        from lightrag.utils import logger as lightrag_logger
+        
+        # Remove existing handlers to avoid duplicates
+        lightrag_logger.handlers = []
+        
+        # Create console handler
+        console_handler = logging.StreamHandler()
+        
+        # Get log level from environment or default to INFO
+        lightrag_log_level = os.getenv("LIGHTRAG_LOG_LEVEL", "INFO").upper()
+        log_level = getattr(logging, lightrag_log_level, logging.INFO)
+        console_handler.setLevel(log_level)
+        
+        # Use same format as our application
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        console_handler.setFormatter(formatter)
+        
+        # Add handler to LightRAG logger
+        lightrag_logger.addHandler(console_handler)
+        lightrag_logger.setLevel(log_level)
+        
+        # Also configure related loggers
+        for logger_name in ["lightrag.kg.shared_storage", "lightrag.operate", "lightrag.lightrag"]:
+            sub_logger = logging.getLogger(logger_name)
+            sub_logger.handlers = []
+            sub_logger.addHandler(console_handler)
+            sub_logger.setLevel(log_level)
+            sub_logger.propagate = False
+        
+        logger.info(f"LightRAG logging configured with level: {lightrag_log_level}")
+    except ImportError as e:
+        logger.warning(f"Could not import LightRAG logger: {e}")
+
 # Configuration
 PORT = int(os.getenv("KNOWLEDGE_SERVICE_PORT", "8004"))
 KNOWLEDGE_DIR = Path(os.getenv("KNOWLEDGE_DIR", "./knowledge_base"))
-BASE_CONFIG = {
+
+# LightRAG configuration from environment
+LIGHTRAG_CONFIG = {
     "working_dir": str(KNOWLEDGE_DIR),
-    "llm_model_name": os.getenv("LLM_MODEL", "gpt-4o-mini"),
+    "llm_model_name": os.getenv("LIGHTRAG_LLM_MODEL", "gpt-4o-mini"),
+    "llm_model_max_token_size": int(os.getenv("LIGHTRAG_MAX_TOKENS", "32768")),
+    "llm_model_max_async": int(os.getenv("LIGHTRAG_MAX_ASYNC", "4")),
+    "chunk_token_size": int(os.getenv("LIGHTRAG_CHUNK_SIZE", "1200")),
+    "chunk_overlap_token_size": int(os.getenv("LIGHTRAG_CHUNK_OVERLAP_SIZE", "100")),
+    "embedding_batch_num": int(os.getenv("LIGHTRAG_EMBEDDING_BATCH_NUM", "32")),
+    "embedding_func_max_async": int(os.getenv("LIGHTRAG_EMBEDDING_FUNC_MAX_ASYNC", "16")),
+    "summary_to_max_tokens": int(os.getenv("LIGHTRAG_MAX_TOKEN_SUMMARY", "1000")),
+    "force_llm_summary_on_merge": int(os.getenv("LIGHTRAG_FORCE_LLM_SUMMARY_ON_MERGE", "1")),
 }
+
+# Backwards compatibility
+BASE_CONFIG = LIGHTRAG_CONFIG
+
+# Model function mapping
+MODEL_FUNCTIONS = {
+    "gpt-4o-mini": gpt_4o_mini_complete,
+    "gpt-4o": gpt_4o_complete,
+    # For o1/o3 models or any other OpenAI model, use the generic openai_complete
+    "default": openai_complete,
+}
+
+def get_llm_model_func(model_name: str) -> Callable:
+    """Get the appropriate LLM function for the given model name"""
+    # Check if we have a specific function for this model
+    if model_name in MODEL_FUNCTIONS:
+        logger.info(f"Using specific function for model: {model_name}")
+        return MODEL_FUNCTIONS[model_name]
+    
+    # For any other model (including o1/o3), use the generic openai_complete
+    logger.info(f"Using generic OpenAI function for model: {model_name}")
+    
+    # Create a partial function that includes the model name
+    from functools import partial
+    return partial(openai_complete, hashing_kv={"global_config": {"llm_model_name": model_name}})
+
+def get_embedding_func(model_name: str) -> Callable:
+    """Get the embedding function with the specified model"""
+    from functools import partial
+    from lightrag.utils import wrap_embedding_func_with_attrs
+    
+    # Configure custom base URL if provided
+    base_url = os.getenv("OPENAI_API_BASE")
+    
+    logger.info(f"Using embedding model: {model_name}")
+    
+    # Define embedding dimensions for known models
+    embedding_dims = {
+        "text-embedding-3-small": 1536,
+        "text-embedding-3-large": 3072,
+        "text-embedding-ada-002": 1536,
+    }
+    
+    # Get embedding dimension for the model
+    embedding_dim = embedding_dims.get(model_name, 1536)  # Default to 1536
+    
+    # Create the embedding function
+    if base_url:
+        embed_func = partial(openai_embed, model=model_name, base_url=base_url)
+    else:
+        embed_func = partial(openai_embed, model=model_name)
+    
+    # Wrap with required attributes
+    return wrap_embedding_func_with_attrs(
+        embedding_dim=embedding_dim,
+        max_token_size=8192  # OpenAI's typical max tokens for embedding models
+    )(embed_func)
 
 # Supported file extensions for Phase 1.1
 SUPPORTED_FILE_EXTENSIONS = {".txt", ".md", ".json"}
@@ -147,11 +251,20 @@ async def get_lightrag_instance(namespace_id: str):
     # Cache instances to avoid recreation
     if namespace_id not in lightrag_instances:
         logger.info(f"Creating LightRAG instance for namespace: {namespace_id}")
+        
+        # Get the model function based on configuration
+        model_name = LIGHTRAG_CONFIG["llm_model_name"]
+        llm_func = get_llm_model_func(model_name)
+        
+        # Get the embedding function based on configuration
+        embedding_model = os.getenv("LIGHTRAG_EMBEDDING_MODEL", "text-embedding-3-small")
+        embedding_func = get_embedding_func(embedding_model)
+        
         lightrag_instances[namespace_id] = LightRAG(
             **BASE_CONFIG,
             namespace_prefix=namespace_id,
-            embedding_func=openai_embed,
-            llm_model_func=gpt_4o_mini_complete
+            embedding_func=embedding_func,
+            llm_model_func=llm_func
         )
         # Initialize storages for the new instance
         await lightrag_instances[namespace_id].initialize_storages()
@@ -179,6 +292,9 @@ async def startup_event():
     logger.info("Phase 0.3: Basic Operations")
     logger.info(f"Working directory: {KNOWLEDGE_DIR}")
     logger.info(f"Loaded {len(namespace_registry.namespaces)} namespaces")
+    
+    # Configure LightRAG logging
+    configure_lightrag_logging()
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -384,19 +500,78 @@ async def get_namespace_statistics(namespace_id: str):
             "stuck_pending": 0
         }
 
+# Background processing functions
+async def process_document_in_background(
+    namespace_id: str, 
+    content: str, 
+    doc_id: str,
+    metadata: Dict[str, Any]
+):
+    """Process a document in the background"""
+    try:
+        async with get_lightrag_instance(namespace_id) as rag:
+            await rag.ainsert(content)
+            logger.info(f"Background: Processed document {doc_id} in namespace '{namespace_id}': {len(content)} chars")
+    except Exception as e:
+        logger.error(f"Background: Failed to process document {doc_id} in namespace '{namespace_id}': {str(e)}")
+        # Document will remain in PENDING/FAILED state for retry
+
+async def process_file_in_background(
+    namespace_id: str,
+    text_content: str,
+    doc_id: str,
+    filename: str,
+    metadata: Dict[str, Any]
+):
+    """Process an uploaded file in the background"""
+    try:
+        async with get_lightrag_instance(namespace_id) as rag:
+            await rag.ainsert(text_content)
+            logger.info(f"Background: Processed file {filename} (ID: {doc_id}) in namespace '{namespace_id}'")
+    except Exception as e:
+        logger.error(f"Background: Failed to process file {filename} (ID: {doc_id}) in namespace '{namespace_id}': {str(e)}")
+
+async def process_url_content_in_background(
+    namespace_id: str,
+    text_content: str,
+    url: str,
+    metadata: Dict[str, Any]
+):
+    """Process URL content in the background"""
+    try:
+        doc_id = f"doc-{hashlib.md5(text_content.encode()).hexdigest()}"
+        async with get_lightrag_instance(namespace_id) as rag:
+            await rag.ainsert(text_content)
+            logger.info(f"Background: Processed URL content from {url} in namespace '{namespace_id}'")
+    except Exception as e:
+        logger.error(f"Background: Failed to process URL content from {url} in namespace '{namespace_id}': {str(e)}")
+
 # Document operations
 @app.post("/api/{namespace_id}/documents")
-async def add_document(namespace_id: str, doc: Document):
-    """Add document to namespace"""
-    # Generate document ID from content hash
+async def add_document(namespace_id: str, doc: Document, background_tasks: BackgroundTasks):
+    """Add document to namespace (non-blocking)"""
+    # Validate namespace exists
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
+    # Generate document ID upfront
     doc_id = f"doc-{hashlib.md5(doc.content.encode()).hexdigest()}"
     
-    async with get_lightrag_instance(namespace_id) as rag:
-        await rag.ainsert(doc.content)
-        logger.info(f"Added document to namespace '{namespace_id}': {len(doc.content)} chars, ID: {doc_id}")
+    # Queue for background processing
+    background_tasks.add_task(
+        process_document_in_background,
+        namespace_id,
+        doc.content,
+        doc_id,
+        doc.metadata
+    )
     
+    logger.info(f"Queued document {doc_id} for processing in namespace '{namespace_id}': {len(doc.content)} chars")
+    
+    # Return immediately
     return {
-        "message": "Document added successfully",
+        "message": "Document queued for processing",
+        "status": "pending",
         "namespace": namespace_id,
         "document_id": doc_id,
         "content_length": len(doc.content),
@@ -404,8 +579,12 @@ async def add_document(namespace_id: str, doc: Document):
     }
 
 @app.post("/api/{namespace_id}/documents/upload")
-async def upload_document(namespace_id: str, file: UploadFile = File(...)):
-    """Upload single file to namespace"""
+async def upload_document(namespace_id: str, file: UploadFile = File(...), background_tasks: BackgroundTasks = None):
+    """Upload single file to namespace (non-blocking)"""
+    # Validate namespace exists
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
     # Validate file type
     if not is_supported_file(file.filename):
         raise HTTPException(
@@ -447,13 +626,22 @@ async def upload_document(namespace_id: str, file: UploadFile = File(...)):
     # Generate document ID from content hash
     doc_id = f"doc-{hashlib.md5(text_content.encode()).hexdigest()}"
     
-    # Ingest into LightRAG
-    async with get_lightrag_instance(namespace_id) as rag:
-        await rag.ainsert(text_content)
-        logger.info(f"Uploaded file to namespace '{namespace_id}': {file.filename} ({len(content)} bytes), ID: {doc_id}")
+    # Queue for background processing
+    background_tasks.add_task(
+        process_file_in_background,
+        namespace_id,
+        text_content,
+        doc_id,
+        file.filename,
+        metadata
+    )
     
+    logger.info(f"Queued file {file.filename} (ID: {doc_id}) for processing in namespace '{namespace_id}'")
+    
+    # Return immediately
     return {
-        "message": "File uploaded successfully",
+        "message": "File queued for processing",
+        "status": "pending",
         "namespace": namespace_id,
         "document_id": doc_id,
         "filename": file.filename,
@@ -462,8 +650,12 @@ async def upload_document(namespace_id: str, file: UploadFile = File(...)):
     }
 
 @app.post("/api/{namespace_id}/documents/batch-upload")
-async def upload_documents_batch(namespace_id: str, files: List[UploadFile] = File(...)):
-    """Upload multiple files to namespace"""
+async def upload_documents_batch(namespace_id: str, files: List[UploadFile] = File(...), background_tasks: BackgroundTasks = None):
+    """Upload multiple files to namespace (non-blocking)"""
+    # Validate namespace exists
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
     results = []
     failed_files = []
     
@@ -472,7 +664,8 @@ async def upload_documents_batch(namespace_id: str, files: List[UploadFile] = Fi
         if not is_supported_file(file.filename):
             failed_files.append({
                 "filename": file.filename,
-                "error": f"Unsupported file type"
+                "error": f"Unsupported file type",
+                "status": "failed"
             })
             continue
         
@@ -502,55 +695,70 @@ async def upload_documents_batch(namespace_id: str, files: List[UploadFile] = Fi
             # Generate document ID from content hash
             doc_id = f"doc-{hashlib.md5(text_content.encode()).hexdigest()}"
             
-            # Ingest into LightRAG
-            async with get_lightrag_instance(namespace_id) as rag:
-                await rag.ainsert(text_content)
+            # Queue for background processing
+            background_tasks.add_task(
+                process_file_in_background,
+                namespace_id,
+                text_content,
+                doc_id,
+                file.filename,
+                metadata
+            )
             
             results.append({
                 "document_id": doc_id,
                 "filename": file.filename,
                 "content_length": len(text_content),
-                "metadata": metadata
+                "metadata": metadata,
+                "status": "pending"
             })
-            logger.info(f"Uploaded file to namespace '{namespace_id}': {file.filename}, ID: {doc_id}")
+            logger.info(f"Queued file {file.filename} (ID: {doc_id}) for batch processing in namespace '{namespace_id}'")
             
         except UnicodeDecodeError:
             failed_files.append({
                 "filename": file.filename,
-                "error": "File must be UTF-8 encoded text"
+                "error": "File must be UTF-8 encoded text",
+                "status": "failed"
             })
         except Exception as e:
             logger.error(f"Error processing file {file.filename}: {e}")
             failed_files.append({
                 "filename": file.filename,
-                "error": str(e)
+                "error": str(e),
+                "status": "failed"
             })
     
     # Determine status
     total_files = len(files)
-    successful_files = len(results)
+    queued_files = len(results)
     
-    if successful_files == total_files:
+    if queued_files == total_files:
         status = "success"
-        message = f"All {total_files} files uploaded successfully"
-    elif successful_files > 0:
+        message = f"All {total_files} files queued for processing"
+    elif queued_files > 0:
         status = "partial_success"
-        message = f"Uploaded {successful_files} out of {total_files} files"
+        message = f"Queued {queued_files} out of {total_files} files"
     else:
         status = "failure"
-        message = "No files were uploaded successfully"
+        message = "No files were queued successfully"
     
     return {
         "status": status,
         "message": message,
         "namespace": namespace_id,
         "successful_uploads": results,
-        "failed_uploads": failed_files
+        "failed_uploads": failed_files,
+        "uploaded": queued_files,
+        "failed": len(failed_files)
     }
 
 @app.post("/api/{namespace_id}/documents/url")
-async def fetch_and_ingest_url(namespace_id: str, req: URLRequest):
-    """Fetch content from URL and ingest it"""
+async def fetch_and_ingest_url(namespace_id: str, req: URLRequest, background_tasks: BackgroundTasks):
+    """Fetch content from URL and ingest it (non-blocking)"""
+    # Validate namespace exists
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
     # Validate URL
     try:
         parsed = urlparse(req.url)
@@ -562,7 +770,7 @@ async def fetch_and_ingest_url(namespace_id: str, req: URLRequest):
             detail="Invalid URL format"
         )
     
-    # Fetch content from URL
+    # Fetch content from URL (synchronous to fail fast on bad URLs)
     try:
         # Set reasonable timeout and headers
         headers = {
@@ -607,14 +815,26 @@ async def fetch_and_ingest_url(namespace_id: str, req: URLRequest):
             detail="Error processing URL content"
         )
     
-    # Ingest into LightRAG
-    async with get_lightrag_instance(namespace_id) as rag:
-        await rag.ainsert(text_content)
-        logger.info(f"Ingested URL content to namespace '{namespace_id}': {req.url}")
+    # Generate document ID from content
+    doc_id = f"doc-{hashlib.md5(text_content.encode()).hexdigest()}"
     
+    # Queue for background processing
+    background_tasks.add_task(
+        process_url_content_in_background,
+        namespace_id,
+        text_content,
+        req.url,
+        metadata
+    )
+    
+    logger.info(f"Queued URL content from {req.url} for processing in namespace '{namespace_id}'")
+    
+    # Return immediately
     return {
-        "message": "URL content ingested successfully",
+        "message": "URL content queued for processing",
+        "status": "pending",
         "namespace": namespace_id,
+        "document_id": doc_id,
         "url": req.url,
         "content_length": len(text_content),
         "metadata": metadata
