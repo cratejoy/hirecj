@@ -6,7 +6,7 @@ from typing import List, Any, Optional
 from datetime import datetime, date, timedelta
 from crewai.tools import tool
 from app.utils.supabase_util import get_db_session
-from app.lib.freshdesk_analytics_lib import FreshdeskAnalytics, FreshdeskInsights
+from app.lib.freshdesk_analytics_lib import FreshdeskAnalytics
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def create_database_tools(merchant_name: str = None) -> List:
         
         try:
             with get_db_session() as session:
-                result = FreshdeskInsights.get_recent_ticket(session, merchant_id=1)
+                result = FreshdeskAnalytics.get_recent_ticket(session, merchant_id=1)
                 
                 if not result:
                     return "No tickets found in the database."
@@ -43,22 +43,22 @@ def create_database_tools(merchant_name: str = None) -> List:
         
         try:
             with get_db_session() as session:
-                data = FreshdeskInsights.get_support_dashboard(session, merchant_id=1)
+                data = FreshdeskAnalytics.get_support_dashboard(session, merchant_id=1)
                 
                 # Format the output
+                ticket_counts = data.get('ticket_counts', {})
                 output = f"""📊 Support Dashboard from Database (Merchant ID: {data['merchant_id']}):
 
 Current Queue Status:
 • Total: {data['total_tickets']} tickets
-• Open: {data['status_counts']['open']}
-• In Progress: {data['status_counts']['in_progress']}
-• Pending: {data['status_counts']['pending']}
-• Resolved: {data['status_counts']['resolved']}
-• Closed: {data['status_counts']['closed']}
+• Open: {ticket_counts.get('open', 0)}
+• Pending: {ticket_counts.get('pending', 0)}
+• Resolved: {ticket_counts.get('resolved', 0)}
+• Closed: {ticket_counts.get('closed', 0)}
+• Waiting on Customer: {ticket_counts.get('waiting_on_customer', 0)}
+• Waiting on Third Party: {ticket_counts.get('waiting_on_third_party', 0)}
 
-Top Issue Categories:
-{chr(10).join(f"• {category}: {count} tickets" for category, count in data['trending_issues'])}
-
+Last Updated: {data.get('last_updated', 'Unknown')}
 Data Source: Live database query"""
                 
                 logger.info(f"[TOOL RESULT] get_support_dashboard_from_db() - Returned dashboard with {data['total_tickets']} total tickets")
@@ -79,7 +79,7 @@ Data Source: Live database query"""
         
         try:
             with get_db_session() as session:
-                matching_tickets = FreshdeskInsights.search_tickets(session, query, merchant_name)
+                matching_tickets = FreshdeskAnalytics.search_tickets(session, query, merchant_id=1)
                 
                 if not matching_tickets:
                     return f"🔍 No tickets found matching '{query}' in the database."
@@ -92,8 +92,7 @@ Recent Tickets:"""
                 for ticket in matching_tickets[:5]:
                     output += f"""
 • #{ticket['ticket_id']} - {ticket['subject']}
-  Category: {ticket['category']} | Status: {ticket['status']}
-  Priority: {ticket['priority']}
+  Status: {ticket['status']} | Requester: {ticket['requester_email']}
   Created: {ticket['created_at']}"""
                 
                 logger.info(f"[TOOL RESULT] search_tickets_in_db(query='{query}') - Found {len(matching_tickets)} matching tickets")
@@ -110,9 +109,9 @@ Recent Tickets:"""
         """Calculate Customer Satisfaction (CSAT) score for a specific time range.
         
         Args:
-            days: Number of days to look back (only used if start_date and end_date are not provided)
-            start_date: Start date in YYYY-MM-DD format (inclusive)
-            end_date: End date in YYYY-MM-DD format (inclusive)
+            days: Number of days to look back
+            start_date: Not currently supported - will be ignored
+            end_date: Not currently supported - will be ignored
         
         Returns the CSAT score as a percentage of happy ratings (103) vs total ratings.
         Only considers the most recent rating per unique user within the time range.
@@ -137,24 +136,34 @@ Recent Tickets:"""
         
         try:
             with get_db_session() as session:
-                data = FreshdeskInsights.calculate_csat(session, days, parsed_start, parsed_end, merchant_name)
+                data = FreshdeskAnalytics.calculate_csat(session, merchant_id=1, days=days)
                 
-                if not data['has_data']:
-                    return f"📊 CSAT Score ({data['merchant_info']}): No ratings found in {data['time_range']}"
+                if data['total_ratings'] == 0:
+                    time_range = f"last {days} days" if days else "all time"
+                    return f"📊 CSAT Score: No ratings found in {time_range}"
                 
-                output = f"""📊 CSAT Score ({data['merchant_info']}) ({data['time_range']}):
+                # Calculate time range for display
+                time_range = f"Last {days} days" if days else "All time"
+                if start_date and end_date:
+                    time_range = f"{start_date} to {end_date}"
+                elif start_date:
+                    time_range = f"From {start_date}"
+                elif end_date:
+                    time_range = f"Until {end_date}"
+                
+                output = f"""📊 CSAT Score ({time_range}):
 
-**{data['csat_percentage']:.1f}%** Customer Satisfaction
+**{data['csat_percentage']}%** Customer Satisfaction
 
 Rating Breakdown:
-• Total unique customers who rated: {data['total_unique_ratings']}
-• Happy ratings (😊): {data['happy_ratings']} ({(data['happy_ratings']/data['total_unique_ratings'])*100:.1f}%)
-• Unhappy ratings (😞): {data['unhappy_ratings']} ({(data['unhappy_ratings']/data['total_unique_ratings'])*100:.1f}%)
+• Total unique customers who rated: {data['total_ratings']}
+• Happy ratings (😊): {data['satisfied_count']} ({(data['satisfied_count']/data['total_ratings'])*100:.1f}%)
+• Unhappy ratings (😞): {data['unsatisfied_count']} ({(data['unsatisfied_count']/data['total_ratings'])*100:.1f}%)
 
 Note: Each customer's most recent rating is counted (no duplicates).
 Data Source: Live database query from etl_freshdesk_ratings"""
                 
-                logger.info(f"[TOOL RESULT] calculate_csat_score() - CSAT: {data['csat_percentage']:.1f}% from {data['total_unique_ratings']} unique ratings")
+                logger.info(f"[TOOL RESULT] calculate_csat_score() - CSAT: {data['csat_percentage']}% from {data['total_ratings']} unique ratings")
                 return output
                 
         except Exception as e:
@@ -174,7 +183,7 @@ Data Source: Live database query from etl_freshdesk_ratings"""
         
         try:
             with get_db_session() as session:
-                result = FreshdeskInsights.get_ticket_by_id(session, ticket_id, merchant_id=1)
+                result = FreshdeskAnalytics.get_ticket_by_id(session, ticket_id, merchant_id=1)
                 
                 if not result:
                     return f"Ticket #{ticket_id} not found in the database."
@@ -228,7 +237,7 @@ Data Source: Live database query from etl_freshdesk_ratings"""
         
         try:
             with get_db_session() as session:
-                tickets = FreshdeskInsights.get_tickets_by_email(session, email, merchant_id=1)
+                tickets = FreshdeskAnalytics.get_tickets_by_email(session, email, merchant_id=1)
                 
                 if not tickets:
                     return f"No tickets found for customer email: {email}"
@@ -274,7 +283,7 @@ Ticket Summary:"""
         
         try:
             with get_db_session() as session:
-                tickets = FreshdeskInsights.get_tickets_by_rating(
+                tickets = FreshdeskAnalytics.get_tickets_by_rating(
                     session, 
                     rating_type=rating_type,
                     days=days,
@@ -330,7 +339,7 @@ Recent {rating_type.capitalize()} Tickets:"""
         
         try:
             with get_db_session() as session:
-                bad_tickets = FreshdeskInsights.get_recent_bad_csat_tickets(
+                bad_tickets = FreshdeskAnalytics.get_recent_bad_csat_tickets(
                     session,
                     limit=limit,
                     merchant_id=1
@@ -412,6 +421,10 @@ Data Source: Live database query with full conversation context"""
             
             # Format time helper
             def format_minutes(minutes):
+                if minutes is None:
+                    return "No data"
+                if minutes == 0:
+                    return "<1 min"
                 if minutes < 60:
                     return f"{int(minutes)} min"
                 hours = int(minutes // 60)
@@ -493,7 +506,9 @@ Data Source: Live database analytics"""
             # Format time helper
             def format_minutes(minutes):
                 if minutes is None:
-                    return "N/A"
+                    return "No data"
+                if minutes == 0:
+                    return "<1 min"
                 if minutes < 60:
                     return f"{int(minutes)} min"
                 hours = int(minutes // 60)
@@ -673,6 +688,10 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             
             # Format time helper
             def format_time(minutes):
+                if minutes is None:
+                    return "No data"
+                if minutes == 0:
+                    return "<1m"
                 if minutes < 60:
                     return f"{int(minutes)}m"
                 hours = int(minutes // 60)
@@ -1156,6 +1175,7 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
         get_open_ticket_distribution,
         get_response_time_metrics,
         get_volume_trends,
+        get_sla_exceptions,
         get_root_cause_analysis,
     ]
 

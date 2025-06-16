@@ -95,9 +95,9 @@ class FreshdeskAnalytics:
                     quick_close_count += 1
         
         # Calculate medians
-        def calculate_median(values: List[float]) -> float:
+        def calculate_median(values: List[float]) -> Optional[float]:
             if not values:
-                return 0.0
+                return None
             sorted_values = sorted(values)
             n = len(sorted_values)
             if n % 2 == 0:
@@ -144,8 +144,8 @@ class FreshdeskAnalytics:
                 "new_tickets": new_tickets,
                 "closed_tickets": closed_tickets,
                 "open_eod": open_eod,
-                "median_first_response_min": round(median_first_response_min, 1),
-                "median_resolution_min": round(median_resolution_min, 1),
+                "median_first_response_min": round(median_first_response_min, 1) if median_first_response_min is not None else None,
+                "median_resolution_min": round(median_resolution_min, 1) if median_resolution_min is not None else None,
                 "quick_close_count": quick_close_count,
                 "new_csat_count": new_csat_count,
                 "csat_percentage": round(csat_percentage, 1),
@@ -302,13 +302,11 @@ class FreshdeskAnalytics:
         
         # Get conversations
         conversations = session.query(FreshdeskConversation).filter(
-            FreshdeskConversation.merchant_id == merchant_id,
             FreshdeskConversation.freshdesk_ticket_id == str(ticket_id)
-        ).order_by(FreshdeskConversation.created_at).all()
+        ).order_by(FreshdeskConversation.etl_created_at).all()
         
         # Get ratings
         ratings = session.query(FreshdeskRating).filter(
-            FreshdeskRating.merchant_id == merchant_id,
             FreshdeskRating.freshdesk_ticket_id == str(ticket_id)
         ).all()
         
@@ -424,9 +422,8 @@ class FreshdeskAnalytics:
         for ticket in bad_tickets:
             # Get conversations for context
             conversations = session.query(FreshdeskConversation).filter(
-                FreshdeskConversation.merchant_id == merchant_id,
                 FreshdeskConversation.freshdesk_ticket_id == ticket.freshdesk_ticket_id
-            ).order_by(FreshdeskConversation.created_at).all()
+            ).order_by(FreshdeskConversation.etl_created_at).all()
             
             results.append({
                 "ticket_id": ticket.freshdesk_ticket_id,
@@ -1470,7 +1467,3 @@ class FreshdeskAnalytics:
         }
 
 
-# Legacy class name for backwards compatibility
-class FreshdeskInsights(FreshdeskAnalytics):
-    """Legacy alias for FreshdeskAnalytics - use FreshdeskAnalytics directly."""
-    pass

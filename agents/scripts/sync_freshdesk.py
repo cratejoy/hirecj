@@ -43,11 +43,6 @@ def main():
         help="Force re-parsing of all parsed fields"
     )
     parser.add_argument(
-        "--tickets-only",
-        action="store_true",
-        help="Only sync ticket data without conversations"
-    )
-    parser.add_argument(
         "--conversations-for",
         nargs="+",
         help="Sync conversations for specific ticket IDs"
@@ -120,17 +115,12 @@ def main():
         print("\n✨ Done!")
         return
     
-    # Step 1: Sync tickets (and optionally conversations)
+    # Step 1: Sync tickets and conversations
     print("=" * 60)
-    if args.tickets_only:
-        print("STEP 1: SYNCING TICKETS ONLY (NO CONVERSATIONS)")
-        method = etl.sync_ticket_data
-    else:
-        print("STEP 1: SYNCING TICKETS AND CONVERSATIONS")
-        method = etl.sync_tickets
+    print("STEP 1: SYNCING TICKETS AND CONVERSATIONS")
     print("=" * 60)
     
-    result = method(
+    result = etl.sync_tickets(
         since=since,
         max_pages=args.max_pages,
         force_reparse=args.force_reparse

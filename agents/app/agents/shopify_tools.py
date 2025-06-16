@@ -10,6 +10,11 @@ import json
 from app.services.shopify_data_fetcher import ShopifyDataFetcher
 from app.services.merchant_service import merchant_service
 from shared.logging_config import get_logger
+from app.lib.shopify_customer_lib import (
+    find_shopify_customer_by_email,
+    search_customers_fuzzy,
+    get_customer_order_history
+)
 
 logger = get_logger(__name__)
 
@@ -118,6 +123,102 @@ def get_shopify_orders_last_week(shop_domain: str) -> str:
         return result
 
 
+@tool("lookup_shopify_customer_by_email")
+def lookup_shopify_customer_by_email(email: str) -> str:
+    """
+    Look up a Shopify customer by their email address.
+    
+    This tool searches for customers using their email with intelligent fallback:
+    - First tries exact email match  
+    - Falls back to partial email search if no exact match
+    
+    Args:
+        email: Customer email address to search for
+        
+    Returns:
+        JSON formatted customer data or not found message
+    """
+    logger.info(f"[TOOL_CALL] lookup_shopify_customer_by_email called with email={email}")
+    
+    try:
+        result = find_shopify_customer_by_email(email=email)
+        
+        result_json = json.dumps(result, indent=2, default=str)
+        logger.info(f"[TOOL_CALL] lookup_shopify_customer_by_email returned: found={result.get('found')}")
+        return result_json
+        
+    except Exception as e:
+        logger.error(f"Error looking up customer by email: {e}")
+        result = json.dumps({"error": str(e), "found": False})
+        return result
+
+
+@tool("search_shopify_customers")
+def search_shopify_customers(search_term: str, search_fields: Optional[str] = None) -> str:
+    """
+    Search for Shopify customers using fuzzy matching across multiple fields.
+    
+    Args:
+        search_term: Term to search for (name, phone, email part, etc.)
+        search_fields: Comma-separated fields to search in. Options: email,first_name,last_name,phone
+                      Default: searches all fields
+        
+    Returns:
+        JSON formatted list of matching customers
+    """
+    logger.info(f"[TOOL_CALL] search_shopify_customers called with term={search_term}, fields={search_fields}")
+    
+    try:
+        # Parse search fields if provided
+        fields_list = None
+        if search_fields:
+            fields_list = [f.strip() for f in search_fields.split(',')]
+        
+        result = search_customers_fuzzy(
+            search_term=search_term,
+            search_fields=fields_list
+        )
+        
+        result_json = json.dumps(result, indent=2, default=str)
+        logger.info(f"[TOOL_CALL] search_shopify_customers returned: count={result.get('total_count')}")
+        return result_json
+        
+    except Exception as e:
+        logger.error(f"Error searching customers: {e}")
+        result = json.dumps({"error": str(e), "found": False, "customers": []})
+        return result
+
+
+@tool("get_shopify_customer_orders")  
+def get_shopify_customer_orders(customer_id: str, limit: Optional[int] = 10) -> str:
+    """
+    Get order history for a specific Shopify customer.
+    
+    Args:
+        customer_id: Shopify customer ID (numeric or GID format)
+        limit: Maximum number of orders to return (default: 10, max: 50)
+        
+    Returns:
+        JSON formatted order history with customer details
+    """
+    logger.info(f"[TOOL_CALL] get_shopify_customer_orders called with customer_id={customer_id}, limit={limit}")
+    
+    try:
+        result = get_customer_order_history(
+            customer_id=customer_id,
+            limit=limit or 10
+        )
+        
+        result_json = json.dumps(result, indent=2, default=str)
+        logger.info(f"[TOOL_CALL] get_shopify_customer_orders returned: orders={result.get('orders_returned')}")
+        return result_json
+        
+    except Exception as e:
+        logger.error(f"Error fetching customer orders: {e}")
+        result = json.dumps({"error": str(e), "orders": [], "orders_returned": 0})
+        return result
+
+
 def create_shopify_tools() -> List[tool]:
     """Returns a list of all Shopify tools."""
     return [
@@ -125,4 +226,7 @@ def create_shopify_tools() -> List[tool]:
         get_shopify_store_overview,
         get_shopify_recent_orders,
         get_shopify_orders_last_week,
+        lookup_shopify_customer_by_email,
+        search_shopify_customers,
+        get_shopify_customer_orders,
     ]

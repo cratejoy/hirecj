@@ -18,6 +18,10 @@ Success is completing the task **elegantly and completely** according to our Nor
    - This does NOT mean: Remove existing requirements or functionality
    - Keep what's needed, remove what's not
 2. **No Cruft**: Remove all redundant code, validation, and unnecessary complexity
+   - Never create "backwards compatibility" aliases or legacy class names
+   - When renaming classes/functions, update ALL references immediately
+   - Delete old names completely - don't leave them as aliases
+   - Example: If renaming `OldClass` to `NewClass`, find and replace ALL usages, don't create `OldClass = NewClass`
 3. **Break It & Fix It Right**: No backwards compatibility shims - make breaking changes and migrate properly
 4. **Long-term Elegance**: Choose performant, compiler-enforced solutions that prevent subtle bugs
 5. **Backend-Driven**: Let the backend handle complexity, frontend should be a thin client

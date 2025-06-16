@@ -169,7 +169,8 @@ class CJAgent:
 
         # Conditionally load Shopify tools if OAuth metadata is present
         logger.info(f"[CJ_AGENT] OAuth metadata check: oauth_metadata={self.oauth_metadata}")
-        if self.oauth_metadata and self.oauth_metadata.get("provider") == "shopify":
+        # TEMPORARY: Always load Shopify tools for testing
+        if True or (self.oauth_metadata and self.oauth_metadata.get("provider") == "shopify"):
             try:
                 from app.agents.shopify_tools import create_shopify_tools
 
