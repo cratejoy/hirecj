@@ -1562,94 +1562,99 @@ done
 
 ---
 
-### Milestone 2: Knowledge Management UI
+### Milestone 2: Knowledge Management UI Enhancement
 
-**Goal: Create web interface for knowledge graph management**
+**Goal: Complete and enhance the existing knowledge UI in the editor**
 
-#### New Functionality
-- **Web UI Framework**:
-  - FastAPI with Jinja2 templates
-  - Tailwind CSS for styling
-  - Alpine.js for interactivity
-  - Mobile-responsive design
-- **Namespace Management UI**:
-  - List view with statistics
-  - Create/delete namespaces
-  - Namespace detail pages
-  - Visual status indicators
-- **Content Upload Interface**:
-  - Drag-and-drop file upload
-  - URL input for web content
-  - Batch upload with progress
-  - File type validation feedback
-- **Query Testing UI**:
-  - Interactive query interface
-  - Mode selector (naive/local/global/hybrid)
-  - Formatted result display
-  - Query history tracking
-- **Processing Status UI**:
-  - Real-time queue visualization
-  - Progress bars for active tasks
-  - Error/warning display
-  - Processing history
+**Context**: The editor already has React-based Knowledge views (list and detail) that connect to the knowledge service via the editor-backend proxy. We need to complete missing features and enhance the UI.
 
-#### Success Criteria
-- ✓ Non-technical users can manage namespaces visually
-- ✓ Drag-and-drop file upload works smoothly
-- ✓ Query results display with proper formatting
-- ✓ Processing status updates without page refresh
-- ✓ Mobile-friendly responsive design
+#### Phase 2.1: Complete Backend API Features ⏸️
+**Deliverable**: Missing API endpoints to support the UI
+- [ ] Add document statistics API (count, last updated per namespace)
+- [ ] Create processing status endpoints for tracking uploads
+- [ ] Add batch operation status tracking
+- [ ] Implement error detail reporting for failed ingestions
 
-#### Interface at Completion
+**Success Criteria**: UI can display real document counts and processing status
 
+#### Phase 2.2: Enhance Existing UI Components ⏸️
+**Deliverable**: Polish existing React components with real data
+- [ ] Update KnowledgeListView to show actual document counts
+- [ ] Display real last_updated timestamps
+- [ ] Add loading states and better error messages
+- [ ] Show upload progress for each file in KnowledgeDetailView
+- [ ] Add file type indicators (.txt, .md, .json)
+- [ ] Display query response times
+- [ ] Fix mobile responsive issues
+
+**Success Criteria**: UI shows accurate data with smooth user experience
+
+#### Phase 2.3: Add Processing Status View ⏸️
+**Deliverable**: New view for processing queue visibility
+- [ ] Create new route /knowledge/:graphId/processing
+- [ ] Build ProcessingStatusView component
+- [ ] Show active uploads with progress bars
+- [ ] Display queue of pending items
+- [ ] Add completed items history
+- [ ] Include error details panel
+
+**Success Criteria**: Users can monitor all processing activities
+
+#### Technical Stack
+- **Frontend**: React 18 + TypeScript + Vite (existing editor)
+- **UI Components**: Tailwind CSS + shadcn/ui + Radix UI (already in use)
+- **Backend**: FastAPI (editor-backend proxy to knowledge service)
+- **Routing**: Wouter (existing routes at /knowledge and /knowledge/:graphId)
+
+#### Implementation Approach
+1. **Backend First**: Add missing endpoints to knowledge service
+2. **Proxy Updates**: Update editor-backend proxy to expose new endpoints
+3. **UI Enhancements**: Update existing React components with real data
+4. **New Components**: Add ProcessingStatusView for queue visibility
+5. **Testing**: Verify file uploads, error handling, and mobile responsiveness
+
+#### Interface Enhancements
+
+**Enhanced Knowledge List View** (existing at /knowledge):
+- Currently shows hardcoded "0 documents" → Will show actual counts
+- Empty namespaces show proper empty states
+- Loading states during operations
+- Better error messages
+
+**Enhanced Knowledge Detail View** (existing at /knowledge/:graphId):
+- File upload with progress indicators
+- Clear file type support (.txt, .md, .json)
+- Query response times displayed
+- Better error handling for failed uploads
+
+**New Processing Status View** (/knowledge/:graphId/processing):
 ```
-Basic Web UI - Knowledge Graphs List View (based on editor_design.md Grounding View lines 404-439)
-+------------------+-----------------------------------------------------------------------------------------------------+
-|                  |                                    KNOWLEDGE GRAPHS                                                 |
-|  HireCJ RAG      +-----------------------------------------------------------------------------------------------------+
-|                  | Manage your knowledge bases                                                        [+ New Graph] |
-+------------------+-----------------------------------------------------------------------------------------------------+
-|                  |                                                                                                     |
-| Navigation:      | AVAILABLE KNOWLEDGE GRAPHS                                                                          |
-|                  | ┌─────────────────────────────────────────────────────────────────────────────────────────────┐   |
-| [Knowledge]      | │                                                                                              │   |
-| [Query]          | │ ┌────────────────────────────┐  ┌────────────────────────────┐  ┌──────────────────────┐   │   |
-| [Status]         | │ │    Product Knowledge         │  │    Customer Support          │  │   Tech Docs        │   │   |
-|                  | │ │                              │  │                              │  │                    │   │   |
-|                  | │ │ 📚 247 documents            │  │ 💬 0 documents               │  │ 🔧 0 documents     │   │   |
-|                  | │ │ 📊 Last updated: 5m ago     │  │ 📊 Empty                     │  │ 📊 Empty           │   │   |
-|                  | │ │                              │  │                              │  │                    │   │   |
-|                  | │ │ Status: ✅ Active            │  │ Status: 🆕 New               │  │ Status: 🆕 New     │   │   |
-|                  | │ │                              │  │                              │  │                    │   │   |
-|                  | │ │ [Upload Files →]            │  │ [Upload Files →]            │  │ [Upload Files →]  │   │   |
-|                  | │ └────────────────────────────┘  └────────────────────────────┘  └──────────────────────┘   │   |
-|                  | │                                                                                              │   |
-|                  | └─────────────────────────────────────────────────────────────────────────────────────────────┘   |
-+------------------+-----------------------------------------------------------------------------------------------------+
-
-Query Interface:
-+------------------+-----------------------------------------------------------------------------------------------------+
-|                  |                                    QUERY INTERFACE                                                  |
-|  HireCJ RAG      +-----------------------------------------------------------------------------------------------------+
-|                  | Search across knowledge graphs                                                                      |
-+------------------+-----------------------------------------------------------------------------------------------------+
-|                  | Query: [What are the laptop RAM upgrade options?                                              ]    |
-|                  | Corpus: [All ▼]  [Product Knowledge] [Customer Support] [Tech Docs]     Mode: [Hybrid ▼]           |
-|                  | [🔍 Search]                                                                                         |
-|                  |                                                                                                     |
-|                  | Results from: Product Knowledge                                                                     |
-|                  | ┌─────────────────────────────────────────────────────────────────────────────────────────────┐   |
-|                  | │ 1. Dell XPS 15 supports user-upgradeable RAM up to 64GB using standard SO-DIMM slots...     │   |
-|                  | │ 2. MacBook Pro models from 2022 onwards have soldered RAM that cannot be upgraded...        │   |
-|                  | └─────────────────────────────────────────────────────────────────────────────────────────────┘   |
-+------------------+-----------------------------------------------------------------------------------------------------+
+Processing Status - Product Knowledge
+┌─────────────────────────────────────────────────────────────────────┐
+│ Active Uploads (3)                                              │
+├─────────────────────────────────────────────────────────────────────┤
+│ 📄 product-guide.md        ████████░░ 80%  ~30s remaining         │
+│ 📄 specifications.txt      ████░░░░░░ 45%  ~1m remaining          │
+│ 🔗 https://docs.example    ██░░░░░░░░ 20%  Fetching content...    │
+├─────────────────────────────────────────────────────────────────────┤
+│ Queued (5 items)                                                   │
+│ • features.json                                                    │
+│ • changelog.md                                                     │
+│ • readme.txt                                                       │
+├─────────────────────────────────────────────────────────────────────┤
+│ Recent Completions                                                 │
+│ ✅ tutorial.md             247 chunks    2 minutes ago            │
+│ ❌ invalid.pdf             PDF not supported  5 minutes ago       │
+│ ✅ faq.json               89 chunks     10 minutes ago           │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Key Learnings to Capture
-- Namespace strategy effectiveness
-- PostgreSQL configuration optimizations
-- Cross-corpus query strategies
-- Storage migration challenges
+- React component patterns in the editor
+- API proxy architecture effectiveness
+- File upload UX patterns
+- Error handling strategies
+- Real-time status update approaches
 
 ---
 
