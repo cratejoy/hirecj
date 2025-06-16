@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useParams, Link } from 'wouter'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -20,6 +20,8 @@ import {
   Link as LinkIcon,
   Search,
   FileText,
+  FileJson,
+  FileCode,
   Globe,
   Loader2,
   X,
@@ -50,6 +52,21 @@ export function KnowledgeDetailView() {
   const [uploadingUrl, setUploadingUrl] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
+  const [queryDuration, setQueryDuration] = useState<number | null>(null)
+
+  // Get file icon based on extension
+  const getFileIcon = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase()
+    switch (ext) {
+      case 'json':
+        return FileJson
+      case 'md':
+        return FileCode
+      case 'txt':
+      default:
+        return FileText
+    }
+  }
 
   // File upload handlers
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -193,7 +210,7 @@ export function KnowledgeDetailView() {
         throw new Error('Failed to ingest URL')
       }
 
-      const result = await response.json()
+      await response.json()
       
       toast({
         title: "Success",
@@ -228,6 +245,10 @@ export function KnowledgeDetailView() {
     try {
       setQuerying(true)
       setQueryResult('')
+      setQueryDuration(null)
+      
+      // Start timing
+      const startTime = performance.now()
       
       const response = await fetch(`${API_BASE}/graphs/${graphId}/query`, {
         method: 'POST',
@@ -245,6 +266,12 @@ export function KnowledgeDetailView() {
       }
 
       const result = await response.json()
+      
+      // Calculate duration
+      const endTime = performance.now()
+      const duration = (endTime - startTime) / 1000 // Convert to seconds
+      setQueryDuration(duration)
+      
       setQueryResult(result.result || 'No results found')
     } catch (error) {
       console.error('Query error:', error)
@@ -377,13 +404,15 @@ export function KnowledgeDetailView() {
                   {uploadedFiles.length > 0 && (
                     <div className="mt-6 space-y-2">
                       <h3 className="font-semibold mb-3">Uploaded Files</h3>
-                      {uploadedFiles.map((file) => (
-                        <div
-                          key={file.filename}
-                          className="flex items-center gap-3 p-3 rounded-lg border bg-card"
-                        >
-                          <FileText className="h-4 w-4 text-muted-foreground" />
-                          <span className="flex-1 text-sm">{file.filename}</span>
+                      {uploadedFiles.map((file) => {
+                        const FileIcon = getFileIcon(file.filename)
+                        return (
+                          <div
+                            key={file.filename}
+                            className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                          >
+                            <FileIcon className="h-4 w-4 text-muted-foreground" />
+                            <span className="flex-1 text-sm">{file.filename}</span>
                           {file.status === 'pending' && (
                             <span className="text-sm text-muted-foreground">Waiting...</span>
                           )}
@@ -409,7 +438,8 @@ export function KnowledgeDetailView() {
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   )}
                 </>
@@ -492,7 +522,14 @@ export function KnowledgeDetailView() {
               {/* Query Results */}
               {queryResult && (
                 <Card className="mt-6 p-6">
-                  <h3 className="font-semibold mb-3">Results</h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold">Results</h3>
+                    {queryDuration !== null && (
+                      <span className="text-sm text-muted-foreground">
+                        Response time: {queryDuration.toFixed(2)}s
+                      </span>
+                    )}
+                  </div>
                   <div className="prose prose-sm max-w-none">
                     <pre className="whitespace-pre-wrap text-sm">{queryResult}</pre>
                   </div>
