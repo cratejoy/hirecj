@@ -6,6 +6,8 @@ import { SystemPromptsView } from '@/views/SystemPromptsView'
 import { WorkflowEditorView } from '@/views/WorkflowEditorView'
 import { ToolEditorView } from '@/views/ToolEditorView'
 import { TestsView } from '@/views/TestsView'
+import { KnowledgeListView } from '@/views/KnowledgeListView'
+import { KnowledgeDetailView } from '@/views/KnowledgeDetailView'
 import { Toaster } from '@/components/ui/toaster'
 
 function App() {
@@ -26,6 +28,8 @@ function App() {
         </div>
       </Route>
       <Route path="/tests" component={TestsView} />
+      <Route path="/knowledge" component={KnowledgeListView} />
+      <Route path="/knowledge/:graphId" component={KnowledgeDetailView} />
     </EditorLayout>
     <Toaster />
     </>

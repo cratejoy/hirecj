@@ -10,7 +10,8 @@ import {
   Wrench,
   Settings,
   ChevronRight,
-  FlaskConical
+  FlaskConical,
+  Database
 } from 'lucide-react'
 
 interface EditorLayoutProps {
@@ -47,6 +48,12 @@ const navItems = [
     icon: Wrench,
     href: '/tools',
     description: 'Configure agent tools and functions'
+  },
+  {
+    title: 'Knowledge Graphs',
+    icon: Database,
+    href: '/knowledge',
+    description: 'Manage RAG knowledge bases'
   },
   {
     title: 'Settings',

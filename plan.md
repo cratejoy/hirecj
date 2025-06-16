@@ -514,7 +514,7 @@ The editor's Grounding views will integrate as follows:
 
 #### Phase 2.1: Complete Backend API Features ⏸️
 **Deliverable**: Missing API endpoints to support the UI
-- [ ] Add document statistics API (count, last updated per namespace)
+- [x] Add document statistics API (count, last updated per namespace)
 - [ ] Create processing status endpoints for tracking uploads
 - [ ] Add batch operation status tracking
 - [ ] Implement error detail reporting for failed ingestions
@@ -1555,7 +1555,7 @@ done
 
 #### Phase 2.1: Complete Backend API Features ⏸️
 **Deliverable**: Missing API endpoints to support the UI
-- [ ] Add document statistics API (count, last updated per namespace)
+- [x] Add document statistics API (count, last updated per namespace)
 - [ ] Create processing status endpoints for tracking uploads
 - [ ] Add batch operation status tracking
 - [ ] Implement error detail reporting for failed ingestions
@@ -1597,6 +1597,102 @@ done
 3. **UI Enhancements**: Update existing React components with real data
 4. **New Components**: Add ProcessingStatusView for queue visibility
 5. **Testing**: Verify file uploads, error handling, and mobile responsiveness
+
+#### Phase 2.1 Implementation Details: Document Statistics API
+
+**Using LightRAG's Official API Methods**
+
+LightRAG provides official methods for tracking document status without accessing internal storage:
+
+1. **`get_status_counts()`** - Returns document counts by status
+   - Returns: `dict[str, int]` with counts for each DocStatus
+   - Example: `{"pending": 0, "processing": 2, "processed": 247, "failed": 1}`
+
+2. **`get_docs_by_status(status: DocStatus)`** - Returns documents with specific status
+   - DocStatus enum values: PENDING, PROCESSING, PROCESSED, FAILED
+   - Returns: `dict[str, DocProcessingStatus]` keyed by document ID
+
+3. **DocProcessingStatus fields**:
+   - `updated_at`: ISO format timestamp of last update
+   - `chunks_count`: Number of chunks created
+   - `content_length`: Total document length
+   - `status`: Current DocStatus
+   - `error`: Error message if failed
+
+**New Endpoint Implementation**:
+
+```python
+@app.get("/api/namespaces/{namespace_id}/statistics")
+async def get_namespace_statistics(namespace_id: str):
+    """Get statistics for a namespace using LightRAG's official API"""
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
+    async with get_lightrag_instance(namespace_id) as rag:
+        # Get document counts by status
+        status_counts = await rag.get_status_counts()
+        
+        # Get processed documents to find last updated time
+        processed_docs = await rag.get_docs_by_status(DocStatus.PROCESSED)
+        
+        # Calculate statistics
+        document_count = status_counts.get("processed", 0)
+        total_chunks = sum(doc.chunks_count or 0 for doc in processed_docs.values())
+        
+        # Find most recent update
+        last_updated = None
+        if processed_docs:
+            last_updated = max(doc.updated_at for doc in processed_docs.values())
+        
+        return {
+            "namespace_id": namespace_id,
+            "document_count": document_count,
+            "last_updated": last_updated,
+            "total_chunks": total_chunks,
+            "status_breakdown": status_counts,
+            "failed_count": status_counts.get("failed", 0),
+            "pending_count": status_counts.get("pending", 0) + status_counts.get("processing", 0)
+        }
+```
+
+**Editor-Backend Proxy Update**:
+
+The existing proxy at `/api/v1/knowledge/graphs` needs to be enhanced to include statistics:
+
+```python
+@router.get("/graphs")
+async def list_knowledge_graphs():
+    """List all knowledge graphs with statistics"""
+    # ... existing code ...
+    
+    # For each namespace, fetch statistics
+    for graph in graphs:
+        try:
+            stats_response = await async_client.get(
+                f"{KNOWLEDGE_SERVICE_URL}/api/namespaces/{graph['id']}/statistics"
+            )
+            if stats_response.status_code == 200:
+                stats = stats_response.json()
+                graph["document_count"] = stats["document_count"]
+                graph["last_updated"] = stats["last_updated"]
+        except Exception as e:
+            logger.warning(f"Failed to fetch stats for {graph['id']}: {e}")
+    
+    return {"graphs": graphs, "count": len(graphs)}
+```
+
+**Advantages of this approach**:
+- Uses official LightRAG API - no hacks
+- Thread-safe and reliable
+- Accurate counts from the source of truth
+- Includes status breakdown for debugging
+- Extensible for future statistics
+
+**Performance considerations**:
+- `get_status_counts()` is fast - just returns counts
+- `get_docs_by_status()` may be slower with many documents
+- Consider caching statistics for large namespaces
+- Could optimize by only fetching recent documents for last_updated
 
 #### Interface Enhancements
 

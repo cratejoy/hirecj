@@ -74,6 +74,7 @@ knowledge/
 - `POST /api/namespaces?namespace_id={id}` - Create a new namespace
 - `GET /api/namespaces` - List all namespaces
 - `GET /api/namespaces/{namespace_id}` - Get specific namespace details
+- `GET /api/namespaces/{namespace_id}/statistics` - Get namespace statistics (document count, last updated, etc.)
 - `DELETE /api/namespaces/{namespace_id}` - Delete a namespace
 
 #### Document Operations (Phase 0.3, 1.1 & 1.3)
@@ -116,6 +117,9 @@ curl http://localhost:8004/api/namespaces
 
 # Get specific namespace
 curl http://localhost:8004/api/namespaces/products
+
+# Get namespace statistics (document count, last updated, etc.)
+curl http://localhost:8004/api/namespaces/products/statistics
 
 # Delete namespace
 curl -X DELETE http://localhost:8004/api/namespaces/products

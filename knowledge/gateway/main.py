@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, UploadFile, 
 from lightrag import LightRAG, QueryParam
 from lightrag.llm.openai import gpt_4o_mini_complete, openai_embed
 from lightrag.kg.shared_storage import initialize_pipeline_status
+from lightrag.base import DocStatus
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -276,6 +277,62 @@ async def delete_namespace(namespace_id: str):
     return {
         "message": f"Namespace '{namespace_id}' deleted successfully"
     }
+
+@app.get("/api/namespaces/{namespace_id}/statistics")
+async def get_namespace_statistics(namespace_id: str):
+    """Get statistics for a namespace using LightRAG's official API"""
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
+    try:
+        async with get_lightrag_instance(namespace_id) as rag:
+            # Get all documents by different statuses
+            processed_docs = await rag.get_docs_by_status(DocStatus.PROCESSED)
+            pending_docs = await rag.get_docs_by_status(DocStatus.PENDING)
+            processing_docs = await rag.get_docs_by_status(DocStatus.PROCESSING)
+            failed_docs = await rag.get_docs_by_status(DocStatus.FAILED)
+            
+            # Count documents by status
+            status_counts = {
+                "processed": len(processed_docs),
+                "pending": len(pending_docs),
+                "processing": len(processing_docs),
+                "failed": len(failed_docs)
+            }
+            
+            # Calculate statistics
+            document_count = status_counts["processed"]
+            total_chunks = sum(doc.chunks_count or 0 for doc in processed_docs.values())
+            
+            # Find most recent update
+            last_updated = None
+            if processed_docs:
+                # Extract just the updated_at timestamps
+                update_times = [doc.updated_at for doc in processed_docs.values() if doc.updated_at]
+                if update_times:
+                    last_updated = max(update_times)
+            
+            return {
+                "namespace_id": namespace_id,
+                "document_count": document_count,
+                "last_updated": last_updated,
+                "total_chunks": total_chunks,
+                "status_breakdown": status_counts,
+                "failed_count": status_counts["failed"],
+                "pending_count": status_counts["pending"] + status_counts["processing"]
+            }
+    except Exception as e:
+        logger.error(f"Error getting statistics for namespace {namespace_id}: {e}")
+        # Return empty statistics if namespace has no data yet
+        return {
+            "namespace_id": namespace_id,
+            "document_count": 0,
+            "last_updated": None,
+            "total_chunks": 0,
+            "status_breakdown": {},
+            "failed_count": 0,
+            "pending_count": 0
+        }
 
 # Document operations
 @app.post("/api/{namespace_id}/documents")
