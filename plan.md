@@ -501,12 +501,12 @@ The editor's Grounding views will integrate as follows:
 
 **Note**: Completed as part of Phase 0.3 implementation
 
-#### Phase 1.3: Enhanced Ingestion ⏸️
+#### Phase 1.3: Enhanced Ingestion ✅
 **Deliverable**: Multi-format support and preprocessing
-- [ ] Add PDF, Markdown, JSON support
-- [ ] Implement URL content fetching
-- [ ] Create content preprocessing pipeline
-- [ ] Create universal ingestion script
+- [x] Add Markdown, JSON support (PDF moved to later phase)
+- [x] Implement URL content fetching
+- [x] Create content preprocessing pipeline
+- [x] Create universal ingestion script
 
 **Success Criteria**: Can ingest various formats and URLs successfully
 

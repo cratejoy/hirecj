@@ -1,0 +1,39 @@
+{
+  "title": "LightRAG Knowledge Base Configuration",
+  "description": "Sample JSON data for testing ingestion",
+  "version": "1.0.0",
+  "created_at": "2024-01-15",
+  "author": "HireCJ Team",
+  "categories": ["knowledge-management", "rag", "ai"],
+  "configuration": {
+    "namespaces": [
+      {
+        "id": "products",
+        "name": "Product Knowledge",
+        "description": "Product documentation and specifications"
+      },
+      {
+        "id": "support",
+        "name": "Customer Support",
+        "description": "Support tickets and resolutions"
+      }
+    ],
+    "settings": {
+      "embedding_model": "text-embedding-ada-002",
+      "chunk_size": 1000,
+      "overlap": 200,
+      "query_modes": ["naive", "local", "global", "hybrid"]
+    }
+  },
+  "features": [
+    "Multi-namespace support",
+    "Vector embeddings for semantic search",
+    "Knowledge graph construction",
+    "Multiple query modes"
+  ],
+  "metadata": {
+    "tags": ["documentation", "configuration", "sample"],
+    "priority": "high",
+    "status": "active"
+  }
+}
