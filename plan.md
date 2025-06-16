@@ -422,16 +422,16 @@ The editor's Grounding views will integrate as follows:
 
 ### Milestone 0: Operational Setup
 
-#### Phase 0.1: Core API Infrastructure ⏳
+#### Phase 0.1: Core API Infrastructure ✅
 **Deliverable**: Basic FastAPI server running on port 8004
-- [ ] Create knowledge directory structure
-- [ ] Set up FastAPI server with basic configuration
-- [ ] Create basic health check endpoint
-- [ ] Write initial requirements.txt
+- [x] Create knowledge directory structure
+- [x] Set up FastAPI server with basic configuration
+- [x] Create basic health check endpoint
+- [x] Write initial requirements.txt
 
 **Success Criteria**: Server starts, health check returns 200 OK
 
-#### Phase 0.2: Namespace Management ⏸️
+#### Phase 0.2: Namespace Management ⏳
 **Deliverable**: Working namespace CRUD operations
 - [ ] Implement dynamic namespace registry
 - [ ] Create namespace CRUD endpoints
@@ -449,13 +449,13 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can ingest and query documents in isolated namespaces
 
-#### Phase 0.4: HireCJ Integration ⏸️
+#### Phase 0.4: HireCJ Integration ✅
 **Deliverable**: Service integrated into dev environment
-- [ ] Integrate with HireCJ dev environment (port 8004)
-- [ ] Update root Makefile for `make dev-knowledge`
-- [ ] Add to tmux window configuration
-- [ ] Verify environment variable distribution
-- [ ] Update scripts/distribute_env.py
+- [x] Integrate with HireCJ dev environment (port 8004)
+- [x] Update root Makefile for `make dev-knowledge`
+- [x] Add to tmux window configuration
+- [x] Verify environment variable distribution
+- [x] Update scripts/distribute_env.py
 
 **Success Criteria**: `make dev-knowledge` starts the service with proper config
 

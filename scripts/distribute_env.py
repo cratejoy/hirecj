@@ -161,6 +161,35 @@ SERVICE_VARS = {
             "VITE_WS_URL": lambda vars: _get_vite_ws_url(vars),
             "VITE_AUTH_URL": lambda vars: vars.get("AUTH_SERVICE_URL", "http://localhost:8103"),
         }
+    },
+    "knowledge": {
+        "direct": [
+            # Core configuration
+            "ENVIRONMENT", "DEBUG", "LOG_LEVEL",
+            
+            # Service identity
+            "KNOWLEDGE_SERVICE_PORT",
+            
+            # LightRAG configuration
+            "KNOWLEDGE_DIR",
+            "KNOWLEDGE_API_PORT",
+            
+            # Model configuration (shared with agents)
+            "OPENAI_API_KEY",
+            "LLM_MODEL",
+            "EMBEDDING_MODEL",
+            
+            # PostgreSQL for LightRAG storage (future)
+            "POSTGRES_HOST",
+            "POSTGRES_PORT", 
+            "POSTGRES_DB",
+            "POSTGRES_USER",
+            "POSTGRES_PASSWORD",
+            
+            # Service URLs for integration
+            "AUTH_SERVICE_URL",
+            "AGENTS_SERVICE_URL",
+        ]
     }
 }
 

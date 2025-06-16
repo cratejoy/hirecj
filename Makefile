@@ -30,6 +30,7 @@ help:
 	@echo "  make dev-homepage - Start homepage service only"
 	@echo "  make dev-editor-backend - Start editor backend service only"
 	@echo "  make dev-editor   - Start editor frontend only"
+	@echo "  make dev-knowledge - Start knowledge service only"
 	@echo "  make test-auth    - Test auth service"
 	@echo "  make test-agents  - Test agents service"
 	@echo ""
@@ -146,6 +147,10 @@ dev-editor: env-distribute
 	@echo "🎨 Starting editor frontend..."
 	cd editor && npm run dev
 
+dev-knowledge: env-distribute
+	@echo "🧠 Starting knowledge service..."
+	@cd knowledge && venv/bin/python scripts/run_api_server.py
+
 # Stop all services
 stop:
 	@echo "🛑 Stopping all services..."
@@ -165,7 +170,9 @@ clean-ports:
 	@lsof -ti:8103 | xargs kill -9 2>/dev/null || echo "Port 8103 clear"
 	@lsof -ti:8002 | xargs kill -9 2>/dev/null || echo "Port 8002 clear"
 	@lsof -ti:8001 | xargs kill -9 2>/dev/null || echo "Port 8001 clear"
+	@lsof -ti:8004 | xargs kill -9 2>/dev/null || echo "Port 8004 clear"
 	@lsof -ti:3456 | xargs kill -9 2>/dev/null || echo "Port 3456 clear"
+	@lsof -ti:3458 | xargs kill -9 2>/dev/null || echo "Port 3458 clear"
 	@echo "✅ All ports cleaned"
 
 # Stop tunnels and services
@@ -238,7 +245,7 @@ dev-tunnels-tmux: env-distribute
 		exit 1; \
 	fi
 	@tmux new-session -d -s hirecj-tunnels -n urls
-	@tmux send-keys -t hirecj-tunnels:0 'sleep 2 && make detect-tunnels && echo "" && echo "✅ Tunnels configured! Service URLs are shown above." && echo "" && echo "Press Ctrl+b then a number to switch windows:" && echo "  0 - This URL list" && echo "  1 - Ngrok tunnels" && echo "  2 - Agents service" && echo "  3 - Auth service" && echo "  4 - Database service" && echo "  5 - Homepage" && echo "  6 - Editor backend" && echo "  7 - Editor frontend" && echo "  8 - Tool calls" && echo "  9 - Logs" && echo ""' C-m
+	@tmux send-keys -t hirecj-tunnels:0 'sleep 2 && make detect-tunnels && echo "" && echo "✅ Tunnels configured! Service URLs are shown above." && echo "" && echo "Press Ctrl+b then a number to switch windows:" && echo "  0 - This URL list" && echo "  1 - Ngrok tunnels" && echo "  2 - Agents service" && echo "  3 - Auth service" && echo "  4 - Database service" && echo "  5 - Homepage" && echo "  6 - Editor backend" && echo "  7 - Editor frontend" && echo "  8 - Knowledge service" && echo "  9 - Tool calls" && echo "  10 - Logs" && echo ""' C-m
 	@tmux new-window -t hirecj-tunnels:1 -n ngrok
 	@tmux send-keys -t hirecj-tunnels:1 'make tunnels' C-m
 	@tmux new-window -t hirecj-tunnels:2 -n agents
@@ -253,10 +260,12 @@ dev-tunnels-tmux: env-distribute
 	@tmux send-keys -t hirecj-tunnels:6 'sleep 3 && make dev-editor-backend' C-m
 	@tmux new-window -t hirecj-tunnels:7 -n editor-frontend  
 	@tmux send-keys -t hirecj-tunnels:7 'sleep 3 && make dev-editor' C-m
-	@tmux new-window -t hirecj-tunnels:8 -n tool-calls
-	@tmux send-keys -t hirecj-tunnels:8 'sleep 5 && tail -f logs/tool_calls.log' C-m
-	@tmux new-window -t hirecj-tunnels:9 -n logs
-	@tmux send-keys -t hirecj-tunnels:9 'sleep 10 && find agents/logs auth/logs homepage/logs database/logs editor/logs -name "*.log" -type f 2>/dev/null | xargs tail -f' C-m
+	@tmux new-window -t hirecj-tunnels:8 -n knowledge
+	@tmux send-keys -t hirecj-tunnels:8 'sleep 3 && make dev-knowledge' C-m
+	@tmux new-window -t hirecj-tunnels:9 -n tool-calls
+	@tmux send-keys -t hirecj-tunnels:9 'sleep 5 && tail -f logs/tool_calls.log' C-m
+	@tmux new-window -t hirecj-tunnels:10 -n logs
+	@tmux send-keys -t hirecj-tunnels:10 'sleep 10 && find agents/logs auth/logs homepage/logs database/logs editor/logs knowledge/logs -name "*.log" -type f 2>/dev/null | xargs tail -f' C-m
 	@tmux select-window -t hirecj-tunnels:0
 	@tmux attach -t hirecj-tunnels
 
