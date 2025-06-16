@@ -6,9 +6,13 @@ LightRAG-based knowledge management system for HireCJ.
 
 This phase implements a basic FastAPI server with health check endpoint.
 
-## Phase 0.2: Namespace Management 🚧
+## Phase 0.2: Namespace Management ✅
 
 This phase adds namespace CRUD operations with LightRAG integration.
+
+## Phase 0.3: Basic Operations ✅
+
+This phase adds document ingestion and query functionality.
 
 ### Directory Structure
 
@@ -58,6 +62,10 @@ knowledge/
 - `GET /api/namespaces/{namespace_id}` - Get specific namespace details
 - `DELETE /api/namespaces/{namespace_id}` - Delete a namespace
 
+#### Document Operations (Phase 0.3)
+- `POST /api/{namespace_id}/documents` - Add documents to a namespace
+- `POST /api/{namespace_id}/query` - Query knowledge in a namespace
+
 ### Phase 0.1 Success Criteria ✅
 
 - [x] Server starts successfully on port 8004
@@ -96,17 +104,42 @@ curl http://localhost:8004/api/namespaces/products
 curl -X DELETE http://localhost:8004/api/namespaces/products
 ```
 
-### Phase 0.2 Success Criteria 🚧
+### Phase 0.2 Success Criteria ✅
 
-- [ ] Can create, list, and delete namespaces via API
-- [ ] Namespaces persist to disk (namespace_registry.json)
-- [ ] Each namespace has isolated data storage
-- [ ] Proper error handling and HTTP status codes
+- [x] Can create, list, and delete namespaces via API
+- [x] Namespaces persist to disk (namespace_registry.json)
+- [x] Each namespace has isolated data storage
+- [x] Proper error handling and HTTP status codes
+
+### Phase 0.3 Features
+
+- **Document Ingestion**: Add documents to any namespace with metadata
+- **Query Interface**: Query documents with multiple modes (naive, local, global, hybrid)
+- **Example Scripts**: Comprehensive examples showing namespace and document usage
+- **Setup Automation**: Automated setup script for easy deployment
+
+### Testing Phase 0.3
+
+Run the example usage script:
+```bash
+cd knowledge
+make example
+```
+
+Run the basic operations test:
+```bash
+cd knowledge
+make test-operations
+```
+
+### Phase 0.3 Success Criteria ✅
+
+- [x] Document ingestion endpoint works for all namespaces
+- [x] Query endpoint returns relevant results
+- [x] All query modes (naive, local, global, hybrid) function properly
+- [x] Example scripts demonstrate full workflow
+- [x] Setup script prepares environment correctly
 
 ### Next Steps
 
-Phase 0.3 will add:
-- Document ingestion endpoints
-- Query endpoints with namespace isolation
-- Example usage scripts
-- Setup and installation scripts
+Phase 0.4 will integrate with HireCJ's development environment.

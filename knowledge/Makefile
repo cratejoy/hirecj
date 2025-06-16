@@ -1,13 +1,17 @@
 # Knowledge Service Makefile
 
-.PHONY: help install dev test clean
+.PHONY: help install dev test clean setup example test-namespace test-operations
 
 help:
 	@echo "Knowledge Service - Available commands:"
-	@echo "  make install    - Install dependencies"
-	@echo "  make dev        - Run development server"
-	@echo "  make test       - Test the health endpoint"
-	@echo "  make clean      - Clean up files"
+	@echo "  make install        - Install dependencies"
+	@echo "  make dev            - Run development server"
+	@echo "  make test           - Test the health endpoint"
+	@echo "  make setup          - Run setup script"
+	@echo "  make example        - Run example usage (Phase 0.3)"
+	@echo "  make test-namespace - Test namespace operations (Phase 0.2)"
+	@echo "  make test-operations - Test document operations (Phase 0.3)"
+	@echo "  make clean          - Clean up files"
 
 install:
 	@echo "📦 Installing dependencies..."
@@ -29,3 +33,20 @@ clean:
 	@find . -type f -name "*.pyc" -delete
 	@rm -rf venv
 	@echo "✅ Cleaned"
+
+# Phase 0.3 targets
+setup:
+	@echo "🔧 Running setup script..."
+	@bash scripts/setup.sh
+
+example:
+	@echo "🚀 Running example usage..."
+	@venv/bin/python scripts/example_usage.py
+
+test-namespace:
+	@echo "🧪 Testing namespace operations..."
+	@venv/bin/python scripts/test_namespaces.py
+
+test-operations:
+	@echo "🧪 Testing document operations..."
+	@venv/bin/python scripts/test_basic_operations.py

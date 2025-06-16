@@ -1,9 +1,11 @@
 """
-Knowledge API Server - Phase 0.2: Namespace Management
-FastAPI server with LightRAG integration and namespace CRUD operations
+Knowledge API Server - Phase 0.3: Basic Operations
+FastAPI server with document ingestion and query functionality
 """
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from lightrag import LightRAG, QueryParam
+from lightrag.llm.openai import gpt_4o_mini_complete, openai_embed
+from lightrag.kg.shared_storage import initialize_pipeline_status
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -27,7 +29,6 @@ KNOWLEDGE_DIR = Path(os.getenv("KNOWLEDGE_DIR", "./knowledge_base"))
 BASE_CONFIG = {
     "working_dir": str(KNOWLEDGE_DIR),
     "llm_model_name": os.getenv("LLM_MODEL", "gpt-4o-mini"),
-    "embedding_model_name": os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
 }
 
 # Models
@@ -108,6 +109,7 @@ namespace_registry = NamespaceRegistry()
 
 # LightRAG instance cache
 lightrag_instances: Dict[str, LightRAG] = {}
+_pipeline_initialized = False
 
 @asynccontextmanager
 async def get_lightrag_instance(namespace_id: str):
@@ -115,14 +117,26 @@ async def get_lightrag_instance(namespace_id: str):
     if namespace_id not in namespace_registry.namespaces:
         raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
     
+    global _pipeline_initialized
+    
     # Cache instances to avoid recreation
     if namespace_id not in lightrag_instances:
         logger.info(f"Creating LightRAG instance for namespace: {namespace_id}")
         lightrag_instances[namespace_id] = LightRAG(
             **BASE_CONFIG,
-            namespace_prefix=namespace_id
+            namespace_prefix=namespace_id,
+            embedding_func=openai_embed,
+            llm_model_func=gpt_4o_mini_complete
         )
-        # Note: LightRAG handles storage initialization internally
+        # Initialize storages for the new instance
+        await lightrag_instances[namespace_id].initialize_storages()
+        logger.info(f"Initialized storages for namespace: {namespace_id}")
+        
+        # Initialize pipeline status once globally after first instance
+        if not _pipeline_initialized:
+            await initialize_pipeline_status()
+            _pipeline_initialized = True
+            logger.info("Initialized global pipeline status")
     
     yield lightrag_instances[namespace_id]
 
@@ -130,16 +144,31 @@ async def get_lightrag_instance(namespace_id: str):
 app = FastAPI(
     title="Knowledge API",
     description="LightRAG-based knowledge management system for HireCJ",
-    version="0.2.0"
+    version="0.3.0"
 )
 
 @app.on_event("startup")
 async def startup_event():
     """Log startup information"""
     logger.info(f"Knowledge API starting on port {PORT}")
-    logger.info("Phase 0.2: Namespace Management")
+    logger.info("Phase 0.3: Basic Operations")
     logger.info(f"Working directory: {KNOWLEDGE_DIR}")
     logger.info(f"Loaded {len(namespace_registry.namespaces)} namespaces")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up resources on shutdown"""
+    logger.info("Shutting down Knowledge API...")
+    
+    # Finalize all LightRAG instances
+    for namespace_id, rag in lightrag_instances.items():
+        try:
+            await rag.finalize_storages()
+            logger.info(f"Finalized storages for namespace: {namespace_id}")
+        except Exception as e:
+            logger.error(f"Error finalizing namespace {namespace_id}: {e}")
+    
+    logger.info("Knowledge API shutdown complete")
 
 @app.get("/health")
 async def health():
@@ -148,8 +177,8 @@ async def health():
         "status": "healthy",
         "port": PORT,
         "message": "Knowledge API is running",
-        "version": "0.2.0",
-        "phase": "0.2",
+        "version": "0.3.0",
+        "phase": "0.3",
         "namespaces_count": len(namespace_registry.namespaces),
         "working_dir": str(KNOWLEDGE_DIR)
     }
@@ -223,6 +252,35 @@ async def delete_namespace(namespace_id: str):
     
     return {
         "message": f"Namespace '{namespace_id}' deleted successfully"
+    }
+
+# Document operations
+@app.post("/api/{namespace_id}/documents")
+async def add_document(namespace_id: str, doc: Document):
+    """Add document to namespace"""
+    async with get_lightrag_instance(namespace_id) as rag:
+        await rag.ainsert(doc.content)
+        logger.info(f"Added document to namespace '{namespace_id}': {len(doc.content)} chars")
+    
+    return {
+        "message": "Document added successfully",
+        "namespace": namespace_id,
+        "content_length": len(doc.content),
+        "metadata": doc.metadata
+    }
+
+@app.post("/api/{namespace_id}/query")
+async def query_knowledge(namespace_id: str, req: QueryRequest):
+    """Query specific namespace"""
+    async with get_lightrag_instance(namespace_id) as rag:
+        logger.info(f"Querying namespace '{namespace_id}' with mode '{req.mode}': {req.query}")
+        result = await rag.aquery(req.query, param=QueryParam(mode=req.mode))
+    
+    return {
+        "namespace": namespace_id,
+        "query": req.query,
+        "result": result,
+        "mode": req.mode
     }
 
 if __name__ == "__main__":

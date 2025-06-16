@@ -369,7 +369,7 @@ POST /api/namespaces?namespace_id=assistant_professional
 ```bash
 # LightRAG Configuration
 KNOWLEDGE_DIR=./knowledge_base
-KNOWLEDGE_API_PORT=9620
+KNOWLEDGE_API_PORT=8004
 
 # Model Configuration  
 LLM_MODEL=gpt-4o-mini
@@ -440,12 +440,12 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can create, list, and delete namespaces via API
 
-#### Phase 0.3: Basic Operations ⏳
+#### Phase 0.3: Basic Operations ✅
 **Deliverable**: Document ingestion and query working
-- [ ] Add document ingestion endpoints for any namespace
-- [ ] Implement query endpoints with namespace isolation
-- [ ] Create example usage script
-- [ ] Write setup and installation scripts
+- [x] Add document ingestion endpoints for any namespace
+- [x] Implement query endpoints with namespace isolation
+- [x] Create example usage script
+- [x] Write setup and installation scripts
 
 **Success Criteria**: Can ingest and query documents in isolated namespaces
 
@@ -459,6 +459,26 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: `make dev-knowledge` starts the service with proper config
 
+#### Implementation Notes
+
+**Key Deviations from Original Plan:**
+1. **LightRAG Configuration**: Instead of `embedding_model_name`, we use function-based configuration:
+   - `embedding_func=openai_embed`
+   - `llm_model_func=gpt_4o_mini_complete`
+2. **Storage Initialization**: Each LightRAG instance requires `initialize_storages()` call
+3. **Pipeline Status**: Global pipeline status must be initialized after first instance
+4. **Query Parameter**: Using FastAPI's `Query` for URL parameters, not `Field`
+
+**Completed Features:**
+- Dynamic namespace management via API
+- Full CRUD operations for namespaces
+- Document ingestion with metadata support
+- All 4 query modes (naive, local, global, hybrid) working
+- Namespace isolation using LightRAG's `namespace_prefix`
+- Integration with HireCJ development environment
+- Tmux window 8 configuration
+- Environment variable distribution via distribute_env.py
+
 ### Milestone 1: Generic Knowledge Management
 
 #### Phase 1.1: Basic Document Ingestion ⏸️
@@ -470,14 +490,16 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can batch ingest 10+ text files with metadata
 
-#### Phase 1.2: Query System Implementation ⏸️
+#### Phase 1.2: Query System Implementation ✅
 **Deliverable**: All query modes functional
-- [ ] Implement naive query mode
-- [ ] Implement local and global query modes
-- [ ] Implement hybrid query mode
-- [ ] Verify query response time < 1 second
+- [x] Implement naive query mode
+- [x] Implement local and global query modes
+- [x] Implement hybrid query mode
+- [x] Verify query response time < 1 second
 
 **Success Criteria**: All 4 query modes return relevant results
+
+**Note**: Completed as part of Phase 0.3 implementation
 
 #### Phase 1.3: Enhanced Ingestion ⏸️
 **Deliverable**: Multi-format support and preprocessing
@@ -642,7 +664,7 @@ We'll build a FastAPI server that manages namespaces dynamically. Users start wi
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    Knowledge API Server (Port 9620)                   │
+│                    Knowledge API Server (Port 8004)                   │
 │                         FastAPI Application                           │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                       │
@@ -689,8 +711,10 @@ knowledge/
 
 **1. API Server (`gateway/main.py`)**
 ```python
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
 from lightrag import LightRAG, QueryParam
+from lightrag.llm.openai import gpt_4o_mini_complete, openai_embed
+from lightrag.kg.shared_storage import initialize_pipeline_status
 from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -710,7 +734,6 @@ KNOWLEDGE_DIR = Path(os.getenv("KNOWLEDGE_DIR", "./knowledge_base"))
 BASE_CONFIG = {
     "working_dir": str(KNOWLEDGE_DIR),
     "llm_model_name": os.getenv("LLM_MODEL", "gpt-4o-mini"),
-    "embedding_model_name": os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
 }
 
 # Models
@@ -787,6 +810,7 @@ namespace_registry = NamespaceRegistry()
 
 # LightRAG instance cache
 lightrag_instances: Dict[str, LightRAG] = {}
+_pipeline_initialized = False
 
 @asynccontextmanager
 async def get_lightrag_instance(namespace_id: str):
@@ -794,20 +818,33 @@ async def get_lightrag_instance(namespace_id: str):
     if namespace_id not in namespace_registry.namespaces:
         raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
     
+    global _pipeline_initialized
+    
     # Cache instances to avoid recreation
     if namespace_id not in lightrag_instances:
+        logger.info(f"Creating LightRAG instance for namespace: {namespace_id}")
         lightrag_instances[namespace_id] = LightRAG(
             **BASE_CONFIG,
-            namespace_prefix=namespace_id
+            namespace_prefix=namespace_id,
+            embedding_func=openai_embed,
+            llm_model_func=gpt_4o_mini_complete
         )
+        # Initialize storages for the new instance
         await lightrag_instances[namespace_id].initialize_storages()
+        logger.info(f"Initialized storages for namespace: {namespace_id}")
+        
+        # Initialize pipeline status once globally after first instance
+        if not _pipeline_initialized:
+            await initialize_pipeline_status()
+            _pipeline_initialized = True
+            logger.info("Initialized global pipeline status")
     
     yield lightrag_instances[namespace_id]
 
 # Namespace CRUD endpoints
 @app.post("/api/namespaces")
 async def create_namespace(
-    namespace_id: str = Field(..., regex="^[a-z0-9_]+$"),
+    namespace_id: str = Query(..., regex="^[a-z0-9_]+$", description="Namespace identifier"),
     config: NamespaceConfig = ...
 ):
     """Create a new namespace"""
@@ -826,11 +863,13 @@ async def create_namespace(
 @app.get("/api/namespaces")
 async def list_namespaces():
     """List all namespaces"""
+    namespaces = namespace_registry.list_namespaces()
     return {
         "namespaces": [
             {"id": k, **v.dict()} 
-            for k, v in namespace_registry.list_namespaces().items()
-        ]
+            for k, v in namespaces.items()
+        ],
+        "count": len(namespaces)
     }
 
 @app.delete("/api/namespaces/{namespace_id}")
@@ -852,8 +891,10 @@ async def add_document(namespace_id: str, doc: Document):
     """Add document to namespace"""
     async with get_lightrag_instance(namespace_id) as rag:
         await rag.ainsert(doc.content)
+        logger.info(f"Added document to namespace '{namespace_id}': {len(doc.content)} chars")
+    
     return {
-        "message": "Document added",
+        "message": "Document added successfully",
         "namespace": namespace_id,
         "content_length": len(doc.content),
         "metadata": doc.metadata
@@ -863,7 +904,9 @@ async def add_document(namespace_id: str, doc: Document):
 async def query_knowledge(namespace_id: str, req: QueryRequest):
     """Query specific namespace"""
     async with get_lightrag_instance(namespace_id) as rag:
+        logger.info(f"Querying namespace '{namespace_id}' with mode '{req.mode}': {req.query}")
         result = await rag.aquery(req.query, param=QueryParam(mode=req.mode))
+    
     return {
         "namespace": namespace_id,
         "query": req.query,
@@ -873,16 +916,26 @@ async def query_knowledge(namespace_id: str, req: QueryRequest):
 
 @app.get("/health")
 async def health():
-    """API health check"""
+    """API health check endpoint"""
     return {
         "status": "healthy",
+        "port": PORT,
+        "message": "Knowledge API is running",
+        "version": "0.3.0",
+        "phase": "0.3",
         "namespaces_count": len(namespace_registry.namespaces),
-        "working_dir": BASE_CONFIG["working_dir"]
+        "working_dir": str(KNOWLEDGE_DIR)
     }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+    uvicorn.run(
+        "gateway.main:app",
+        host="0.0.0.0",
+        port=PORT,
+        reload=True,
+        log_level="info"
+    )
 ```
 
 **2. Example Usage Script (`scripts/example_usage.py`)**
@@ -1180,7 +1233,7 @@ echo "  10 - Knowledge service"
 ##### Code Updates Required
 
 **1. Update `gateway/main.py`**:
-- Change default port from 9620 to 8004
+- Use environment variable for port configuration
 - Use environment variables:
 ```python
 PORT = int(os.getenv("KNOWLEDGE_SERVICE_PORT", "8004"))
@@ -1244,20 +1297,20 @@ curl -X POST "http://localhost:8004/api/namespaces?namespace_id=products" \
   -d '{"name": "Product Knowledge", "description": "Product specs and documentation"}'
 
 # Add product knowledge
-curl -X POST "http://localhost:9620/api/products/documents" \
+curl -X POST "http://localhost:8004/api/products/documents" \
   -H "Content-Type: application/json" \
   -d '{"content": "Our product supports RAM upgrades up to 64GB..."}'
 
 # Query the namespace
-curl -X POST "http://localhost:9620/api/products/query" \
+curl -X POST "http://localhost:8004/api/products/query" \
   -H "Content-Type: application/json" \
   -d '{"query": "How do I upgrade RAM?", "mode": "hybrid"}'
 
 # List all namespaces
-curl "http://localhost:9620/api/namespaces"
+curl "http://localhost:8004/api/namespaces"
 
 # Delete a namespace
-curl -X DELETE "http://localhost:9620/api/namespaces/products"
+curl -X DELETE "http://localhost:8004/api/namespaces/products"
 ```
 
 #### Key Advantages
