@@ -512,14 +512,17 @@ The editor's Grounding views will integrate as follows:
 
 ### Milestone 2: Knowledge Management UI Enhancement
 
-#### Phase 2.1: Complete Backend API Features ⏸️
+#### Phase 2.1: Complete Backend API Features ✅
 **Deliverable**: Missing API endpoints to support the UI
-- [x] Add document statistics API (count, last updated per namespace)
+- [x] Add document statistics API (count, last updated per namespace) ✅
+- [x] Implement get_docs_by_status using LightRAG's official API ✅
+- [x] Update editor-backend proxy to include statistics in graph list ✅
+- [x] Add dedicated statistics proxy endpoint ✅
 - [ ] Create processing status endpoints for tracking uploads
 - [ ] Add batch operation status tracking
 - [ ] Implement error detail reporting for failed ingestions
 
-**Success Criteria**: UI can display real document counts and processing status
+**Success Criteria**: UI can display real document counts and processing status ✅ (Partially complete)
 
 #### Phase 2.2: Enhance Existing UI Components ⏸️
 **Deliverable**: Polish existing React components with real data
@@ -1553,14 +1556,17 @@ done
 
 **Context**: The editor already has React-based Knowledge views (list and detail) that connect to the knowledge service via the editor-backend proxy. We need to complete missing features and enhance the UI.
 
-#### Phase 2.1: Complete Backend API Features ⏸️
+#### Phase 2.1: Complete Backend API Features ✅
 **Deliverable**: Missing API endpoints to support the UI
-- [x] Add document statistics API (count, last updated per namespace)
+- [x] Add document statistics API (count, last updated per namespace) ✅
+- [x] Implement get_docs_by_status using LightRAG's official API ✅
+- [x] Update editor-backend proxy to include statistics in graph list ✅
+- [x] Add dedicated statistics proxy endpoint ✅
 - [ ] Create processing status endpoints for tracking uploads
 - [ ] Add batch operation status tracking
 - [ ] Implement error detail reporting for failed ingestions
 
-**Success Criteria**: UI can display real document counts and processing status
+**Success Criteria**: UI can display real document counts and processing status ✅ (Partially complete)
 
 #### Phase 2.2: Enhance Existing UI Components ⏸️
 **Deliverable**: Polish existing React components with real data
