@@ -431,16 +431,16 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Server starts, health check returns 200 OK
 
-#### Phase 0.2: Namespace Management ⏳
+#### Phase 0.2: Namespace Management ✅
 **Deliverable**: Working namespace CRUD operations
-- [ ] Implement dynamic namespace registry
-- [ ] Create namespace CRUD endpoints
-- [ ] Add namespace persistence to disk
-- [ ] Test namespace switching and data isolation
+- [x] Implement dynamic namespace registry
+- [x] Create namespace CRUD endpoints
+- [x] Add namespace persistence to disk
+- [x] Test namespace switching and data isolation
 
 **Success Criteria**: Can create, list, and delete namespaces via API
 
-#### Phase 0.3: Basic Operations ⏸️
+#### Phase 0.3: Basic Operations ⏳
 **Deliverable**: Document ingestion and query working
 - [ ] Add document ingestion endpoints for any namespace
 - [ ] Implement query endpoints with namespace isolation
