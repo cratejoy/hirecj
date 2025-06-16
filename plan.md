@@ -518,11 +518,13 @@ The editor's Grounding views will integrate as follows:
 - [x] Implement get_docs_by_status using LightRAG's official API ✅
 - [x] Update editor-backend proxy to include statistics in graph list ✅
 - [x] Add dedicated statistics proxy endpoint ✅
-- [ ] Create processing status endpoints for tracking uploads
+- [x] Create stuck document detection (documents stuck in processing/pending) ✅
+- [x] Add stuck document counts to statistics endpoint ✅
+- [x] Create /stuck endpoint for detailed stuck document info ✅
 - [ ] Add batch operation status tracking
 - [ ] Implement error detail reporting for failed ingestions
 
-**Success Criteria**: UI can display real document counts and processing status ✅ (Partially complete)
+**Success Criteria**: UI can display real document counts and processing status ✅ (Mostly complete)
 
 #### Phase 2.2: Enhance Existing UI Components ✅
 **Deliverable**: Polish existing React components with real data
@@ -530,11 +532,15 @@ The editor's Grounding views will integrate as follows:
 - [x] Display real last_updated timestamps ✅
 - [x] Add file type indicators (.txt, .md, .json) ✅
 - [x] Display query response times ✅
+- [x] Add stuck document indicators in KnowledgeListView ✅
+- [x] Add processing status section in KnowledgeDetailView ✅
+- [x] Show stuck documents with time stuck and details ✅
+- [x] Add automatic refresh (30s interval) for stuck documents ✅
 - [ ] Add loading states and better error messages (moved to later phase)
 - [ ] Show upload progress for each file in KnowledgeDetailView (API limitation)
 - [ ] Fix mobile responsive issues (out of scope)
 
-**Success Criteria**: UI shows accurate data with smooth user experience ✅
+**Success Criteria**: UI shows accurate data with smooth user experience and clear stuck document indicators ✅
 
 #### Phase 2.3: Add Processing Status View ⏸️
 **Deliverable**: New view for processing queue visibility
@@ -1562,11 +1568,13 @@ done
 - [x] Implement get_docs_by_status using LightRAG's official API ✅
 - [x] Update editor-backend proxy to include statistics in graph list ✅
 - [x] Add dedicated statistics proxy endpoint ✅
-- [ ] Create processing status endpoints for tracking uploads
+- [x] Create stuck document detection (documents stuck in processing/pending) ✅
+- [x] Add stuck document counts to statistics endpoint ✅
+- [x] Create /stuck endpoint for detailed stuck document info ✅
 - [ ] Add batch operation status tracking
 - [ ] Implement error detail reporting for failed ingestions
 
-**Success Criteria**: UI can display real document counts and processing status ✅ (Partially complete)
+**Success Criteria**: UI can display real document counts and processing status ✅ (Mostly complete)
 
 #### Phase 2.2: Enhance Existing UI Components ✅
 **Deliverable**: Polish existing React components with real data
@@ -1574,11 +1582,15 @@ done
 - [x] Display real last_updated timestamps ✅
 - [x] Add file type indicators (.txt, .md, .json) ✅
 - [x] Display query response times ✅
+- [x] Add stuck document indicators in KnowledgeListView ✅
+- [x] Add processing status section in KnowledgeDetailView ✅
+- [x] Show stuck documents with time stuck and details ✅
+- [x] Add automatic refresh (30s interval) for stuck documents ✅
 - [ ] Add loading states and better error messages (moved to later phase)
 - [ ] Show upload progress for each file in KnowledgeDetailView (API limitation)
 - [ ] Fix mobile responsive issues (out of scope)
 
-**Success Criteria**: UI shows accurate data with smooth user experience ✅
+**Success Criteria**: UI shows accurate data with smooth user experience and clear stuck document indicators ✅
 
 #### Phase 2.3: Add Processing Status View ⏸️
 **Deliverable**: New view for processing queue visibility

@@ -20,6 +20,7 @@ import re
 import os
 import logging
 import sys
+import hashlib
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -278,6 +279,44 @@ async def delete_namespace(namespace_id: str):
         "message": f"Namespace '{namespace_id}' deleted successfully"
     }
 
+def is_document_stuck(doc: Any, status: str) -> bool:
+    """Determine if a document is stuck based on its status and time"""
+    from datetime import datetime, timezone, timedelta
+    
+    if not hasattr(doc, 'updated_at') or not doc.updated_at:
+        return False
+    
+    try:
+        # Parse the updated_at timestamp
+        if isinstance(doc.updated_at, str):
+            # Handle ISO format timestamps
+            if doc.updated_at.endswith('Z'):
+                doc_time = datetime.fromisoformat(doc.updated_at.replace('Z', '+00:00'))
+            else:
+                doc_time = datetime.fromisoformat(doc.updated_at)
+        else:
+            return False
+            
+        # Ensure timezone awareness
+        if doc_time.tzinfo is None:
+            doc_time = doc_time.replace(tzinfo=timezone.utc)
+            
+        current_time = datetime.now(timezone.utc)
+        time_diff = current_time - doc_time
+        
+        # Define stuck thresholds
+        if status == "processing":
+            # Documents processing for more than 5 minutes are considered stuck
+            return time_diff > timedelta(minutes=5)
+        elif status == "pending":
+            # Documents pending for more than 10 minutes are considered stuck
+            return time_diff > timedelta(minutes=10)
+            
+    except Exception as e:
+        logger.warning(f"Error checking if document is stuck: {e}")
+        
+    return False
+
 @app.get("/api/namespaces/{namespace_id}/statistics")
 async def get_namespace_statistics(namespace_id: str):
     """Get statistics for a namespace using LightRAG's official API"""
@@ -300,6 +339,11 @@ async def get_namespace_statistics(namespace_id: str):
                 "failed": len(failed_docs)
             }
             
+            # Count stuck documents
+            stuck_processing = sum(1 for doc in processing_docs.values() if is_document_stuck(doc, "processing"))
+            stuck_pending = sum(1 for doc in pending_docs.values() if is_document_stuck(doc, "pending"))
+            stuck_count = stuck_processing + stuck_pending
+            
             # Calculate statistics
             document_count = status_counts["processed"]
             total_chunks = sum(doc.chunks_count or 0 for doc in processed_docs.values())
@@ -319,7 +363,10 @@ async def get_namespace_statistics(namespace_id: str):
                 "total_chunks": total_chunks,
                 "status_breakdown": status_counts,
                 "failed_count": status_counts["failed"],
-                "pending_count": status_counts["pending"] + status_counts["processing"]
+                "pending_count": status_counts["pending"] + status_counts["processing"],
+                "stuck_count": stuck_count,
+                "stuck_processing": stuck_processing,
+                "stuck_pending": stuck_pending
             }
     except Exception as e:
         logger.error(f"Error getting statistics for namespace {namespace_id}: {e}")
@@ -331,20 +378,27 @@ async def get_namespace_statistics(namespace_id: str):
             "total_chunks": 0,
             "status_breakdown": {},
             "failed_count": 0,
-            "pending_count": 0
+            "pending_count": 0,
+            "stuck_count": 0,
+            "stuck_processing": 0,
+            "stuck_pending": 0
         }
 
 # Document operations
 @app.post("/api/{namespace_id}/documents")
 async def add_document(namespace_id: str, doc: Document):
     """Add document to namespace"""
+    # Generate document ID from content hash
+    doc_id = f"doc-{hashlib.md5(doc.content.encode()).hexdigest()}"
+    
     async with get_lightrag_instance(namespace_id) as rag:
         await rag.ainsert(doc.content)
-        logger.info(f"Added document to namespace '{namespace_id}': {len(doc.content)} chars")
+        logger.info(f"Added document to namespace '{namespace_id}': {len(doc.content)} chars, ID: {doc_id}")
     
     return {
         "message": "Document added successfully",
         "namespace": namespace_id,
+        "document_id": doc_id,
         "content_length": len(doc.content),
         "metadata": doc.metadata
     }
@@ -390,14 +444,18 @@ async def upload_document(namespace_id: str, file: UploadFile = File(...)):
         **extra_metadata
     }
     
+    # Generate document ID from content hash
+    doc_id = f"doc-{hashlib.md5(text_content.encode()).hexdigest()}"
+    
     # Ingest into LightRAG
     async with get_lightrag_instance(namespace_id) as rag:
         await rag.ainsert(text_content)
-        logger.info(f"Uploaded file to namespace '{namespace_id}': {file.filename} ({len(content)} bytes)")
+        logger.info(f"Uploaded file to namespace '{namespace_id}': {file.filename} ({len(content)} bytes), ID: {doc_id}")
     
     return {
         "message": "File uploaded successfully",
         "namespace": namespace_id,
+        "document_id": doc_id,
         "filename": file.filename,
         "content_length": len(text_content),
         "metadata": metadata
@@ -441,16 +499,20 @@ async def upload_documents_batch(namespace_id: str, files: List[UploadFile] = Fi
                 **extra_metadata
             }
             
+            # Generate document ID from content hash
+            doc_id = f"doc-{hashlib.md5(text_content.encode()).hexdigest()}"
+            
             # Ingest into LightRAG
             async with get_lightrag_instance(namespace_id) as rag:
                 await rag.ainsert(text_content)
             
             results.append({
+                "document_id": doc_id,
                 "filename": file.filename,
                 "content_length": len(text_content),
                 "metadata": metadata
             })
-            logger.info(f"Uploaded file to namespace '{namespace_id}': {file.filename}")
+            logger.info(f"Uploaded file to namespace '{namespace_id}': {file.filename}, ID: {doc_id}")
             
         except UnicodeDecodeError:
             failed_files.append({
@@ -571,6 +633,273 @@ async def query_knowledge(namespace_id: str, req: QueryRequest):
         "result": result,
         "mode": req.mode
     }
+
+@app.get("/api/namespaces/{namespace_id}/processing")
+async def get_processing_status(namespace_id: str):
+    """Get all documents currently being processed or failed"""
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
+    try:
+        async with get_lightrag_instance(namespace_id) as rag:
+            # Get documents by status
+            pending_docs = await rag.get_docs_by_status(DocStatus.PENDING)
+            processing_docs = await rag.get_docs_by_status(DocStatus.PROCESSING)
+            failed_docs = await rag.get_docs_by_status(DocStatus.FAILED)
+            
+            # Format documents for response
+            def format_doc(doc_id: str, doc: Any, status: str) -> Dict:
+                return {
+                    "id": doc_id,
+                    "status": status,
+                    "chunks_count": getattr(doc, 'chunks_count', 0),
+                    "content_length": getattr(doc, 'content_length', 0),
+                    "created_at": getattr(doc, 'created_at', None),
+                    "updated_at": getattr(doc, 'updated_at', None),
+                    "file_path": getattr(doc, 'file_path', 'unknown'),
+                    "error": getattr(doc, 'error', None),
+                    "content_summary": getattr(doc, 'content_summary', '')[:200]  # First 200 chars
+                }
+            
+            # Collect all documents
+            all_docs = []
+            
+            for doc_id, doc in pending_docs.items():
+                all_docs.append(format_doc(doc_id, doc, "pending"))
+            
+            for doc_id, doc in processing_docs.items():
+                all_docs.append(format_doc(doc_id, doc, "processing"))
+                
+            for doc_id, doc in failed_docs.items():
+                all_docs.append(format_doc(doc_id, doc, "failed"))
+            
+            # Sort by updated_at (most recent first)
+            all_docs.sort(key=lambda x: x['updated_at'] or x['created_at'] or '', reverse=True)
+            
+            return {
+                "namespace_id": namespace_id,
+                "total": len(all_docs),
+                "pending": len(pending_docs),
+                "processing": len(processing_docs),
+                "failed": len(failed_docs),
+                "documents": all_docs
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting processing status for namespace {namespace_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get processing status: {str(e)}")
+
+@app.get("/api/namespaces/{namespace_id}/documents/{doc_id}")
+async def get_document_status(namespace_id: str, doc_id: str):
+    """Get detailed status for a specific document"""
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
+    try:
+        async with get_lightrag_instance(namespace_id) as rag:
+            # Check all statuses to find the document
+            for status in [DocStatus.PENDING, DocStatus.PROCESSING, DocStatus.PROCESSED, DocStatus.FAILED]:
+                docs = await rag.get_docs_by_status(status)
+                if doc_id in docs:
+                    doc = docs[doc_id]
+                    return {
+                        "id": doc_id,
+                        "namespace_id": namespace_id,
+                        "status": status.value,
+                        "chunks_count": getattr(doc, 'chunks_count', 0),
+                        "content_length": getattr(doc, 'content_length', 0),
+                        "created_at": getattr(doc, 'created_at', None),
+                        "updated_at": getattr(doc, 'updated_at', None),
+                        "file_path": getattr(doc, 'file_path', 'unknown'),
+                        "error": getattr(doc, 'error', None),
+                        "content": getattr(doc, 'content', '')[:1000],  # First 1000 chars
+                        "content_summary": getattr(doc, 'content_summary', '')
+                    }
+            
+            raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting document {doc_id} in namespace {namespace_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get document status: {str(e)}")
+
+@app.get("/api/namespaces/{namespace_id}/stuck")
+async def get_stuck_documents(namespace_id: str):
+    """Get all stuck documents (processing > 5 min or pending > 10 min)"""
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
+    try:
+        async with get_lightrag_instance(namespace_id) as rag:
+            from datetime import datetime, timezone
+            
+            # Get documents by status
+            pending_docs = await rag.get_docs_by_status(DocStatus.PENDING)
+            processing_docs = await rag.get_docs_by_status(DocStatus.PROCESSING)
+            
+            current_time = datetime.now(timezone.utc)
+            stuck_docs = []
+            
+            # Check processing documents
+            for doc_id, doc in processing_docs.items():
+                if is_document_stuck(doc, "processing"):
+                    updated_at = getattr(doc, 'updated_at', None)
+                    if updated_at:
+                        try:
+                            if updated_at.endswith('Z'):
+                                doc_time = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+                            else:
+                                doc_time = datetime.fromisoformat(updated_at)
+                            if doc_time.tzinfo is None:
+                                doc_time = doc_time.replace(tzinfo=timezone.utc)
+                            time_stuck = current_time - doc_time
+                            minutes_stuck = int(time_stuck.total_seconds() / 60)
+                        except:
+                            minutes_stuck = 0
+                    else:
+                        minutes_stuck = 0
+                        
+                    stuck_docs.append({
+                        "id": doc_id,
+                        "status": "processing",
+                        "file_path": getattr(doc, 'file_path', 'unknown'),
+                        "updated_at": updated_at,
+                        "minutes_stuck": minutes_stuck,
+                        "content_summary": getattr(doc, 'content_summary', '')[:200]
+                    })
+            
+            # Check pending documents
+            for doc_id, doc in pending_docs.items():
+                if is_document_stuck(doc, "pending"):
+                    updated_at = getattr(doc, 'updated_at', None)
+                    if updated_at:
+                        try:
+                            if updated_at.endswith('Z'):
+                                doc_time = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
+                            else:
+                                doc_time = datetime.fromisoformat(updated_at)
+                            if doc_time.tzinfo is None:
+                                doc_time = doc_time.replace(tzinfo=timezone.utc)
+                            time_stuck = current_time - doc_time
+                            minutes_stuck = int(time_stuck.total_seconds() / 60)
+                        except:
+                            minutes_stuck = 0
+                    else:
+                        minutes_stuck = 0
+                        
+                    stuck_docs.append({
+                        "id": doc_id,
+                        "status": "pending",
+                        "file_path": getattr(doc, 'file_path', 'unknown'),
+                        "updated_at": updated_at,
+                        "minutes_stuck": minutes_stuck,
+                        "content_summary": getattr(doc, 'content_summary', '')[:200]
+                    })
+            
+            # Sort by minutes stuck (most stuck first)
+            stuck_docs.sort(key=lambda x: x['minutes_stuck'], reverse=True)
+            
+            return {
+                "namespace_id": namespace_id,
+                "total_stuck": len(stuck_docs),
+                "stuck_processing": len([d for d in stuck_docs if d['status'] == 'processing']),
+                "stuck_pending": len([d for d in stuck_docs if d['status'] == 'pending']),
+                "documents": stuck_docs
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting stuck documents for namespace {namespace_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get stuck documents: {str(e)}")
+
+@app.post("/api/namespaces/{namespace_id}/retry-stuck")
+async def retry_stuck_documents(namespace_id: str):
+    """Retry all stuck documents by triggering the processing pipeline"""
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
+    try:
+        async with get_lightrag_instance(namespace_id) as rag:
+            # Simply trigger the pipeline - it will automatically pick up
+            # any PROCESSING, FAILED, and PENDING documents
+            logger.info(f"Triggering retry for stuck documents in namespace: {namespace_id}")
+            await rag.apipeline_process_enqueue_documents()
+        
+        return {
+            "status": "success",
+            "message": "Reprocessing triggered for stuck documents",
+            "namespace_id": namespace_id
+        }
+    except Exception as e:
+        logger.error(f"Error triggering retry for namespace {namespace_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to trigger retry: {str(e)}")
+
+@app.get("/api/namespaces/{namespace_id}/recent")
+async def get_recent_activity(
+    namespace_id: str,
+    hours: int = Query(default=24, ge=1, le=168, description="Hours to look back (1-168)")
+):
+    """Get recently processed documents (both successful and failed)"""
+    if namespace_id not in namespace_registry.namespaces:
+        raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
+    
+    try:
+        async with get_lightrag_instance(namespace_id) as rag:
+            # Get processed and failed documents
+            processed_docs = await rag.get_docs_by_status(DocStatus.PROCESSED)
+            failed_docs = await rag.get_docs_by_status(DocStatus.FAILED)
+            
+            # Calculate cutoff time
+            from datetime import datetime, timedelta, timezone
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+            cutoff_str = cutoff_time.isoformat()
+            
+            # Collect recent documents
+            recent_docs = []
+            
+            for doc_id, doc in processed_docs.items():
+                updated_at = getattr(doc, 'updated_at', None)
+                if updated_at and updated_at > cutoff_str:
+                    recent_docs.append({
+                        "id": doc_id,
+                        "status": "processed",
+                        "chunks_count": getattr(doc, 'chunks_count', 0),
+                        "content_length": getattr(doc, 'content_length', 0),
+                        "updated_at": updated_at,
+                        "file_path": getattr(doc, 'file_path', 'unknown'),
+                        "content_summary": getattr(doc, 'content_summary', '')[:200]
+                    })
+            
+            for doc_id, doc in failed_docs.items():
+                updated_at = getattr(doc, 'updated_at', None)
+                if updated_at and updated_at > cutoff_str:
+                    recent_docs.append({
+                        "id": doc_id,
+                        "status": "failed",
+                        "chunks_count": 0,
+                        "content_length": getattr(doc, 'content_length', 0),
+                        "updated_at": updated_at,
+                        "file_path": getattr(doc, 'file_path', 'unknown'),
+                        "error": getattr(doc, 'error', None),
+                        "content_summary": getattr(doc, 'content_summary', '')[:200]
+                    })
+            
+            # Sort by updated_at (most recent first)
+            recent_docs.sort(key=lambda x: x['updated_at'], reverse=True)
+            
+            return {
+                "namespace_id": namespace_id,
+                "hours": hours,
+                "cutoff_time": cutoff_str,
+                "total": len(recent_docs),
+                "processed": len([d for d in recent_docs if d['status'] == 'processed']),
+                "failed": len([d for d in recent_docs if d['status'] == 'failed']),
+                "documents": recent_docs
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting recent activity for namespace {namespace_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get recent activity: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

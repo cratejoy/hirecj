@@ -14,7 +14,8 @@ import {
   Trash2,
   Search,
   AlertCircle,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react'
 import { Link } from 'wouter'
 
@@ -28,6 +29,7 @@ interface KnowledgeGraph {
   document_count: number
   last_updated: string
   status: string
+  stuck_count?: number
 }
 
 export function KnowledgeListView() {
@@ -54,7 +56,25 @@ export function KnowledgeListView() {
       if (!response.ok) throw new Error('Failed to load knowledge graphs')
       
       const data = await response.json()
-      setGraphs(data.graphs || [])
+      const graphList = data.graphs || []
+      
+      // Fetch stuck counts for each graph
+      const graphsWithStuckCounts = await Promise.all(
+        graphList.map(async (graph: KnowledgeGraph) => {
+          try {
+            const statsResponse = await fetch(`${API_BASE}/graphs/${graph.id}/statistics`)
+            if (statsResponse.ok) {
+              const stats = await statsResponse.json()
+              return { ...graph, stuck_count: stats.stuck_count || 0 }
+            }
+          } catch (error) {
+            console.error(`Error fetching stats for ${graph.id}:`, error)
+          }
+          return graph
+        })
+      )
+      
+      setGraphs(graphsWithStuckCounts)
     } catch (error) {
       console.error('Error loading graphs:', error)
       toast({
@@ -357,7 +377,14 @@ export function KnowledgeListView() {
                       </div>
                     </div>
 
-                    {graph.status !== 'active' && (
+                    {graph.stuck_count && graph.stuck_count > 0 && (
+                      <div className="flex items-center gap-2 mt-3 text-sm text-amber-600">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>{graph.stuck_count} stuck document{graph.stuck_count !== 1 ? 's' : ''}</span>
+                      </div>
+                    )}
+
+                    {graph.status !== 'active' && !graph.stuck_count && (
                       <div className="flex items-center gap-2 mt-3 text-sm text-amber-600">
                         <AlertCircle className="h-4 w-4" />
                         <span className="capitalize">{graph.status}</span>

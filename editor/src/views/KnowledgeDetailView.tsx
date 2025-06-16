@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { useParams, Link } from 'wouter'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -26,7 +26,8 @@ import {
   Loader2,
   X,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react'
 
 const API_BASE = '/api/v1/knowledge'
@@ -35,6 +36,15 @@ interface UploadedFile {
   filename: string
   status: 'pending' | 'uploading' | 'success' | 'error'
   error?: string
+}
+
+interface StuckDocument {
+  id: string
+  status: 'pending' | 'processing'
+  file_path: string
+  updated_at: string
+  minutes_stuck: number
+  content_summary: string
 }
 
 export function KnowledgeDetailView() {
@@ -53,6 +63,67 @@ export function KnowledgeDetailView() {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [queryDuration, setQueryDuration] = useState<number | null>(null)
+  const [stuckDocuments, setStuckDocuments] = useState<StuckDocument[]>([])
+  const [loadingStuck, setLoadingStuck] = useState(false)
+  const [retrying, setRetrying] = useState(false)
+
+  // Load stuck documents on mount and periodically
+  useEffect(() => {
+    loadStuckDocuments()
+    
+    // Refresh stuck documents every 30 seconds
+    const interval = setInterval(loadStuckDocuments, 30000)
+    
+    return () => clearInterval(interval)
+  }, [graphId])
+
+  const loadStuckDocuments = async () => {
+    try {
+      setLoadingStuck(true)
+      const response = await fetch(`${API_BASE}/graphs/${graphId}/stuck`)
+      if (response.ok) {
+        const data = await response.json()
+        setStuckDocuments(data.documents || [])
+      }
+    } catch (error) {
+      console.error('Error loading stuck documents:', error)
+    } finally {
+      setLoadingStuck(false)
+    }
+  }
+
+  const retryAllStuck = async () => {
+    try {
+      setRetrying(true)
+      const response = await fetch(`${API_BASE}/graphs/${graphId}/retry-stuck`, {
+        method: 'POST'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to retry stuck documents')
+      }
+      
+      toast({
+        title: "Success",
+        description: "Reprocessing triggered for stuck documents"
+      })
+      
+      // Reload stuck documents after a short delay
+      setTimeout(() => {
+        loadStuckDocuments()
+      }, 2000)
+      
+    } catch (error) {
+      console.error('Error retrying stuck documents:', error)
+      toast({
+        title: "Error",
+        description: "Failed to retry stuck documents",
+        variant: "destructive"
+      })
+    } finally {
+      setRetrying(false)
+    }
+  }
 
   // Get file icon based on extension
   const getFileIcon = (filename: string) => {
@@ -475,6 +546,80 @@ export function KnowledgeDetailView() {
                     </div>
                   </div>
                 </form>
+              )}
+
+              {/* Processing Status Section */}
+              {stuckDocuments.length > 0 && (
+                <Card className="mt-6 p-4 border-amber-200 bg-amber-50/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+                    <h3 className="font-semibold text-amber-900">
+                      Processing Status
+                    </h3>
+                    <div className="ml-auto flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={retryAllStuck}
+                        disabled={retrying || loadingStuck}
+                      >
+                        {retrying ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Retrying...
+                          </>
+                        ) : (
+                          'Retry All'
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={loadStuckDocuments}
+                        disabled={loadingStuck}
+                      >
+                        {loadingStuck ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Refresh'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-sm text-amber-800 mb-3">
+                    {stuckDocuments.length} document{stuckDocuments.length !== 1 ? 's appear' : ' appears'} to be stuck
+                  </p>
+                  <div className="space-y-2">
+                    {stuckDocuments.map((doc) => {
+                      const FileIcon = getFileIcon(doc.file_path)
+                      return (
+                        <div key={doc.id} className="flex items-start gap-3 p-3 bg-white rounded-lg border border-amber-200">
+                          <FileIcon className="h-4 w-4 text-amber-600 mt-0.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">
+                              {doc.file_path}
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              Status: {doc.status === 'processing' ? 'Processing' : 'Pending'} for {doc.minutes_stuck} minute{doc.minutes_stuck !== 1 ? 's' : ''}
+                            </p>
+                            {doc.content_summary && (
+                              <p className="text-xs text-gray-500 mt-1 truncate">
+                                {doc.content_summary}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-500 mt-1">
+                              Last updated: {new Date(doc.updated_at).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="mt-3 text-xs text-amber-700">
+                    <p>• Documents processing for &gt;5 minutes are considered stuck</p>
+                    <p>• Documents pending for &gt;10 minutes are considered stuck</p>
+                  </div>
+                </Card>
               )}
             </div>
           )}

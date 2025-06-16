@@ -9,6 +9,8 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, UploadFile, File, Query, Body
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+import uuid
+from datetime import datetime
 
 from app.config import settings
 from app.logging_config import get_logger
@@ -38,6 +40,9 @@ class URLRequest(BaseModel):
 # Create async HTTP clients with different timeouts
 async_client = httpx.AsyncClient(timeout=30.0)  # Default client for queries
 upload_client = httpx.AsyncClient(timeout=120.0)  # Extended timeout for uploads
+
+# Simple in-memory batch tracker
+batch_tracker: Dict[str, Dict[str, Any]] = {}
 
 @router.get("/health")
 async def health_check():
@@ -233,8 +238,24 @@ async def upload_documents(
         response.raise_for_status()
         data = response.json()
         
+        # Generate batch ID
+        batch_id = str(uuid.uuid4())
+        
+        # Extract document IDs from successful uploads
+        document_ids = [doc.get("document_id") for doc in data.get("successful_uploads", []) if doc.get("document_id")]
+        
+        # Store batch info for tracking
+        batch_tracker[batch_id] = {
+            "graph_id": graph_id,
+            "created_at": datetime.now().isoformat(),
+            "total_files": len(files),
+            "successful": len(data.get("successful_uploads", [])),
+            "failed": len(data.get("failed_uploads", [])),
+            "document_ids": document_ids
+        }
+        
         # Log successful upload
-        logger.info(f"Upload successful for graph '{graph_id}'")
+        logger.info(f"Upload successful for graph '{graph_id}', batch: {batch_id}")
         logger.info(f"  Successful uploads: {len(data.get('successful_uploads', []))}")
         logger.info(f"  Failed uploads: {len(data.get('failed_uploads', []))}")
         
@@ -243,8 +264,10 @@ async def upload_documents(
             "status": data["status"],
             "message": data["message"],
             "graph_id": graph_id,
+            "batch_id": batch_id,
             "uploaded": len(data.get("successful_uploads", [])),
             "failed": len(data.get("failed_uploads", [])),
+            "document_ids": document_ids,
             "details": {
                 "successful": data.get("successful_uploads", []),
                 "failed": data.get("failed_uploads", [])
@@ -365,6 +388,205 @@ async def query_knowledge_graph(
             status_code=503,
             detail="Failed to query knowledge graph"
         )
+
+@router.get("/graphs/{graph_id}/processing")
+async def get_processing_status(graph_id: str):
+    """Get documents currently being processed"""
+    try:
+        response = await async_client.get(
+            f"{KNOWLEDGE_SERVICE_URL}/api/namespaces/{graph_id}/processing"
+        )
+        response.raise_for_status()
+        
+        return response.json()
+        
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Knowledge graph not found")
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=str(e)
+        )
+    except httpx.RequestError as e:
+        logger.error(f"Failed to get processing status: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Failed to get processing status"
+        )
+
+@router.get("/graphs/{graph_id}/documents/{doc_id}")
+async def get_document_status(graph_id: str, doc_id: str):
+    """Get detailed status for a specific document"""
+    try:
+        response = await async_client.get(
+            f"{KNOWLEDGE_SERVICE_URL}/api/namespaces/{graph_id}/documents/{doc_id}"
+        )
+        response.raise_for_status()
+        
+        return response.json()
+        
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            if "document" in str(e).lower():
+                raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
+            else:
+                raise HTTPException(status_code=404, detail="Knowledge graph not found")
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=str(e)
+        )
+    except httpx.RequestError as e:
+        logger.error(f"Failed to get document status: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Failed to get document status"
+        )
+
+@router.get("/graphs/{graph_id}/stuck")
+async def get_stuck_documents(graph_id: str):
+    """Get stuck documents (processing > 5 min or pending > 10 min)"""
+    try:
+        response = await async_client.get(
+            f"{KNOWLEDGE_SERVICE_URL}/api/namespaces/{graph_id}/stuck"
+        )
+        response.raise_for_status()
+        
+        return response.json()
+        
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Knowledge graph not found")
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=str(e)
+        )
+    except httpx.RequestError as e:
+        logger.error(f"Failed to get stuck documents: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Failed to get stuck documents"
+        )
+
+@router.post("/graphs/{graph_id}/retry-stuck")
+async def retry_stuck_documents(graph_id: str):
+    """Retry all stuck documents"""
+    try:
+        response = await async_client.post(
+            f"{KNOWLEDGE_SERVICE_URL}/api/namespaces/{graph_id}/retry-stuck"
+        )
+        response.raise_for_status()
+        
+        return response.json()
+        
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Knowledge graph not found")
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=str(e)
+        )
+    except httpx.RequestError as e:
+        logger.error(f"Failed to retry stuck documents: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Failed to retry stuck documents"
+        )
+
+@router.get("/graphs/{graph_id}/recent")
+async def get_recent_activity(
+    graph_id: str,
+    hours: int = Query(default=24, ge=1, le=168, description="Hours to look back (1-168)")
+):
+    """Get recently processed documents"""
+    try:
+        response = await async_client.get(
+            f"{KNOWLEDGE_SERVICE_URL}/api/namespaces/{graph_id}/recent",
+            params={"hours": hours}
+        )
+        response.raise_for_status()
+        
+        return response.json()
+        
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(status_code=404, detail="Knowledge graph not found")
+        raise HTTPException(
+            status_code=e.response.status_code,
+            detail=str(e)
+        )
+    except httpx.RequestError as e:
+        logger.error(f"Failed to get recent activity: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Failed to get recent activity"
+        )
+
+@router.get("/batches/{batch_id}")
+async def get_batch_status(batch_id: str):
+    """Get status of a batch upload operation"""
+    batch_info = batch_tracker.get(batch_id)
+    if not batch_info:
+        raise HTTPException(status_code=404, detail=f"Batch '{batch_id}' not found")
+    
+    # Get current status of all documents in the batch
+    graph_id = batch_info["graph_id"]
+    document_statuses = []
+    
+    for doc_id in batch_info["document_ids"]:
+        try:
+            response = await async_client.get(
+                f"{KNOWLEDGE_SERVICE_URL}/api/namespaces/{graph_id}/documents/{doc_id}"
+            )
+            if response.status_code == 200:
+                doc_data = response.json()
+                document_statuses.append({
+                    "id": doc_id,
+                    "status": doc_data.get("status"),
+                    "chunks_count": doc_data.get("chunks_count", 0),
+                    "error": doc_data.get("error")
+                })
+            else:
+                document_statuses.append({
+                    "id": doc_id,
+                    "status": "unknown",
+                    "error": "Failed to get document status"
+                })
+        except Exception as e:
+            logger.error(f"Error getting status for document {doc_id}: {e}")
+            document_statuses.append({
+                "id": doc_id,
+                "status": "unknown",
+                "error": str(e)
+            })
+    
+    # Calculate batch summary
+    status_summary = {
+        "pending": len([d for d in document_statuses if d["status"] == "pending"]),
+        "processing": len([d for d in document_statuses if d["status"] == "processing"]),
+        "processed": len([d for d in document_statuses if d["status"] == "processed"]),
+        "failed": len([d for d in document_statuses if d["status"] == "failed"]),
+        "unknown": len([d for d in document_statuses if d["status"] == "unknown"])
+    }
+    
+    # Determine overall batch status
+    if status_summary["failed"] > 0 and status_summary["processed"] == 0:
+        batch_status = "failed"
+    elif status_summary["pending"] > 0 or status_summary["processing"] > 0:
+        batch_status = "processing"
+    elif status_summary["processed"] == len(document_statuses):
+        batch_status = "completed"
+    else:
+        batch_status = "partial_success"
+    
+    return {
+        "batch_id": batch_id,
+        "status": batch_status,
+        "graph_id": graph_id,
+        "created_at": batch_info["created_at"],
+        "total_files": batch_info["total_files"],
+        "status_summary": status_summary,
+        "documents": document_statuses
+    }
 
 @router.on_event("shutdown")
 async def shutdown_event():
