@@ -545,11 +545,53 @@ The editor's Grounding views will integrate as follows:
 - [ ] Create simple web UI for corpus selection
 - [ ] Add basic authentication
 
-**Success Criteria**: Non-technical users can manage corpora via UI
+**Success Criteria**: Full visibility into content processing pipeline
 
-### Milestone 3: Dynamic Sources & Processing Pipeline
+### Milestone 3: Database & Advanced Processing
 
-#### Phase 3.0: Multi-namespace Operations ⏸️
+#### Phase 3.1: PostgreSQL Migration ⏸️
+**Deliverable**: PostgreSQL backend operational
+- [ ] Set up PostgreSQL with pgvector extension
+- [ ] Migrate from file storage to PostgreSQL
+- [ ] Test PostgreSQL backup/restore procedures
+- [ ] Verify performance meets requirements
+- [ ] Update UI to show PostgreSQL metrics
+
+**Success Criteria**: All data stored in PostgreSQL, backup/restore works
+
+#### Phase 3.2: Enhanced Processing ⏸️
+**Deliverable**: Advanced file processing features
+- [ ] Add PDF processor with text extraction
+- [ ] Implement advanced Markdown processing
+- [ ] Create batch file processing system
+- [ ] Add deduplication system
+- [ ] Update UI with format-specific options
+
+**Success Criteria**: Can process mixed file types with UI feedback
+
+#### Phase 3.3: Batch Processing System ⏸️
+**Deliverable**: Scalable batch operations
+- [ ] Design queue-based batch processor
+- [ ] Implement parallel processing
+- [ ] Add batch operation UI
+- [ ] Create batch monitoring dashboard
+- [ ] Build batch history and analytics
+
+**Success Criteria**: Can process 1000+ documents efficiently
+
+#### Phase 3.4: Multiple Corpora Setup ⏸️
+**Deliverable**: Multi-corpus support with isolation
+- [ ] Implement corpus abstraction layer
+- [ ] Create corpus management UI
+- [ ] Add corpus switching interface
+- [ ] Build cross-corpus search UI
+- [ ] Verify corpus isolation
+
+**Success Criteria**: Multiple isolated corpora manageable via UI
+
+### Milestone 4: Dynamic Sources & Processing Pipeline
+
+#### Phase 4.0: Multi-namespace Operations ⏸️
 **Deliverable**: Cross-namespace search working
 - [ ] Add multi-namespace search capability
 - [ ] Test with 10+ different namespace types
@@ -558,7 +600,7 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can search across multiple namespaces efficiently
 
-#### Phase 3.1: Web Crawler Implementation ⏸️
+#### Phase 4.1: Web Crawler Implementation ⏸️
 **Deliverable**: Working web crawler for documentation
 - [ ] Implement basic web crawler
 - [ ] Add crawl depth and pattern configuration
@@ -566,7 +608,7 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can crawl and index entire doc site
 
-#### Phase 3.2: Additional Source Types ⏸️
+#### Phase 4.2: Additional Source Types ⏸️
 **Deliverable**: RSS and URL list processing
 - [ ] Create RSS feed monitor
 - [ ] Build URL list batch processor
@@ -574,7 +616,7 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can monitor RSS feeds and process URL lists
 
-#### Phase 3.3: Processing Pipeline Core ⏸️
+#### Phase 4.3: Processing Pipeline Core ⏸️
 **Deliverable**: Queue-based processing system
 - [ ] Design processing queue architecture
 - [ ] Implement error handling and retry logic
@@ -584,15 +626,17 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Robust queue handles failures gracefully
 
-#### Phase 3.4: Real-time Updates ⏸️
+#### Phase 4.4: Real-time Updates ⏸️
 **Deliverable**: Live processing status via WebSocket
 - [ ] Set up WebSocket for live updates
 - [ ] Add progress tracking per source
-- [ ] Create visual processing queue UI
+- [ ] Enhance processing queue UI with real-time updates
+- [ ] Add live notifications for completed tasks
+- [ ] Implement collaborative features (multiple users)
 
 **Success Criteria**: Real-time updates with < 500ms latency
 
-#### Phase 3.5: Incremental Processing ⏸️
+#### Phase 4.5: Incremental Processing ⏸️
 **Deliverable**: Efficient update system
 - [ ] Create change detection for web sources
 - [ ] Build incremental update system
@@ -600,9 +644,9 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Only new/changed content is processed
 
-### Milestone 4: Advanced Features & Production Readiness
+### Milestone 5: Advanced Features & Production Readiness
 
-#### Phase 4.1: Media Processing ⏸️
+#### Phase 5.1: Media Processing ⏸️
 **Deliverable**: YouTube and audio transcription
 - [ ] Implement YouTube video transcription
 - [ ] Add podcast/audio processing
@@ -610,7 +654,7 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can transcribe and index video/audio content
 
-#### Phase 4.2: Content Intelligence ⏸️
+#### Phase 5.2: Content Intelligence ⏸️
 **Deliverable**: Smart content features
 - [ ] Implement auto-categorization of content
 - [ ] Add quality scoring for sources
@@ -619,7 +663,7 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Content automatically categorized and scored
 
-#### Phase 4.3: Structured Data Support ⏸️
+#### Phase 5.3: Structured Data Support ⏸️
 **Deliverable**: Enhanced data extraction
 - [ ] Create structured data extraction (JSON, CSV)
 - [ ] Add query result explanations
@@ -627,7 +671,7 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can extract and query structured data
 
-#### Phase 4.4: Production Infrastructure ⏸️
+#### Phase 5.4: Production Infrastructure ⏸️
 **Deliverable**: Production-ready monitoring and security
 - [ ] Implement multi-user corpus permissions
 - [ ] Create audit logging system
@@ -636,12 +680,14 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: System ready for production deployment
 
-#### Phase 4.5: Full Editor Integration ⏸️
+#### Phase 5.5: Full Editor Integration ⏸️
 **Deliverable**: Complete integration with HireCJ editor
+- [ ] Evolve basic UI into full Grounding View from editor design
 - [ ] Create relevance tuning interface
 - [ ] Build query analytics system
-- [ ] Integrate with editor grounding views
-- [ ] Add knowledge graph visualization
+- [ ] Add AI-driven feedback and improvement features
+- [ ] Implement knowledge graph visualization
+- [ ] Integrate with agent playground for testing
 - [ ] Complete end-to-end testing
 
 **Success Criteria**: Seamless integration with all editor features
@@ -1516,38 +1562,48 @@ done
 
 ---
 
-### Milestone 2: Multi-Corpus & Basic Management
+### Milestone 2: Knowledge Management UI
 
-**Goal: Prove corpus isolation and management at scale**
+**Goal: Create web interface for knowledge graph management**
 
 #### New Functionality
-- **Multiple Corpora**:
-  - Add "Customer Support" and "Technical Documentation"
-  - Namespace isolation between corpora
-  - Corpus switching in query interface
-- **Enhanced Ingestion**:
-  - PDF and Markdown support
-  - Batch file processing
-  - Basic deduplication
-- **Web API Layer**:
-  - REST endpoints for corpus management
-  - Simple web UI for corpus selection
-  - Basic authentication
-- **PostgreSQL Storage**: 
-  - Migrate from file-based to PostgreSQL
-  - Test backup/restore procedures
+- **Web UI Framework**:
+  - FastAPI with Jinja2 templates
+  - Tailwind CSS for styling
+  - Alpine.js for interactivity
+  - Mobile-responsive design
+- **Namespace Management UI**:
+  - List view with statistics
+  - Create/delete namespaces
+  - Namespace detail pages
+  - Visual status indicators
+- **Content Upload Interface**:
+  - Drag-and-drop file upload
+  - URL input for web content
+  - Batch upload with progress
+  - File type validation feedback
+- **Query Testing UI**:
+  - Interactive query interface
+  - Mode selector (naive/local/global/hybrid)
+  - Formatted result display
+  - Query history tracking
+- **Processing Status UI**:
+  - Real-time queue visualization
+  - Progress bars for active tasks
+  - Error/warning display
+  - Processing history
 
 #### Success Criteria
-- ✓ 3 isolated corpora functioning independently
-- ✓ Can query across corpora or individually
-- ✓ No data leakage between namespaces
-- ✓ PostgreSQL performs equal or better than file storage
-- ✓ Basic web UI for non-technical users
+- ✓ Non-technical users can manage namespaces visually
+- ✓ Drag-and-drop file upload works smoothly
+- ✓ Query results display with proper formatting
+- ✓ Processing status updates without page refresh
+- ✓ Mobile-friendly responsive design
 
 #### Interface at Completion
 
 ```
-Basic Web UI - Knowledge Graphs List View (simplified from editor_design.md lines 404-439)
+Basic Web UI - Knowledge Graphs List View (based on editor_design.md Grounding View lines 404-439)
 +------------------+-----------------------------------------------------------------------------------------------------+
 |                  |                                    KNOWLEDGE GRAPHS                                                 |
 |  HireCJ RAG      +-----------------------------------------------------------------------------------------------------+
@@ -1630,7 +1686,7 @@ Query Interface:
 #### Interface at Completion
 
 ```
-Knowledge Graph Detail with Sources (based on editor_design.md lines 447-492)
+Knowledge Graph Detail with Sources (based on editor_design.md Grounding View Detail lines 447-492)
 +------------------+-----------------------------------------------------------------------------------------------------+
 |                  |                              KNOWLEDGE GRAPH: Product Knowledge                                     |
 |  HireCJ RAG      +-----------------------------------------------------------------------------------------------------+
@@ -1657,7 +1713,7 @@ Knowledge Graph Detail with Sources (based on editor_design.md lines 447-492)
 |                  | └─────────────────────────────────────────────────────────────────────────────────────────────┘   |
 +------------------+-----------------------------------------------------------------------------------------------------+
 
-Processing Status View (based on editor_design.md lines 499-543)
+Processing Status View (based on editor_design.md Grounding View Processing Status lines 499-543)
 +------------------+-----------------------------------------------------------------------------------------------------+
 |                  |                              PROCESSING STATUS - Product Knowledge                                  |
 |  HireCJ RAG      +-----------------------------------------------------------------------------------------------------+
@@ -1732,7 +1788,7 @@ Processing Status View (based on editor_design.md lines 499-543)
 #### Interface at Completion
 
 ```
-Full Knowledge Graph System (matching editor_design.md grounding views)
+Full Knowledge Graph System (based on editor_design.md Grounding View Main Screen lines 398-440)
 +------------------+-----------------------------------------------------------------------------------------------------+
 |                  |                                    KNOWLEDGE GRAPHS                                                 |
 |  HireCJ Editor   +-----------------------------------------------------------------------------------------------------+
