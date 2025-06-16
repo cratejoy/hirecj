@@ -191,33 +191,35 @@ Data Source: Live database query from etl_freshdesk_ratings"""
                 # Format the output
                 output = f"""📋 Ticket #{result['ticket_id']} Details:
 
-**Subject:** {result['data'].get('subject', 'No subject')}
-**Status:** {result['data'].get('status')}
-**Priority:** {result['data'].get('priority')}
-**Created:** {result['data'].get('created_at')}
-**Requester:** {result['data'].get('requester', {}).get('name')} ({result['data'].get('requester', {}).get('email')})
+**Subject:** {result.get('subject', 'No subject')}
+**Status:** {result.get('status')}
+**Priority:** {result.get('priority')}
+**Created:** {result.get('created_at')}
+**Requester:** {result.get('requester_name')} ({result.get('requester_email')})
 
-**Conversation History ({len(result['conversations'])} messages):**"""
-                
-                for i, conv in enumerate(result['conversations'], 1):
-                    output += f"""
-{i}. From: {conv.get('from_email', 'Unknown')}
-   Date: {conv.get('created_at', 'Unknown')}
-   Message: {conv.get('body_text', '')[:500]}{'...' if len(conv.get('body_text', '')) > 500 else ''}
 """
                 
-                if result['ratings']:
-                    output += f"\n**Customer Rating:**\n"
-                    for rating in result['ratings']:
-                        rating_val = rating['ratings'].get('default_question')
-                        rating_text = "😊 Happy" if rating_val == 103 else "😞 Unhappy" if rating_val == -103 else "Unknown"
-                        output += f"- {rating_text} (rated on {rating['created_at']})\n"
-                        if rating['data'].get('comments', {}).get('default_question'):
-                            output += f"  Comment: {rating['data']['comments']['default_question']}\n"
+                # Add conversation if available
+                if result.get('conversation'):
+                    output += "**Conversation History:**\n"
+                    output += result['conversation']
+                else:
+                    output += f"**Conversation History:** No conversations available"
                 
-                output += "\nData Source: Live database query"
+                # Add rating if available
+                if result.get('has_rating'):
+                    output += f"\n\n**Customer Rating:**\n"
+                    rating_val = result.get('rating_score')
+                    rating_text = "😊 Happy" if rating_val >= 102 else "😐 Neutral" if rating_val >= 100 else "😞 Unhappy"
+                    output += f"- {rating_text} (Score: {rating_val})"
+                    if result.get('rating_created_at'):
+                        output += f" - Rated on {result['rating_created_at']}"
+                    if result.get('rating_feedback'):
+                        output += f"\n  Comment: {result['rating_feedback']}"
                 
-                logger.info(f"[TOOL RESULT] get_ticket_details() - Returned ticket with {len(result['conversations'])} conversations")
+                output += "\n\nData Source: Live database query"
+                
+                logger.info(f"[TOOL RESULT] get_ticket_details() - Returned ticket #{ticket_id}, has_conversation={result.get('conversation') is not None}")
                 return output
                 
         except Exception as e:
@@ -357,21 +359,14 @@ Detailed Breakdown:
                 for i, ticket in enumerate(bad_tickets, 1):
                     output += f"""
 {'='*60}
-{i}. Ticket #{ticket.get('ticket_id', 'Unknown')} - {ticket.get('data', {}).get('subject', 'No subject')}
-   Customer: {ticket.get('data', {}).get('requester', {}).get('name', 'Unknown')} ({ticket.get('data', {}).get('requester', {}).get('email', 'Unknown')})
+{i}. Ticket #{ticket.get('ticket_id', 'Unknown')} - {ticket.get('subject', 'No subject')}
+   Customer: {ticket.get('requester_name', 'Unknown')} ({ticket.get('requester_email', 'Unknown')})
    Bad Rating Date: {ticket.get('bad_rating_date', 'Unknown')}
    
-   Customer's Rating Comment: {ticket.get('rating_comment') or 'No comment provided'}
+   Customer's Rating Comment: {ticket.get('rating_feedback') or 'No comment provided'}
    
-   Conversation Summary ({len(ticket.get('conversations', []))} messages):"""
-                    
-                    # Show last 2 messages for context
-                    conversations = ticket.get('conversations', [])
-                    recent_convs = conversations[-2:] if len(conversations) > 1 else conversations
-                    for conv in recent_convs:
-                        output += f"""
-   - From: {conv.get('from_email', 'Unknown')} at {conv.get('created_at', 'Unknown')}
-     "{conv.get('body_text', '')[:200]}{'...' if len(conv.get('body_text', '')) > 200 else ''}"
+   Conversation:
+{ticket.get('conversation', 'No conversation available')}
 """
                 
                 output += f"""
@@ -1160,6 +1155,89 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             logger.error(f"[TOOL ERROR] get_root_cause_analysis() - Error: {str(e)}")
             return f"Error analyzing root causes: {str(e)}"
 
+    @tool
+    def analyze_systemic_issues() -> str:
+        """Analyze the last 50 support tickets to identify systemic issues requiring immediate attention.
+        
+        This tool examines recent tickets with full conversation history to identify:
+        - Critical security or data issues
+        - Widespread service outages
+        - Payment/billing problems affecting multiple customers
+        - Repeated customer complaints about the same issue
+        - Escalating situations that need immediate intervention
+        - Anything that might directly affect revenue for the business
+        
+        Returns a detailed analysis with any critical findings highlighted.
+        """
+        logger.info("[TOOL CALL] analyze_systemic_issues() - Analyzing last 50 tickets for systemic problems")
+        
+        try:
+            with get_db_session() as session:
+                tickets = FreshdeskAnalytics.get_recent_tickets_with_conversations(
+                    session=session,
+                    merchant_id=1,
+                    limit=50
+                )
+                
+                if not tickets:
+                    return "No recent tickets found to analyze."
+                
+                # Prepare ticket data for analysis
+                ticket_summary = f"""🔍 SYSTEMIC ISSUE ANALYSIS - Last 50 Support Tickets
+
+Please analyze these {len(tickets)} recent support tickets for any systemic issues that require immediate merchant attention.
+
+Look for:
+- Security breaches or data exposure
+- Payment processing failures affecting multiple customers  
+- Service outages or critical bugs
+- Repeated issues indicating a broken feature
+- Angry customers threatening legal action or chargebacks
+- Any other patterns suggesting urgent problems
+
+TICKET DATA:
+"""
+                
+                for i, ticket in enumerate(tickets, 1):
+                    # Include key ticket info and full conversation
+                    ticket_summary += f"""
+{'='*80}
+TICKET #{ticket['ticket_id']} - {ticket['subject']}
+Created: {ticket['created_at']} | Status: {ticket['status']} | Priority: {ticket['priority']}
+Customer: {ticket['requester_name']} ({ticket['requester_email']})
+Tags: {', '.join(ticket['tags']) if ticket['tags'] else 'None'}
+Escalated: {'YES' if ticket.get('is_escalated') else 'No'}
+Rating: {f"{ticket['rating_score']} - {ticket['rating_feedback']}" if ticket['has_rating'] else 'No rating'}
+
+CONVERSATION:
+{ticket['conversation'] or 'No conversation available'}
+
+"""
+                    
+                    # Limit output size by stopping at 30 tickets if getting too long
+                    if i >= 30 and len(ticket_summary) > 25000:
+                        ticket_summary += f"\n... Analysis limited to first 30 tickets due to size constraints ...\n"
+                        break
+                
+                ticket_summary += """
+{'='*80}
+
+ANALYSIS INSTRUCTIONS:
+1. Identify any CRITICAL issues that need immediate attention
+2. Group similar problems together to identify patterns
+3. Prioritize by severity and number of affected customers
+4. Provide specific recommendations for urgent action
+
+Please provide your analysis below:
+"""
+                
+                logger.info(f"[TOOL RESULT] analyze_systemic_issues() - Prepared {len(tickets)} tickets for analysis")
+                return ticket_summary
+                
+        except Exception as e:
+            logger.error(f"[TOOL ERROR] analyze_systemic_issues() - Error: {str(e)}")
+            return f"Error analyzing systemic issues: {str(e)}"
+    
     # Return the tools created with @tool decorator
     tools = [
         get_recent_ticket_from_db,
@@ -1177,6 +1255,7 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
         get_volume_trends,
         get_sla_exceptions,
         get_root_cause_analysis,
+        analyze_systemic_issues,
     ]
 
     return tools

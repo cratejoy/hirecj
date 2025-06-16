@@ -10,7 +10,6 @@ from sqlalchemy import func, and_, or_, case, distinct
 from sqlalchemy.orm import Session
 
 from app.dbmodels.view_models import FreshdeskUnifiedTicketView
-from app.dbmodels.etl_tables import FreshdeskTicket, FreshdeskConversation, FreshdeskRating
 from app.utils.supabase_util import get_db_session
 from app.config import logger
 
@@ -156,7 +155,7 @@ class FreshdeskAnalytics:
 
     @staticmethod
     def get_recent_ticket(session: Session, merchant_id: int) -> Optional[Dict[str, Any]]:
-        """Get the most recent open ticket."""
+        """Get the most recent open ticket with conversation history."""
         # Query the unified view for the most recent open ticket
         ticket = session.query(FreshdeskUnifiedTicketView).filter(
             FreshdeskUnifiedTicketView.merchant_id == merchant_id,
@@ -178,7 +177,10 @@ class FreshdeskAnalytics:
             "requester": {
                 "name": ticket.requester_name,
                 "email": ticket.requester_email
-            }
+            },
+            "conversation_count": ticket.conversation_count,
+            "has_agent_response": ticket.has_agent_response,
+            "conversation": ticket.conversation
         }
     
     @staticmethod
@@ -290,7 +292,7 @@ class FreshdeskAnalytics:
     
     @staticmethod
     def get_ticket_by_id(session: Session, ticket_id: str, merchant_id: int) -> Optional[Dict[str, Any]]:
-        """Get detailed ticket information including conversations."""
+        """Get detailed ticket information from the unified view."""
         # Get ticket from unified view
         ticket = session.query(FreshdeskUnifiedTicketView).filter(
             FreshdeskUnifiedTicketView.merchant_id == merchant_id,
@@ -300,47 +302,23 @@ class FreshdeskAnalytics:
         if not ticket:
             return None
         
-        # Get conversations
-        conversations = session.query(FreshdeskConversation).filter(
-            FreshdeskConversation.freshdesk_ticket_id == str(ticket_id)
-        ).order_by(FreshdeskConversation.etl_created_at).all()
-        
-        # Get ratings
-        ratings = session.query(FreshdeskRating).filter(
-            FreshdeskRating.freshdesk_ticket_id == str(ticket_id)
-        ).all()
-        
         return {
             "ticket_id": ticket.freshdesk_ticket_id,
-            "data": {
-                "subject": ticket.subject,
-                "description": ticket.description,
-                "status": ticket.status,
-                "priority": ticket.priority,
-                "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
-                "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
-                "requester": {
-                    "name": ticket.requester_name,
-                    "email": ticket.requester_email
-                }
-            },
-            "conversations": [
-                {
-                    "id": conv.freshdesk_conversation_id,
-                    "body_text": conv.data.get("body_text", ""),
-                    "from_email": conv.data.get("from_email", ""),
-                    "created_at": conv.created_at.isoformat() if conv.created_at else None
-                }
-                for conv in conversations
-            ],
-            "ratings": [
-                {
-                    "created_at": rating.created_at.isoformat() if rating.created_at else None,
-                    "ratings": rating.ratings,
-                    "data": rating.data
-                }
-                for rating in ratings
-            ]
+            "subject": ticket.subject,
+            "description": ticket.description,
+            "status": ticket.status,
+            "priority": ticket.priority,
+            "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+            "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
+            "requester_name": ticket.requester_name,
+            "requester_email": ticket.requester_email,
+            "conversation": ticket.conversation,  # Formatted conversation from view
+            "conversation_count": ticket.conversation_count,
+            "has_agent_response": ticket.has_agent_response,
+            "has_rating": ticket.has_rating,
+            "rating_score": ticket.rating_score,
+            "rating_feedback": ticket.rating_feedback,
+            "rating_created_at": ticket.rating_created_at.isoformat() if ticket.rating_created_at else None
         }
     
     @staticmethod
@@ -408,7 +386,7 @@ class FreshdeskAnalytics:
         """Get recent tickets with bad CSAT ratings including full context."""
         cutoff_date = datetime.utcnow() - timedelta(days=days)
         
-        # Get bad rated tickets
+        # Get bad rated tickets from unified view
         bad_tickets = session.query(FreshdeskUnifiedTicketView).filter(
             FreshdeskUnifiedTicketView.merchant_id == merchant_id,
             FreshdeskUnifiedTicketView.has_rating == True,
@@ -420,32 +398,58 @@ class FreshdeskAnalytics:
         
         results = []
         for ticket in bad_tickets:
-            # Get conversations for context
-            conversations = session.query(FreshdeskConversation).filter(
-                FreshdeskConversation.freshdesk_ticket_id == ticket.freshdesk_ticket_id
-            ).order_by(FreshdeskConversation.etl_created_at).all()
-            
             results.append({
                 "ticket_id": ticket.freshdesk_ticket_id,
-                "data": {
-                    "subject": ticket.subject,
-                    "requester": {
-                        "name": ticket.requester_name,
-                        "email": ticket.requester_email
-                    }
-                },
+                "subject": ticket.subject,
+                "requester_name": ticket.requester_name,
+                "requester_email": ticket.requester_email,
                 "rating_score": ticket.rating_score,
                 "rating_feedback": ticket.rating_feedback,
                 "bad_rating_date": ticket.rating_created_at.isoformat() if ticket.rating_created_at else None,
-                "rating_comment": ticket.rating_feedback,
-                "conversations": [
-                    {
-                        "from_email": conv.data.get("from_email", ""),
-                        "body_text": conv.data.get("body_text", ""),
-                        "created_at": conv.created_at.isoformat() if conv.created_at else None
-                    }
-                    for conv in conversations
-                ]
+                "conversation": ticket.conversation
+            })
+            
+        return results
+    
+    @staticmethod
+    def get_recent_tickets_with_conversations(session: Session, merchant_id: int, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get the most recent tickets with full conversation history for systemic issue analysis.
+        
+        Args:
+            session: Database session
+            merchant_id: Merchant ID
+            limit: Number of tickets to return (default 50)
+            
+        Returns:
+            List of tickets with all fields including conversation
+        """
+        tickets = session.query(FreshdeskUnifiedTicketView).filter(
+            FreshdeskUnifiedTicketView.merchant_id == merchant_id
+        ).order_by(
+            FreshdeskUnifiedTicketView.created_at.desc()
+        ).limit(limit).all()
+        
+        results = []
+        for ticket in tickets:
+            results.append({
+                "ticket_id": ticket.freshdesk_ticket_id,
+                "subject": ticket.subject,
+                "status": ticket.status,
+                "priority": ticket.priority,
+                "type": ticket.type,
+                "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+                "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
+                "requester_name": ticket.requester_name,
+                "requester_email": ticket.requester_email,
+                "tags": ticket.tags or [],
+                "conversation": ticket.conversation,
+                "has_rating": ticket.has_rating,
+                "rating_score": ticket.rating_score,
+                "rating_feedback": ticket.rating_feedback,
+                "first_responded_at": ticket.first_responded_at.isoformat() if ticket.first_responded_at else None,
+                "resolved_at": ticket.resolved_at.isoformat() if ticket.resolved_at else None,
+                "is_escalated": ticket.is_escalated,
+                "conversation_count": ticket.conversation_count
             })
             
         return results
