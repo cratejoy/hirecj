@@ -1,0 +1,6 @@
+# Sample URLs for testing URL ingestion
+# Lines starting with # are ignored
+
+https://www.example.com/
+https://httpbin.org/html
+https://httpbin.org/json

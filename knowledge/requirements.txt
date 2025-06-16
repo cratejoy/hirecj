@@ -1,5 +1,5 @@
-# Knowledge API Requirements - Phase 0.2
-# Dependencies for namespace management and LightRAG integration
+# Knowledge API Requirements - Phase 1.3
+# Dependencies for namespace management, LightRAG integration, and enhanced ingestion
 
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
@@ -8,3 +8,5 @@ lightrag-hku==0.1.0
 aiohttp==3.9.1
 psycopg2-binary==2.9.9
 python-multipart==0.0.6
+requests==2.31.0
+html2text==2020.1.16

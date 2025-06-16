@@ -1,0 +1,20 @@
+LightRAG Document Ingestion Test File
+=====================================
+
+This is a sample text file for testing the document ingestion capabilities of the LightRAG system.
+
+Key Features:
+- Vector embeddings for semantic search
+- Knowledge graph construction for relationships
+- Multi-modal query support (naive, local, global, hybrid)
+- Namespace isolation for multi-tenant deployments
+
+Test Content:
+The LightRAG system processes documents by first chunking them into meaningful segments, 
+then generating embeddings for semantic understanding. These embeddings are stored in a 
+vector database for efficient similarity search. Simultaneously, the system extracts 
+entities and relationships to build a knowledge graph that captures the document's 
+structural information.
+
+This dual approach allows for both semantic similarity search and graph-based 
+relationship queries, providing comprehensive knowledge retrieval capabilities.

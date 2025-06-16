@@ -2,7 +2,7 @@
 Knowledge API Server - Phase 0.3: Basic Operations
 FastAPI server with document ingestion and query functionality
 """
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Query, UploadFile, File
 from lightrag import LightRAG, QueryParam
 from lightrag.llm.openai import gpt_4o_mini_complete, openai_embed
 from lightrag.kg.shared_storage import initialize_pipeline_status
@@ -10,11 +10,20 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
+import aiofiles
+import requests
+from urllib.parse import urlparse
 import json
 import re
 import os
 import logging
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from gateway.preprocessing import ContentPreprocessor
 
 # Configure logging
 logging.basicConfig(
@@ -31,6 +40,16 @@ BASE_CONFIG = {
     "llm_model_name": os.getenv("LLM_MODEL", "gpt-4o-mini"),
 }
 
+# Supported file extensions for Phase 1.1
+SUPPORTED_FILE_EXTENSIONS = {".txt", ".md", ".json"}
+
+def is_supported_file(filename: str) -> bool:
+    """Check if file extension is supported"""
+    return any(filename.lower().endswith(ext) for ext in SUPPORTED_FILE_EXTENSIONS)
+
+# Initialize preprocessor
+preprocessor = ContentPreprocessor()
+
 # Models
 class NamespaceConfig(BaseModel):
     name: str = Field(..., description="Human-readable name")
@@ -44,6 +63,10 @@ class Document(BaseModel):
 class QueryRequest(BaseModel):
     query: str
     mode: str = Field(default="hybrid", description="Query mode: naive, local, global, hybrid")
+
+class URLRequest(BaseModel):
+    url: str = Field(..., description="URL to fetch content from")
+    metadata: Dict[str, str] = Field(default_factory=dict, description="Additional metadata")
 
 # Dynamic Namespace Registry
 class NamespaceRegistry:
@@ -267,6 +290,215 @@ async def add_document(namespace_id: str, doc: Document):
         "namespace": namespace_id,
         "content_length": len(doc.content),
         "metadata": doc.metadata
+    }
+
+@app.post("/api/{namespace_id}/documents/upload")
+async def upload_document(namespace_id: str, file: UploadFile = File(...)):
+    """Upload single file to namespace"""
+    # Validate file type
+    if not is_supported_file(file.filename):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type. Supported types: {', '.join(SUPPORTED_FILE_EXTENSIONS)}"
+        )
+    
+    # Read file content
+    try:
+        content = await file.read()
+        text_content = content.decode('utf-8')
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=400,
+            detail="File must be UTF-8 encoded text"
+        )
+    except Exception as e:
+        logger.error(f"Error reading file {file.filename}: {e}")
+        raise HTTPException(status_code=500, detail="Error reading file")
+    
+    # Process content based on file type
+    extra_metadata = {}
+    if file.filename.lower().endswith('.json'):
+        # Preprocess JSON file
+        text_content, extra_metadata = preprocessor.preprocess_json_file(text_content)
+    else:
+        # Regular text preprocessing
+        text_content = preprocessor.preprocess_text(text_content)
+    
+    # Extract metadata
+    metadata = {
+        "source": file.filename,
+        "file_size": len(content),
+        "upload_time": datetime.now().isoformat(),
+        "file_type": file.content_type or "text/plain",
+        **extra_metadata
+    }
+    
+    # Ingest into LightRAG
+    async with get_lightrag_instance(namespace_id) as rag:
+        await rag.ainsert(text_content)
+        logger.info(f"Uploaded file to namespace '{namespace_id}': {file.filename} ({len(content)} bytes)")
+    
+    return {
+        "message": "File uploaded successfully",
+        "namespace": namespace_id,
+        "filename": file.filename,
+        "content_length": len(text_content),
+        "metadata": metadata
+    }
+
+@app.post("/api/{namespace_id}/documents/batch-upload")
+async def upload_documents_batch(namespace_id: str, files: List[UploadFile] = File(...)):
+    """Upload multiple files to namespace"""
+    results = []
+    failed_files = []
+    
+    for file in files:
+        # Validate file type
+        if not is_supported_file(file.filename):
+            failed_files.append({
+                "filename": file.filename,
+                "error": f"Unsupported file type"
+            })
+            continue
+        
+        # Read and process file
+        try:
+            content = await file.read()
+            text_content = content.decode('utf-8')
+            
+            # Process content based on file type
+            extra_metadata = {}
+            if file.filename.lower().endswith('.json'):
+                # Preprocess JSON file
+                text_content, extra_metadata = preprocessor.preprocess_json_file(text_content)
+            else:
+                # Regular text preprocessing
+                text_content = preprocessor.preprocess_text(text_content)
+            
+            # Extract metadata
+            metadata = {
+                "source": file.filename,
+                "file_size": len(content),
+                "upload_time": datetime.now().isoformat(),
+                "file_type": file.content_type or "text/plain",
+                **extra_metadata
+            }
+            
+            # Ingest into LightRAG
+            async with get_lightrag_instance(namespace_id) as rag:
+                await rag.ainsert(text_content)
+            
+            results.append({
+                "filename": file.filename,
+                "content_length": len(text_content),
+                "metadata": metadata
+            })
+            logger.info(f"Uploaded file to namespace '{namespace_id}': {file.filename}")
+            
+        except UnicodeDecodeError:
+            failed_files.append({
+                "filename": file.filename,
+                "error": "File must be UTF-8 encoded text"
+            })
+        except Exception as e:
+            logger.error(f"Error processing file {file.filename}: {e}")
+            failed_files.append({
+                "filename": file.filename,
+                "error": str(e)
+            })
+    
+    # Determine status
+    total_files = len(files)
+    successful_files = len(results)
+    
+    if successful_files == total_files:
+        status = "success"
+        message = f"All {total_files} files uploaded successfully"
+    elif successful_files > 0:
+        status = "partial_success"
+        message = f"Uploaded {successful_files} out of {total_files} files"
+    else:
+        status = "failure"
+        message = "No files were uploaded successfully"
+    
+    return {
+        "status": status,
+        "message": message,
+        "namespace": namespace_id,
+        "successful_uploads": results,
+        "failed_uploads": failed_files
+    }
+
+@app.post("/api/{namespace_id}/documents/url")
+async def fetch_and_ingest_url(namespace_id: str, req: URLRequest):
+    """Fetch content from URL and ingest it"""
+    # Validate URL
+    try:
+        parsed = urlparse(req.url)
+        if not parsed.scheme or not parsed.netloc:
+            raise ValueError("Invalid URL format")
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid URL format"
+        )
+    
+    # Fetch content from URL
+    try:
+        # Set reasonable timeout and headers
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (compatible; HireCJ Knowledge Bot/1.0)'
+        }
+        response = requests.get(req.url, timeout=30, headers=headers)
+        response.raise_for_status()
+        
+        # Get content type
+        content_type = response.headers.get('Content-Type', '')
+        
+        # Process content
+        text_content, extracted_metadata = preprocessor.preprocess_url_content(
+            response.text,
+            req.url,
+            content_type
+        )
+        
+        # Combine metadata
+        metadata = {
+            **extracted_metadata,
+            **req.metadata,
+            "status_code": response.status_code,
+            "content_length": len(response.content)
+        }
+        
+    except requests.exceptions.Timeout:
+        raise HTTPException(
+            status_code=504,
+            detail="Timeout while fetching URL"
+        )
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching URL {req.url}: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Error fetching URL: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Error processing URL content: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Error processing URL content"
+        )
+    
+    # Ingest into LightRAG
+    async with get_lightrag_instance(namespace_id) as rag:
+        await rag.ainsert(text_content)
+        logger.info(f"Ingested URL content to namespace '{namespace_id}': {req.url}")
+    
+    return {
+        "message": "URL content ingested successfully",
+        "namespace": namespace_id,
+        "url": req.url,
+        "content_length": len(text_content),
+        "metadata": metadata
     }
 
 @app.post("/api/{namespace_id}/query")

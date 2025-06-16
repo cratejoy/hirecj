@@ -14,6 +14,20 @@ This phase adds namespace CRUD operations with LightRAG integration.
 
 This phase adds document ingestion and query functionality.
 
+## Phase 1.1: Basic Document Ingestion ✅
+
+This phase adds file upload support for text files (.txt, .md).
+
+## Phase 1.3: Enhanced Ingestion ✅
+
+This phase adds JSON support, URL content fetching, and a universal ingestion script.
+
+### New Features
+- **JSON File Support**: Upload and parse .json files with metadata extraction
+- **URL Content Fetching**: Fetch and ingest content from web URLs
+- **Content Preprocessing**: Clean and normalize text, convert HTML to text
+- **Universal Ingestion Script**: Command-line tool for batch ingestion
+
 ### Directory Structure
 
 ```
@@ -62,8 +76,11 @@ knowledge/
 - `GET /api/namespaces/{namespace_id}` - Get specific namespace details
 - `DELETE /api/namespaces/{namespace_id}` - Delete a namespace
 
-#### Document Operations (Phase 0.3)
-- `POST /api/{namespace_id}/documents` - Add documents to a namespace
+#### Document Operations (Phase 0.3, 1.1 & 1.3)
+- `POST /api/{namespace_id}/documents` - Add documents to a namespace (JSON)
+- `POST /api/{namespace_id}/documents/upload` - Upload single file (Phase 1.1)
+- `POST /api/{namespace_id}/documents/batch-upload` - Upload multiple files (Phase 1.1)
+- `POST /api/{namespace_id}/documents/url` - Fetch and ingest URL content (Phase 1.3)
 - `POST /api/{namespace_id}/query` - Query knowledge in a namespace
 
 ### Phase 0.1 Success Criteria ✅
@@ -139,6 +156,44 @@ make test-operations
 - [x] All query modes (naive, local, global, hybrid) function properly
 - [x] Example scripts demonstrate full workflow
 - [x] Setup script prepares environment correctly
+
+### Testing Phase 1.3
+
+Run the enhanced ingestion test:
+```bash
+cd knowledge
+make test-enhanced-ingestion
+```
+
+### Universal Ingestion Script
+
+The universal ingestion script (`scripts/universal_ingest.py`) supports various ingestion scenarios:
+
+```bash
+# Ingest a single file
+venv/bin/python scripts/universal_ingest.py --namespace products --type file data/test_files/sample_data.json
+
+# Ingest all files in a directory
+venv/bin/python scripts/universal_ingest.py --namespace docs --type directory data/test_files/
+
+# Ingest files recursively
+venv/bin/python scripts/universal_ingest.py --namespace docs --type directory --recursive /path/to/docs/ "*.md"
+
+# Ingest a single URL
+venv/bin/python scripts/universal_ingest.py --namespace web --type url https://example.com/article
+
+# Ingest URLs from a file
+venv/bin/python scripts/universal_ingest.py --namespace web --type urls data/test_files/test_urls.txt
+
+# Dry run to preview what would be ingested
+venv/bin/python scripts/universal_ingest.py --namespace test --type directory --dry-run data/test_files/
+```
+
+### Supported File Types
+
+- `.txt` - Plain text files
+- `.md` - Markdown files
+- `.json` - JSON files with automatic structure parsing
 
 ### Next Steps
 
