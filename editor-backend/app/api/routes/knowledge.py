@@ -35,8 +35,9 @@ class URLRequest(BaseModel):
     url: str = Field(..., description="URL to fetch content from")
     metadata: Dict[str, str] = Field(default_factory=dict, description="Additional metadata")
 
-# Create async HTTP client
-async_client = httpx.AsyncClient(timeout=30.0)
+# Create async HTTP clients with different timeouts
+async_client = httpx.AsyncClient(timeout=30.0)  # Default client for queries
+upload_client = httpx.AsyncClient(timeout=120.0)  # Extended timeout for uploads
 
 @router.get("/health")
 async def health_check():
@@ -205,21 +206,37 @@ async def upload_documents(
 ):
     """Upload documents to a knowledge graph"""
     try:
-        # Prepare files for multipart upload
+        # Log upload attempt
+        logger.info(f"Starting upload to graph '{graph_id}' with {len(files)} files")
+        
+        # Prepare files for multipart upload and track sizes
         file_data = []
+        total_size = 0
+        file_info = []
+        
         for file in files:
             content = await file.read()
+            file_size = len(content)
+            total_size += file_size
+            file_info.append((file.filename, file_size))
             file_data.append(
                 ("files", (file.filename, content, file.content_type or "application/octet-stream"))
             )
         
-        # Forward to knowledge service
-        response = await async_client.post(
+        logger.info(f"Total upload size: {total_size} bytes ({total_size / 1024 / 1024:.1f} MB)")
+        
+        # Forward to knowledge service with extended timeout
+        response = await upload_client.post(
             f"{KNOWLEDGE_SERVICE_URL}/api/{graph_id}/documents/batch-upload",
             files=file_data
         )
         response.raise_for_status()
         data = response.json()
+        
+        # Log successful upload
+        logger.info(f"Upload successful for graph '{graph_id}'")
+        logger.info(f"  Successful uploads: {len(data.get('successful_uploads', []))}")
+        logger.info(f"  Failed uploads: {len(data.get('failed_uploads', []))}")
         
         # Transform response
         return {
@@ -237,15 +254,40 @@ async def upload_documents(
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
             raise HTTPException(status_code=404, detail="Knowledge graph not found")
+        
+        # Log the error details
+        logger.error(f"HTTP error during upload: {e.response.status_code}")
+        logger.error(f"  Response body: {e.response.text[:500]}...")  # First 500 chars
+        logger.error(f"  Graph ID: {graph_id}")
+        logger.error(f"  Number of files: {len(files)}")
+        
         raise HTTPException(
             status_code=e.response.status_code,
             detail=str(e)
         )
     except httpx.RequestError as e:
-        logger.error(f"Failed to upload documents: {e}")
+        # Log detailed error information
+        logger.error(f"Failed to upload documents - RequestError: {type(e).__name__}")
+        logger.error(f"  Error details: {str(e)}")
+        logger.error(f"  Graph ID: {graph_id}")
+        logger.error(f"  Number of files: {len(files)}")
+        
+        # Log file details if available
+        if 'file_info' in locals():
+            for i, (filename, size) in enumerate(file_info):
+                logger.error(f"  File {i+1}: {filename} ({size} bytes)")
+            logger.error(f"  Total size: {total_size} bytes ({total_size / 1024 / 1024:.1f} MB)")
+        
+        # Provide more specific error message
+        error_detail = "Failed to upload documents to knowledge service"
+        if "timeout" in str(e).lower():
+            error_detail = f"Upload timed out after 120 seconds. Try uploading fewer or smaller files."
+        elif "connection" in str(e).lower():
+            error_detail = "Could not connect to knowledge service. Please try again."
+        
         raise HTTPException(
             status_code=503,
-            detail="Failed to upload documents"
+            detail=error_detail
         )
     finally:
         # Reset file pointers for cleanup
@@ -326,5 +368,6 @@ async def query_knowledge_graph(
 
 @router.on_event("shutdown")
 async def shutdown_event():
-    """Clean up HTTP client on shutdown"""
+    """Clean up HTTP clients on shutdown"""
     await async_client.aclose()
+    await upload_client.aclose()
