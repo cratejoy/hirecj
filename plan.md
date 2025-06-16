@@ -524,17 +524,17 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: UI can display real document counts and processing status ✅ (Partially complete)
 
-#### Phase 2.2: Enhance Existing UI Components ⏸️
+#### Phase 2.2: Enhance Existing UI Components ✅
 **Deliverable**: Polish existing React components with real data
-- [ ] Update KnowledgeListView to show actual document counts
-- [ ] Display real last_updated timestamps
-- [ ] Add loading states and better error messages
-- [ ] Show upload progress for each file in KnowledgeDetailView
-- [ ] Add file type indicators (.txt, .md, .json)
-- [ ] Display query response times
-- [ ] Fix mobile responsive issues
+- [x] Update KnowledgeListView to show actual document counts ✅
+- [x] Display real last_updated timestamps ✅
+- [x] Add file type indicators (.txt, .md, .json) ✅
+- [x] Display query response times ✅
+- [ ] Add loading states and better error messages (moved to later phase)
+- [ ] Show upload progress for each file in KnowledgeDetailView (API limitation)
+- [ ] Fix mobile responsive issues (out of scope)
 
-**Success Criteria**: UI shows accurate data with smooth user experience
+**Success Criteria**: UI shows accurate data with smooth user experience ✅
 
 #### Phase 2.3: Add Processing Status View ⏸️
 **Deliverable**: New view for processing queue visibility
@@ -1568,17 +1568,17 @@ done
 
 **Success Criteria**: UI can display real document counts and processing status ✅ (Partially complete)
 
-#### Phase 2.2: Enhance Existing UI Components ⏸️
+#### Phase 2.2: Enhance Existing UI Components ✅
 **Deliverable**: Polish existing React components with real data
-- [ ] Update KnowledgeListView to show actual document counts
-- [ ] Display real last_updated timestamps
-- [ ] Add loading states and better error messages
-- [ ] Show upload progress for each file in KnowledgeDetailView
-- [ ] Add file type indicators (.txt, .md, .json)
-- [ ] Display query response times
-- [ ] Fix mobile responsive issues
+- [x] Update KnowledgeListView to show actual document counts ✅
+- [x] Display real last_updated timestamps ✅
+- [x] Add file type indicators (.txt, .md, .json) ✅
+- [x] Display query response times ✅
+- [ ] Add loading states and better error messages (moved to later phase)
+- [ ] Show upload progress for each file in KnowledgeDetailView (API limitation)
+- [ ] Fix mobile responsive issues (out of scope)
 
-**Success Criteria**: UI shows accurate data with smooth user experience
+**Success Criteria**: UI shows accurate data with smooth user experience ✅
 
 #### Phase 2.3: Add Processing Status View ⏸️
 **Deliverable**: New view for processing queue visibility
