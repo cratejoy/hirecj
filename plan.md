@@ -510,14 +510,6 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: Can ingest various formats and URLs successfully
 
-#### Phase 1.4: Multi-namespace Operations ⏸️
-**Deliverable**: Cross-namespace search working
-- [ ] Add multi-namespace search capability
-- [ ] Test with 10+ different namespace types
-- [ ] Implement batch ingestion for 100+ documents
-
-**Success Criteria**: Can search across multiple namespaces efficiently
-
 ### Milestone 2: Multi-Corpus & Basic Management
 
 #### Phase 2.1: PostgreSQL Migration ⏸️
@@ -552,11 +544,19 @@ The editor's Grounding views will integrate as follows:
 - [ ] Build REST API for corpus management
 - [ ] Create simple web UI for corpus selection
 - [ ] Add basic authentication
-- [ ] Verify cross-corpus query functionality
 
 **Success Criteria**: Non-technical users can manage corpora via UI
 
 ### Milestone 3: Dynamic Sources & Processing Pipeline
+
+#### Phase 3.0: Multi-namespace Operations ⏸️
+**Deliverable**: Cross-namespace search working
+- [ ] Add multi-namespace search capability
+- [ ] Test with 10+ different namespace types
+- [ ] Implement batch ingestion for 100+ documents
+- [ ] Verify cross-namespace query functionality
+
+**Success Criteria**: Can search across multiple namespaces efficiently
 
 #### Phase 3.1: Web Crawler Implementation ⏸️
 **Deliverable**: Working web crawler for documentation
