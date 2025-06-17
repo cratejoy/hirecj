@@ -670,6 +670,71 @@ The editor's Grounding views will integrate as follows:
 - All data ingestion and management happens exclusively through CLI
 - Clear documentation and UI hints guide users to appropriate CLI commands
 
+#### Phase 2.4: RSS Podcast Transcription (Standalone) 🚀 ✅
+**Deliverable**: Client-side podcast ingestion with transcription
+- [x] Create standalone podcast ingestion command for Knowledge CLI
+- [x] Implement RSS feed parsing and episode tracking
+- [x] Add audio download with progress tracking
+- [x] Integrate Whisper API for transcription
+- [x] Support episode limits and skip-processed logic
+- [x] Add metadata preservation (title, date, description)
+- [x] Upload transcripts to Knowledge service via API
+- [x] Add YouTube video support (bonus feature)
+
+**Implementation Approach**:
+- Adapt existing `src/ingest.py` code that already handles RSS/audio/transcription
+- Add as new `podcast` command to Knowledge CLI
+- Run entirely client-side (requires OpenAI API key)
+- Store processing state locally to avoid re-processing
+- Clean up audio files after successful ingestion
+
+**Success Criteria**: Can ingest podcast RSS feeds with one command, transcribe episodes, and load into any namespace
+
+#### Phase 2.5: Refactor UI to Read-Only Status View ✅
+**Deliverable**: Transform Knowledge UI into a pure status dashboard with all data management via CLI
+- [x] Remove upload functionality from DocumentManager
+  - [x] Remove UploadDocumentsDialog component and all references
+  - [x] Remove file upload API endpoints from frontend (commented out)
+  - [x] Update DocumentManager to be view-only
+  - [x] Remove orphaned FileUploader component
+- [x] Remove namespace creation/deletion from UI (N/A - not in LightRAG UI)
+- [x] Remove document deletion and clearing features
+  - [x] Remove ClearDocumentsDialog component
+  - [x] Remove individual document delete buttons (none existed)
+  - [x] Remove batch operations UI (scan button removed)
+  - [x] Clean up all upload-related localization entries
+- [x] Enhance status viewing capabilities (deferred to future phases)
+  - [ ] Improve document status display with better filtering
+  - [ ] Add more detailed processing queue visualization
+  - [ ] Enhance error display and diagnostics
+  - [ ] Add namespace statistics dashboard
+- [x] Update UI navigation and messaging
+  - [x] Remove/disable upload buttons and controls
+  - [x] Add CLI usage hints throughout UI
+  - [x] Update empty states to reference CLI commands
+  - [x] Add "How to add documents" help section pointing to CLI
+- [x] Fix Editor Knowledge UI
+  - [x] Remove upload functionality from KnowledgeDetailView
+  - [x] Remove create/delete functionality from KnowledgeListView
+  - [x] Add CLI instructions in both views
+  - [x] Keep query and monitoring functionality
+- [x] Backend API adjustments
+  - [x] Keep all read/query endpoints
+  - [x] Comment out write endpoints in frontend (lightrag API)
+  - [x] Comment out upload/URL endpoints in gateway backend
+  - [x] Ensure CLI still has full API access
+
+**Implementation Approach**:
+- Systematically remove interactive features from LightRAG web UI
+- Preserve and enhance all monitoring/status features
+- Add helpful CLI command references in UI
+- Ensure smooth transition for users from UI to CLI workflow
+
+**Success Criteria**: 
+- UI serves as comprehensive read-only dashboard for monitoring knowledge graphs
+- All data ingestion and management happens exclusively through CLI
+- Clear documentation and UI hints guide users to appropriate CLI commands
+
 ### Milestone 3: Dynamic Sources & Processing Pipeline
 
 #### Phase 3.1: Web Crawler Implementation ⏸️
