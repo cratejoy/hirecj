@@ -9,6 +9,7 @@ import argparse
 from datetime import datetime, timedelta
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))  # Add root directory for shared module
 
 from app.utils.supabase_util import get_db_session
 from app.dbmodels.base import Merchant

@@ -39,6 +39,10 @@ available_tools:
   - get_sla_exceptions
   - get_root_cause_analysis
   - get_recent_tickets_for_review
+  # Shopify customer tools
+  - lookup_shopify_customer_by_email
+  - search_shopify_customers
+  - get_shopify_customer_orders
 
 workflow: |
   # Support Daily Review - Enhanced Version with Advanced Analytics
@@ -122,6 +126,11 @@ workflow: |
   - `search_tickets_in_db`: Search for specific tickets by keyword
   - `analyze_bad_csat_tickets`: Deep dive into recent bad ratings
 
+  **Shopify Customer Tools:**
+  - `lookup_shopify_customer_by_email`: Find customer details by email address
+  - `search_shopify_customers`: Fuzzy search across name, email, phone
+  - `get_shopify_customer_orders`: Get order history for identified customer
+
   ## Example Enhanced Flow
 
   ```
@@ -163,6 +172,25 @@ workflow: |
   - Show the full conversation threads for those bad CSAT tickets?
   - Pull up all shipping-related tickets from this week?
   - Analyze response time patterns by hour to optimize staffing?
+  - Look up customer order history for any of these tickets?
+  ```
+
+  ## Customer Context Enhancement
+
+  When viewing tickets, I can now provide Shopify customer context:
+
+  ```
+  Analyzing ticket #12345 from mary@example.com...
+
+  [Automatically uses lookup_shopify_customer_by_email]
+
+  Customer Profile:
+  - Name: Mary Johnson
+  - Customer since: Jan 2023
+  - Total orders: 15 ($1,234.56 lifetime value)
+  - Last order: #1234 (3 days ago) - Still in transit
+  
+  This context explains their shipping inquiry - their recent order hasn't arrived yet.
   ```
 
   ## Special CSAT Conversation Analysis

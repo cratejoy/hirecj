@@ -70,10 +70,11 @@ Data Source: Live database query"""
 
     @tool
     def search_tickets_in_db(query: str) -> str:
-        """Search through support tickets in the database for specific issues, products, or keywords.
+        """Search through support tickets in the database for specific issues, products, keywords, or customer names.
 
         Args:
-            query: Search term (e.g., 'shipping delays', 'refund requests', 'product name')
+            query: Search term (searches in subject, description, customer name, email, and tags)
+                  Examples: 'shipping delays', 'refund requests', 'Mary Beskin', 'singlesswag'
         """
         logger.info(f"[TOOL CALL] search_tickets_in_db(query='{query}') - Searching for tickets in database")
         
@@ -92,7 +93,7 @@ Recent Tickets:"""
                 for ticket in matching_tickets[:5]:
                     output += f"""
 • #{ticket['ticket_id']} - {ticket['subject']}
-  Status: {ticket['status']} | Requester: {ticket['requester_email']}
+  Status: {ticket['status']} | Customer: {ticket.get('customer_name', 'Unknown')} ({ticket['requester_email']})
   Created: {ticket['created_at']}"""
                 
                 logger.info(f"[TOOL RESULT] search_tickets_in_db(query='{query}') - Found {len(matching_tickets)} matching tickets")
@@ -1169,16 +1170,13 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
         - Ticket metadata, conversations, ratings, escalation status
         - Pagination info (has_more, next_cursor if applicable)
         
-        NOTE: This tool returns RAW DATA ONLY. You must analyze the tickets yourself to identify:
+        NOTE: This tool returns RAW DATA ONLY. You must analyze the tickets yourself and paginate over the right search area to identify:
         - Payment or billing issues affecting multiple customers
         - Service outages or system errors
         - Angry customers or escalation risks
         - Patterns indicating product bugs or broken features
         
         Usage examples:
-            # Get last 100 tickets in one call
-            get_recent_tickets_for_review(limit=100)
-            
             # Paginate through all tickets
             page1 = get_recent_tickets_for_review(limit=20)
             # If has_more=True and next_cursor="345927"

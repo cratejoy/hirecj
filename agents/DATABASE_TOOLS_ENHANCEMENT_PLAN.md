@@ -1,5 +1,9 @@
 # Database Tools Enhancement Plan
 
+## Current Status (Updated: 2025-01-17)
+- Phase 1 Item 1: ✅ COMPLETED - `analyze_systemic_issues` renamed to `get_recent_tickets_for_review` with full pagination
+- Phase 1 Item 2: ✅ COMPLETED - Customer name search added to `search_tickets_in_db` (searches in requester_name field)
+
 ## 1. Fix `analyze_systemic_issues` Tool with Pagination
 
 ### 1.1 Rename Tool
@@ -191,26 +195,6 @@ def search_by_customer(
     """
 ```
 
-### 2.3 Add `get_tickets_by_merchant` Tool
-```python
-@tool  
-def get_tickets_by_merchant(
-    merchant_name: str,
-    days_back: int = 30,
-    min_priority: Optional[int] = None
-) -> str:
-    """Get all support tickets from a specific merchant/seller.
-    
-    Args:
-        merchant_name: The merchant/seller name to search for
-        days_back: How many days of history to include (default: 30)
-        min_priority: Minimum priority level (1=Low, 2=Medium, 3=High, 4=Urgent)
-    
-    Returns tickets grouped by status with key metrics.
-    Useful for merchant-specific support reviews.
-    """
-```
-
 ## 3. Create True Analysis Tools
 
 ### 3.1 Add `detect_critical_patterns` Tool
@@ -278,9 +262,9 @@ Each tool description should clearly state:
 
 ## 5. Implementation Priority
 
-### Phase 1 (Critical - Do First)
-1. Rename and fix `analyze_systemic_issues` → `get_recent_tickets_for_review`
-2. Update search to include customer names in `search_tickets_in_db`
+### Phase 1 (Critical - Do First) ✅ COMPLETED
+1. ✅ COMPLETED: Rename and fix `analyze_systemic_issues` → `get_recent_tickets_for_review`
+2. ✅ COMPLETED: Update search to include customer names in `search_tickets_in_db`
 
 ### Phase 2 (High Priority)
 3. Add `search_by_customer` tool
@@ -288,7 +272,6 @@ Each tool description should clearly state:
 5. Update misleading tool descriptions
 
 ### Phase 3 (Nice to Have)
-6. Add `get_tickets_by_merchant` tool
 7. Add `get_issue_summary` tool
 8. Add date range filtering to search
 
@@ -348,10 +331,9 @@ When using get_recent_tickets_for_review:
 
 ## 8. Migration Notes
 
-### 8.1 Backward Compatibility
-- Keep old tool names as aliases temporarily
-- Log deprecation warnings when old names used
-- Remove aliases after 2 weeks
+### 8.1 We don't care about backwards compatibility
+- Make tool names work based on current understanding and needs, do not use aliases or follow a deprecation path. Fix downstream usage.
+- DO NOT BUILD FOR BACKWARDS COMPATIBILITY.
 
 ### 8.2 Update Dependencies
 - Update `support_daily.yaml` workflow to use new tool names
