@@ -1,6 +1,6 @@
 
 # Core dependencies
-crewai>=0.28.0
+crewai>=0.130.0
 fastapi==0.115.9
 httpx>=0.26.0
 litellm>=1.71.0

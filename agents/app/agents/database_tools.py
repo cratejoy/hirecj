@@ -70,10 +70,12 @@ Data Source: Live database query"""
 
     @tool
     def search_tickets_in_db(query: str) -> str:
-        """Search through support tickets in the database for specific issues, products, keywords, or customer names.
+        """TEXT SEARCH ONLY - Search tickets by keywords, customer names, or tags. 
+        
+        CANNOT search by date. For date-based queries, use get_daily_snapshot or other time-based tools.
 
         Args:
-            query: Search term (searches in subject, description, customer name, email, and tags)
+            query: Text search term (searches in subject, description, customer name, email, and tags)
                   Examples: 'shipping delays', 'refund requests', 'Mary Beskin', 'singlesswag'
         """
         logger.info(f"[TOOL CALL] search_tickets_in_db(query='{query}') - Searching for tickets in database")
@@ -1158,7 +1160,10 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
 
     @tool
     def get_recent_tickets_for_review(limit: int = 20, cursor: Optional[str] = None, status_filter: Optional[List[str]] = None) -> str:
-        """Get recent support tickets with full conversations for manual review and pattern detection.
+        """CHRONOLOGICAL ORDER ONLY - Returns most recent tickets sorted by creation date (newest first).
+        
+        CANNOT filter by specific date range. Returns whatever tickets are most recent in the system.
+        For specific date analysis, use get_daily_snapshot or manually filter results.
         
         Args:
             limit: Number of tickets to retrieve (default: 20, max: 100)
@@ -1271,6 +1276,121 @@ CONVERSATION:
             logger.error(f"[TOOL ERROR] get_recent_tickets_for_review() - Error: {str(e)}")
             return f"Error fetching tickets: {str(e)}"
     
+    @tool
+    def search_tickets_by_date_range(start_date: str, end_date: Optional[str] = None, 
+                                    status_filter: Optional[List[str]] = None,
+                                    limit: int = 100) -> str:
+        """DATE-BASED SEARCH - Find tickets created within a specific date range.
+        
+        Use this tool when asked about tickets from specific dates or time periods.
+        
+        Args:
+            start_date: Date string in YYYY-MM-DD format (e.g., 2025-06-01)
+            end_date: Optional end date in YYYY-MM-DD format. If not provided, searches only start_date
+            status_filter: Optional list of statuses to include (default: all)
+            limit: Maximum tickets to return (default: 100, max: 500)
+            
+        IMPORTANT: Pass dates as plain strings without quotes. Examples:
+            - For "yesterday's tickets": start_date=2025-06-16, end_date=2025-06-16
+            - For "last 30 days": start_date=2025-05-18, end_date=2025-06-17
+            - For "June 2025": start_date=2025-06-01, end_date=2025-06-30
+            
+        DO NOT include quotes in the date values. Just pass the date string directly.
+        """
+        # Handle CrewAI dict args
+        if isinstance(start_date, dict):
+            args_dict = start_date
+            start_date = args_dict.get('start_date')
+            end_date = args_dict.get('end_date')
+            status_filter = args_dict.get('status_filter')
+            limit = args_dict.get('limit', 100)
+            
+        # Strip any extra quotes that might have been added
+        if start_date:
+            start_date = start_date.strip('"\'')
+        if end_date:
+            end_date = end_date.strip('"\'')
+            
+        logger.info(f"[TOOL CALL] search_tickets_by_date_range(start_date='{start_date}', end_date='{end_date}')")
+        
+        try:
+            with get_db_session() as session:
+                # Calculate dates if relative terms used
+                today = datetime.now().date()
+                
+                # Handle relative date calculations
+                if start_date and 'last' in start_date.lower():
+                    # Extract number of days
+                    import re
+                    match = re.search(r'(\d+)', start_date)
+                    if match:
+                        days = int(match.group(1))
+                        start_date = (today - timedelta(days=days)).strftime('%Y-%m-%d')
+                        end_date = today.strftime('%Y-%m-%d')
+                
+                # Parse dates
+                try:
+                    start = datetime.strptime(start_date, '%Y-%m-%d').date()
+                    end = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else start
+                except ValueError:
+                    return f"Error: Invalid date format. Got start_date='{start_date}', end_date='{end_date}'. Please use YYYY-MM-DD format (e.g., 2025-06-17)."
+                
+                # Query tickets
+                query = session.query(FreshdeskTicket).filter(
+                    FreshdeskTicket.merchant_id == 1,
+                    FreshdeskTicket.created_at >= start,
+                    FreshdeskTicket.created_at < end + timedelta(days=1)
+                )
+                
+                if status_filter:
+                    query = query.filter(FreshdeskTicket.status.in_(status_filter))
+                
+                tickets = query.order_by(FreshdeskTicket.created_at.desc()).limit(limit).all()
+                
+                if not tickets:
+                    return f"No tickets found between {start_date} and {end_date or start_date}"
+                
+                # Categorize tickets
+                categories = {}
+                for ticket in tickets:
+                    # Simple categorization based on tags and subject
+                    category = "Other"
+                    subject_lower = ticket.subject.lower() if ticket.subject else ""
+                    tags = ticket.tags or []
+                    
+                    if any(word in subject_lower for word in ['ship', 'delivery', 'tracking', 'package']):
+                        category = "Shipping/Delivery"
+                    elif any(word in subject_lower for word in ['bill', 'charge', 'payment', 'refund']):
+                        category = "Billing/Payment"
+                    elif any(word in subject_lower for word in ['cancel', 'subscription', 'renew']):
+                        category = "Subscription Management"
+                    elif any(word in subject_lower for word in ['login', 'password', 'account', 'access']):
+                        category = "Account Access"
+                    
+                    if category not in categories:
+                        categories[category] = []
+                    categories[category].append(ticket)
+                
+                # Format output
+                date_range = f"{start_date} to {end_date}" if end_date and end_date != start_date else start_date
+                output = f"📅 **Tickets from {date_range}**: {len(tickets)} found\n\n"
+                
+                output += "**Categories:**\n"
+                for category, cat_tickets in sorted(categories.items(), key=lambda x: len(x[1]), reverse=True):
+                    output += f"\n**{category}** ({len(cat_tickets)} tickets):\n"
+                    for ticket in cat_tickets[:5]:  # Show first 5 in each category
+                        output += f"  • #{ticket.ticket_id} - {ticket.subject[:60]}...\n"
+                        output += f"    Status: {ticket.status} | Customer: {ticket.requester_email}\n"
+                    if len(cat_tickets) > 5:
+                        output += f"  ... and {len(cat_tickets) - 5} more\n"
+                
+                logger.info(f"[TOOL RESULT] search_tickets_by_date_range() - Found {len(tickets)} tickets")
+                return output
+                
+        except Exception as e:
+            logger.error(f"[TOOL ERROR] search_tickets_by_date_range() - Error: {str(e)}")
+            return f"Error searching tickets by date: {str(e)}"
+    
     # Return the tools created with @tool decorator
     tools = [
         get_recent_ticket_from_db,
@@ -1289,6 +1409,7 @@ CONVERSATION:
         get_sla_exceptions,
         get_root_cause_analysis,
         get_recent_tickets_for_review,
+        search_tickets_by_date_range,
     ]
 
     return tools
