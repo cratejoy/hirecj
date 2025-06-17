@@ -1156,54 +1156,102 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             return f"Error analyzing root causes: {str(e)}"
 
     @tool
-    def analyze_systemic_issues() -> str:
-        """Analyze the last 50 support tickets to identify systemic issues requiring immediate attention.
+    def get_recent_tickets_for_review(limit: int = 20, cursor: Optional[str] = None, status_filter: Optional[List[str]] = None) -> str:
+        """Get recent support tickets with full conversations for manual review and pattern detection.
         
-        This tool examines recent tickets with full conversation history to identify:
-        - Critical security or data issues
-        - Widespread service outages
-        - Payment/billing problems affecting multiple customers
-        - Repeated customer complaints about the same issue
-        - Escalating situations that need immediate intervention
-        - Anything that might directly affect revenue for the business
+        Args:
+            limit: Number of tickets to retrieve (default: 20, max: 100)
+            cursor: Pagination cursor from previous call (ticket_id to continue after)
+            status_filter: Optional list of statuses to include 
+                          ['open', 'pending', 'waiting', 'resolved', 'closed'] (default: all statuses)
         
-        Returns a detailed analysis with any critical findings highlighted.
+        Returns raw ticket data including:
+        - Ticket metadata, conversations, ratings, escalation status
+        - Pagination info (has_more, next_cursor if applicable)
+        
+        NOTE: This tool returns RAW DATA ONLY. You must analyze the tickets yourself to identify:
+        - Payment or billing issues affecting multiple customers
+        - Service outages or system errors
+        - Angry customers or escalation risks
+        - Patterns indicating product bugs or broken features
+        
+        Usage examples:
+            # Get last 100 tickets in one call
+            get_recent_tickets_for_review(limit=100)
+            
+            # Paginate through all tickets
+            page1 = get_recent_tickets_for_review(limit=20)
+            # If has_more=True and next_cursor="345927"
+            page2 = get_recent_tickets_for_review(limit=20, cursor="345927")
         """
-        logger.info("[TOOL CALL] analyze_systemic_issues() - Analyzing last 50 tickets for systemic problems")
+        # Handle CrewAI dict args
+        if isinstance(limit, dict):
+            args_dict = limit
+            limit = args_dict.get('limit', 20)
+            cursor = args_dict.get('cursor')
+            status_filter = args_dict.get('status_filter')
+        
+        # Convert status names to codes if needed
+        status_codes = None
+        if status_filter:
+            status_map = {
+                'open': 2,
+                'pending': 3,
+                'resolved': 4,
+                'closed': 5,
+                'waiting': 6,  # Waiting on Customer
+                'waiting_on_third_party': 7
+            }
+            status_codes = []
+            for status in status_filter:
+                if isinstance(status, str):
+                    code = status_map.get(status.lower())
+                    if code:
+                        status_codes.append(code)
+                else:
+                    status_codes.append(status)
+        
+        logger.info(f"[TOOL CALL] get_recent_tickets_for_review(limit={limit}, cursor={cursor}, status_filter={status_filter})")
         
         try:
             with get_db_session() as session:
-                tickets = FreshdeskAnalytics.get_recent_tickets_with_conversations(
+                result = FreshdeskAnalytics.get_recent_tickets_for_review(
                     session=session,
                     merchant_id=1,
-                    limit=50
+                    limit=limit,
+                    cursor=cursor,
+                    status_filter=status_codes
                 )
                 
+                tickets = result['tickets']
                 if not tickets:
-                    return "No recent tickets found to analyze."
+                    return "No tickets found matching the criteria."
                 
-                # Prepare ticket data for analysis
-                ticket_summary = f"""🔍 SYSTEMIC ISSUE ANALYSIS - Last 50 Support Tickets
-
-Please analyze these {len(tickets)} recent support tickets for any systemic issues that require immediate merchant attention.
-
-Look for:
-- Security breaches or data exposure
-- Payment processing failures affecting multiple customers  
-- Service outages or critical bugs
-- Repeated issues indicating a broken feature
-- Angry customers threatening legal action or chargebacks
-- Any other patterns suggesting urgent problems
-
-TICKET DATA:
+                # Build output
+                output = f"""📋 RECENT TICKETS FOR REVIEW
+Retrieved: {len(tickets)} tickets
+Date range: {result['date_range']['newest']} to {result['date_range']['oldest']}
+Has more: {'Yes' if result['has_more'] else 'No'}
 """
                 
+                if result.get('has_more') and result.get('next_cursor'):
+                    output += f"Next cursor: {result['next_cursor']}\n"
+                
+                output += "\nRAW TICKET DATA:\n"
+                
                 for i, ticket in enumerate(tickets, 1):
-                    # Include key ticket info and full conversation
-                    ticket_summary += f"""
+                    # Map status codes to names
+                    status_names = {2: 'Open', 3: 'Pending', 4: 'Resolved', 5: 'Closed', 6: 'Waiting on Customer', 7: 'Waiting on Third Party'}
+                    status_name = status_names.get(ticket['status'], f"Status {ticket['status']}")
+                    
+                    # Map priority codes to names
+                    priority_names = {1: 'Low', 2: 'Medium', 3: 'High', 4: 'Urgent'}
+                    priority_name = priority_names.get(ticket['priority'], f"Priority {ticket['priority']}")
+                    
+                    output += f"""
 {'='*80}
 TICKET #{ticket['ticket_id']} - {ticket['subject']}
-Created: {ticket['created_at']} | Status: {ticket['status']} | Priority: {ticket['priority']}
+Created: {ticket['created_at']} | Status: {status_name} | Priority: {priority_name}
 Customer: {ticket['requester_name']} ({ticket['requester_email']})
 Tags: {', '.join(ticket['tags']) if ticket['tags'] else 'None'}
 Escalated: {'YES' if ticket.get('is_escalated') else 'No'}
@@ -1213,30 +1261,17 @@ CONVERSATION:
 {ticket['conversation'] or 'No conversation available'}
 
 """
-                    
-                    # Limit output size by stopping at 30 tickets if getting too long
-                    if i >= 30 and len(ticket_summary) > 25000:
-                        ticket_summary += f"\n... Analysis limited to first 30 tickets due to size constraints ...\n"
-                        break
                 
-                ticket_summary += """
-{'='*80}
-
-ANALYSIS INSTRUCTIONS:
-1. Identify any CRITICAL issues that need immediate attention
-2. Group similar problems together to identify patterns
-3. Prioritize by severity and number of affected customers
-4. Provide specific recommendations for urgent action
-
-Please provide your analysis below:
-"""
+                if result.get('has_more'):
+                    output += f"\n{'='*80}\n"
+                    output += f"To get next page, use cursor=\"{result['next_cursor']}\"\n"
                 
-                logger.info(f"[TOOL RESULT] analyze_systemic_issues() - Prepared {len(tickets)} tickets for analysis")
-                return ticket_summary
+                logger.info(f"[TOOL RESULT] get_recent_tickets_for_review() - Retrieved {len(tickets)} tickets, has_more={result['has_more']}")
+                return output
                 
         except Exception as e:
-            logger.error(f"[TOOL ERROR] analyze_systemic_issues() - Error: {str(e)}")
-            return f"Error analyzing systemic issues: {str(e)}"
+            logger.error(f"[TOOL ERROR] get_recent_tickets_for_review() - Error: {str(e)}")
+            return f"Error fetching tickets: {str(e)}"
     
     # Return the tools created with @tool decorator
     tools = [
@@ -1255,7 +1290,7 @@ Please provide your analysis below:
         get_volume_trends,
         get_sla_exceptions,
         get_root_cause_analysis,
-        analyze_systemic_issues,
+        get_recent_tickets_for_review,
     ]
 
     return tools

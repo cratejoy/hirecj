@@ -455,6 +455,124 @@ class FreshdeskAnalytics:
         return results
     
     @staticmethod
+    def get_recent_tickets_for_review(
+        session: Session, 
+        merchant_id: int, 
+        limit: int = 20,
+        cursor: Optional[str] = None,
+        status_filter: Optional[List[int]] = None
+    ) -> Dict[str, Any]:
+        """Get recent support tickets with cursor-based pagination for manual review.
+        
+        Args:
+            session: Database session
+            merchant_id: Merchant ID
+            limit: Number of tickets per page (default 20, max 100)
+            cursor: Pagination cursor (ticket_id from previous page)
+            status_filter: Optional list of status codes to filter by
+            
+        Returns:
+            Dict containing:
+            - tickets: List of ticket data with conversations
+            - has_more: Boolean indicating if more results exist
+            - next_cursor: Ticket ID to use for next page (if has_more)
+            - date_range: Dict with oldest and newest ticket dates
+        """
+        # Enforce limit
+        limit = min(limit, 100)
+        
+        # Build base query
+        query = session.query(FreshdeskUnifiedTicketView).filter(
+            FreshdeskUnifiedTicketView.merchant_id == merchant_id
+        )
+        
+        # Apply status filter if provided
+        if status_filter:
+            query = query.filter(FreshdeskUnifiedTicketView.status.in_(status_filter))
+        
+        # Apply cursor filter if provided
+        if cursor:
+            # Get the cursor ticket to find its created_at
+            cursor_ticket = session.query(
+                FreshdeskUnifiedTicketView.created_at,
+                FreshdeskUnifiedTicketView.freshdesk_ticket_id
+            ).filter(
+                FreshdeskUnifiedTicketView.freshdesk_ticket_id == cursor,
+                FreshdeskUnifiedTicketView.merchant_id == merchant_id
+            ).first()
+            
+            if cursor_ticket:
+                # Use tuple comparison for stable pagination
+                query = query.filter(
+                    or_(
+                        FreshdeskUnifiedTicketView.created_at < cursor_ticket.created_at,
+                        and_(
+                            FreshdeskUnifiedTicketView.created_at == cursor_ticket.created_at,
+                            FreshdeskUnifiedTicketView.freshdesk_ticket_id < cursor_ticket.freshdesk_ticket_id
+                        )
+                    )
+                )
+        
+        # Order by created_at DESC, ticket_id DESC for stable ordering
+        query = query.order_by(
+            FreshdeskUnifiedTicketView.created_at.desc(),
+            FreshdeskUnifiedTicketView.freshdesk_ticket_id.desc()
+        )
+        
+        # Fetch limit + 1 to check if more exist
+        tickets = query.limit(limit + 1).all()
+        
+        # Check if we have more results
+        has_more = len(tickets) > limit
+        if has_more:
+            tickets = tickets[:limit]  # Remove the extra ticket
+        
+        # Format results
+        results = []
+        for ticket in tickets:
+            results.append({
+                "ticket_id": ticket.freshdesk_ticket_id,
+                "subject": ticket.subject,
+                "status": ticket.status,
+                "priority": ticket.priority,
+                "type": ticket.type,
+                "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+                "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
+                "requester_name": ticket.requester_name,
+                "requester_email": ticket.requester_email,
+                "tags": ticket.tags or [],
+                "conversation": ticket.conversation,
+                "has_rating": ticket.has_rating,
+                "rating_score": ticket.rating_score,
+                "rating_feedback": ticket.rating_feedback,
+                "first_responded_at": ticket.first_responded_at.isoformat() if ticket.first_responded_at else None,
+                "resolved_at": ticket.resolved_at.isoformat() if ticket.resolved_at else None,
+                "is_escalated": ticket.is_escalated,
+                "conversation_count": ticket.conversation_count
+            })
+        
+        # Determine date range
+        date_range = None
+        if results:
+            date_range = {
+                "oldest": results[-1]["created_at"],
+                "newest": results[0]["created_at"]
+            }
+        
+        # Build response
+        response = {
+            "tickets": results,
+            "has_more": has_more,
+            "date_range": date_range
+        }
+        
+        # Add next cursor if there are more results
+        if has_more and results:
+            response["next_cursor"] = results[-1]["ticket_id"]
+        
+        return response
+    
+    @staticmethod
     def get_rating_statistics(session: Session, merchant_id: int, days: Optional[int] = None) -> Dict[str, Any]:
         """Get rating distribution statistics."""
         # Build query

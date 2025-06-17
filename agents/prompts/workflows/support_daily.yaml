@@ -38,7 +38,7 @@ available_tools:
   - get_volume_trends
   - get_sla_exceptions
   - get_root_cause_analysis
-  - analyze_systemic_issues
+  - get_recent_tickets_for_review
 
 workflow: |
   # Support Daily Review - Enhanced Version with Advanced Analytics
@@ -51,10 +51,10 @@ workflow: |
 
   ## Workflow Steps
 
-  ### 1. Start with Daily Snapshot and Systemic Issues Check
+  ### 1. Start with Daily Snapshot and Recent Tickets Review
   **CRITICAL**: When you receive the initial message requesting the daily support snapshot, you MUST:
   1. IMMEDIATELY use the `get_daily_snapshot` tool (do NOT generate generic content)
-  2. SIMULTANEOUSLY use the `analyze_systemic_issues` tool to check for critical problems
+  2. SIMULTANEOUSLY use the `get_recent_tickets_for_review` tool with limit=50 to check for critical problems
   3. Present the ACTUAL metrics returned by the tools
   4. The tools will return real data like: new_tickets, closed_tickets, median_response_min, etc.
   
@@ -64,10 +64,10 @@ workflow: |
   - CSAT scores and ratings
   - SLA performance
   
-  The systemic issues check will:
-  - Review the last 50 tickets for patterns
-  - Identify any critical issues requiring immediate attention
-  - Surface potential product bugs or widespread customer problems
+  The recent tickets review will:
+  - Return raw ticket data for the last 50 tickets
+  - YOU must analyze them to identify critical issues
+  - Look for patterns requiring immediate attention
 
   ### 2. Automatic Deep Dives Based on Metrics
   After presenting the snapshot, PROACTIVELY analyze problem areas:
@@ -109,7 +109,7 @@ workflow: |
   ## Advanced Analytics Tools
 
   **New Capabilities:**
-  - `analyze_systemic_issues`: Analyze last 50 tickets to identify critical patterns requiring immediate attention
+  - `get_recent_tickets_for_review`: Get recent tickets with conversations for manual pattern analysis
   - `get_csat_detail_log`: Get detailed CSAT data WITH full conversations for bad ratings
   - `get_open_ticket_distribution`: See aging analysis of open tickets
   - `get_response_time_metrics`: Statistical analysis with percentiles and outliers
@@ -127,7 +127,7 @@ workflow: |
   ```
   Good morning! Let me start with your daily support snapshot and check for any critical issues.
 
-  [Uses get_daily_snapshot and analyze_systemic_issues tools simultaneously]
+  [Uses get_daily_snapshot and get_recent_tickets_for_review(limit=50) tools simultaneously]
 
   📊 Daily Support Metrics for June 12, 2024:
   
@@ -136,8 +136,8 @@ workflow: |
   **CSAT**: 78.5% satisfaction | 3 bad ratings
   **SLA**: 2 breaches detected
 
-  🚨 **CRITICAL SYSTEMIC ISSUE DETECTED**: 
-  Multiple customers (8 in last 50 tickets) are reporting checkout failures with error "Payment processor timeout". This appears to be an ongoing issue affecting your payment integration.
+  🚨 **CRITICAL PATTERN DETECTED** (from reviewing last 50 tickets): 
+  Multiple customers (8 tickets) are reporting checkout failures with error "Payment processor timeout". This appears to be an ongoing issue affecting your payment integration.
 
   🔍 I see some areas that need attention. Let me dig deeper...
 
