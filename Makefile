@@ -50,7 +50,6 @@ help:
 	@echo ""
 	@echo "🔄 Freshdesk sync commands:"
 	@echo "  make sync-freshdesk - Sync all Freshdesk data"
-	@echo "  make sync-tickets   - Sync only Freshdesk tickets"
 	@echo "  make test-freshdesk-sync - Test the sync functionality"
 
 # Install all dependencies
@@ -376,9 +375,6 @@ sync-freshdesk:
 	@echo "🔄 Syncing Freshdesk data (all components)..."
 	cd agents && . venv/bin/activate && python scripts/sync_freshdesk.py
 
-sync-tickets:
-	@echo "🎫 Syncing Freshdesk tickets only..."
-	cd agents && . venv/bin/activate && python scripts/sync_freshdesk.py --tickets-only
 
 sync-conversations:
 	@echo "💬 Syncing Freshdesk conversations for specific tickets..."

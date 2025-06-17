@@ -6,7 +6,7 @@ from typing import List, Any, Optional
 from datetime import datetime, date, timedelta
 from crewai.tools import tool
 from app.utils.supabase_util import get_db_session
-from app.lib.freshdesk_analytics_lib import FreshdeskAnalytics, FreshdeskInsights
+from app.lib.freshdesk_analytics_lib import FreshdeskAnalytics
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +21,7 @@ def create_database_tools(merchant_name: str = None) -> List:
         
         try:
             with get_db_session() as session:
-                result = FreshdeskInsights.get_recent_ticket(session, merchant_id=1)
+                result = FreshdeskAnalytics.get_recent_ticket(session, merchant_id=1)
                 
                 if not result:
                     return "No tickets found in the database."
@@ -43,22 +43,22 @@ def create_database_tools(merchant_name: str = None) -> List:
         
         try:
             with get_db_session() as session:
-                data = FreshdeskInsights.get_support_dashboard(session, merchant_id=1)
+                data = FreshdeskAnalytics.get_support_dashboard(session, merchant_id=1)
                 
                 # Format the output
+                ticket_counts = data.get('ticket_counts', {})
                 output = f"""📊 Support Dashboard from Database (Merchant ID: {data['merchant_id']}):
 
 Current Queue Status:
 • Total: {data['total_tickets']} tickets
-• Open: {data['status_counts']['open']}
-• In Progress: {data['status_counts']['in_progress']}
-• Pending: {data['status_counts']['pending']}
-• Resolved: {data['status_counts']['resolved']}
-• Closed: {data['status_counts']['closed']}
+• Open: {ticket_counts.get('open', 0)}
+• Pending: {ticket_counts.get('pending', 0)}
+• Resolved: {ticket_counts.get('resolved', 0)}
+• Closed: {ticket_counts.get('closed', 0)}
+• Waiting on Customer: {ticket_counts.get('waiting_on_customer', 0)}
+• Waiting on Third Party: {ticket_counts.get('waiting_on_third_party', 0)}
 
-Top Issue Categories:
-{chr(10).join(f"• {category}: {count} tickets" for category, count in data['trending_issues'])}
-
+Last Updated: {data.get('last_updated', 'Unknown')}
 Data Source: Live database query"""
                 
                 logger.info(f"[TOOL RESULT] get_support_dashboard_from_db() - Returned dashboard with {data['total_tickets']} total tickets")
@@ -79,7 +79,7 @@ Data Source: Live database query"""
         
         try:
             with get_db_session() as session:
-                matching_tickets = FreshdeskInsights.search_tickets(session, query, merchant_name)
+                matching_tickets = FreshdeskAnalytics.search_tickets(session, query, merchant_id=1)
                 
                 if not matching_tickets:
                     return f"🔍 No tickets found matching '{query}' in the database."
@@ -92,8 +92,7 @@ Recent Tickets:"""
                 for ticket in matching_tickets[:5]:
                     output += f"""
 • #{ticket['ticket_id']} - {ticket['subject']}
-  Category: {ticket['category']} | Status: {ticket['status']}
-  Priority: {ticket['priority']}
+  Status: {ticket['status']} | Requester: {ticket['requester_email']}
   Created: {ticket['created_at']}"""
                 
                 logger.info(f"[TOOL RESULT] search_tickets_in_db(query='{query}') - Found {len(matching_tickets)} matching tickets")
@@ -110,9 +109,9 @@ Recent Tickets:"""
         """Calculate Customer Satisfaction (CSAT) score for a specific time range.
         
         Args:
-            days: Number of days to look back (only used if start_date and end_date are not provided)
-            start_date: Start date in YYYY-MM-DD format (inclusive)
-            end_date: End date in YYYY-MM-DD format (inclusive)
+            days: Number of days to look back
+            start_date: Not currently supported - will be ignored
+            end_date: Not currently supported - will be ignored
         
         Returns the CSAT score as a percentage of happy ratings (103) vs total ratings.
         Only considers the most recent rating per unique user within the time range.
@@ -137,24 +136,34 @@ Recent Tickets:"""
         
         try:
             with get_db_session() as session:
-                data = FreshdeskInsights.calculate_csat(session, days, parsed_start, parsed_end, merchant_name)
+                data = FreshdeskAnalytics.calculate_csat(session, merchant_id=1, days=days)
                 
-                if not data['has_data']:
-                    return f"📊 CSAT Score ({data['merchant_info']}): No ratings found in {data['time_range']}"
+                if data['total_ratings'] == 0:
+                    time_range = f"last {days} days" if days else "all time"
+                    return f"📊 CSAT Score: No ratings found in {time_range}"
                 
-                output = f"""📊 CSAT Score ({data['merchant_info']}) ({data['time_range']}):
+                # Calculate time range for display
+                time_range = f"Last {days} days" if days else "All time"
+                if start_date and end_date:
+                    time_range = f"{start_date} to {end_date}"
+                elif start_date:
+                    time_range = f"From {start_date}"
+                elif end_date:
+                    time_range = f"Until {end_date}"
+                
+                output = f"""📊 CSAT Score ({time_range}):
 
-**{data['csat_percentage']:.1f}%** Customer Satisfaction
+**{data['csat_percentage']}%** Customer Satisfaction
 
 Rating Breakdown:
-• Total unique customers who rated: {data['total_unique_ratings']}
-• Happy ratings (😊): {data['happy_ratings']} ({(data['happy_ratings']/data['total_unique_ratings'])*100:.1f}%)
-• Unhappy ratings (😞): {data['unhappy_ratings']} ({(data['unhappy_ratings']/data['total_unique_ratings'])*100:.1f}%)
+• Total unique customers who rated: {data['total_ratings']}
+• Happy ratings (😊): {data['satisfied_count']} ({(data['satisfied_count']/data['total_ratings'])*100:.1f}%)
+• Unhappy ratings (😞): {data['unsatisfied_count']} ({(data['unsatisfied_count']/data['total_ratings'])*100:.1f}%)
 
 Note: Each customer's most recent rating is counted (no duplicates).
 Data Source: Live database query from etl_freshdesk_ratings"""
                 
-                logger.info(f"[TOOL RESULT] calculate_csat_score() - CSAT: {data['csat_percentage']:.1f}% from {data['total_unique_ratings']} unique ratings")
+                logger.info(f"[TOOL RESULT] calculate_csat_score() - CSAT: {data['csat_percentage']}% from {data['total_ratings']} unique ratings")
                 return output
                 
         except Exception as e:
@@ -174,7 +183,7 @@ Data Source: Live database query from etl_freshdesk_ratings"""
         
         try:
             with get_db_session() as session:
-                result = FreshdeskInsights.get_ticket_by_id(session, ticket_id, merchant_id=1)
+                result = FreshdeskAnalytics.get_ticket_by_id(session, ticket_id, merchant_id=1)
                 
                 if not result:
                     return f"Ticket #{ticket_id} not found in the database."
@@ -182,33 +191,35 @@ Data Source: Live database query from etl_freshdesk_ratings"""
                 # Format the output
                 output = f"""📋 Ticket #{result['ticket_id']} Details:
 
-**Subject:** {result['data'].get('subject', 'No subject')}
-**Status:** {result['data'].get('status')}
-**Priority:** {result['data'].get('priority')}
-**Created:** {result['data'].get('created_at')}
-**Requester:** {result['data'].get('requester', {}).get('name')} ({result['data'].get('requester', {}).get('email')})
+**Subject:** {result.get('subject', 'No subject')}
+**Status:** {result.get('status')}
+**Priority:** {result.get('priority')}
+**Created:** {result.get('created_at')}
+**Requester:** {result.get('requester_name')} ({result.get('requester_email')})
 
-**Conversation History ({len(result['conversations'])} messages):**"""
-                
-                for i, conv in enumerate(result['conversations'], 1):
-                    output += f"""
-{i}. From: {conv.get('from_email', 'Unknown')}
-   Date: {conv.get('created_at', 'Unknown')}
-   Message: {conv.get('body_text', '')[:500]}{'...' if len(conv.get('body_text', '')) > 500 else ''}
 """
                 
-                if result['ratings']:
-                    output += f"\n**Customer Rating:**\n"
-                    for rating in result['ratings']:
-                        rating_val = rating['ratings'].get('default_question')
-                        rating_text = "😊 Happy" if rating_val == 103 else "😞 Unhappy" if rating_val == -103 else "Unknown"
-                        output += f"- {rating_text} (rated on {rating['created_at']})\n"
-                        if rating['data'].get('comments', {}).get('default_question'):
-                            output += f"  Comment: {rating['data']['comments']['default_question']}\n"
+                # Add conversation if available
+                if result.get('conversation'):
+                    output += "**Conversation History:**\n"
+                    output += result['conversation']
+                else:
+                    output += f"**Conversation History:** No conversations available"
                 
-                output += "\nData Source: Live database query"
+                # Add rating if available
+                if result.get('has_rating'):
+                    output += f"\n\n**Customer Rating:**\n"
+                    rating_val = result.get('rating_score')
+                    rating_text = "😊 Happy" if rating_val >= 102 else "😐 Neutral" if rating_val >= 100 else "😞 Unhappy"
+                    output += f"- {rating_text} (Score: {rating_val})"
+                    if result.get('rating_created_at'):
+                        output += f" - Rated on {result['rating_created_at']}"
+                    if result.get('rating_feedback'):
+                        output += f"\n  Comment: {result['rating_feedback']}"
                 
-                logger.info(f"[TOOL RESULT] get_ticket_details() - Returned ticket with {len(result['conversations'])} conversations")
+                output += "\n\nData Source: Live database query"
+                
+                logger.info(f"[TOOL RESULT] get_ticket_details() - Returned ticket #{ticket_id}, has_conversation={result.get('conversation') is not None}")
                 return output
                 
         except Exception as e:
@@ -228,7 +239,7 @@ Data Source: Live database query from etl_freshdesk_ratings"""
         
         try:
             with get_db_session() as session:
-                tickets = FreshdeskInsights.get_tickets_by_email(session, email, merchant_id=1)
+                tickets = FreshdeskAnalytics.get_tickets_by_email(session, email, merchant_id=1)
                 
                 if not tickets:
                     return f"No tickets found for customer email: {email}"
@@ -274,7 +285,7 @@ Ticket Summary:"""
         
         try:
             with get_db_session() as session:
-                tickets = FreshdeskInsights.get_tickets_by_rating(
+                tickets = FreshdeskAnalytics.get_tickets_by_rating(
                     session, 
                     rating_type=rating_type,
                     days=days,
@@ -330,7 +341,7 @@ Recent {rating_type.capitalize()} Tickets:"""
         
         try:
             with get_db_session() as session:
-                bad_tickets = FreshdeskInsights.get_recent_bad_csat_tickets(
+                bad_tickets = FreshdeskAnalytics.get_recent_bad_csat_tickets(
                     session,
                     limit=limit,
                     merchant_id=1
@@ -348,21 +359,14 @@ Detailed Breakdown:
                 for i, ticket in enumerate(bad_tickets, 1):
                     output += f"""
 {'='*60}
-{i}. Ticket #{ticket.get('ticket_id', 'Unknown')} - {ticket.get('data', {}).get('subject', 'No subject')}
-   Customer: {ticket.get('data', {}).get('requester', {}).get('name', 'Unknown')} ({ticket.get('data', {}).get('requester', {}).get('email', 'Unknown')})
+{i}. Ticket #{ticket.get('ticket_id', 'Unknown')} - {ticket.get('subject', 'No subject')}
+   Customer: {ticket.get('requester_name', 'Unknown')} ({ticket.get('requester_email', 'Unknown')})
    Bad Rating Date: {ticket.get('bad_rating_date', 'Unknown')}
    
-   Customer's Rating Comment: {ticket.get('rating_comment') or 'No comment provided'}
+   Customer's Rating Comment: {ticket.get('rating_feedback') or 'No comment provided'}
    
-   Conversation Summary ({len(ticket.get('conversations', []))} messages):"""
-                    
-                    # Show last 2 messages for context
-                    conversations = ticket.get('conversations', [])
-                    recent_convs = conversations[-2:] if len(conversations) > 1 else conversations
-                    for conv in recent_convs:
-                        output += f"""
-   - From: {conv.get('from_email', 'Unknown')} at {conv.get('created_at', 'Unknown')}
-     "{conv.get('body_text', '')[:200]}{'...' if len(conv.get('body_text', '')) > 200 else ''}"
+   Conversation:
+{ticket.get('conversation', 'No conversation available')}
 """
                 
                 output += f"""
@@ -412,6 +416,10 @@ Data Source: Live database query with full conversation context"""
             
             # Format time helper
             def format_minutes(minutes):
+                if minutes is None:
+                    return "No data"
+                if minutes == 0:
+                    return "<1 min"
                 if minutes < 60:
                     return f"{int(minutes)} min"
                 hours = int(minutes // 60)
@@ -493,7 +501,9 @@ Data Source: Live database analytics"""
             # Format time helper
             def format_minutes(minutes):
                 if minutes is None:
-                    return "N/A"
+                    return "No data"
+                if minutes == 0:
+                    return "<1 min"
                 if minutes < 60:
                     return f"{int(minutes)} min"
                 hours = int(minutes // 60)
@@ -673,6 +683,10 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             
             # Format time helper
             def format_time(minutes):
+                if minutes is None:
+                    return "No data"
+                if minutes == 0:
+                    return "<1m"
                 if minutes < 60:
                     return f"{int(minutes)}m"
                 hours = int(minutes // 60)
@@ -1141,6 +1155,124 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             logger.error(f"[TOOL ERROR] get_root_cause_analysis() - Error: {str(e)}")
             return f"Error analyzing root causes: {str(e)}"
 
+    @tool
+    def get_recent_tickets_for_review(limit: int = 20, cursor: Optional[str] = None, status_filter: Optional[List[str]] = None) -> str:
+        """Get recent support tickets with full conversations for manual review and pattern detection.
+        
+        Args:
+            limit: Number of tickets to retrieve (default: 20, max: 100)
+            cursor: Pagination cursor from previous call (ticket_id to continue after)
+            status_filter: Optional list of statuses to include 
+                          ['open', 'pending', 'waiting', 'resolved', 'closed'] (default: all statuses)
+        
+        Returns raw ticket data including:
+        - Ticket metadata, conversations, ratings, escalation status
+        - Pagination info (has_more, next_cursor if applicable)
+        
+        NOTE: This tool returns RAW DATA ONLY. You must analyze the tickets yourself to identify:
+        - Payment or billing issues affecting multiple customers
+        - Service outages or system errors
+        - Angry customers or escalation risks
+        - Patterns indicating product bugs or broken features
+        
+        Usage examples:
+            # Get last 100 tickets in one call
+            get_recent_tickets_for_review(limit=100)
+            
+            # Paginate through all tickets
+            page1 = get_recent_tickets_for_review(limit=20)
+            # If has_more=True and next_cursor="345927"
+            page2 = get_recent_tickets_for_review(limit=20, cursor="345927")
+        """
+        # Handle CrewAI dict args
+        if isinstance(limit, dict):
+            args_dict = limit
+            limit = args_dict.get('limit', 20)
+            cursor = args_dict.get('cursor')
+            status_filter = args_dict.get('status_filter')
+        
+        # Convert status names to codes if needed
+        status_codes = None
+        if status_filter:
+            status_map = {
+                'open': 2,
+                'pending': 3,
+                'resolved': 4,
+                'closed': 5,
+                'waiting': 6,  # Waiting on Customer
+                'waiting_on_third_party': 7
+            }
+            status_codes = []
+            for status in status_filter:
+                if isinstance(status, str):
+                    code = status_map.get(status.lower())
+                    if code:
+                        status_codes.append(code)
+                else:
+                    status_codes.append(status)
+        
+        logger.info(f"[TOOL CALL] get_recent_tickets_for_review(limit={limit}, cursor={cursor}, status_filter={status_filter})")
+        
+        try:
+            with get_db_session() as session:
+                result = FreshdeskAnalytics.get_recent_tickets_for_review(
+                    session=session,
+                    merchant_id=1,
+                    limit=limit,
+                    cursor=cursor,
+                    status_filter=status_codes
+                )
+                
+                tickets = result['tickets']
+                if not tickets:
+                    return "No tickets found matching the criteria."
+                
+                # Build output
+                output = f"""📋 RECENT TICKETS FOR REVIEW
+Retrieved: {len(tickets)} tickets
+Date range: {result['date_range']['newest']} to {result['date_range']['oldest']}
+Has more: {'Yes' if result['has_more'] else 'No'}
+"""
+                
+                if result.get('has_more') and result.get('next_cursor'):
+                    output += f"Next cursor: {result['next_cursor']}\n"
+                
+                output += "\nRAW TICKET DATA:\n"
+                
+                for i, ticket in enumerate(tickets, 1):
+                    # Map status codes to names
+                    status_names = {2: 'Open', 3: 'Pending', 4: 'Resolved', 5: 'Closed', 6: 'Waiting on Customer', 7: 'Waiting on Third Party'}
+                    status_name = status_names.get(ticket['status'], f"Status {ticket['status']}")
+                    
+                    # Map priority codes to names
+                    priority_names = {1: 'Low', 2: 'Medium', 3: 'High', 4: 'Urgent'}
+                    priority_name = priority_names.get(ticket['priority'], f"Priority {ticket['priority']}")
+                    
+                    output += f"""
+{'='*80}
+TICKET #{ticket['ticket_id']} - {ticket['subject']}
+Created: {ticket['created_at']} | Status: {status_name} | Priority: {priority_name}
+Customer: {ticket['requester_name']} ({ticket['requester_email']})
+Tags: {', '.join(ticket['tags']) if ticket['tags'] else 'None'}
+Escalated: {'YES' if ticket.get('is_escalated') else 'No'}
+Rating: {f"{ticket['rating_score']} - {ticket['rating_feedback']}" if ticket['has_rating'] else 'No rating'}
+
+CONVERSATION:
+{ticket['conversation'] or 'No conversation available'}
+
+"""
+                
+                if result.get('has_more'):
+                    output += f"\n{'='*80}\n"
+                    output += f"To get next page, use cursor=\"{result['next_cursor']}\"\n"
+                
+                logger.info(f"[TOOL RESULT] get_recent_tickets_for_review() - Retrieved {len(tickets)} tickets, has_more={result['has_more']}")
+                return output
+                
+        except Exception as e:
+            logger.error(f"[TOOL ERROR] get_recent_tickets_for_review() - Error: {str(e)}")
+            return f"Error fetching tickets: {str(e)}"
+    
     # Return the tools created with @tool decorator
     tools = [
         get_recent_ticket_from_db,
@@ -1156,7 +1288,9 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
         get_open_ticket_distribution,
         get_response_time_metrics,
         get_volume_trends,
+        get_sla_exceptions,
         get_root_cause_analysis,
+        get_recent_tickets_for_review,
     ]
 
     return tools
