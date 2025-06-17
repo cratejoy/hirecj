@@ -7,6 +7,7 @@ from datetime import datetime, date, timedelta
 from crewai.tools import tool
 from app.utils.supabase_util import get_db_session
 from app.lib.freshdesk_analytics_lib import FreshdeskAnalytics
+from app.dbmodels import FreshdeskUnifiedTicketView
 
 logger = logging.getLogger(__name__)
 
@@ -1336,16 +1337,16 @@ CONVERSATION:
                     return f"Error: Invalid date format. Got start_date='{start_date}', end_date='{end_date}'. Please use YYYY-MM-DD format (e.g., 2025-06-17)."
                 
                 # Query tickets
-                query = session.query(FreshdeskTicket).filter(
-                    FreshdeskTicket.merchant_id == 1,
-                    FreshdeskTicket.created_at >= start,
-                    FreshdeskTicket.created_at < end + timedelta(days=1)
+                query = session.query(FreshdeskUnifiedTicketView).filter(
+                    FreshdeskUnifiedTicketView.merchant_id == 1,
+                    FreshdeskUnifiedTicketView.created_at >= start,
+                    FreshdeskUnifiedTicketView.created_at < end + timedelta(days=1)
                 )
                 
                 if status_filter:
-                    query = query.filter(FreshdeskTicket.status.in_(status_filter))
+                    query = query.filter(FreshdeskUnifiedTicketView.status.in_(status_filter))
                 
-                tickets = query.order_by(FreshdeskTicket.created_at.desc()).limit(limit).all()
+                tickets = query.order_by(FreshdeskUnifiedTicketView.created_at.desc()).limit(limit).all()
                 
                 if not tickets:
                     return f"No tickets found between {start_date} and {end_date or start_date}"
@@ -1379,7 +1380,7 @@ CONVERSATION:
                 for category, cat_tickets in sorted(categories.items(), key=lambda x: len(x[1]), reverse=True):
                     output += f"\n**{category}** ({len(cat_tickets)} tickets):\n"
                     for ticket in cat_tickets[:5]:  # Show first 5 in each category
-                        output += f"  • #{ticket.ticket_id} - {ticket.subject[:60]}...\n"
+                        output += f"  • #{ticket.freshdesk_ticket_id} - {ticket.subject[:60]}...\n"
                         output += f"    Status: {ticket.status} | Customer: {ticket.requester_email}\n"
                     if len(cat_tickets) > 5:
                         output += f"  ... and {len(cat_tickets) - 5} more\n"
