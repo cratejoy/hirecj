@@ -25,6 +25,7 @@ from app.conversation_catalog import (  # noqa: E402
     StressLevel,
     PersonalityType,
 )
+from app.services.persona_service import PersonaService  # noqa: E402
 from app.universe.discovery import UniverseDiscovery  # noqa: E402
 from app.config import settings  # noqa: E402
 
@@ -82,9 +83,14 @@ class ConversationLauncher:
 
     def __init__(self):
         self.catalog = ConversationCatalog()
+        self.persona_service = PersonaService()
         self.history = ConversationHistory()
         self.universe_discovery = UniverseDiscovery()
-        self.personas = self.catalog.get_personas()
+        
+        # Get personas from unified service
+        persona_list = self.persona_service.get_all_personas()
+        self.personas = {p["id"]: p for p in persona_list}
+        
         self.scenarios = self.catalog.get_scenarios()
         self.workflows = self.catalog.get_workflows()
         self.cj_versions = self.catalog.get_cj_versions()
@@ -157,9 +163,6 @@ class ConversationLauncher:
         self.print_header("Choose Your Merchant Persona")
 
         for i, (key, persona) in enumerate(self.personas.items(), 1):
-            emoji = self.get_personality_emoji(persona.personality)
-            stress_emoji = self.get_stress_emoji(persona.typical_stress)
-
             # Check universe availability
             scenarios_with_universe = (
                 self.universe_discovery.get_scenarios_for_merchant(key)
@@ -171,11 +174,8 @@ class ConversationLauncher:
             )
 
             print(
-                f"\n[{i}] {emoji} {persona.display_name} - {persona.business} [{universe_status}]"
+                f"\n[{i}] {persona['name']} - {persona['business']} [{universe_status}]"
             )
-            print(f"    Style: {persona.communication_style}")
-            print(f"    Stress: {stress_emoji} {persona.typical_stress.value}")
-            print(f'    "{persona.sample_message.split(chr(10))[0]}..."')
 
         print("\n[r] 🎲 Random persona (with universe)")
         print("[b] ← Back")
@@ -206,7 +206,7 @@ class ConversationLauncher:
         """Show scenario selection menu."""
         self.clear_screen()
         persona = self.personas[merchant]
-        self.print_header(f"Choose Scenario for {persona.display_name}")
+        self.print_header(f"Choose Scenario for {persona['name']}")
 
         for i, (key, scenario) in enumerate(self.scenarios.items(), 1):
             stress_emoji = self.get_stress_emoji(scenario.stress_level)
@@ -240,7 +240,7 @@ class ConversationLauncher:
                     [s for s in available_scenarios if s in self.scenarios]
                 )
             else:
-                print(f"\n⚠️  No universes available for {persona.display_name}!")
+                print(f"\n⚠️  No universes available for {persona['name']}!")
                 input("Press Enter to continue...")
                 return self.show_scenario_menu(merchant)
         elif choice == "g":
@@ -350,7 +350,7 @@ class ConversationLauncher:
 
             print(f"\n[{i}] {rec['name']}")
             print(f"    {rec['description']}")
-            print(f"    • Merchant: {persona.display_name}")
+            print(f"    • Merchant: {persona['name']}")
             print(f"    • Scenario: {scenario.display_name}")
             print(f"    • Workflow: {rec['workflow']}")
 
@@ -386,7 +386,7 @@ class ConversationLauncher:
             scenario = self.scenarios.get(conv["scenario"], {})
 
             print(f"\n[{i}] {time_str}")
-            print(f"    • {persona.display_name if persona else conv['merchant']}")
+            print(f"    • {persona['name'] if persona else conv['merchant']}")
             print(f"    • {scenario.display_name if scenario else conv['scenario']}")
             print(f"    • {conv['workflow']} ({conv['cj_version']})")
 
@@ -424,8 +424,7 @@ class ConversationLauncher:
         workflow_data = self.workflows[workflow]
 
         print("\n📋 Conversation Setup:")
-        print(f"\n• Merchant: {persona.display_name}")
-        print(f"  {persona.description[:80]}...")
+        print(f"\n• Merchant: {persona['name']} - {persona['business']}")
         print(f"\n• Scenario: {scenario_data.display_name}")
         print(f"  {scenario_data.description[:80]}...")
         print(f"\n• Workflow: {workflow_data.display_name}")
@@ -512,8 +511,7 @@ class ConversationLauncher:
         workflow_data = self.workflows[workflow]
 
         print("\n📋 Random Conversation Setup:")
-        print(f"\n• Merchant: {persona.display_name}")
-        print(f"  {persona.description[:80]}...")
+        print(f"\n• Merchant: {persona['name']} - {persona['business']}")
         print(f"\n• Scenario: {scenario_data.display_name}")
         print(f"  {scenario_data.description[:80]}...")
         print(f"\n• Workflow: {workflow_data.display_name}")
@@ -794,7 +792,7 @@ class ConversationLauncher:
             scenarios = self.universe_discovery.get_scenarios_for_merchant(merchant)
             persona = self.personas[merchant]
             if scenarios:
-                print(f"\n  {persona.display_name}:")
+                print(f"\n  {persona['name']}:")
                 for scenario in scenarios:
                     info = self.universe_discovery.get_universe_info(merchant, scenario)
                     if info:
@@ -808,7 +806,7 @@ class ConversationLauncher:
                             f"    • {scenario_name} - {info['total_customers']} customers, {info['total_tickets']} tickets"
                         )
             else:
-                print(f"\n  {persona.display_name}: No universes")
+                print(f"\n  {persona['name']}: No universes")
 
         print("\n[1] 🚀 Generate missing universes for a merchant")
         print("[2] 🎯 Generate specific universe")

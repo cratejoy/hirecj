@@ -31,7 +31,7 @@ from app.config import settings  # noqa: E402
 # Import API adapter - this is now the only way to interact with CJ
 from app.agents.api_adapter import create_cj_agent, Crew, Task  # noqa: E402
 from app.agents.universe_data_agent import UniverseDataAgent  # noqa: E402
-from app.prompts.loader import PromptLoader  # noqa: E402
+from app.services.persona_service import PersonaService  # noqa: E402
 from app.agents.fact_checker import (  # noqa: E402
     ConversationFactChecker as AsyncFactChecker,
 )
@@ -375,14 +375,12 @@ def save_conversation(conversation, quiet=False):
 
 def display_briefing(merchant_name: str, scenario_data: dict, persona_data: dict):
     """Display role briefing for human player."""
-    # Try to get business info from conversation catalog
+    # Try to get business info from unified persona service
     try:
-        from app.conversation_catalog import ConversationCatalog
-
-        catalog = ConversationCatalog()
-        personas = catalog.get_personas()
-        if merchant_name in personas:
-            business_name = personas[merchant_name].business
+        persona_service = PersonaService()
+        persona = persona_service.get_persona(merchant_name)
+        if persona:
+            business_name = persona["business"]
         else:
             business_name = persona_data.get("business_name", "Your Business")
     except Exception:
@@ -511,9 +509,12 @@ async def play_conversation(
     scenario_loader = ScenarioLoader()
     scenario_data = scenario_loader.get_scenario(scenario_name)
 
-    # Load merchant persona
-    prompt_loader = PromptLoader()
-    persona_data = prompt_loader.load_merchant_persona(merchant_name)
+    # Load merchant persona through unified service
+    persona_service = PersonaService()
+    persona_prompt = persona_service.get_persona_prompt(merchant_name, "v1.0.0")
+    if not persona_prompt:
+        raise ValueError(f"No prompt found for merchant {merchant_name}")
+    persona_data = {"prompt": persona_prompt}  # Maintain compatibility
 
     # Display briefing
     display_briefing(merchant_name, scenario_data, persona_data)

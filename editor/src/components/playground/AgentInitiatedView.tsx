@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Play, User, TrendingUp, Shield } from 'lucide-react';
+import { Play, User, TrendingUp, Shield, Loader2 } from 'lucide-react';
 import { WorkflowConfig } from '@/utils/workflowParser';
 
 interface Persona {
@@ -22,7 +22,7 @@ interface AgentInitiatedViewProps {
   persona?: Persona;
   scenario?: Scenario;
   trustLevel?: number;
-  onStart: () => void;
+  onStart: () => void | Promise<void>;
   disabled?: boolean;
 }
 
@@ -35,6 +35,21 @@ export const AgentInitiatedView: React.FC<AgentInitiatedViewProps> = ({
   onStart,
   disabled = false,
 }) => {
+  const [starting, setStarting] = useState(false);
+
+  const handleStart = async () => {
+    if (!starting) {
+      setStarting(true);
+      try {
+        await onStart();
+      } catch (error) {
+        console.error('Failed to start conversation:', error);
+      } finally {
+        setStarting(false);
+      }
+    }
+  };
+
   return (
     <div className="flex h-full">
       {/* Left Panel - Agent Perspective */}
@@ -42,11 +57,15 @@ export const AgentInitiatedView: React.FC<AgentInitiatedViewProps> = ({
         <div className="text-center space-y-8 max-w-md">
           <Button 
             size="lg" 
-            onClick={onStart}
-            disabled={disabled}
+            onClick={handleStart}
+            disabled={disabled || starting}
             className="h-20 w-20 rounded-full"
           >
-            <Play className="h-8 w-8" />
+            {starting ? (
+              <Loader2 className="h-8 w-8 animate-spin" />
+            ) : (
+              <Play className="h-8 w-8" />
+            )}
           </Button>
           
           <div className="space-y-2">

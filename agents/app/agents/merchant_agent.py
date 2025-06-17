@@ -1,7 +1,7 @@
 """Merchant Agent - Represents the business owner in conversations."""
 
 from crewai import Agent
-from app.prompts.loader import PromptLoader
+from app.services.persona_service import PersonaService
 from app.scenarios.loader import ScenarioLoader
 from app.model_config.simple_config import get_model, ModelPurpose
 
@@ -10,12 +10,13 @@ def create_merchant_agent(
     merchant_name: str, scenario_name: str, conversation_state=None
 ) -> Agent:
     """Create merchant agent with scenario context."""
-    prompt_loader = PromptLoader()
+    persona_service = PersonaService()
     scenario_loader = ScenarioLoader()
 
-    # Load merchant persona
-    merchant_data = prompt_loader.load_merchant_persona(merchant_name, "v1.0.0")
-    merchant_prompt = merchant_data["prompt"]
+    # Load merchant persona through unified service
+    merchant_prompt = persona_service.get_persona_prompt(merchant_name, "v1.0.0")
+    if not merchant_prompt:
+        raise ValueError(f"No prompt found for merchant {merchant_name}")
 
     # Load scenario
     scenario_data = scenario_loader.get_scenario(scenario_name)

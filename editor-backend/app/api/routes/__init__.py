@@ -1,5 +1,5 @@
 """API route modules."""
 
-from . import prompts, personas, workflows, knowledge
+from . import prompts, workflows, knowledge, catalog_proxy
 
-__all__ = ["prompts", "personas", "workflows", "knowledge"]
+__all__ = ["prompts", "workflows", "knowledge", "catalog_proxy"]

@@ -30,6 +30,7 @@ interface Message {
   role: 'agent' | 'user';
   content: string;
   timestamp: string;
+  isThinking?: boolean;
 }
 
 interface Persona {
@@ -110,7 +111,9 @@ export function PlaygroundView() {
       const data = await response.json()
       setWorkflows(data.workflows || [])
       if (data.workflows?.length > 0 && !selectedWorkflowId) {
-        setSelectedWorkflowId(data.workflows[0].id)
+        // Set ad_hoc_support as default if it exists, otherwise use first workflow
+        const adHocWorkflow = data.workflows.find((w: any) => w.id === 'ad_hoc_support')
+        setSelectedWorkflowId(adHocWorkflow ? 'ad_hoc_support' : data.workflows[0].id)
       }
     } catch (error) {
       toast({
@@ -168,29 +171,69 @@ export function PlaygroundView() {
     }
   }
 
-  const startConversation = () => {
-    if (!workflow || !selectedPersona || !selectedScenario) return
+  const startConversation = async () => {
+    console.group('🚀 PlaygroundView.startConversation')
+    console.log('Called at:', new Date().toISOString())
+    console.log('workflow:', workflow)
+    console.log('selectedWorkflowId:', selectedWorkflowId)
+    console.log('selectedPersona:', selectedPersona)
+    console.log('selectedScenario:', selectedScenario)
+    console.log('trustLevel:', trustLevel)
     
-    wsStartConversation({
-      workflow: selectedWorkflowId,
-      personaId: selectedPersona,
-      scenarioId: selectedScenario,
-      trustLevel: trustLevel
-    })
+    if (!workflow || !selectedPersona || !selectedScenario) {
+      console.warn('❌ Early return - missing required data:', {
+        hasWorkflow: !!workflow,
+        hasPersona: !!selectedPersona,
+        hasScenario: !!selectedScenario
+      })
+      console.groupEnd()
+      return
+    }
+    
+    try {
+      const config = {
+        workflow: selectedWorkflowId,
+        personaId: selectedPersona,
+        scenarioId: selectedScenario,
+        trustLevel: trustLevel
+      }
+      console.log('📤 Calling wsStartConversation with config:', config)
+      await wsStartConversation(config)
+      console.log('✅ wsStartConversation completed successfully')
+    } catch (error) {
+      console.error('❌ Failed to start conversation:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to start conversation',
+        variant: 'destructive',
+      })
+    } finally {
+      console.groupEnd()
+    }
   }
 
   const sendMessage = (content: string) => {
-    if (!content.trim()) return
+    console.group('📨 PlaygroundView.sendMessage')
+    console.log('Content:', content)
+    
+    if (!content.trim()) {
+      console.warn('❌ Empty content, returning')
+      console.groupEnd()
+      return
+    }
     
     // Track user message locally (since hook only gives us agent messages)
+    console.log('📝 Tracking user message locally at index:', wsMessages.length)
     setLocalUserMessages(prev => ({
       ...prev,
       [wsMessages.length]: content
     }))
     
     // Send message via WebSocket
+    console.log('🔌 Sending message via WebSocket')
     wsSendMessage(content)
     setInputMessage('')
+    console.groupEnd()
   }
 
   const handleInputKeyPress = (e: React.KeyboardEvent) => {
@@ -220,7 +263,8 @@ export function PlaygroundView() {
         id: `agent-${index}`,
         role: 'agent',
         content: msg.data.content,
-        timestamp: msg.data.timestamp
+        timestamp: msg.data.timestamp,
+        isThinking: msg.data.content === 'CJ is thinking...'
       })
     })
     
@@ -261,15 +305,32 @@ export function PlaygroundView() {
         persona={selectedPersonaObj}
         scenario={selectedScenarioObj}
         trustLevel={trustLevel}
-        onSendMessage={(message) => {
+        onSendMessage={async (message) => {
+          console.group('💬 MerchantInitiatedView.onSendMessage')
+          console.log('Message:', message)
+          console.log('conversationStarted:', conversationStarted)
+          
           // For merchant-initiated, we need to start the conversation first
           if (!conversationStarted) {
-            startConversation()
-            // Give the conversation a moment to start before sending the message
-            setTimeout(() => sendMessage(message), 100)
+            console.log('📝 Conversation not started, starting it first...')
+            try {
+              await startConversation()
+              console.log('✅ Conversation started, now sending message')
+              // Now the conversation is started, send the message
+              sendMessage(message)
+            } catch (error) {
+              console.error('❌ Failed to start conversation before sending message:', error)
+              toast({
+                title: 'Error',
+                description: 'Failed to start conversation',
+                variant: 'destructive',
+              })
+            }
           } else {
+            console.log('✅ Conversation already started, sending message directly')
             sendMessage(message)
           }
+          console.groupEnd()
         }}
         disabled={loading}
       />
@@ -378,19 +439,28 @@ export function PlaygroundView() {
                   {message.role === 'agent' && (
                     <div className="flex flex-col items-start">
                       <div className="text-sm font-medium text-muted-foreground mb-1">CJ</div>
-                      <Card className="max-w-[70%] p-4">
-                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                      </Card>
-                      <div className="flex gap-2 mt-2">
-                        <Button size="sm" variant="ghost">
-                          <MessageSquare className="mr-1 h-3 w-3" />
-                          💭 Prompt
-                        </Button>
-                        <Button size="sm" variant="ghost">
-                          <Workflow className="mr-1 h-3 w-3" />
-                          🔄 Workflow
-                        </Button>
-                      </div>
+                      {message.isThinking ? (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm italic">{message.content}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <Card className="max-w-[70%] p-4">
+                            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                          </Card>
+                          <div className="flex gap-2 mt-2">
+                            <Button size="sm" variant="ghost">
+                              <MessageSquare className="mr-1 h-3 w-3" />
+                              💭 Prompt
+                            </Button>
+                            <Button size="sm" variant="ghost">
+                              <Workflow className="mr-1 h-3 w-3" />
+                              🔄 Workflow
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                   {message.role === 'user' && (
@@ -403,12 +473,6 @@ export function PlaygroundView() {
                   )}
                 </div>
               ))}
-              {thinking && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">CJ is {thinking.data.status}...</span>
-                </div>
-              )}
             </div>
           </ScrollArea>
           

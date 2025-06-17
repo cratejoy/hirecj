@@ -1,64 +1,7 @@
 # Conversation Catalog Configuration
-# This file contains metadata for personas, scenarios, and workflows
+# This file contains metadata for scenarios, workflows, and CJ versions
 # Used for discovery and UI presentation
-
-personas:
-  marcus_thompson:
-    name: marcus_thompson
-    display_name: Marcus Thompson
-    business: Grill Masters Club (BBQ subscription)
-    personality: direct
-    communication_style: Terse, numbers-focused, impatient
-    typical_stress: high
-    description: Former software engineer turned pitmaster. Growth stalled at 1,200 subscribers, burning $20k/month. Direct, data-driven, no time for fluff.
-    key_traits:
-      - Drops punctuation
-      - Multiple rapid messages
-      - Occasional profanity
-      - ROI-obsessed
-    sample_message: |
-      whats our cac
-
-      need those numbers now
-
-      cant afford this. fix it
-
-  sarah_chen:
-    name: sarah_chen
-    display_name: Sarah Chen
-    business: EcoBeauty Box (sustainable beauty)
-    personality: collaborative
-    communication_style: Thoughtful, detail-oriented, values-driven
-    typical_stress: moderate
-    description: Sustainable beauty subscription founder. Cares deeply about customer experience and environmental impact. Takes time to understand full context.
-    key_traits:
-      - Asks probing questions
-      - Considers impact
-      - Collaborative language
-      - Process-oriented
-    sample_message: I'm wondering if we should explore why customers are churning rather than just looking at the numbers. What's the story behind this data?
-
-  zoe_martinez:
-    name: zoe_martinez
-    display_name: Zoe Martinez
-    business: Manifest & Chill (self-care/manifestation)
-    personality: scattered
-    communication_style: Stream of consciousness, emoji-heavy, platform-speak
-    typical_stress: high
-    description: Wellness influencer who accidentally built a real business. 2,100 subscribers, growing 20% monthly but drowning operationally. Maintains positive facade online while panicking offline.
-    key_traits:
-      - Liberal emoji use
-      - Topic jumps
-      - Screenshots everything
-      - Mixes spiritual with business
-    sample_message: |
-      omggg CJ help 😭
-
-      i have 73 DMs asking about shipping delays
-
-      wait also why is my conversion rate tanking??
-
-      sorry for the spam but ALSO [sends screenshot]
+# NOTE: Persona data is now managed by PersonaService
 
 workflows:
   shopify_onboarding:
