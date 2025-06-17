@@ -1280,7 +1280,7 @@ CONVERSATION:
     @tool
     def search_tickets_by_date_range(start_date: str, end_date: Optional[str] = None, 
                                     status_filter: Optional[List[str]] = None,
-                                    limit: int = 100) -> str:
+                                    limit: int = 500) -> str:
         """DATE-BASED SEARCH - Find tickets created within a specific date range.
         
         Use this tool when asked about tickets from specific dates or time periods.
@@ -1289,7 +1289,7 @@ CONVERSATION:
             start_date: Date string in YYYY-MM-DD format (e.g., 2025-06-01)
             end_date: Optional end date in YYYY-MM-DD format. If not provided, searches only start_date
             status_filter: Optional list of statuses to include (default: all)
-            limit: Maximum tickets to return (default: 100, max: 500)
+            limit: Maximum tickets to return (default: 500, max: 1000)
             
         IMPORTANT: Pass dates as plain strings without quotes. Examples:
             - For "yesterday's tickets": start_date=2025-06-16, end_date=2025-06-16
@@ -1336,6 +1336,27 @@ CONVERSATION:
                 except ValueError:
                     return f"Error: Invalid date format. Got start_date='{start_date}', end_date='{end_date}'. Please use YYYY-MM-DD format (e.g., 2025-06-17)."
                 
+                # Convert status names to codes if needed
+                if status_filter:
+                    status_map = {
+                        'open': 2,
+                        'pending': 3,
+                        'resolved': 4,
+                        'closed': 5,
+                        'waiting': 6,  # Waiting on Customer
+                        'waiting_on_third_party': 7
+                    }
+                    status_codes = []
+                    for status in status_filter:
+                        if isinstance(status, str):
+                            code = status_map.get(status.lower())
+                            if code:
+                                status_codes.append(code)
+                        else:
+                            status_codes.append(status)
+                else:
+                    status_codes = None
+                
                 # Query tickets
                 query = session.query(FreshdeskUnifiedTicketView).filter(
                     FreshdeskUnifiedTicketView.merchant_id == 1,
@@ -1343,8 +1364,8 @@ CONVERSATION:
                     FreshdeskUnifiedTicketView.created_at < end + timedelta(days=1)
                 )
                 
-                if status_filter:
-                    query = query.filter(FreshdeskUnifiedTicketView.status.in_(status_filter))
+                if status_codes:
+                    query = query.filter(FreshdeskUnifiedTicketView.status.in_(status_codes))
                 
                 tickets = query.order_by(FreshdeskUnifiedTicketView.created_at.desc()).limit(limit).all()
                 

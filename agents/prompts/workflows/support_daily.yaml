@@ -79,13 +79,21 @@ workflow: |
   ### Example Follow-up Patterns:
   
   **Question about specific date/timeframe:**
-  - Use `search_tickets_by_date_range` for date-based queries
+  - Use `search_tickets_by_date_range` for date-based queries with limit=500
   - Calculate actual dates before calling the tool:
     - "last 30 days" → start_date=2025-05-18, end_date=2025-06-17
     - "yesterday" → start_date=2025-06-16, end_date=2025-06-16  
     - "this week" → start_date=2025-06-10, end_date=2025-06-17
   - Focus only on the requested period
   - Don't analyze the entire backlog
+  
+  **IMPORTANT: For large date ranges (e.g., "last 30 days of tickets"):**
+  - If the user asks to "read" or analyze a large time period (more than 7 days):
+    1. Use `get_recent_tickets_for_review` with limit=100
+    2. Continue calling with the next_cursor until you've covered the requested date range
+    3. Call up to 10 times to get approximately 1000 tickets
+    4. Aggregate and categorize results across all pages
+  - Example: For "last 30 days", make multiple paginated calls to gather comprehensive data
   
   **Question about specific tickets:**
   - Use `get_ticket_details` for the exact tickets
