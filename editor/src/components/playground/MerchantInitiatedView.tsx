@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Send, User, MessageSquare, TrendingUp, CheckCircle, CreditCard } from 'lucide-react';
+import { Send, User, MessageSquare, TrendingUp, CheckCircle, CreditCard, Loader2 } from 'lucide-react';
 import { WorkflowConfig } from '@/utils/workflowParser';
 
 interface Persona {
@@ -29,7 +29,7 @@ interface MerchantInitiatedViewProps {
   persona?: Persona;
   scenario?: Scenario;
   trustLevel?: number;
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string) => void | Promise<void>;
   disabled?: boolean;
 }
 
@@ -65,6 +65,7 @@ export const MerchantInitiatedView: React.FC<MerchantInitiatedViewProps> = ({
 }) => {
   const [message, setMessage] = useState('');
   const [selectedPreset, setSelectedPreset] = useState('');
+  const [sending, setSending] = useState(false);
 
   const handlePresetChange = (value: string) => {
     setSelectedPreset(value);
@@ -74,16 +75,23 @@ export const MerchantInitiatedView: React.FC<MerchantInitiatedViewProps> = ({
     }
   };
 
-  const handleSend = () => {
-    if (message.trim()) {
-      onSendMessage(message);
-      setMessage('');
-      setSelectedPreset('');
+  const handleSend = async () => {
+    if (message.trim() && !sending) {
+      setSending(true);
+      try {
+        await onSendMessage(message);
+        setMessage('');
+        setSelectedPreset('');
+      } catch (error) {
+        console.error('Failed to send message:', error);
+      } finally {
+        setSending(false);
+      }
     }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !sending) {
       e.preventDefault();
       handleSend();
     }
@@ -168,15 +176,19 @@ export const MerchantInitiatedView: React.FC<MerchantInitiatedViewProps> = ({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            disabled={disabled}
+            disabled={disabled || sending}
             className="flex-1"
           />
           <Button 
             onClick={handleSend} 
-            disabled={!message.trim() || disabled}
+            disabled={!message.trim() || disabled || sending}
             size="icon"
           >
-            <Send className="h-4 w-4" />
+            {sending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </Button>
         </div>
       </div>

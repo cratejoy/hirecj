@@ -25,6 +25,16 @@ export function usePlaygroundChat() {
   const reconnectTimeout = useRef<NodeJS.Timeout>();
   const reconnectAttempts = useRef(0);
   
+  // Queue for messages sent before conversation starts
+  const messageQueue = useRef<string[]>([]);
+  
+  // Promise resolver for conversation start
+  const conversationStartResolver = useRef<(() => void) | null>(null);
+  const conversationStartPromise = useRef<Promise<void> | null>(null);
+  
+  // Ref to track conversation started state for immediate access
+  const conversationStartedRef = useRef(false);
+  
   // Compute WebSocket base URL similar to homepage
   const WS_BASE_URL = useMemo(() => {
     // Check if we have a backend URL configured
@@ -45,15 +55,25 @@ export function usePlaygroundChat() {
   
   // Connection management
   const connect = useCallback(() => {
-    if (ws.current?.readyState === WebSocket.OPEN) return;
+    console.group('🔌 usePlaygroundChat.connect');
+    console.log('Current WebSocket state:', ws.current?.readyState);
+    
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      console.log('✅ Already connected, returning');
+      console.groupEnd();
+      return;
+    }
     
     const wsUrl = `${WS_BASE_URL}/ws/playground`;
-    console.log('  Full URL:', window.location.href);
+    console.log('WebSocket URL:', wsUrl);
+    console.log('Full page URL:', window.location.href);
     
     try {
       ws.current = new WebSocket(wsUrl);
+      console.log('📡 WebSocket created');
     } catch (error) {
       console.error('❌ Failed to create WebSocket:', error);
+      console.groupEnd();
       return;
     }
     
@@ -62,6 +82,7 @@ export function usePlaygroundChat() {
       setIsConnected(true);
       clearTimeout(reconnectTimeout.current);
       reconnectAttempts.current = 0; // Reset reconnect attempts on successful connection
+      console.groupEnd();
     };
     
     ws.current.onerror = (error) => {
@@ -78,7 +99,17 @@ export function usePlaygroundChat() {
       console.log(`🔒 WebSocket closed: code=${event.code}, reason=${event.reason}, wasClean=${event.wasClean}`);
       setIsConnected(false);
       setConversationStarted(false);
+      conversationStartedRef.current = false;  // Reset ref
       clearTimeout(reconnectTimeout.current);
+      
+      // Clear any pending conversation start promises
+      if (conversationStartResolver.current) {
+        conversationStartResolver.current = null;
+        conversationStartPromise.current = null;
+      }
+      
+      // Clear message queue
+      messageQueue.current = [];
       
       // Different reconnect strategies based on close code
       if (event.code === 1006) {
@@ -96,67 +127,152 @@ export function usePlaygroundChat() {
     
     ws.current.onmessage = (event) => {
       const msg: PlaygroundOutgoingMessage = JSON.parse(event.data);
-      console.log('Received message:', msg.type, msg);
+      console.group('📥 WebSocket message received');
+      console.log('Type:', msg.type);
+      console.log('Full message:', msg);
+      console.log('Timestamp:', new Date().toISOString());
       
       switch (msg.type) {
         case 'conversation_started':
+          console.log('🎉 Conversation started!');
           setConversationStarted(true);
+          conversationStartedRef.current = true;  // Update ref immediately
+          
+          // Resolve the conversation start promise
+          if (conversationStartResolver.current) {
+            console.log('✅ Resolving conversation start promise');
+            conversationStartResolver.current();
+            conversationStartResolver.current = null;
+            conversationStartPromise.current = null;
+          } else {
+            console.warn('⚠️ No conversation start resolver found');
+          }
+          
+          // Send any queued messages
+          if (messageQueue.current.length > 0) {
+            console.log(`📤 Sending ${messageQueue.current.length} queued messages`);
+            const queue = [...messageQueue.current];
+            messageQueue.current = [];
+            queue.forEach(text => {
+              console.log('  - Sending queued message:', text);
+              sendMessage(text);
+            });
+          } else {
+            console.log('📭 No queued messages to send');
+          }
           break;
           
         case 'cj_message':
-          setMessages(prev => [...prev, msg]);
+          console.log('💬 CJ message received');
+          // Filter out any thinking messages before adding the new message
+          setMessages(prev => [
+            ...prev.filter(m => m.data.content !== 'CJ is thinking...'),
+            msg
+          ]);
           setThinking(null);
           break;
           
         case 'cj_thinking':
+          console.log('🤔 CJ thinking update');
           setThinking(msg);
           break;
           
         case 'error':
-          console.error('WebSocket error:', msg.text);
+          console.error('🚫 WebSocket error message:', msg.text);
+          // If we get an error while trying to start conversation, reject the promise
+          if (!conversationStarted && conversationStartResolver.current) {
+            console.log('❌ Clearing conversation start promise due to error');
+            conversationStartResolver.current = null;
+            conversationStartPromise.current = null;
+          }
           break;
           
         case 'system':
-          console.log('System message:', msg.text);
+          console.log('ℹ️ System message:', msg.text);
           break;
           
         default:
-          console.log('Unknown message type:', (msg as any).type);
+          console.warn('⚠️ Unknown message type:', (msg as any).type);
       }
+      console.groupEnd();
     };
   }, [WS_BASE_URL]);
   
   
   // Action functions
-  const startConversation = useCallback((config: PlaygroundConfig) => {
-    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
-      console.error('WebSocket not connected. Current state:', ws.current?.readyState);
-      // If we're in CONNECTING state, retry in a moment
-      if (ws.current?.readyState === WebSocket.CONNECTING) {
-        setTimeout(() => startConversation(config), 500);
+  const startConversation = useCallback((config: PlaygroundConfig): Promise<void> => {
+    console.group('🚀 usePlaygroundChat.startConversation');
+    console.log('Config:', config);
+    console.log('Current conversationStarted:', conversationStarted);
+    
+    // Create a promise that resolves when conversation_started is received
+    conversationStartPromise.current = new Promise<void>((resolve) => {
+      conversationStartResolver.current = resolve;
+      console.log('✅ Created conversation start promise');
+    });
+    
+    const attemptStart = () => {
+      console.log('📝 attemptStart called');
+      console.log('WebSocket state:', ws.current?.readyState);
+      
+      if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+        console.error('❌ WebSocket not connected. Current state:', ws.current?.readyState);
+        // If we're in CONNECTING state, retry in a moment
+        if (ws.current?.readyState === WebSocket.CONNECTING) {
+          console.log('⏳ WebSocket is connecting, retrying in 500ms');
+          setTimeout(() => attemptStart(), 500);
+        } else {
+          // Reject the promise if we can't connect
+          console.error('❌ Cannot connect, clearing promise');
+          conversationStartResolver.current = null;
+          conversationStartPromise.current = null;
+        }
+        return;
       }
+      
+      const msg: PlaygroundStartMsg = {
+        type: 'playground_start',
+        workflow: config.workflow,
+        persona_id: config.personaId,
+        scenario_id: config.scenarioId,
+        trust_level: config.trustLevel
+      };
+      
+      console.log('📤 Sending playground_start message:', msg);
+      const msgString = JSON.stringify(msg);
+      console.log('📤 Message string:', msgString);
+      ws.current.send(msgString);
+      
+      console.log('🧹 Clearing messages and queue');
+      setMessages([]);
+      setThinking(null);
+      messageQueue.current = []; // Clear any old queued messages
+    };
+    
+    attemptStart();
+    const promise = conversationStartPromise.current || Promise.reject(new Error('Failed to start conversation'));
+    console.groupEnd();
+    return promise;
+  }, [conversationStarted]);
+  
+  const sendMessage = useCallback((text: string) => {
+    console.group('📤 usePlaygroundChat.sendMessage');
+    console.log('Text:', text);
+    console.log('WebSocket state:', ws.current?.readyState);
+    console.log('conversationStarted:', conversationStarted);
+    
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      console.error('❌ WebSocket not connected');
+      console.groupEnd();
       return;
     }
     
-    const msg: PlaygroundStartMsg = {
-      type: 'playground_start',
-      workflow: config.workflow,
-      persona_id: config.personaId,
-      scenario_id: config.scenarioId,
-      trust_level: config.trustLevel
-    };
-    
-    console.log('Sending start conversation:', msg);
-    ws.current.send(JSON.stringify(msg));
-    setMessages([]);
-    setThinking(null);
-    // Set conversation started optimistically - server will confirm
-    setConversationStarted(true);
-  }, []);
-  
-  const sendMessage = useCallback((text: string) => {
-    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
-      console.error('WebSocket not connected');
+    // If conversation hasn't started yet, queue the message
+    if (!conversationStartedRef.current) {
+      console.log('⏳ Conversation not started yet, queueing message');
+      messageQueue.current.push(text);
+      console.log('📬 Message queue now has', messageQueue.current.length, 'messages');
+      console.groupEnd();
       return;
     }
     
@@ -165,8 +281,25 @@ export function usePlaygroundChat() {
       text
     };
     
-    ws.current.send(JSON.stringify(msg));
-  }, []);
+    console.log('✅ Sending message immediately:', msg);
+    const msgString = JSON.stringify(msg);
+    console.log('📤 Message string:', msgString);
+    ws.current.send(msgString);
+    
+    // Add a thinking message to indicate CJ is processing
+    const thinkingMessage: CJMessageMsg = {
+      type: 'cj_message',
+      data: {
+        content: 'CJ is thinking...',
+        timestamp: new Date().toISOString(),
+        factCheckStatus: null,
+        ui_elements: null
+      }
+    };
+    setMessages(prev => [...prev, thinkingMessage]);
+    
+    console.groupEnd();
+  }, [conversationStarted]);
   
   const resetConversation = useCallback((
     reason: 'workflow_change' | 'user_clear', 
@@ -188,6 +321,14 @@ export function usePlaygroundChat() {
     setMessages([]);
     setThinking(null);
     setConversationStarted(false);
+    conversationStartedRef.current = false;  // Reset ref
+    
+    // Clear any pending conversation start promises and message queue
+    if (conversationStartResolver.current) {
+      conversationStartResolver.current = null;
+      conversationStartPromise.current = null;
+    }
+    messageQueue.current = [];
     
     // The server will close the connection after reset, so disconnect and let auto-reconnect handle it
     setTimeout(() => {

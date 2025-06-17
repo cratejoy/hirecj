@@ -9,7 +9,7 @@ from crewai import LLM
 import openai
 
 from app.model_config.simple_config import get_model, ModelPurpose
-from app.prompts.loader import prompt_loader
+from app.services.persona_service import PersonaService
 from app.config import settings
 
 
@@ -20,7 +20,7 @@ class UniverseGenerator:
         """Initialize generator with existing project systems."""
         self.model_name = get_model(ModelPurpose.UNIVERSE_GENERATION)
         self.llm = LLM(model=self.model_name, temperature=settings.universe_temperature)
-        self.prompt_loader = prompt_loader
+        self.persona_service = PersonaService()
 
         # Initialize OpenAI client for structured output
         import os
@@ -97,8 +97,11 @@ class UniverseGenerator:
     def generate(self, merchant_name: str, scenario_name: str) -> Dict[str, Any]:
         """Generate a universe for the given merchant and scenario."""
 
-        # Load merchant using existing prompt system
-        merchant = self.prompt_loader.load_merchant_persona(merchant_name)
+        # Load merchant using unified persona service
+        merchant_prompt = self.persona_service.get_persona_prompt(merchant_name, "v1.0.0")
+        if not merchant_prompt:
+            raise ValueError(f"No prompt found for merchant {merchant_name}")
+        merchant = {"prompt": merchant_prompt}  # Maintain compatibility with existing structure
         scenario = self._load_scenario(scenario_name)
 
         # Generate in order to avoid circular dependencies

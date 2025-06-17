@@ -8,7 +8,7 @@ from pathlib import Path
 import yaml
 
 from app.universe.loader import UniverseLoader
-from app.conversation_catalog import ConversationCatalog
+from app.services.persona_service import PersonaService
 from shared.logging_config import get_logger
 from app.constants import HTTPStatus
 
@@ -34,9 +34,10 @@ async def list_universes():
 
                 # Find the split between merchant and scenario
                 # This is tricky because both can have underscores
-                # Use catalog to help identify valid merchants
-                catalog = ConversationCatalog()
-                merchant_names = list(catalog.get_personas().keys())
+                # Use persona service to help identify valid merchants
+                persona_service = PersonaService()
+                personas = persona_service.get_all_personas()
+                merchant_names = [p["id"] for p in personas]
 
                 merchant = None
                 scenario = None

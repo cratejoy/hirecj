@@ -2,39 +2,35 @@
 Catalog API endpoints for discovering merchants, scenarios, and workflows.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 
 from app.conversation_catalog import ConversationCatalog
 from app.universe.discovery import UniverseDiscovery
 from app.config import settings
+from app.services.persona_service import PersonaService
 
 router = APIRouter(prefix="/api/v1/catalog", tags=["catalog"])
+
+# Initialize persona service
+persona_service = PersonaService()
 
 
 @router.get("/merchants")
 async def get_merchants() -> Dict[str, Any]:
     """Get all available merchant personas with metadata."""
-    catalog = ConversationCatalog()
-    personas = catalog.get_personas()
-
-    # Convert to API-friendly format
     return {
-        "merchants": [
-            {
-                "id": key,
-                "name": persona.display_name,
-                "business": persona.business,
-                "personality": persona.personality.value,
-                "communication_style": persona.communication_style,
-                "stress_level": persona.typical_stress.value,
-                "description": persona.description,
-                "traits": persona.key_traits,
-                "sample_message": persona.sample_message,
-            }
-            for key, persona in personas.items()
-        ]
+        "merchants": persona_service.get_all_personas()
     }
+
+
+@router.get("/merchants/{merchant_id}")
+async def get_merchant(merchant_id: str) -> Dict[str, Any]:
+    """Get specific merchant persona details."""
+    persona = persona_service.get_persona(merchant_id)
+    if not persona:
+        raise HTTPException(404, detail=f"Merchant {merchant_id} not found")
+    return persona
 
 
 @router.get("/scenarios")

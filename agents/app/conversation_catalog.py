@@ -25,21 +25,6 @@ class PersonalityType(str, Enum):
 
 
 @dataclass
-class PersonaMetadata:
-    """Metadata about a merchant persona."""
-
-    name: str
-    display_name: str
-    business: str
-    personality: PersonalityType
-    communication_style: str
-    typical_stress: StressLevel
-    description: str
-    key_traits: List[str]
-    sample_message: str
-
-
-@dataclass
 class ScenarioMetadata:
     """Metadata about a business scenario."""
 
@@ -81,27 +66,6 @@ class ConversationCatalog:
             with open(catalog_path, "r") as f:
                 cls._catalog_data = yaml.safe_load(f)
         return cls._catalog_data
-
-    @staticmethod
-    def get_personas() -> Dict[str, PersonaMetadata]:
-        """Get all available merchant personas with metadata."""
-        catalog = ConversationCatalog._load_catalog()
-        personas = {}
-
-        for persona_id, data in catalog.get("personas", {}).items():
-            personas[persona_id] = PersonaMetadata(
-                name=data["name"],
-                display_name=data["display_name"],
-                business=data["business"],
-                personality=PersonalityType(data["personality"]),
-                communication_style=data["communication_style"],
-                typical_stress=StressLevel(data["typical_stress"]),
-                description=data["description"],
-                key_traits=data["key_traits"],
-                sample_message=data["sample_message"],
-            )
-
-        return personas
 
     @staticmethod
     def get_scenarios() -> Dict[str, ScenarioMetadata]:
