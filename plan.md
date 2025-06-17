@@ -122,13 +122,35 @@ This document outlines the implementation plan for integrating LightRAG as the k
 
 ## Architecture
 
-### 1. Namespace-Based Knowledge System
+### 1. CLI-Driven Knowledge Management
+
+The system follows a clear separation of concerns:
+
+**Management Layer (CLI):**
+- **Knowledge CLI** - Primary interface for all data management
+  - Create/delete namespaces
+  - Ingest documents, URLs, and RSS feeds
+  - Process podcasts with transcription
+  - Batch operations and automation
+- **Direct API Access** - CLI communicates with Knowledge API
+- **Local Processing** - Heavy operations (transcription, parsing) run client-side
+
+**Monitoring Layer (Web UI):**
+- **Read-Only Dashboard** - Pure status and monitoring interface
+  - View namespace statistics
+  - Monitor processing queues
+  - Check document status
+  - Debug errors and issues
+- **No Data Modification** - All upload/delete features removed
+- **CLI Hints** - UI guides users to appropriate CLI commands
+
+### 2. Namespace-Based Knowledge System
 
 The system uses LightRAG's built-in `namespace_prefix` feature to create logically isolated knowledge domains within a single instance:
 
 **Dynamic Namespace System:**
 - **No Predefined Namespaces** - System starts empty
-- **Create on Demand** - Namespaces created via API as needed
+- **Create on Demand** - Namespaces created via CLI as needed
 - **Flexible Categories** - Support any type of knowledge domain:
   - Product knowledge (e.g., `products`, `catalog`, `inventory`)
   - Support documentation (e.g., `support`, `faqs`, `troubleshooting`)
@@ -142,7 +164,7 @@ The system uses LightRAG's built-in `namespace_prefix` feature to create logical
 - Create/delete namespaces without code changes
 - Namespace configurations persisted to disk
 
-### 2. Storage Architecture
+### 3. Storage Architecture
 
 ```
 PostgreSQL Backend (Recommended for Production)
@@ -158,7 +180,7 @@ Benefits:
 - Scalable for production workloads
 ```
 
-### 3. Directory Structure
+### 4. Directory Structure
 
 ```
 knowledge/
@@ -566,16 +588,87 @@ The editor's Grounding views will integrate as follows:
 
 **Success Criteria**: UI shows accurate data with smooth user experience and clear stuck document indicators ✅
 
-#### Phase 2.3: Add Processing Status View ⏸️
-**Deliverable**: New view for processing queue visibility
-- [ ] Create new route /knowledge/:graphId/processing
-- [ ] Build ProcessingStatusView component
-- [ ] Show active uploads with progress bars
-- [ ] Display queue of pending items
-- [ ] Add completed items history
-- [ ] Include error details panel
+#### Phase 2.3: Enhanced Processing Status View (Updated) 🔄
+**Deliverable**: Comprehensive read-only monitoring dashboard
+- [ ] Enhance document status display
+  - [ ] Add advanced filtering (by status, date, type)
+  - [ ] Implement sortable columns
+  - [ ] Add export functionality for status reports
+- [ ] Create processing queue visualization
+  - [ ] Show real-time processing status
+  - [ ] Display queue depth and processing rate
+  - [ ] Add time estimates for completion
+- [ ] Build error diagnostics panel
+  - [ ] Detailed error messages with stack traces
+  - [ ] Retry suggestions with CLI commands
+  - [ ] Error trends and patterns analysis
+- [ ] Add namespace health dashboard
+  - [ ] Processing success/failure rates
+  - [ ] Document type distribution
+  - [ ] Storage usage metrics
+  - [ ] Query performance statistics
 
-**Success Criteria**: Users can monitor all processing activities
+**Success Criteria**: Users have complete visibility into system health and processing status
+
+#### Phase 2.5: RSS Podcast Transcription (Standalone) 🚀 ✅
+**Deliverable**: Client-side podcast ingestion with transcription
+- [x] Create standalone podcast ingestion command for Knowledge CLI
+- [x] Implement RSS feed parsing and episode tracking
+- [x] Add audio download with progress tracking
+- [x] Integrate Whisper API for transcription
+- [x] Support episode limits and skip-processed logic
+- [x] Add metadata preservation (title, date, description)
+- [x] Upload transcripts to Knowledge service via API
+- [x] Add YouTube video support (bonus feature)
+
+**Implementation Approach**:
+- Adapt existing `src/ingest.py` code that already handles RSS/audio/transcription
+- Add as new `podcast` command to Knowledge CLI
+- Run entirely client-side (requires OpenAI API key)
+- Store processing state locally to avoid re-processing
+- Clean up audio files after successful ingestion
+
+**Success Criteria**: Can ingest podcast RSS feeds with one command, transcribe episodes, and load into any namespace
+
+#### Phase 2.6: Refactor UI to Read-Only Status View 🔄
+**Deliverable**: Transform Knowledge UI into a pure status dashboard with all data management via CLI
+- [ ] Remove upload functionality from DocumentManager
+  - [ ] Remove UploadDocumentsDialog component and all references
+  - [ ] Remove file upload API endpoints from frontend
+  - [ ] Update DocumentManager to be view-only
+- [ ] Remove namespace creation/deletion from UI
+  - [ ] Remove create namespace dialog/form
+  - [ ] Remove delete namespace functionality
+  - [ ] Update namespace list to be read-only
+- [ ] Remove document deletion and clearing features
+  - [ ] Remove ClearDocumentsDialog component
+  - [ ] Remove individual document delete buttons
+  - [ ] Remove batch operations UI
+- [ ] Enhance status viewing capabilities
+  - [ ] Improve document status display with better filtering
+  - [ ] Add more detailed processing queue visualization
+  - [ ] Enhance error display and diagnostics
+  - [ ] Add namespace statistics dashboard
+- [ ] Update UI navigation and messaging
+  - [ ] Remove/disable upload buttons and controls
+  - [ ] Add CLI usage hints throughout UI
+  - [ ] Update empty states to reference CLI commands
+  - [ ] Add "How to add documents" help section pointing to CLI
+- [ ] Backend API adjustments
+  - [ ] Keep all read/query endpoints
+  - [ ] Consider removing or restricting write endpoints to localhost only
+  - [ ] Ensure CLI still has full API access
+
+**Implementation Approach**:
+- Systematically remove interactive features from LightRAG web UI
+- Preserve and enhance all monitoring/status features
+- Add helpful CLI command references in UI
+- Ensure smooth transition for users from UI to CLI workflow
+
+**Success Criteria**: 
+- UI serves as comprehensive read-only dashboard for monitoring knowledge graphs
+- All data ingestion and management happens exclusively through CLI
+- Clear documentation and UI hints guide users to appropriate CLI commands
 
 ### Milestone 3: Dynamic Sources & Processing Pipeline
 
@@ -584,18 +677,20 @@ The editor's Grounding views will integrate as follows:
 - [ ] Implement basic web crawler
 - [ ] Add crawl depth and pattern configuration
 - [ ] Test with documentation sites
-- [ ] Create UI for crawler configuration
+- [ ] Create CLI commands for crawler configuration
+- [ ] Add crawler status to monitoring UI
 
-**Success Criteria**: Can crawl and index entire doc site
+**Success Criteria**: Can crawl and index entire doc site via CLI
 
 #### Phase 3.2: Additional Source Types ⏸️
-**Deliverable**: RSS and URL list processing
-- [ ] Create RSS feed monitor
+**Deliverable**: Advanced RSS monitoring and URL list processing
+- [ ] Create RSS feed monitor (automated, server-side - basic podcast support in Phase 2.5)
 - [ ] Build URL list batch processor
-- [ ] Add source configuration management
-- [ ] UI for managing different source types
+- [ ] Add source configuration management via CLI
+- [ ] Add source monitoring to status UI
+- [ ] Create config files for automated sources
 
-**Success Criteria**: Can monitor RSS feeds and process URL lists
+**Success Criteria**: Can automatically monitor RSS feeds and process URL lists
 
 #### Phase 3.3: Processing Pipeline Core ⏸️
 **Deliverable**: Queue-based processing system
@@ -619,13 +714,14 @@ The editor's Grounding views will integrate as follows:
 ### Milestone 4: Advanced Features & Production Readiness
 
 #### Phase 4.1: Media Processing ⏸️
-**Deliverable**: YouTube and audio transcription
-- [ ] Implement YouTube video transcription
-- [ ] Add podcast/audio processing
+**Deliverable**: Enhanced media transcription (builds on Phase 2.5)
+- [ ] Enhance YouTube video transcription with chapters
+- [ ] Add advanced podcast processing (series tracking)
 - [ ] Create media metadata extraction
-- [ ] Build UI for media source configuration
+- [ ] Build CLI for media source configuration
+- [ ] Add media processing stats to UI
 
-**Success Criteria**: Can transcribe and index video/audio content
+**Success Criteria**: Can transcribe and index video/audio content with rich metadata
 
 #### Phase 4.2: Content Intelligence ⏸️
 **Deliverable**: Smart content features
@@ -1798,6 +1894,194 @@ Processing Status - Product Knowledge
 - File upload UX patterns
 - Error handling strategies
 - Real-time status update approaches
+
+---
+
+#### Phase 2.5: RSS Podcast Transcription (Standalone Implementation)
+
+**Goal: Enable podcast ingestion and transcription via simple CLI command**
+
+This phase pulls forward podcast functionality from Milestone 3 into a simpler, standalone implementation that leverages existing code from `src/ingest.py`.
+
+##### Architecture
+
+```
+Knowledge CLI
+└── podcast command
+    ├── RSS Feed Parser (feedparser)
+    ├── Episode Manager
+    │   ├── Track processed episodes
+    │   ├── Skip duplicates
+    │   └── Handle failures
+    ├── Audio Pipeline
+    │   ├── Download audio files
+    │   ├── Chunk for Whisper (25MB limit)
+    │   └── Clean up after processing
+    ├── Transcription (OpenAI Whisper API)
+    └── Upload to Knowledge Service
+```
+
+##### Implementation Details
+
+**1. CLI Integration**
+```bash
+# Basic usage
+venv/bin/python scripts/knowledge.py podcast RSS_FEED_URL -n namespace
+
+# With options
+venv/bin/python scripts/knowledge.py podcast RSS_FEED_URL -n namespace \
+  --limit 5                    # Process only first 5 episodes
+  --skip-existing             # Skip already processed episodes
+  --keep-audio                # Don't delete audio after processing
+```
+
+**2. Processing Flow**
+- Parse RSS feed to find audio episodes
+- Check processing history to avoid duplicates
+- Download audio with progress tracking
+- Split into chunks if > 25MB
+- Send to Whisper API for transcription
+- Enrich transcript with metadata
+- Upload to Knowledge namespace
+- Mark episode as processed
+
+**3. Local State Management**
+```
+~/.knowledge/
+├── config.json              # Existing CLI config
+└── podcast_state/
+    ├── processed/           # Completed episode records
+    │   └── {episode_id}.json
+    ├── failed/             # Failed episodes for retry
+    │   └── {episode_id}.json
+    └── downloads/          # Temporary audio storage
+```
+
+**4. Content Format**
+Transcripts are enriched with metadata before upload:
+```
+Title: {Episode Title}
+Podcast: {Podcast Name}
+Published: {Date}
+Duration: {Duration}
+Description: {Episode Description}
+
+Transcript:
+{Full transcription text}
+```
+
+##### Key Features
+
+1. **Episode Tracking**
+   - SHA-256 hash of audio URL as episode ID
+   - Persistent state to avoid re-processing
+   - Failed episode tracking for manual retry
+
+2. **Progress Visibility**
+   - Download progress with size/percentage
+   - Chunk processing counter
+   - Clear success/failure reporting
+
+3. **Resource Management**
+   - Automatic audio cleanup after success
+   - Configurable temp directory
+   - Chunk size optimization for Whisper
+
+4. **Error Handling**
+   - Network failures during download
+   - Whisper API errors
+   - Knowledge service upload failures
+   - Graceful continuation on episode failures
+
+##### Limitations & Trade-offs
+
+**Limitations**:
+- Requires OpenAI API key on client machine
+- No server-side queue management
+- Single-threaded processing
+- No automatic retry mechanism
+
+**Trade-offs**:
+- Simplicity over scalability
+- Quick implementation over perfect architecture
+- Client-side processing over server complexity
+- Manual retry over automatic recovery
+
+##### Success Metrics
+- Process 10-episode podcast in < 30 minutes
+- < 1% failure rate on stable network
+- Zero duplicate processing
+- Clean state management
+
+##### Example Usage
+
+```bash
+# Ingest latest 5 episodes from a podcast
+venv/bin/python scripts/knowledge.py podcast \
+  "https://example.com/podcast.rss" \
+  -n podcast_knowledge \
+  --limit 5
+
+# Output:
+📡 Parsing RSS feed: https://example.com/podcast.rss
+✅ Found feed: The Example Podcast
+📊 Total episodes: 247
+✅ Found 247 audio episodes
+📌 Limited to 5 episode(s) as requested
+
+Episode 1/5: Latest Episode Title...
+💾 Downloading audio...
+  Progress: 45.2 MB / 45.2 MB (100.0%)
+✅ Download complete!
+🎙️ Transcribing audio...
+  Duration: 62.3 minutes
+  Created 7 chunks
+  Transcribing chunk 1/7... ✓
+  ...
+✅ Transcription complete: 45,234 characters
+📤 Uploading to Knowledge service...
+✅ Uploaded to namespace 'podcast_knowledge'
+  Document ID: doc-a5b2c1d8e9f0
+✅ Episode processed successfully!
+...
+```
+
+##### Future Enhancements (Not in Phase 2.5)
+- Parallel episode processing
+- Server-side implementation
+- Automatic RSS monitoring
+- Scheduled ingestion
+- Transcript post-processing (speaker detection, timestamps)
+
+##### Implementation Requirements
+
+**New Dependencies**:
+```txt
+feedparser==6.0.10      # RSS feed parsing
+pydub==0.25.1          # Audio file manipulation
+yt-dlp==2024.3.10      # YouTube download (bonus feature)
+```
+
+**Existing Dependencies Used**:
+- openai (already in requirements.txt)
+- requests (already in requirements.txt)
+- aiohttp (already in requirements.txt)
+
+**File Structure**:
+```
+knowledge/scripts/
+├── knowledge.py         # Add 'podcast' subcommand
+└── lib/
+    ├── podcast_ingester.py  # Main podcast processing logic
+    └── audio_utils.py       # Audio chunking utilities
+```
+
+**Testing Requirements**:
+- Test with various podcast RSS formats
+- Verify Whisper API integration
+- Test episode deduplication
+- Verify cleanup of temporary files
+- Test error handling and recovery
 
 ---
 

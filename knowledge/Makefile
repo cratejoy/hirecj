@@ -22,6 +22,7 @@ help:
 	@echo "  make knowledge-list - List all namespaces"
 	@echo "  make knowledge-create NAMESPACE=name - Create a namespace"
 	@echo "  make knowledge-ingest FILES='file1 file2' NAMESPACE=name - Ingest files"
+	@echo "  make knowledge-podcast URL='rss_url' NAMESPACE=name LIMIT=5 - Ingest podcast episodes"
 
 install:
 	@echo "📦 Installing dependencies..."
@@ -92,3 +93,7 @@ knowledge-create:
 knowledge-ingest:
 	@echo "📥 Ingesting documents..."
 	@venv/bin/python scripts/knowledge.py ingest $(FILES) --namespace $(NAMESPACE) --auto-create
+
+knowledge-podcast:
+	@echo "🎙️  Ingesting podcast episodes..."
+	@venv/bin/python scripts/knowledge.py podcast $(URL) --namespace $(NAMESPACE) $(if $(LIMIT),--limit $(LIMIT),)

@@ -114,3 +114,53 @@ def format_duration(seconds: float) -> str:
     else:
         hours = seconds / 3600
         return f"{hours:.1f}h"
+
+
+def parse_api_error(error_text: str) -> str:
+    """Parse API error response and return user-friendly message"""
+    try:
+        # Try to parse as JSON
+        import json
+        error_data = json.loads(error_text)
+        
+        # Handle Pydantic validation errors
+        if isinstance(error_data, dict) and 'detail' in error_data:
+            detail = error_data['detail']
+            
+            # If detail is a list (Pydantic validation errors)
+            if isinstance(detail, list) and len(detail) > 0:
+                error_messages = []
+                for error in detail:
+                    if isinstance(error, dict):
+                        # Extract field location and error type
+                        loc = error.get('loc', [])
+                        msg = error.get('msg', 'Unknown error')
+                        error_type = error.get('type', '')
+                        
+                        # Build user-friendly message
+                        if loc:
+                            field = '.'.join(str(l) for l in loc if l not in ['body', 'query'])
+                            if error_type == 'missing':
+                                error_messages.append(f"Missing required parameter: {field}")
+                            elif error_type == 'string_pattern_mismatch':
+                                error_messages.append(f"Invalid format for {field}: must contain only lowercase letters, numbers, and underscores")
+                            else:
+                                error_messages.append(f"{field}: {msg}")
+                        else:
+                            error_messages.append(msg)
+                
+                return '; '.join(error_messages)
+            
+            # If detail is a string (HTTPException)
+            elif isinstance(detail, str):
+                return detail
+        
+        # If we can't parse it specifically, return the JSON as a string
+        return json.dumps(error_data, indent=2)
+        
+    except json.JSONDecodeError:
+        # Not JSON, return as-is but clean it up
+        return error_text.strip()
+    except Exception:
+        # Any other error, return the original text
+        return error_text

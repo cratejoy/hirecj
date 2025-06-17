@@ -9,6 +9,16 @@ From the knowledge directory:
 make install
 ```
 
+## Requirements
+
+### For Podcast Transcription
+- **OpenAI API Key**: Set the `OPENAI_API_KEY` environment variable for Whisper transcription
+- **ffmpeg**: Required for audio processing (`brew install ffmpeg` on macOS)
+
+```bash
+export OPENAI_API_KEY=your-api-key-here
+```
+
 ## Usage
 
 The CLI provides several commands for managing knowledge bases:
@@ -74,6 +84,21 @@ venv/bin/python scripts/knowledge.py config --api-base http://localhost:8004
 venv/bin/python scripts/knowledge.py config --parallel 5
 ```
 
+### Ingest Podcasts from RSS Feeds
+```bash
+# Ingest latest episodes from RSS feed
+venv/bin/python scripts/knowledge.py podcast https://feeds.simplecast.com/54nAGcIl -n podcasts
+
+# Limit number of episodes
+venv/bin/python scripts/knowledge.py podcast https://example.com/feed.xml -n podcasts --limit 5
+
+# Keep audio files after processing
+venv/bin/python scripts/knowledge.py podcast https://example.com/feed.xml -n podcasts --keep-audio
+
+# Process YouTube video (bonus feature)
+venv/bin/python scripts/knowledge.py podcast https://www.youtube.com/watch?v=VIDEO_ID -n videos --youtube
+```
+
 ## Options
 
 ### Ingest Command Options
@@ -85,6 +110,13 @@ venv/bin/python scripts/knowledge.py config --parallel 5
 - `--parallel`: Number of parallel uploads (default: 1)
 - `--auto-create`: Create namespace if it doesn't exist
 
+### Podcast Command Options
+- `-n, --namespace`: Target namespace (required)
+- `--limit`: Maximum number of episodes to process (RSS only)
+- `--skip-existing`: Skip episodes that have already been processed (default: True)
+- `--keep-audio`: Keep audio files after processing
+- `--youtube`: Process as YouTube video instead of RSS feed
+
 ## Features
 
 - **Progress Bars**: Visual feedback for batch operations
@@ -94,6 +126,9 @@ venv/bin/python scripts/knowledge.py config --parallel 5
 - **Auto-create Namespaces**: No need to manually create namespaces first
 - **Glob Pattern Support**: Flexible file selection
 - **URL Ingestion**: Direct web content ingestion
+- **Podcast Transcription**: Automatic download and transcription of RSS podcast episodes
+- **YouTube Support**: Download and transcribe YouTube videos (bonus feature)
+- **Episode Deduplication**: Automatically skip already processed episodes
 - **Comprehensive Error Handling**: Clear error messages and recovery
 
 ## Makefile Commands
@@ -131,3 +166,29 @@ curl -X POST "http://localhost:8004/api/product_docs/query" \
   -H "Content-Type: application/json" \
   -d '{"query": "How do I configure the system?", "mode": "hybrid"}'
 ```
+
+## Podcast Ingestion Example
+
+```bash
+# 1. Set up OpenAI API key
+export OPENAI_API_KEY=your-api-key-here
+
+# 2. Create a namespace for podcasts
+venv/bin/python scripts/knowledge.py create podcasts --name "Podcast Transcripts"
+
+# 3. Ingest latest 5 episodes from a podcast
+venv/bin/python scripts/knowledge.py podcast https://feeds.simplecast.com/54nAGcIl -n podcasts --limit 5
+
+# 4. Process a YouTube video
+venv/bin/python scripts/knowledge.py podcast https://www.youtube.com/watch?v=VIDEO_ID -n videos
+
+# 5. Check processing status
+venv/bin/python scripts/knowledge.py stats podcasts
+
+# 6. Query the transcripts
+curl -X POST "http://localhost:8004/api/podcasts/query" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What did they discuss about AI?", "mode": "hybrid"}'
+```
+
+Note: Podcast episodes are tracked by URL hash to avoid reprocessing. State is maintained in `~/.knowledge/podcast_state/`.

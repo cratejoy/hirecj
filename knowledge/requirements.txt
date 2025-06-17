@@ -12,3 +12,10 @@ psycopg2-binary==2.9.9
 python-multipart==0.0.6
 requests==2.31.0
 html2text==2020.1.16
+
+# Phase 2.5: RSS Podcast Transcription
+feedparser==6.0.10      # RSS feed parsing
+pydub==0.25.1          # Audio file manipulation
+yt-dlp==2024.3.10      # YouTube download (bonus feature)
+openai==1.35.13        # For Whisper API
+python-dotenv==1.0.1   # Environment variables

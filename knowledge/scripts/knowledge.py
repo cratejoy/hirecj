@@ -18,6 +18,7 @@ from lib.ingester import KnowledgeIngester
 from lib.namespace_manager import NamespaceManager
 from lib.config import Config
 from lib.utils import print_success, print_error, print_info, print_table
+from lib.podcast_ingester import PodcastIngester
 
 # Default API base URL
 DEFAULT_API_BASE = "http://localhost:8004"
@@ -235,6 +236,37 @@ class KnowledgeCLI:
         
         self.config.save()
         return 0
+    
+    async def podcast_command(self, args):
+        """Handle the podcast command"""
+        # Ensure namespace exists
+        nm = NamespaceManager(self.api_base)
+        created = await nm.ensure_namespace_exists(args.namespace)
+        if created:
+            print_success(f"Created namespace: {args.namespace}")
+        
+        # Create podcast ingester
+        ingester = PodcastIngester(args.namespace, self.api_base)
+        
+        # Process based on input type
+        if args.youtube or args.url.startswith(('https://www.youtube.com/', 'https://youtu.be/')):
+            # Process as YouTube video
+            success = await ingester.process_youtube_video(
+                args.url,
+                keep_audio=args.keep_audio
+            )
+            return 0 if success else 1
+        else:
+            # Process as RSS feed
+            stats = await ingester.ingest_rss_feed(
+                args.url,
+                limit=args.limit,
+                skip_existing=args.skip_existing,
+                keep_audio=args.keep_audio
+            )
+            
+            # Return success if at least one episode was processed
+            return 0 if stats['processed'] > 0 else 1
 
 
 async def main():
@@ -362,6 +394,43 @@ async def main():
         help='Set default parallel uploads'
     )
     
+    # Podcast command
+    podcast_parser = subparsers.add_parser(
+        'podcast',
+        help='Ingest podcasts from RSS feeds',
+        description='Download and transcribe podcasts from RSS feeds'
+    )
+    podcast_parser.add_argument(
+        'url',
+        help='RSS feed URL or YouTube video URL'
+    )
+    podcast_parser.add_argument(
+        '-n', '--namespace',
+        required=True,
+        help='Target namespace for ingestion'
+    )
+    podcast_parser.add_argument(
+        '--limit',
+        type=int,
+        help='Maximum number of episodes to process (RSS only)'
+    )
+    podcast_parser.add_argument(
+        '--skip-existing',
+        action='store_true',
+        default=True,
+        help='Skip episodes that have already been processed (default: True)'
+    )
+    podcast_parser.add_argument(
+        '--keep-audio',
+        action='store_true',
+        help='Keep audio files after processing'
+    )
+    podcast_parser.add_argument(
+        '--youtube',
+        action='store_true',
+        help='Process as YouTube video instead of RSS feed'
+    )
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -384,6 +453,8 @@ async def main():
             return await cli.stats_command(args)
         elif args.command == 'config':
             return await cli.config_command(args)
+        elif args.command == 'podcast':
+            return await cli.podcast_command(args)
         else:
             parser.print_help()
             return 1

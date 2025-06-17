@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import mimetypes
-from .utils import print_success, print_error, print_info, print_warning, ProgressBar, format_size, format_duration
+from .utils import print_success, print_error, print_info, print_warning, ProgressBar, format_size, format_duration, parse_api_error
 
 
 class KnowledgeIngester:
@@ -79,13 +79,19 @@ class KnowledgeIngester:
                                 print_success(f"Uploaded: {file_path.name} ({format_size(file_size)})")
                                 return {"success": True, **result}
                             else:
-                                error = await resp.text()
-                                print_error(f"Failed to upload {file_path.name}: {error}")
+                                error_text = await resp.text()
+                                error_msg = parse_api_error(error_text)
+                                print_error(f"Failed to upload {file_path.name}: {error_msg}")
                                 self.stats["failed"] += 1
                                 self.failed_items.append(str(file_path))
-                                return {"success": False, "error": error}
+                                return {"success": False, "error": error_msg}
+            except aiohttp.ClientError as e:
+                print_error(f"Unable to connect to Knowledge API at {self.api_base}: {str(e)}")
+                self.stats["failed"] += 1
+                self.failed_items.append(str(file_path))
+                return {"success": False, "error": f"Connection error: {str(e)}"}
             except Exception as e:
-                print_error(f"Error uploading {file_path}: {e}")
+                print_error(f"Unexpected error uploading {file_path}: {str(e)}")
                 self.stats["failed"] += 1
                 self.failed_items.append(str(file_path))
                 return {"success": False, "error": str(e)}
@@ -113,13 +119,19 @@ class KnowledgeIngester:
                             print_success(f"Ingested URL: {url} ({format_size(content_length)})")
                             return {"success": True, **result}
                         else:
-                            error = await resp.text()
-                            print_error(f"Failed to ingest URL {url}: {error}")
+                            error_text = await resp.text()
+                            error_msg = parse_api_error(error_text)
+                            print_error(f"Failed to ingest URL {url}: {error_msg}")
                             self.stats["failed"] += 1
                             self.failed_items.append(url)
-                            return {"success": False, "error": error}
+                            return {"success": False, "error": error_msg}
+            except aiohttp.ClientError as e:
+                print_error(f"Unable to connect to Knowledge API at {self.api_base}: {str(e)}")
+                self.stats["failed"] += 1
+                self.failed_items.append(url)
+                return {"success": False, "error": f"Connection error: {str(e)}"}
             except Exception as e:
-                print_error(f"Error ingesting URL {url}: {e}")
+                print_error(f"Unexpected error ingesting URL {url}: {str(e)}")
                 self.stats["failed"] += 1
                 self.failed_items.append(url)
                 return {"success": False, "error": str(e)}
