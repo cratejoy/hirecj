@@ -4,7 +4,7 @@ import logging
 import json
 from typing import List, Any, Optional
 from datetime import datetime, date, timedelta
-from crewai.tools import tool
+from crewai.tools.base_tool import tool
 from app.utils.supabase_util import get_db_session
 from app.lib.freshdesk_analytics_lib import FreshdeskAnalytics
 from app.dbmodels import FreshdeskUnifiedTicketView

@@ -3,7 +3,7 @@
 import logging
 from typing import List, Any
 from pydantic import BaseModel, Field
-from crewai.tools import tool
+from crewai.tools.base_tool import tool
 from app.config import settings
 
 logger = logging.getLogger(__name__)
