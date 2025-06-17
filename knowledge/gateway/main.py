@@ -578,9 +578,11 @@ async def add_document(namespace_id: str, doc: Document, background_tasks: Backg
         "metadata": doc.metadata
     }
 
+# Phase 2.6: UI is now read-only. All data ingestion happens via CLI.
+"""
 @app.post("/api/{namespace_id}/documents/upload")
 async def upload_document(namespace_id: str, file: UploadFile = File(...), background_tasks: BackgroundTasks = None):
-    """Upload single file to namespace (non-blocking)"""
+    '''Upload single file to namespace (non-blocking)'''
     # Validate namespace exists
     if namespace_id not in namespace_registry.namespaces:
         raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
@@ -648,10 +650,12 @@ async def upload_document(namespace_id: str, file: UploadFile = File(...), backg
         "content_length": len(text_content),
         "metadata": metadata
     }
+"""
 
+"""
 @app.post("/api/{namespace_id}/documents/batch-upload")
 async def upload_documents_batch(namespace_id: str, files: List[UploadFile] = File(...), background_tasks: BackgroundTasks = None):
-    """Upload multiple files to namespace (non-blocking)"""
+    '''Upload multiple files to namespace (non-blocking)'''
     # Validate namespace exists
     if namespace_id not in namespace_registry.namespaces:
         raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
@@ -751,10 +755,12 @@ async def upload_documents_batch(namespace_id: str, files: List[UploadFile] = Fi
         "uploaded": queued_files,
         "failed": len(failed_files)
     }
+"""
 
+"""
 @app.post("/api/{namespace_id}/documents/url")
 async def fetch_and_ingest_url(namespace_id: str, req: URLRequest, background_tasks: BackgroundTasks):
-    """Fetch content from URL and ingest it (non-blocking)"""
+    '''Fetch content from URL and ingest it (non-blocking)'''
     # Validate namespace exists
     if namespace_id not in namespace_registry.namespaces:
         raise HTTPException(status_code=404, detail=f"Namespace '{namespace_id}' not found")
@@ -839,6 +845,7 @@ async def fetch_and_ingest_url(namespace_id: str, req: URLRequest, background_ta
         "content_length": len(text_content),
         "metadata": metadata
     }
+"""
 
 @app.post("/api/{namespace_id}/query")
 async def query_knowledge(namespace_id: str, req: QueryRequest):
