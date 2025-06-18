@@ -96,6 +96,12 @@ class ConversationContextManager:
                 summaries.append(f"selected tools: {', '.join(contents[:2])}")
             elif token_type == "planning":
                 summaries.append(f"planned: {contents[0][:50]}...")
+            else:
+                # Catch all other token types
+                if len(contents) == 1:
+                    summaries.append(f"{token_type}: {contents[0][:50]}...")
+                else:
+                    summaries.append(f"{token_type}: {', '.join(contents[:2])}")
         
         return "; ".join(summaries) if summaries else ""
 
