@@ -192,8 +192,10 @@ class MessageProcessor:
                         break
                     
                     if event["type"] == "thinking_token":
+                        logger.debug(f"[EVENT_PROCESSOR] Processing thinking token: {event['token'].token_type}")
                         await self._report_thinking_token(session.id, event["token"])
                     elif event["type"] == "tool_call":
+                        logger.debug(f"[EVENT_PROCESSOR] Processing tool call: {event['data'].get('tool_name')}")
                         await self._report_tool_execution(session.id, event["data"])
                     
                     # Force immediate send by yielding control
@@ -317,6 +319,7 @@ class MessageProcessor:
                 "message_in_progress": True
             }
         }
+        
         
         for callback in self._progress_callbacks:
             try:

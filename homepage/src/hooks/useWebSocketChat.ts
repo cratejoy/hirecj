@@ -190,6 +190,8 @@ export function useWebSocketChat({
   const handleMessage = useCallback((event: MessageEvent) => {
     try {
       const data = JSON.parse(event.data);
+      const handlerId = Math.random().toString(36).substring(7);
+      console.log(`[Handler ${handlerId}] Processing message:`, data.type);
       
       // Validate it's an outgoing message (from server)
       if (!isOutgoingMessage(data)) {
