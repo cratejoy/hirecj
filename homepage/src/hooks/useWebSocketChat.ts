@@ -180,7 +180,6 @@ export function useWebSocketChat({
       }
       
       messageQueueRef.current.forEach(msg => {
-        console.log('[WebSocket] Sending queued message:', msg);
         wsRef.current!.send(msg);
       });
       messageQueueRef.current = [];
@@ -197,6 +196,7 @@ export function useWebSocketChat({
         wsLogger.warn('Received invalid message format', { data });
         return;
       }
+      
       
       wsLogger.debug('Received message', { type: data.type, data });
       
@@ -231,7 +231,6 @@ export function useWebSocketChat({
           
         case 'cj_message':
           const cjMsg = data as CJMessageMsg;
-          console.log('[WebSocket] Parsing cj_message:', { messageData: cjMsg.data, fullData: cjMsg });
           const cjMessage: Message = {
             id: `cj-${Date.now()}`,
             sender: 'cj',
@@ -242,7 +241,6 @@ export function useWebSocketChat({
             },
             ui_elements: cjMsg.data.ui_elements || undefined
           };
-          console.log('[WebSocket] Created cj_message:', cjMessage);
           setState(prev => ({ 
             ...prev, 
             messages: [
@@ -429,6 +427,16 @@ export function useWebSocketChat({
           console.log(`%c[${event.timestamp || new Date().toISOString()}]`, 'color: gray', event.type, event.data || '');
           break;
           
+        case 'thinking_token':
+          // Thinking tokens are logged in the enhanced logging section above
+          // No additional state updates needed - just for streaming visibility
+          break;
+          
+        case 'tool_call':
+          // Tool calls are logged in the enhanced logging section above
+          // No additional state updates needed - just for streaming visibility
+          break;
+          
         default:
           wsLogger.warn('Unknown message type', { type: data.type, data });
       }
@@ -563,7 +571,6 @@ export function useWebSocketChat({
           type: 'start_conversation',
           data: startData 
         });
-        console.log('[WebSocket] Sending start_conversation message:', startMessage);
         if (wsRef.current) {
           wsRef.current.send(startMessage);
         }
@@ -702,10 +709,8 @@ export function useWebSocketChat({
     const wsMessage = JSON.stringify({ type: 'message', text });
     
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log('[WebSocket] Sending chat message:', wsMessage);
       wsRef.current.send(wsMessage);
     } else {
-      console.log('[WebSocket] WebSocket not connected, queueing message:', wsMessage);
       wsLogger.warn('WebSocket not connected, queueing message');
       messageQueueRef.current.push(wsMessage);
     }
@@ -719,10 +724,8 @@ export function useWebSocketChat({
     });
     
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      console.log('[WebSocket] Sending fact check message:', factCheckMessage);
       wsRef.current.send(factCheckMessage);
     } else {
-      console.log('[WebSocket] WebSocket not connected, cannot send fact check:', factCheckMessage);
       wsLogger.warn('WebSocket not connected, cannot send fact check');
     }
   }, []);

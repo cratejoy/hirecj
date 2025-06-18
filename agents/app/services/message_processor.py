@@ -12,6 +12,11 @@ from app.services.session_manager import Session
 from shared.logging_config import get_logger
 from app.config import settings
 from shared.user_identity import save_conversation_message
+from app.services.thinking_token_manager import thinking_token_manager
+from app.services.thinking_token_capture import enhanced_get_llm_response  # Import to activate monkey patch
+from app.services.tool_execution_monitor import tool_execution_monitor
+# Note: tool_execution_interceptor is not imported to avoid duplicate monitoring
+from shared.protocol.models import ThinkingToken
 
 logger = get_logger(__name__)
 
@@ -64,7 +69,13 @@ class MessageProcessor:
 
         try:
             if sender in ["merchant", "system"]:
-                response = await self._get_cj_response(session, message, is_system=sender=="system")
+                response_data = await self._get_cj_response(session, message, is_system=sender=="system")
+                # Extract response and thinking tokens
+                if isinstance(response_data, tuple):
+                    response, captured_tokens = response_data
+                else:
+                    response = response_data
+                    captured_tokens = []
             else:
                 # For now, only support merchant -> CJ flow
                 raise ValueError("Only merchant/system -> CJ flow supported")
@@ -80,12 +91,16 @@ class MessageProcessor:
                     timestamp=datetime.utcnow(),
                     sender="CJ",
                     content=response["content"],
+                    thinking_tokens=[token.dict() for token in captured_tokens] if captured_tokens else None,
                 )
                 session.conversation.add_message(response_msg)
                 
                 # Save to database if user_id is available
                 if session.user_id:
                     asyncio.create_task(self._save_message_to_db(session.user_id, response_msg))
+                
+                # Add thinking tokens to the response structure
+                response["thinking_tokens"] = captured_tokens
                 
                 # Return the full structured response for the platform layer
                 return response
@@ -95,6 +110,7 @@ class MessageProcessor:
                     timestamp=datetime.utcnow(),
                     sender="CJ",
                     content=response,
+                    thinking_tokens=[token.dict() for token in captured_tokens] if captured_tokens else None,
                 )
                 session.conversation.add_message(response_msg)
                 
@@ -164,6 +180,67 @@ class MessageProcessor:
 
         await self._report_progress(session.id, "thinking", {"status": "generating"})
 
+        # Create a background task to process events from a queue
+        event_queue = asyncio.Queue()
+        
+        async def event_processor():
+            """Process events from queue and send via WebSocket."""
+            while True:
+                try:
+                    event = await event_queue.get()
+                    if event is None:  # Sentinel to stop
+                        break
+                    
+                    if event["type"] == "thinking_token":
+                        await self._report_thinking_token(session.id, event["token"])
+                    elif event["type"] == "tool_call":
+                        await self._report_tool_execution(session.id, event["data"])
+                    
+                    # Force immediate send by yielding control
+                    await asyncio.sleep(0)
+                    
+                except Exception as e:
+                    logger.error(f"Error processing event: {e}")
+        
+        # Start the event processor
+        processor_task = asyncio.create_task(event_processor())
+        
+        # Get the current event loop to use in callbacks
+        loop = asyncio.get_event_loop()
+        
+        # Register thinking token callback for real-time streaming
+        def on_thinking_token(token: ThinkingToken):
+            # Use call_soon_threadsafe to queue from another thread
+            try:
+                loop.call_soon_threadsafe(
+                    lambda: asyncio.create_task(event_queue.put({
+                        "type": "thinking_token",
+                        "token": token
+                    }))
+                )
+            except Exception as e:
+                logger.error(f"Error queueing thinking token: {e}")
+        
+        # Register callback before starting capture
+        thinking_token_manager.register_callback(on_thinking_token)
+        thinking_token_manager.start_capture()
+        
+        # Register tool execution callback for real-time streaming
+        def on_tool_execution(tool_data: Dict[str, Any]):
+            # Use call_soon_threadsafe to queue from another thread
+            try:
+                loop.call_soon_threadsafe(
+                    lambda: asyncio.create_task(event_queue.put({
+                        "type": "tool_call", 
+                        "data": tool_data
+                    }))
+                )
+            except Exception as e:
+                logger.error(f"Error queueing tool execution: {e}")
+        
+        # Only register with the monitor - the monitored tools will handle the rest
+        tool_execution_monitor.register_callback(on_tool_execution)
+
         # Log LLM prompt with chat history context
         context_messages = [
             f"{msg.sender}: {msg.content[:100]}{'...' if len(msg.content) > 100 else ''}"
@@ -176,12 +253,30 @@ class MessageProcessor:
             + "\n".join(f"    {msg}" for msg in context_messages)
         )
 
-        result = crew.kickoff()
-
+        # Run crew.kickoff() in a thread to avoid blocking the event loop
+        import concurrent.futures
+        
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # This allows the event loop to process WebSocket messages while CrewAI runs
+            result = await asyncio.get_event_loop().run_in_executor(
+                executor, 
+                crew.kickoff
+            )
+        
+        # Stop the event processor
+        await event_queue.put(None)  # Sentinel to stop
+        await processor_task  # Wait for it to finish
+        
         # Extract response
         response = str(result)
         if hasattr(result, "output"):
             response = result.output
+        
+        # Capture thinking tokens
+        captured_tokens = thinking_token_manager.stop_capture()
+        thinking_token_manager.unregister_callback(on_thinking_token)
+        tool_execution_monitor.unregister_callback(on_tool_execution)
+        
 
         logger.info(
             f"[LLM_RESPONSE] Got response ({len(response)} chars): {response[:200]}{'...' if len(response) > 200 else ''}"
@@ -204,13 +299,52 @@ class MessageProcessor:
 
             if ui_components:
                 logger.info(f"[UI_PARSER] Found {len(ui_components)} UI components in response")
-                return {
+                return ({
                     "type": "message_with_ui",
                     "content": clean_content,
                     "ui_elements": ui_components
-                }
+                }, captured_tokens)
 
-        return response
+        return (response, captured_tokens)
+
+    async def _report_thinking_token(self, session_id: str, token: ThinkingToken) -> None:
+        """Report a thinking token to callbacks."""
+        event = {
+            "session_id": session_id,
+            "type": "thinking_token",
+            "data": {
+                "token": token.dict(),
+                "message_in_progress": True
+            }
+        }
+        
+        for callback in self._progress_callbacks:
+            try:
+                # Check if callback is async
+                if asyncio.iscoroutinefunction(callback):
+                    asyncio.create_task(callback(event))
+                else:
+                    callback(event)
+            except Exception as e:
+                logger.error(f"Error in progress callback: {e}")
+    
+    async def _report_tool_execution(self, session_id: str, tool_data: Dict[str, Any]) -> None:
+        """Report a tool execution to callbacks."""
+        event = {
+            "session_id": session_id,
+            "type": "tool_call",
+            "data": tool_data
+        }
+        
+        for callback in self._progress_callbacks:
+            try:
+                # Check if callback is async
+                if asyncio.iscoroutinefunction(callback):
+                    asyncio.create_task(callback(event))
+                else:
+                    callback(event)
+            except Exception as e:
+                logger.error(f"Error in progress callback: {e}")
 
     async def _report_progress(
         self,

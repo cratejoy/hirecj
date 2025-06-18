@@ -28,6 +28,8 @@ from shared.protocol.models import (
     ConversationStartedMsg,
     CJMessageMsg,
     CJThinkingMsg,
+    ThinkingTokenMsg,
+    ToolCallMsg,
     FactCheckStartedMsg,
     FactCheckCompleteMsg,
     FactCheckErrorMsg,
@@ -222,6 +224,7 @@ class WebPlatform(Platform):
         """
         # Type check at runtime (for extra safety)
         if not isinstance(message, (ConversationStartedMsg, CJMessageMsg, CJThinkingMsg, 
+                                   ThinkingTokenMsg, ToolCallMsg,  # Added these!
                                    FactCheckStartedMsg, FactCheckCompleteMsg, FactCheckErrorMsg,
                                    FactCheckStatusMsg, WorkflowUpdatedMsg, WorkflowTransitionCompleteMsg,
                                    OAuthProcessedMsg, LogoutCompleteMsg, PongMsg, DebugResponseMsg,

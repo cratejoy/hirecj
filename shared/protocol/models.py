@@ -30,11 +30,19 @@ class CJThinkingData(BaseModel):
     currentTool: Optional[str] = None
 
 
+class ThinkingToken(BaseModel):
+    timestamp: datetime
+    content: str
+    token_type: str  # "reasoning", "tool_selection", "memory_access", "planning", etc.
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class CJMessageData(BaseModel):
     content: str
     factCheckStatus: Optional[str] = "available"
     timestamp: datetime
     ui_elements: Optional[List[Dict[str, Any]]] = None
+    thinking_tokens: Optional[List[ThinkingToken]] = None
 
 class FactCheckStartedData(BaseModel):
     messageIndex: int
@@ -202,6 +210,31 @@ class CJThinkingMsg(BaseModel):
     data: CJThinkingData
 
 
+class ThinkingTokenData(BaseModel):
+    token: ThinkingToken
+    message_in_progress: bool = True  # Whether this is part of an ongoing message generation
+
+
+class ThinkingTokenMsg(BaseModel):
+    type: Literal["thinking_token"]
+    data: ThinkingTokenData
+
+
+class ToolCallData(BaseModel):
+    tool_name: str
+    tool_input: Dict[str, Any]
+    timestamp: datetime
+    status: Literal["started", "completed", "failed"] = "started"
+    result: Optional[str] = None
+    error: Optional[str] = None
+    duration_ms: Optional[int] = None
+
+
+class ToolCallMsg(BaseModel):
+    type: Literal["tool_call"]
+    data: ToolCallData
+
+
 class ErrorMsg(BaseModel):
     type: Literal["error"]
     text: str
@@ -260,6 +293,8 @@ OutgoingMessage = Annotated[
         ConversationStartedMsg,
         CJMessageMsg,
         CJThinkingMsg,
+        ThinkingTokenMsg,
+        ToolCallMsg,
         FactCheckStartedMsg,
         FactCheckCompleteMsg,
         FactCheckErrorMsg,

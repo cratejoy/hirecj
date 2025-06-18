@@ -228,10 +228,78 @@ class WorkflowHandlers:
                 except Exception as e:
                     # WebSocket might be closed, ignore
                     logger.debug(f"Could not send progress update: {e}")
+            elif update and update.get("type") == "thinking_token":
+                # Handle thinking token updates
+                from shared.protocol.models import ThinkingTokenMsg, ThinkingTokenData, ThinkingToken
+                token_data = update.get("data", {})
+                token_dict = token_data.get("token", {})
+                
+                # Reconstruct ThinkingToken from dict
+                token = ThinkingToken(
+                    timestamp=token_dict.get("timestamp", datetime.now()),
+                    content=token_dict.get("content", ""),
+                    token_type=token_dict.get("token_type", "unknown"),
+                    metadata=token_dict.get("metadata", {})
+                )
+                
+                thinking_token_msg = ThinkingTokenMsg(
+                    type="thinking_token",
+                    data=ThinkingTokenData(
+                        token=token,
+                        message_in_progress=token_data.get("message_in_progress", True)
+                    )
+                )
+                
+                websocket_logger.info(
+                    f"[WS_THINKING_TOKEN] Sending thinking token: type={token.token_type}, "
+                    f"content_preview='{token.content[:50]}...'"
+                )
+                try:
+                    await self.platform.send_validated_message(websocket, thinking_token_msg)
+                except Exception as e:
+                    # WebSocket might be closed, ignore
+                    logger.debug(f"Could not send thinking token: {e}")
+            elif update and update.get("type") == "tool_call":
+                # Handle tool call updates
+                from shared.protocol.models import ToolCallMsg, ToolCallData
+                tool_data = update.get("data", {})
+                
+                # Parse tool_input if it's a string
+                tool_input = tool_data.get("tool_input", {})
+                if isinstance(tool_input, str):
+                    try:
+                        import json
+                        tool_input = json.loads(tool_input)
+                    except:
+                        tool_input = {"raw": tool_input}
+                
+                tool_call_msg = ToolCallMsg(
+                    type="tool_call",
+                    data=ToolCallData(
+                        tool_name=tool_data.get("tool_name", ""),
+                        tool_input=tool_input,
+                        timestamp=tool_data.get("timestamp", datetime.now()),
+                        status=tool_data.get("status", "started"),
+                        result=tool_data.get("result"),
+                        error=tool_data.get("error"),
+                        duration_ms=tool_data.get("duration_ms")
+                    )
+                )
+                
+                websocket_logger.info(
+                    f"[WS_TOOL_CALL] Sending tool call: name={tool_call_msg.data.tool_name}, "
+                    f"status={tool_call_msg.data.status}"
+                )
+                try:
+                    await self.platform.send_validated_message(websocket, tool_call_msg)
+                except Exception as e:
+                    # WebSocket might be closed, ignore
+                    logger.debug(f"Could not send tool call: {e}")
 
         # Clear any old callbacks and register new one
         self.platform.message_processor.clear_progress_callbacks()
         self.platform.message_processor.on_progress(progress_callback)
+        logger.info(f"[WORKFLOW_HANDLERS] Registered progress callback for WebSocket streaming")
 
     async def _handle_initial_workflow_action(
         self, websocket: WebSocket, session: Any, workflow: str

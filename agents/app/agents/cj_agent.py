@@ -142,11 +142,42 @@ class CJAgent:
             if len(content) > settings.max_message_length:
                 content = content[: settings.max_message_length - 3] + "..."
             history.append(f"{sender}: {content}")
+            
+            # Include thinking tokens for CJ messages
+            if sender == "CJ" and hasattr(msg, 'thinking_tokens') and msg.thinking_tokens:
+                thinking_summary = self._summarize_thinking_tokens(msg.thinking_tokens)
+                if thinking_summary:
+                    history.append(f"[CJ's thinking: {thinking_summary}]")
 
         logger.info(f"[CJ_AGENT] Including {len(messages)} messages in context")
         formatted_history = "\n".join(history)
         logger.debug(f"[CJ_AGENT] Formatted history:\n{formatted_history}")
         return formatted_history
+    
+    def _summarize_thinking_tokens(self, thinking_tokens: list) -> str:
+        """Summarize thinking tokens for context."""
+        if not thinking_tokens:
+            return ""
+        
+        # Group by token type
+        by_type = {}
+        for token_dict in thinking_tokens:
+            token_type = token_dict.get("token_type", "unknown")
+            if token_type not in by_type:
+                by_type[token_type] = []
+            by_type[token_type].append(token_dict.get("content", ""))
+        
+        # Create summary
+        summaries = []
+        for token_type, contents in by_type.items():
+            if token_type == "reasoning":
+                summaries.append(f"reasoned about: {', '.join(contents[:2])}")
+            elif token_type == "tool_selection":
+                summaries.append(f"selected tools: {', '.join(contents[:2])}")
+            elif token_type == "planning":
+                summaries.append(f"planned: {contents[0][:50]}...")
+        
+        return "; ".join(summaries) if summaries else ""
 
     def _load_tools(self) -> List[Any]:
         """Load appropriate tools based on data agent and workflow."""
@@ -155,12 +186,19 @@ class CJAgent:
         # Check if we should load database tools for support_daily workflow
         if self.workflow_name == "support_daily":
             try:
-                from app.agents.database_tools import create_database_tools
+                # Try to use monitored tools first
+                try:
+                    from app.agents.monitored_database_tools import create_monitored_database_tools
+                    db_tools = create_monitored_database_tools(merchant_name=self.merchant_name)
+                    logger.info(f"[CJ_AGENT] Loaded {len(db_tools)} MONITORED database tools for support_daily workflow")
+                except ImportError:
+                    # Fall back to regular database tools
+                    from app.agents.database_tools import create_database_tools
+                    db_tools = create_database_tools(merchant_name=self.merchant_name)
+                    logger.info(f"[CJ_AGENT] Loaded {len(db_tools)} database tools for support_daily workflow")
 
-                db_tools = create_database_tools(merchant_name=self.merchant_name)
                 tools.extend(db_tools)
-                logger.info(f"[CJ_AGENT] Loaded {len(db_tools)} database tools for support_daily workflow")
-
+                
                 # Log tool names for visibility
                 db_tool_names = [tool.name for tool in db_tools]
                 logger.info(f"[CJ_AGENT] Database tools: {', '.join(db_tool_names)}")
@@ -244,6 +282,9 @@ class CJAgent:
 
     def _create_agent(self, **kwargs) -> Agent:
         """Create the CrewAI agent instance."""
+        # Import tool monitor here
+        from app.services.tool_execution_monitor import tool_execution_monitor
+        
         # Build context and format prompt
         context = self._build_context()
         backstory = self.prompt_template.format(**context)
@@ -303,6 +344,12 @@ class CJAgent:
             "llm": self.model_name,
             **kwargs,
         }
+        
+        # Create step callback for tool monitoring
+        session_id = kwargs.get("session_id", "default")
+        step_callback = tool_execution_monitor.create_step_callback(session_id)
+        agent_config["step_callback"] = step_callback
+        logger.info("[CJ_AGENT] Added step_callback for tool monitoring")
 
         return Agent(**agent_config)
 

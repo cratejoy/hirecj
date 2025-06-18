@@ -39,6 +39,10 @@ if settings.anthropic_api_key and not os.getenv("ANTHROPIC_API_KEY"):
 
 logger = logging.getLogger(__name__)
 
+# Import thinking token capture early to apply monkey patch
+from app.services.thinking_token_capture import enhanced_get_llm_response
+logger.info("[MAIN] Imported thinking token capture - monkey patch should be applied")
+
 # Initialize FastAPI app
 app = FastAPI(
     title="HireCJ API Server",

@@ -78,12 +78,22 @@ class ConversationHandlers:
             )
 
         # Process message with CrewAI
-        response = await self.platform.message_processor.process_message(
+        response_data = await self.platform.message_processor.process_message(
             session=session, message=text, sender="merchant"
         )
+        
+        # Extract response and thinking tokens
+        if isinstance(response_data, tuple):
+            response, captured_tokens = response_data
+        else:
+            response = response_data
+            captured_tokens = []
 
         # Handle structured response with UI elements
         if isinstance(response, dict) and response.get("type") == "message_with_ui":
+            # Extract thinking tokens from the response dict if present
+            thinking_tokens = response.get("thinking_tokens", captured_tokens)
+            
             # Send response with UI elements
             cj_msg = CJMessageMsg(
                 type="cj_message",
@@ -91,12 +101,15 @@ class ConversationHandlers:
                     content=response["content"],
                     factCheckStatus="available",
                     timestamp=datetime.now(),
-                    ui_elements=response.get("ui_elements", [])
+                    ui_elements=response.get("ui_elements", []),
+                    thinking_tokens=thinking_tokens if thinking_tokens else None
                 )
             )
             websocket_logger.info(
                 f"[WS_SEND] Sending CJ message with UI elements: content='{cj_msg.data.content[:100]}...' "
-                f"ui_elements={len(cj_msg.data.ui_elements or [])} full_data={cj_msg.model_dump()}"
+                f"ui_elements={len(cj_msg.data.ui_elements or [])} "
+                f"thinking_tokens={len(thinking_tokens) if thinking_tokens else 0} "
+                f"full_data={cj_msg.model_dump()}"
             )
         else:
             # Regular text response
@@ -105,11 +118,13 @@ class ConversationHandlers:
                 data=CJMessageData(
                     content=response,
                     factCheckStatus="available",
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
+                    thinking_tokens=captured_tokens if captured_tokens else None
                 )
             )
             websocket_logger.info(
                 f"[WS_SEND] Sending CJ message response: content='{cj_msg.data.content[:100]}...' "
+                f"thinking_tokens={len(captured_tokens) if captured_tokens else 0} "
                 f"full_data={cj_msg.model_dump()}"
             )
         

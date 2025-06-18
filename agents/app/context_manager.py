@@ -49,7 +49,7 @@ class ConversationContextManager:
             logger.info(f"Loaded context config from {config_path}: {config}")
             return config
 
-    def get_context_for_cj(self, conversation: Conversation) -> str:
+    def get_context_for_cj(self, conversation: Conversation, include_thinking: bool = True) -> str:
         """Get formatted context string for CJ's prompt."""
         if not conversation.messages:
             return "No previous messages."
@@ -61,12 +61,43 @@ class ConversationContextManager:
         history = []
         for msg in recent_messages:
             history.append(f"{msg.sender.upper()}: {msg.content}")
+            
+            # Include thinking tokens if available and requested
+            if include_thinking and msg.thinking_tokens and msg.sender.upper() == "CJ":
+                thinking_summary = self._summarize_thinking_tokens(msg.thinking_tokens)
+                if thinking_summary:
+                    history.append(f"[CJ's thinking: {thinking_summary}]")
 
         context = "\n".join(history)
         logger.debug(
             f"Built context with {len(recent_messages)} messages, {len(context)} chars"
         )
         return context
+    
+    def _summarize_thinking_tokens(self, thinking_tokens: list) -> str:
+        """Summarize thinking tokens for context."""
+        if not thinking_tokens:
+            return ""
+        
+        # Group by token type
+        by_type = {}
+        for token_dict in thinking_tokens:
+            token_type = token_dict.get("token_type", "unknown")
+            if token_type not in by_type:
+                by_type[token_type] = []
+            by_type[token_type].append(token_dict.get("content", ""))
+        
+        # Create summary
+        summaries = []
+        for token_type, contents in by_type.items():
+            if token_type == "reasoning":
+                summaries.append(f"reasoned about: {', '.join(contents[:2])}")
+            elif token_type == "tool_selection":
+                summaries.append(f"selected tools: {', '.join(contents[:2])}")
+            elif token_type == "planning":
+                summaries.append(f"planned: {contents[0][:50]}...")
+        
+        return "; ".join(summaries) if summaries else ""
 
     def get_conversation_state(self, conversation: Conversation) -> ConversationState:
         """Get conversation state with context window."""

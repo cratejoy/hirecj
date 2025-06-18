@@ -21,6 +21,8 @@ import type {
   ConversationStartedMsg,
   CJMessageMsg,
   CJThinkingMsg,
+  ThinkingTokenMsg,
+  ToolCallMsg,
   FactCheckStartedMsg,
   FactCheckCompleteMsg,
   FactCheckErrorMsg,
@@ -52,6 +54,8 @@ export type OutgoingMessage =
   | ConversationStartedMsg
   | CJMessageMsg
   | CJThinkingMsg
+  | ThinkingTokenMsg
+  | ToolCallMsg
   | FactCheckStartedMsg
   | FactCheckCompleteMsg
   | FactCheckErrorMsg
@@ -78,8 +82,8 @@ export function isIncomingMessage(msg: any): msg is IncomingMessage {
 
 export function isOutgoingMessage(msg: any): msg is OutgoingMessage {
   const validTypes = [
-    'conversation_started', 'cj_message', 'cj_thinking', 'fact_check_started',
-    'fact_check_complete', 'fact_check_error', 'fact_check_status',
+    'conversation_started', 'cj_message', 'cj_thinking', 'thinking_token', 'tool_call',
+    'fact_check_started', 'fact_check_complete', 'fact_check_error', 'fact_check_status',
     'workflow_updated', 'workflow_transition_complete', 'oauth_processed',
     'logout_complete', 'pong', 'debug_response', 'debug_event', 'error', 'system'
   ];

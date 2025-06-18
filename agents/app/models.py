@@ -15,6 +15,7 @@ class Message(BaseModel):
     sender: str  # "merchant" or "cj"
     content: str
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    thinking_tokens: Optional[List[Dict[str, Any]]] = None  # Serialized ThinkingToken objects
 
 
 class ConversationState(BaseModel):
