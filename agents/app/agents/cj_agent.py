@@ -2,6 +2,7 @@
 
 from typing import Dict, Any, Optional, List
 from crewai import Agent
+from app.agents.extended_agent import ExtendedAgent
 from app.models import ConversationState
 from app.model_config.simple_config import get_model, get_provider, ModelPurpose
 from shared.logging_config import get_logger
@@ -328,7 +329,7 @@ class CJAgent:
         logger.info(f"[CJ_AGENT] [GROUNDING] === GROUNDING CHECK COMPLETE (processed) ===")
         return content
 
-    def _create_agent(self, **kwargs) -> Agent:
+    def _create_agent(self, **kwargs) -> ExtendedAgent:
         """Create the CrewAI agent instance."""
         # Build context
         context = self._build_context()
@@ -395,7 +396,7 @@ class CJAgent:
             **kwargs,
         }
 
-        return Agent(**agent_config)
+        return ExtendedAgent(**agent_config)
 
     def _get_universe_info(self) -> str:
         """Get universe context information."""

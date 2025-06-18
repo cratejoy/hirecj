@@ -137,6 +137,13 @@ class MessageProcessor:
             oauth_metadata=oauth_metadata,
             verbose=settings.enable_verbose_logging,
         )
+        
+        # Set up thinking token callback for this agent BEFORE creating the task
+        # Use the conversation_id from the session, not session.id
+        from app.services.conversation_thinking_callback import ConversationThinkingCallback
+        conversation_id = getattr(session, 'conversation_id', session.id)
+        thinking_callback = ConversationThinkingCallback(conversation_id)
+        cj_agent.set_thinking_callback(thinking_callback)
 
         # Create task
         if is_system:
@@ -175,7 +182,7 @@ class MessageProcessor:
             f"  Chat history ({len(context_messages)} messages):\n"
             + "\n".join(f"    {msg}" for msg in context_messages)
         )
-
+        
         result = crew.kickoff()
 
         # Extract response
