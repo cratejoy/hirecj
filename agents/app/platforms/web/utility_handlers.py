@@ -111,6 +111,92 @@ class UtilityHandlers:
                         )
                 debug_data["prompts"] = recent_prompts
             
+            # New debug types for comprehensive agent debugging
+            if debug_type == "llm_prompts" or debug_type == "snapshot":
+                # Get stored LLM prompts from debug data
+                debug_storage = getattr(session, 'debug_data', {})
+                llm_prompts = debug_storage.get('llm_prompts', [])
+                if debug_type == "llm_prompts":
+                    debug_data["llm_prompts"] = llm_prompts
+                elif debug_type == "snapshot" and llm_prompts:
+                    # Include last prompt in snapshot
+                    debug_data["last_llm_prompt"] = llm_prompts[-1] if llm_prompts else None
+            
+            if debug_type == "llm_responses" or debug_type == "snapshot":
+                # Get stored LLM responses from debug data
+                debug_storage = getattr(session, 'debug_data', {})
+                llm_responses = debug_storage.get('llm_responses', [])
+                if debug_type == "llm_responses":
+                    debug_data["llm_responses"] = llm_responses
+                elif debug_type == "snapshot" and llm_responses:
+                    # Include last response in snapshot
+                    debug_data["last_llm_response"] = llm_responses[-1] if llm_responses else None
+            
+            if debug_type == "tool_calls" or debug_type == "snapshot":
+                # Get tool call history from debug data
+                debug_storage = getattr(session, 'debug_data', {})
+                tool_calls = debug_storage.get('tool_calls', [])
+                if debug_type == "tool_calls":
+                    debug_data["tool_calls"] = tool_calls
+                elif debug_type == "snapshot":
+                    # Include summary in snapshot
+                    debug_data["tool_calls_count"] = len(tool_calls)
+                    debug_data["recent_tools"] = [tc.get('tool_name', 'unknown') for tc in tool_calls[-3:]]
+            
+            if debug_type == "crew_output":
+                # Get CrewAI execution logs from debug data
+                debug_storage = getattr(session, 'debug_data', {})
+                crew_output = debug_storage.get('crew_output', [])
+                debug_data["crew_output"] = crew_output
+            
+            if debug_type == "timing" or debug_type == "snapshot":
+                # Get timing metrics from debug data
+                debug_storage = getattr(session, 'debug_data', {})
+                timing_data = debug_storage.get('timing', {})
+                if debug_type == "timing":
+                    debug_data["timing"] = timing_data
+                elif debug_type == "snapshot" and timing_data:
+                    # Include summary in snapshot
+                    debug_data["last_response_time"] = timing_data.get('last_response_time')
+                    debug_data["avg_response_time"] = timing_data.get('avg_response_time')
+            
+            if debug_type == "message_details":
+                message_id = message.data.get("message_id")
+                if not message_id:
+                    debug_response = DebugResponseMsg(
+                        type="debug_response",
+                        data={"error": "message_id required for message_details request"}
+                    )
+                    await self.platform.send_validated_message(websocket, debug_response)
+                    return
+                
+                # Aggregate all debug data for this message
+                debug_data["message_id"] = message_id
+                
+                # Find matching prompt
+                for prompt in session.debug_data.get("llm_prompts", []):
+                    if prompt.get("message_id") == message_id:
+                        debug_data["prompt"] = prompt
+                        break
+                
+                # Find matching response
+                for response in session.debug_data.get("llm_responses", []):
+                    if response.get("message_id") == message_id:
+                        debug_data["response"] = response
+                        break
+                
+                # Find matching tool calls
+                debug_data["tool_calls"] = [
+                    tc for tc in session.debug_data.get("tool_calls", [])
+                    if tc.get("message_id") == message_id
+                ]
+                
+                # Find matching crew output
+                debug_data["crew_output"] = [
+                    co for co in session.debug_data.get("crew_output", [])
+                    if co.get("message_id") == message_id
+                ]
+            
             # Send debug response
             debug_response = DebugResponseMsg(
                 type="debug_response",

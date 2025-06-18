@@ -14,6 +14,7 @@ export interface CJMessageData {
         [k: string]: unknown;
       }[]
     | null;
+  message_id?: string | null;
 }
 export interface CJMessageMsg {
   type: "cj_message";
@@ -59,7 +60,19 @@ export interface DebugEventMsg {
   };
 }
 export interface DebugRequestData {
-  type: "snapshot" | "session" | "state" | "metrics" | "prompts";
+  type:
+    | "snapshot"
+    | "session"
+    | "state"
+    | "metrics"
+    | "prompts"
+    | "llm_prompts"
+    | "llm_responses"
+    | "tool_calls"
+    | "crew_output"
+    | "timing"
+    | "message_details";
+  message_id?: string | null;
 }
 export interface DebugRequestMsg {
   type: "debug_request";
