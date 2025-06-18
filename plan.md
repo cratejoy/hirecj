@@ -21,6 +21,14 @@ Implement a detailed message view for the playground that shows the full LLM pro
 - Implemented split-view layout matching the design doc
 - Added animations, backdrop, and keyboard support
 
+✅ **Phase 2 Complete**: Connected to real LLM data
+- Created DebugCallback class extending LiteLLM's CustomLogger
+- Integrated with message_processor to capture raw API calls
+- Added message_id to link UI messages with debug data
+- Updated protocol with minimal changes
+- Frontend requests and displays real debug data
+- Shows prompt, response, tool calls, and timing information
+
 ## Existing Infrastructure Discovery
 
 After deep analysis of the merged code, we have MORE infrastructure than initially thought:
@@ -662,4 +670,22 @@ The approach is elegant because:
 2. **Performant**: Uses existing callback system, no additional API calls
 3. **Simple**: Reuses existing patterns and infrastructure
 4. **Complete**: Captures all raw LLM data including headers and metadata
+
+## Next Steps
+
+### Phase 3: Tool Integration Enhancement
+- Enhance tool execution capture with @log_tool_execution decorator
+- Parse tool arguments more intelligently
+- Capture tool execution timing
+
+### Phase 4: UI Polish
+- Add syntax highlighting for JSON/code in prompts
+- Add copy buttons for prompts/responses
+- Add search/filter within message details
+- Show token usage visualization
+
+### Phase 5: Performance & Persistence
+- Add caching layer for debug data
+- Implement debug data persistence to database
+- Add export functionality (JSON/Markdown)
 
