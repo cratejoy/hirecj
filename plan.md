@@ -1,189 +1,112 @@
-# Unified Persona System Implementation - FULLY COMPLETE ✅
+# Grounding Knowledge Implementation Plan ✅
 
-## Latest Update: Removed All Dormant Code
-
-### What We Just Did (Following North Star Principles):
-
-1. **Deleted `PersonaMetadata` class** from ConversationCatalog
-   - Was only used by the dormant get_personas() method
-   - Violates "No Cruft" principle
-
-2. **Deleted `get_personas()` method** from ConversationCatalog  
-   - Dead code that nobody calls anymore
-   - Violates "Single Source of Truth" principle
-
-3. **Deleted personas section** from conversation_catalog.yaml
-   - Duplicate data that was competing with PromptLoader
-   - Now YAML only contains: workflows, cj_versions, recommended_combinations
-
-4. **Updated conversation_launcher.py** to work with dicts
-   - Removed PersonaMetadata import
-   - Changed all persona.attribute to persona["attribute"]
-   - No conversion needed - just use PersonaService data directly
-
-### Result: TRUE Single Source of Truth
-- PersonaService is the ONLY way to get persona data
-- No dormant code paths
-- No duplicate data
-- No compatibility shims
-- Clean, simple, elegant
-
-## Final Fix: Simple PersonaService
-
-Updated PersonaService to work with what's actually in the prompt files:
-- No dependency on deleted ConversationCatalog.get_personas()
-- Just returns id, name, and business (parsed from prompt)
-- Frontend only needs these three fields anyway
-
-```python
-def get_all_personas(self) -> List[Dict]:
-    """Get all personas - just the basics we actually have."""
-    persona_dirs = self.prompt_loader.list_merchant_personas()
-    result = []
-    
-    for persona_id in persona_dirs:
-        # Convert ID to display name
-        name = persona_id.replace("_", " ").title()
-        
-        # Try to get business name from prompt
-        prompt_text = self.get_persona_prompt(persona_id, "v1.0.0")
-        business = name  # Default
-        
-        if prompt_text:
-            # Extract business line if it exists
-            match = re.search(r'\*\*Business:\*\* (.+)', prompt_text)
-            if match:
-                business = match.group(1).strip()
-        
-        result.append({
-            "id": persona_id,
-            "name": name,
-            "business": business
-        })
-    
-    return result
-```
-
-## To Test:
-1. Start agents service from agents/ directory: `uvicorn app.main:app --reload --port 8000`
-2. Start editor backend from editor-backend/ directory: `uvicorn app.main:app --reload --port 8001`
-3. Load playground view - personas should now appear in dropdown
-
-## Fix: Message Not Sent After Conversation Starts
-
-Fixed React closure issue where messages weren't sent after conversation started:
-- Added `conversationStartedRef` to track state immediately
-- `sendMessage` now checks the ref instead of stale closure state
-- Messages are sent properly after conversation starts
-
----
-
-# Unified Persona System Implementation - Original Work
-
-## What We've Done
-
-### Phase 1: Created Unified PersonaService in Agents ✅
-1. Created `agents/app/services/persona_service.py`
-   - Unified interface combining ConversationCatalog (metadata) and PromptLoader (prompts)
-   - Methods: `get_all_personas()`, `get_persona()`, `get_persona_prompt()`
-   - Returns complete persona data with version info
-
-2. Updated `agents/app/api/routes/catalog.py`
-   - Now uses PersonaService instead of direct ConversationCatalog access
-   - Added `/merchants/{merchant_id}` endpoint for individual persona details
-
-### Phase 2: Updated Editor Backend ✅
-1. Deleted broken `editor-backend/app/api/routes/personas.py`
-2. Created `editor-backend/app/api/routes/catalog_proxy.py`
-   - Proxies requests to agents service catalog API
-   - Transforms response to match frontend expectations
-   - Endpoints: `/api/v1/personas` and `/api/v1/personas/{persona_id}`
-3. Updated imports in main.py and __init__.py
-
-### Phase 3: Completed Full Centralization ✅
-
-**Updated ALL direct usage to use PersonaService:**
-
-1. **Runtime Agent Creation**:
-   - `agents/app/agents/merchant_agent.py` - Now uses PersonaService for loading merchant prompts
-
-2. **Universe Management**:
-   - `agents/app/api/routes/universe.py` - Uses PersonaService to get merchant list
-   - `agents/app/universe/generator.py` - Uses PersonaService for prompt loading
-
-3. **Demo Scripts**:
-   - `agents/scripts/demos/play_conversation_simple.py` - Updated both persona loading and display
-   - `agents/scripts/demos/conversation_launcher.py` - Converts service data to PersonaMetadata objects
-
-**Kept unchanged (correctly using PromptLoader for non-persona prompts):**
-- `agents/app/agents/cj_agent.py` - Uses PromptLoader for CJ prompts only
-
-## Architecture
-
-```
-┌─────────────────────────┐
-│   PersonaService        │ ← Single Source of Truth
-├─────────────────────────┤
-│ - get_all_personas()    │
-│ - get_persona()         │
-│ - get_persona_prompt()  │
-└──────────┬──────────────┘
-           │ Uses
-    ┌──────┴──────┐
-    │             │
-┌───▼────┐  ┌────▼──────┐
-│Catalog  │  │PromptLoader│
-│(metadata)  │(prompts)  │
-└─────────┘  └───────────┘
-```
-
-## All Consumers Now Use PersonaService:
-
-- ✅ Catalog API (`/api/v1/catalog/merchants`)
-- ✅ Editor Backend (proxy to catalog API)
-- ✅ Runtime agent creation (merchant_agent.py)
-- ✅ Universe generation (generator.py, universe.py)
-- ✅ Demo scripts (play_conversation_simple.py, conversation_launcher.py)
-
-## Testing Required
-
-1. **Start both services**:
-   ```bash
-   # Terminal 1
-   cd agents && uvicorn app.main:app --reload --port 8000
-   
-   # Terminal 2
-   cd editor-backend && uvicorn app.main:app --reload --port 8001
-   ```
-
-2. **Test endpoints**:
-   ```bash
-   # Test agents service directly
-   curl http://localhost:8000/api/v1/catalog/merchants
-   
-   # Test editor backend proxy
-   curl http://localhost:8001/api/v1/personas
-   ```
-
-3. **Test playground chat**:
-   - Navigate to playground view
-   - Verify personas load in dropdown
-   - Select a persona and start a conversation
-
-4. **Test runtime components**:
-   - Run a demo conversation to ensure merchant agents still work
-   - Generate a universe to ensure generator still works
-
-## Benefits Achieved
-
-1. **True Single Source of Truth**: ALL persona access goes through PersonaService
-2. **Clean Separation**: Metadata (catalog) vs implementation (prompts)
-3. **No Duplication**: Every component uses the same interface
-4. **Consistent API**: Same methods everywhere
-5. **Version Support**: Centralized version resolution
-6. **Easy to Extend**: Add features in one place (caching, validation, etc.)
-7. **Future-Proof**: Can swap implementations without touching consumers
+## Overview
+Successfully implemented a clean and elegant pattern to embed "grounding knowledge" from LightRAG knowledge graphs into agents and workflows using `{{grounding: <namespace>}}` syntax.
 
 ## Summary
+The grounding system allows agents to dynamically query knowledge graphs based on conversation context. When a prompt or workflow contains `{{grounding: npr}}`, the system will:
+1. Extract the directive and parse any parameters
+2. Build a context-aware query from recent conversation messages
+3. Query the specified knowledge graph via the knowledge service
+4. Cache results for 30 minutes to improve performance
+5. Replace the directive with formatted knowledge content
 
-The persona system is now fully centralized. Every place that needs persona data - whether metadata or prompts - goes through the PersonaService. This provides a clean, maintainable architecture with a true single source of truth.
+This enables agents to have access to specialized knowledge bases without hardcoding information in prompts.
+
+## Architecture Components
+
+### 1. GroundingManager Service (`agents/app/services/grounding_manager.py`)
+- Extract grounding directives from templates
+- Query knowledge graphs with conversation context
+- Cache results for performance
+- Handle graceful degradation
+
+### 2. Knowledge Service Client (`agents/app/services/knowledge_client.py`)
+- HTTP client for knowledge service API
+- Async query methods
+- Namespace validation
+- Error handling
+
+### 3. Template Processing Enhancement
+- Extend existing template parsing
+- Support `{{grounding: npr}}` syntax
+- Options: limit, mode
+
+### 4. Integration Points
+- CJAgent: Process grounding in `_build_context()`
+- WorkflowLoader: Support grounding in workflow YAML
+- MessageProcessor: Maintain grounding context
+
+## Implementation Steps
+
+1. [x] Create plan.md
+2. [x] Add knowledge service URL to config
+3. [x] Create KnowledgeServiceClient
+4. [x] Create GroundingManager
+5. [x] Update CJAgent to process grounding
+6. [x] Update WorkflowLoader for workflow grounding
+7. [x] Add tests
+8. [x] Create example demonstrating usage
+
+## Next Steps for Production Use
+
+1. Ensure knowledge service is running on port 8004
+2. Create knowledge graphs using the knowledge service API
+3. Add `{{grounding: namespace}}` to prompts or workflows
+4. Monitor logs for grounding performance and cache hits
+
+## What's Been Implemented
+
+### 1. Configuration
+- Added `knowledge_service_url` to `agents/app/config.py`
+- Default: `http://localhost:8004`
+- Environment variable: `KNOWLEDGE_SERVICE_URL`
+
+### 2. KnowledgeServiceClient (`agents/app/services/knowledge_client.py`)
+- Async HTTP client for knowledge service
+- Methods: `query()`, `check_namespace_exists()`, `get_namespace_status()`
+- Graceful error handling with logging
+
+### 3. GroundingManager (`agents/app/services/grounding_manager.py`)
+- Extracts grounding directives from templates
+- Supports syntax: `{{grounding: namespace}}` with optional params
+- Parameters: `limit` (message count), `mode` (query mode)
+- Builds context-aware queries from conversation history
+- 30-minute result caching for performance
+
+### 4. CJAgent Integration
+- Added `_process_grounding()` method
+- Processes grounding in both prompts and workflow details
+- Graceful degradation if knowledge service unavailable
+- Maintains async pattern with proper event loop handling
+
+### 5. WorkflowLoader Enhancement
+- Automatically adds grounding directives from workflow YAML
+- New method `get_workflow_grounding()` for namespace retrieval
+- Workflow YAML format:
+  ```yaml
+  grounding:
+    - npr
+    - docs
+  ```
+
+### 6. Tests
+- Created `test_grounding_manager.py` with comprehensive test coverage
+- Tests directive extraction, query building, caching, and full flow
+
+## Design Principles
+- Simple and elegant
+- Context-aware queries using chat history
+- Async throughout
+- Graceful degradation
+- Cacheable results
+
+## ✅ Synchronous Conversion (Latest Update)
+Successfully converted the entire grounding system from async to synchronous for determinism:
+- **KnowledgeServiceClient**: Now uses synchronous `httpx.Client` instead of async
+- **GroundingManager**: `process_grounding()` is now synchronous
+- **CJAgent**: Removed `asyncio.run()` calls, now calls synchronous methods directly
+- **Tests**: Updated all tests to work with synchronous implementation
+- **Result**: All tests passing, example working correctly, no event loop issues
+
+This conversion was done to avoid async complexity and ensure deterministic behavior as requested.

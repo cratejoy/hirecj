@@ -90,7 +90,7 @@ SERVICE_VARS = {
             "SHOPIFY_API_TOKEN", "SHOPIFY_SHOP_DOMAIN",
             
             # Service URLs
-            "AUTH_SERVICE_URL", "DATABASE_SERVICE_URL",
+            "AUTH_SERVICE_URL", "DATABASE_SERVICE_URL", "KNOWLEDGE_SERVICE_URL",
             
             # Model configuration
             "CJ_MODEL", "CJ_TEMPERATURE", "DEFAULT_CJ_VERSION",
