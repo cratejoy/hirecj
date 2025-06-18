@@ -246,11 +246,6 @@ async def initialize_websocket_services():
     }
     web_platform = WebPlatform(web_config)
     platform_manager.register_platform(web_platform)
-    
-    # Set up thinking token manager with the web platform
-    from app.services.thinking_token_manager import thinking_token_manager
-    thinking_token_manager.set_web_platform(web_platform)
-    logger.info("Thinking token manager initialized with web platform")
 
     # Connect platform
     await platform_manager.start_all()
