@@ -85,6 +85,9 @@ class CJAgent:
         # Load prompt template
         self.prompt_data = prompt_loader.load_cj_prompt(self.cj_version)
         self.prompt_template = self.prompt_data.get("prompt", "")
+        
+        # Log the prompt version being used
+        logger.info(f"[CJ_AGENT] Loading CJ prompt version: {self.cj_version}")
 
         # Load workflow if specified
         self.workflow_data = None
@@ -107,7 +110,11 @@ class CJAgent:
         # Add workflow context
         if self.workflow_name and self.workflow_data:
             context["workflow_name"] = self.workflow_name.upper().replace("_", " ")
-            context["workflow_details"] = self.workflow_data.get("workflow", "")
+            workflow_details = self.workflow_data.get("workflow", "")
+            
+            # Process grounding in workflow details
+            workflow_details = self._process_grounding(workflow_details)
+            context["workflow_details"] = workflow_details
 
             # Add onboarding-specific context if available
             if self.workflow_name == "shopify_onboarding":
@@ -241,12 +248,96 @@ class CJAgent:
             context_parts.append("OAuth Status: Not yet authenticated - guide them to connect their Shopify store when appropriate")
 
         return "\n".join(context_parts)
+    
+    def _process_grounding(self, content: str) -> str:
+        """Process grounding directives in content.
+        
+        Args:
+            content: Content with potential grounding directives
+            
+        Returns:
+            Content with grounding directives replaced
+        """
+        # IMMEDIATE LOG - to confirm method is called
+        logger.info(f"[CJ_AGENT] [GROUNDING] === GROUNDING CHECK STARTED ===")
+        logger.info(f"[CJ_AGENT] [GROUNDING] Content length: {len(content)}")
+        
+        from app.services.grounding_manager import GroundingManager
+        
+        # Debug logging
+        logger.debug(f"[CJ_AGENT] [GROUNDING] Processing content of length {len(content)}")
+        if "grounding" in content.lower():
+            # Show last 100 chars where grounding might be
+            preview_start = max(0, content.lower().rfind("grounding") - 20)
+            preview_end = min(len(content), preview_start + 100)
+            logger.info(f"[CJ_AGENT] [GROUNDING] Found 'grounding' keyword in content at position {content.lower().rfind('grounding')}")
+            logger.info(f"[CJ_AGENT] [GROUNDING] Content preview: ...{repr(content[preview_start:preview_end])}...")
+        else:
+            logger.info(f"[CJ_AGENT] [GROUNDING] NO 'grounding' keyword found in content")
+        
+        # Create grounding manager
+        grounding_manager = GroundingManager()
+        
+        # Extract directives
+        directives = grounding_manager.extract_grounding_directives(content)
+        
+        if not directives:
+            if "grounding" in content.lower():
+                logger.warning(f"[CJ_AGENT] [GROUNDING] Content contains 'grounding' but no directives found!")
+            else:
+                logger.info(f"[CJ_AGENT] [GROUNDING] No grounding directives found in content")
+            logger.info(f"[CJ_AGENT] [GROUNDING] === GROUNDING CHECK COMPLETE (no directives) ===")
+            return content
+        
+        # Log found directives
+        logger.info(f"[CJ_AGENT] [GROUNDING] Found {len(directives)} grounding directives in prompt")
+        for directive in directives:
+            logger.info(f"[CJ_AGENT] [GROUNDING] - Namespace: {directive.namespace}, Limit: {directive.limit}, Mode: {directive.mode}")
+        
+        # Get conversation context
+        messages = []
+        if self.conversation_state and self.conversation_state.context_window:
+            messages = self.conversation_state.context_window
+            logger.info(f"[CJ_AGENT] [GROUNDING] Using {len(messages)} messages from conversation context")
+        else:
+            logger.info(f"[CJ_AGENT] [GROUNDING] No conversation context available")
+        
+        # Process grounding synchronously
+        try:
+            # Call the synchronous grounding method directly
+            grounding_results = grounding_manager.process_grounding(directives, messages)
+            
+            # Log results
+            logger.info(f"[CJ_AGENT] [GROUNDING] Received {len(grounding_results)} grounding results")
+            for namespace, result in grounding_results.items():
+                # Log first 200 chars of each result
+                preview = result.strip()[:200] + "..." if len(result) > 200 else result.strip()
+                logger.info(f"[CJ_AGENT] [GROUNDING] Result for '{namespace}': {preview}")
+            
+            # Replace markers with grounding content
+            content = grounding_manager.replace_grounding_markers(content, grounding_results)
+            
+            logger.info(f"[CJ_AGENT] [GROUNDING] Successfully processed all grounding directives")
+            
+        except Exception as e:
+            logger.error(f"[CJ_AGENT] [GROUNDING] Error processing grounding: {type(e).__name__}: {str(e)}")
+            import traceback
+            logger.debug(f"[CJ_AGENT] [GROUNDING] Traceback: {traceback.format_exc()}")
+            # Return original content on error (graceful degradation)
+        
+        logger.info(f"[CJ_AGENT] [GROUNDING] === GROUNDING CHECK COMPLETE (processed) ===")
+        return content
 
     def _create_agent(self, **kwargs) -> Agent:
         """Create the CrewAI agent instance."""
-        # Build context and format prompt
+        # Build context
         context = self._build_context()
-        backstory = self.prompt_template.format(**context)
+        
+        # Process grounding directives BEFORE formatting
+        processed_template = self._process_grounding(self.prompt_template)
+        
+        # Now format the processed template with context
+        backstory = processed_template.format(**context)
 
         # Add scenario context if provided
         if self.scenario_context:
@@ -283,7 +374,7 @@ class CJAgent:
         logger.info(f"[CJ_AGENT] - Merchant: {self.merchant_name}")
         logger.info(f"[CJ_AGENT] - Scenario: {self.scenario_name}")
         logger.info(f"[CJ_AGENT] - Workflow: {self.workflow_name or 'chat'}")
-        logger.info(f"[CJ_AGENT] - Version: {self.cj_version}")
+        logger.info(f"[CJ_AGENT] - CJ Prompt Version: {self.cj_version}")
         logger.info(f"[CJ_AGENT] - Tools: {len(self.tools)} available")
         if self.tools:
             tool_names = [tool.name for tool in self.tools]

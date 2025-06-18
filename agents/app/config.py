@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     auth_service_url: str = Field("http://localhost:8103", env="AUTH_SERVICE_URL")
     agents_service_url: str = Field("http://localhost:8000", env="AGENTS_SERVICE_URL")
     homepage_url: str = Field("http://localhost:3456", env="HOMEPAGE_URL")
+    knowledge_service_url: str = Field("http://localhost:8004", env="KNOWLEDGE_SERVICE_URL")
     
     # Legacy alias for compatibility
     auth_url: str = Field("http://localhost:8103", env="AUTH_SERVICE_URL")

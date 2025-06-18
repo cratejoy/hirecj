@@ -50,6 +50,14 @@ class WorkflowLoader:
             )
             workflow_data['workflow'] += f"\n\n{ui_instructions}"
         
+        # Process grounding directives if specified
+        if 'grounding' in workflow_data and workflow_data['grounding']:
+            grounding_section = "\n\nKnowledge Sources Available:"
+            for namespace in workflow_data['grounding']:
+                # Add grounding directive to workflow content
+                grounding_section += f"\n{{{{grounding: {namespace}}}}}"
+            workflow_data['workflow'] += grounding_section
+        
         return workflow_data
 
     def list_workflows(self) -> List[str]:
@@ -105,3 +113,15 @@ UI COMPONENT AVAILABLE:
 """)
 
         return "\n".join(instructions)
+    
+    def get_workflow_grounding(self, name: str) -> List[str]:
+        """Get grounding namespaces for a workflow.
+        
+        Args:
+            name: Workflow name
+            
+        Returns:
+            List of grounding namespaces
+        """
+        workflow = self.get_workflow(name)
+        return workflow.get('grounding', [])

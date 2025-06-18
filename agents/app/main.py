@@ -37,7 +37,14 @@ if settings.openai_api_key and not os.getenv("OPENAI_API_KEY"):
 if settings.anthropic_api_key and not os.getenv("ANTHROPIC_API_KEY"):
     os.environ["ANTHROPIC_API_KEY"] = settings.anthropic_api_key
 
+# Enable LiteLLM verbose logging to see prompts
+import litellm
+litellm.set_verbose = True
+# Also set via environment variable
+os.environ["LITELLM_LOG"] = "DEBUG"
+os.environ["LITELLM_VERBOSE"] = "true"
 logger = logging.getLogger(__name__)
+logger.info("LiteLLM verbose logging enabled - prompts will be visible in logs")
 
 # Initialize FastAPI app
 app = FastAPI(
