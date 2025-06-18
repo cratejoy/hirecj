@@ -200,6 +200,14 @@ export function useWebSocketChat({
       
       wsLogger.debug('Received message', { type: data.type, data });
       
+      // Log thinking tokens and tool calls for visibility
+      if (data.type === 'thinking_token' && data.data?.token) {
+        console.log(`🧠 Thinking: [${data.data.token.token_type}] ${data.data.token.content}`);
+      } else if (data.type === 'tool_call' && data.data) {
+        const status = data.data.status === 'started' ? '🔧' : '✅';
+        console.log(`${status} Tool: ${data.data.tool_name} (${data.data.status})`);
+      }
+      
       switch (data.type) {
         case 'system':
           const systemMsg = data as SystemMsg;
