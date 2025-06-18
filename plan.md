@@ -21,13 +21,15 @@ Implement a detailed message view for the playground that shows the full LLM pro
 - Implemented split-view layout matching the design doc
 - Added animations, backdrop, and keyboard support
 
-✅ **Phase 2 Complete**: Connected to real LLM data
+✅ **Phase 2 Complete**: Connected to real LLM data (but needs refactoring)
 - Created DebugCallback class extending LiteLLM's CustomLogger
-- Integrated with message_processor to capture raw API calls
+- ~~Integrated with message_processor using global callback manipulation~~ (needs fix)
 - Added message_id to link UI messages with debug data
 - Updated protocol with minimal changes
 - Frontend requests and displays real debug data
 - Shows prompt, response, tool calls, and timing information
+
+**🚨 DISCOVERY**: We can pass callbacks directly to LLM instance instead of global manipulation!
 
 ## Existing Infrastructure Discovery
 
@@ -70,10 +72,54 @@ From LiteLLM's CustomLogger base class:
 
 ## Phase 2: Connect to Real Data
 
-### Phase 2.1: Create Debug Capture Infrastructure
+### ❌ Original Approach (Global Callback Manipulation)
+We implemented this but it's messy:
+- Manipulates global `litellm.callbacks` 
+- Requires saving/restoring original callbacks
+- Affects ALL LiteLLM calls globally
+- Complex cleanup logic
 
-#### Step 1: Create Comprehensive Debug Callback
-**New File**: `agents/app/services/debug_callback.py`
+### ✅ Better Approach (Direct LLM Callbacks)
+Much cleaner approach discovered from reading CrewAI source:
+
+```python
+# In cj_agent.py _create_agent method
+from crewai import LLM
+from app.services.debug_callback import DebugCallback
+
+# Create debug callback for this agent
+debug_callback = DebugCallback(session_id, session.debug_data)
+debug_callback.set_message_id(message_id)
+
+# Create LLM instance with callback
+llm_instance = LLM(
+    model=self.model_name,
+    callbacks=[debug_callback],  # Pass directly to LLM!
+    # ... other params
+)
+
+# Use the LLM instance in agent config
+agent_config = {
+    "role": "CJ - AI Customer Support Lead",
+    "goal": f"Provide excellent customer support as CJ for {self.merchant_name}",
+    "backstory": backstory,
+    "tools": self.tools,
+    "verbose": self.verbose,
+    "allow_delegation": False,
+    "llm": llm_instance,  # Use instance instead of string!
+}
+```
+
+This is MUCH cleaner because:
+- Scoped to just this agent's LLM calls
+- No global state manipulation
+- No complex save/restore logic
+- Uses CrewAI's intended design
+
+### Phase 2.1 (Revised): Update Agent Creation
+
+#### Step 1: Keep the DebugCallback as-is
+**File**: `agents/app/services/debug_callback.py` (no changes needed)
 
 ```python
 from litellm.integrations.custom_logger import CustomLogger
@@ -398,11 +444,52 @@ def log_tool_execution(func):
     return wrapper
 ```
 
-#### Step 3: Hook Into Message Processor
+#### Step 2: Update CJ Agent Creation
+**File**: `agents/app/agents/cj_agent.py`
+
+Update the `__init__` method to accept optional debug callback:
+```python
+def __init__(
+    self,
+    merchant_name: str,
+    scenario_name: str,
+    cj_version: str = None,
+    enable_caching: bool = None,
+    enable_fact_checking: bool = None,
+    debug_callback: Optional[Any] = None,  # NEW
+    **kwargs,
+):
+    # ... existing init code ...
+    self.debug_callback = debug_callback
+```
+
+Update the `_create_agent` method:
+```python
+def _create_agent(self, **kwargs) -> ExtendedAgent:
+    """Create the CrewAI agent instance."""
+    # ... existing context building ...
+    
+    # Create LLM instance with debug callback if provided
+    if self.debug_callback:
+        from crewai import LLM
+        llm_instance = LLM(
+            model=self.model_name,
+            callbacks=[self.debug_callback],
+            # Add other params if needed
+        )
+        agent_config["llm"] = llm_instance
+    else:
+        agent_config["llm"] = self.model_name
+    
+    return ExtendedAgent(**agent_config)
+```
+
+#### Step 3: Update Message Processor
 **File**: `agents/app/services/message_processor.py`
 
+MUCH simpler now:
 ```python
-# In _get_cj_response method, before creating agent
+# In _get_cj_response method
 
 # Generate unique message ID
 import uuid
@@ -417,68 +504,30 @@ debug_callback.set_message_id(message_id)
 # Set debug callback for tool logger
 ToolLogger.set_debug_callback(debug_callback)
 
-# Hook into stdout to capture crew output
-import io
-import sys
-original_stdout = sys.stdout
-capture_buffer = io.StringIO()
+# Create agent WITH the debug callback
+cj_agent = create_cj_agent(
+    merchant_name=session.conversation.merchant_name,
+    scenario_name=session.conversation.scenario_name,
+    debug_callback=debug_callback,  # Pass it here!
+    # ... other params
+)
 
-class TeeOutput:
-    def __init__(self, *outputs):
-        self.outputs = outputs
-    
-    def write(self, data):
-        for output in self.outputs:
-            output.write(data)
-        # Also capture to debug callback
-        if debug_callback:
-            debug_callback.capture_crew_output(data)
-    
-    def flush(self):
-        for output in self.outputs:
-            if hasattr(output, 'flush'):
-                output.flush()
+# ... existing crew execution code ...
 
-sys.stdout = TeeOutput(original_stdout, capture_buffer)
-
-# Add to litellm callbacks using the ExtendedAgent pattern
-original_callbacks = []
-if hasattr(litellm, 'callbacks'):
-    original_callbacks = litellm.callbacks.copy()
-    litellm.callbacks.append(debug_callback)
-
-try:
-    # Create agent with message ID stored
-    cj_agent = create_cj_agent(...)
-    
-    # ... existing crew execution code ...
-    
-    # After getting response, include message_id
-    if isinstance(response, dict):
-        response["message_id"] = message_id
-    else:
-        # Convert to dict format with message_id
-        response = {
-            "type": "message_with_ui",
-            "content": response,
-            "ui_elements": [],
-            "message_id": message_id
-        }
-    
-finally:
-    # Restore stdout
-    sys.stdout = original_stdout
-    
-    # Finalize debug callback
-    debug_callback.finalize()
-    
-    # Clear tool logger callback
-    ToolLogger.set_debug_callback(None)
-    
-    # Restore litellm callbacks
-    if hasattr(litellm, 'callbacks'):
-        litellm.callbacks = original_callbacks
+# After getting response, include message_id
+if isinstance(response, dict):
+    response["message_id"] = message_id
+else:
+    # Convert to dict format with message_id
+    response = {
+        "type": "message_with_ui",
+        "content": response,
+        "ui_elements": [],
+        "message_id": message_id
+    }
 ```
+
+That's it! No global state manipulation, no complex cleanup. The callback is scoped to just this agent's LLM calls.
 
 ### Phase 2.2: Minimal Protocol Updates
 
@@ -659,19 +708,25 @@ if (loading && !debugData) {
 
 ### Implementation Summary
 
-This implementation leverages existing infrastructure:
-- LiteLLM callbacks for capturing raw API data
-- Session debug storage already in place
-- Debug request handler framework exists
-- Protocol extension is backwards compatible
+The revised implementation is MUCH cleaner:
+- Pass DebugCallback directly to LLM instance via CrewAI's intended design
+- No global state manipulation needed
+- Callback is scoped to just the agent's LLM calls
+- Uses existing infrastructure elegantly
 
-The approach is elegant because:
-1. **Non-intrusive**: Only captures data when debug storage exists
-2. **Performant**: Uses existing callback system, no additional API calls
-3. **Simple**: Reuses existing patterns and infrastructure
-4. **Complete**: Captures all raw LLM data including headers and metadata
+The approach is superior because:
+1. **Clean**: No global callback manipulation or save/restore logic
+2. **Scoped**: Only affects the specific agent's LLM calls
+3. **Simple**: Uses CrewAI's intended callback mechanism
+4. **Maintainable**: Clear data flow, no side effects
 
 ## Next Steps
+
+### Phase 2.5: Refactor to Clean Approach
+- Remove global litellm callback manipulation from message_processor
+- Update cj_agent.py to accept debug_callback parameter
+- Update create_cj_agent to pass debug_callback through
+- Test that debug data still captures correctly
 
 ### Phase 3: Tool Integration Enhancement
 - Enhance tool execution capture with @log_tool_execution decorator
