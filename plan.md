@@ -26,298 +26,310 @@ Implement a detailed message view for the playground that shows the full LLM pro
 ### Phase 2.1: Verify Data Availability (FIRST PRIORITY)
 **Goal**: Confirm we can access all needed debug data before building anything
 
-#### Step 1: Add Debug Logging to Message Processor
+#### Understanding Current Infrastructure
+Based on the merged code:
+1. **LiteLLM Logging Already Enabled**: `main.py` sets `LITELLM_LOG=DEBUG` and `LITELLM_VERBOSE=true`
+2. **Callback Infrastructure Exists**: `ExtendedAgent` and `ConversationThinkingCallback` already hook into LiteLLM
+3. **Debug Storage Ready**: `Session.debug_data` already has structure for storing prompts/responses
+
+#### Step 1: Create LiteLLM Debug Callback
+**New File**: `agents/app/services/litellm_debug_callback.py`
+
+```python
+from litellm.integrations.custom_logger import CustomLogger
+from typing import Dict, Any, Optional
+import json
+from datetime import datetime
+from shared.logging_config import get_logger
+
+logger = get_logger(__name__)
+
+class LiteLLMDebugCallback(CustomLogger):
+    """Captures raw LiteLLM API calls for debugging."""
+    
+    def __init__(self, session_id: str, debug_storage: Dict[str, Any]):
+        super().__init__()
+        self.session_id = session_id
+        self.debug_storage = debug_storage
+        self.current_message_id = None
+    
+    def set_message_id(self, message_id: str):
+        """Set the current message ID for associating debug data."""
+        self.current_message_id = message_id
+    
+    def log_pre_api_call(self, model: str, messages: list, kwargs: Dict[str, Any]) -> None:
+        """Capture the raw API request before it's sent."""
+        try:
+            # Extract the full prompt
+            prompt_data = {
+                "message_id": self.current_message_id,
+                "timestamp": datetime.utcnow().isoformat(),
+                "model": model,
+                "messages": messages,
+                "temperature": kwargs.get("temperature"),
+                "max_tokens": kwargs.get("max_tokens"),
+                "tools": kwargs.get("tools", []),
+                "tool_choice": kwargs.get("tool_choice"),
+                "metadata": {
+                    "provider": kwargs.get("custom_llm_provider"),
+                    "api_base": kwargs.get("api_base"),
+                    "headers": {k: v for k, v in kwargs.get("headers", {}).items() 
+                               if k.lower() not in ["authorization", "x-api-key"]},  # Sanitize
+                }
+            }
+            
+            # Store in debug storage
+            self.debug_storage["llm_prompts"].append(prompt_data)
+            
+            # Keep only last 10 prompts
+            if len(self.debug_storage["llm_prompts"]) > 10:
+                self.debug_storage["llm_prompts"].pop(0)
+                
+            logger.info(f"[LITELLM_DEBUG] Captured prompt for message {self.current_message_id}")
+            
+        except Exception as e:
+            logger.error(f"[LITELLM_DEBUG] Error capturing prompt: {e}")
+    
+    def log_success_event(self, kwargs: Dict[str, Any], response_obj: Any, start_time: float, end_time: float) -> None:
+        """Capture the raw API response."""
+        try:
+            response_data = {
+                "message_id": self.current_message_id,
+                "timestamp": datetime.utcnow().isoformat(),
+                "duration": end_time - start_time,
+                "model": response_obj.model if hasattr(response_obj, 'model') else None,
+                "usage": response_obj.usage.dict() if hasattr(response_obj, 'usage') else None,
+                "choices": [
+                    {
+                        "message": choice.message.dict() if hasattr(choice, 'message') else None,
+                        "finish_reason": choice.finish_reason if hasattr(choice, 'finish_reason') else None,
+                    }
+                    for choice in (response_obj.choices if hasattr(response_obj, 'choices') else [])
+                ],
+                "system_fingerprint": response_obj.system_fingerprint if hasattr(response_obj, 'system_fingerprint') else None,
+            }
+            
+            # Store in debug storage
+            self.debug_storage["llm_responses"].append(response_data)
+            
+            # Keep only last 10 responses
+            if len(self.debug_storage["llm_responses"]) > 10:
+                self.debug_storage["llm_responses"].pop(0)
+                
+            logger.info(f"[LITELLM_DEBUG] Captured response for message {self.current_message_id}")
+            
+        except Exception as e:
+            logger.error(f"[LITELLM_DEBUG] Error capturing response: {e}")
+```
+
+#### Step 2: Hook Into Message Processor
 **File**: `agents/app/services/message_processor.py`
 
-Add comprehensive debug logging to understand exactly what data is available:
+Add debug callback integration:
 ```python
-# In _get_cj_response method, after line 167 (crew creation)
-logger.info("[DEBUG_CAPTURE] ========== CREW EXECUTION START ==========")
-logger.info(f"[DEBUG_CAPTURE] Model: {cj_agent.model_name}")
-logger.info(f"[DEBUG_CAPTURE] Provider: {cj_agent.provider}")
-logger.info(f"[DEBUG_CAPTURE] Tools: {[t.name for t in cj_agent.tools]}")
+# In _get_cj_response method, before creating agent
 
-# Before crew.kickoff() - capture the full context
-logger.info("[DEBUG_CAPTURE] Full agent backstory:")
-logger.info(cj_agent.backstory[:500] + "..." if len(cj_agent.backstory) > 500 else cj_agent.backstory)
+# Generate unique message ID
+import uuid
+message_id = f"msg_{uuid.uuid4().hex[:8]}"
 
-# After crew.kickoff() - capture all outputs
-logger.info("[DEBUG_CAPTURE] ========== CREW EXECUTION COMPLETE ==========")
-logger.info(f"[DEBUG_CAPTURE] Result type: {type(result)}")
-logger.info(f"[DEBUG_CAPTURE] Result attributes: {dir(result)}")
-if hasattr(result, '__dict__'):
-    logger.info(f"[DEBUG_CAPTURE] Result dict: {result.__dict__}")
+# Create debug callback
+from app.services.litellm_debug_callback import LiteLLMDebugCallback
+debug_callback = LiteLLMDebugCallback(session.id, session.debug_data)
+debug_callback.set_message_id(message_id)
+
+# Add to litellm callbacks
+import litellm
+if debug_callback not in litellm.success_callback:
+    litellm.success_callback.append(debug_callback)
+if debug_callback not in litellm._async_success_callback:
+    litellm._async_success_callback.append(debug_callback)
+
+try:
+    # ... existing crew execution code ...
+    
+    # After getting response, store message_id
+    response_data["message_id"] = message_id
+    
+finally:
+    # Clean up callback
+    if debug_callback in litellm.success_callback:
+        litellm.success_callback.remove(debug_callback)
+    if debug_callback in litellm._async_success_callback:
+        litellm._async_success_callback.remove(debug_callback)
 ```
 
-#### Step 2: Test Data Capture
-1. Start the agent service with debug logging
-2. Send a test message through the playground
-3. Verify we can see:
-   - Full prompt/backstory
-   - Model configuration
-   - Tool calls and outputs
+#### Step 3: Test and Verify
+1. Start agent service
+2. Send test message through playground
+3. Use debug request endpoint to retrieve captured data
+4. Verify we capture:
+   - Full messages array with system/user/assistant messages
+   - Model parameters (temperature, max_tokens)
+   - Tool definitions
    - Token usage
+   - Response content and tool calls
    - Timing information
-4. Document exactly what data structures are available
 
-#### Step 3: Investigate CrewAI Internals
-**Research Tasks**:
-1. Check if CrewAI exposes callbacks for tool execution
-2. Find where token usage is stored in the result
-3. Determine how to capture intermediate LLM calls
-4. Test if we can access the raw LLM request/response
+### Phase 2.2: Protocol and Data Flow
+**Goal**: Extend protocol to support message IDs and debug requests
 
-### Phase 2.2: Design Data Storage
-**Goal**: Determine how to store debug data without impacting performance
-
-#### Option A: In-Memory Cache (Recommended)
-```python
-class DebugDataStore:
-    def __init__(self, max_entries=100):
-        self._store = {}  # message_id -> debug_data
-        self._order = []  # LRU tracking
-        self._max_entries = max_entries
-    
-    def store(self, message_id: str, debug_data: dict):
-        # Store with LRU eviction
-        pass
-    
-    def retrieve(self, message_id: str) -> Optional[dict]:
-        # Get debug data if available
-        pass
-```
-
-#### Option B: Session-Based Storage
-- Store debug data in the Session object
-- Clear on session end
-- Simpler but uses more memory
-
-### Phase 2.3: Protocol Extension
-**Goal**: Add debug support without breaking existing clients
-
-#### Step 1: Extend Message Protocol
+#### Step 1: Extend CJMessageData
 **File**: `shared/protocol/models.py`
+
 ```python
-# Option 1: Add to existing message (backwards compatible)
 class CJMessageData(BaseModel):
     content: str
     factCheckStatus: Optional[str] = "available"
     timestamp: datetime
     ui_elements: Optional[List[Dict[str, Any]]] = None
-    message_id: Optional[str] = None  # NEW: Unique ID for debug lookups
-    
-# Option 2: Separate debug response (cleaner)
-class DebugMessageData(BaseModel):
-    message_id: str
-    prompt: str
-    response: str
-    model: str
-    temperature: float
-    max_tokens: int
-    tool_calls: List[Dict[str, Any]]
-    timing: Dict[str, float]
-    token_usage: Dict[str, int]
+    message_id: Optional[str] = None  # NEW: For debug lookups
 ```
 
-#### Step 2: Update TypeScript Types
-Regenerate protocol types after Python changes.
+#### Step 2: Update Debug Request Handler
+The existing `utility_handlers.py` already supports debug types. We need to add "message_details":
 
-### Phase 2.4: Backend Implementation
-**Goal**: Capture and serve debug data
-
-#### Step 1: Implement Debug Capture
-**File**: `agents/app/services/message_processor.py`
-1. Generate unique message IDs
-2. Capture debug context during execution
-3. Store in debug data store
-4. Include message_id in response
-
-#### Step 2: Add Debug Handler
-**File**: `agents/app/platforms/web/message_handlers.py`
 ```python
-async def handle_debug_request(self, data: dict):
-    msg_type = data.get("type")
-    if msg_type == "message_details":
-        message_id = data.get("messageId")
-        debug_data = self.debug_store.retrieve(message_id)
-        if debug_data:
-            await self.send_message(DebugResponseMsg(
-                type="debug_response",
-                data={"messageId": message_id, "debug": debug_data}
-            ))
+# In handle_debug_request, add new case:
+if debug_type == "message_details":
+    message_id = message.data.get("message_id")
+    if not message_id:
+        # Return error
+        pass
+    
+    # Find the debug data for this message
+    for prompt in session.debug_data.get("llm_prompts", []):
+        if prompt.get("message_id") == message_id:
+            debug_data["prompt"] = prompt
+            break
+    
+    for response in session.debug_data.get("llm_responses", []):
+        if response.get("message_id") == message_id:
+            debug_data["response"] = response
+            break
 ```
 
-### Phase 2.5: Frontend Integration
-**Goal**: Request and display real debug data
+#### Step 3: TypeScript Protocol Update
+Run protocol generation after Python changes:
+```bash
+cd shared/protocol
+./generate.sh
+```
 
-#### Step 1: Update Message Storage
+### Phase 2.3: Frontend Integration
+**Goal**: Update frontend to request and display debug data
+
+#### Step 1: Update WebSocket Hook
 **File**: `editor/src/hooks/usePlaygroundChat.ts`
-- Store message IDs with messages
-- Add debug request method
-- Handle debug responses
+
+```typescript
+// Add to message storage
+interface CJMessageMsg {
+  type: "cj_message";
+  data: {
+    content: string;
+    timestamp: string;
+    factCheckStatus?: string | null;
+    ui_elements?: any[] | null;
+    message_id?: string | null;  // NEW
+  };
+}
+
+// Add debug request method
+const requestMessageDetails = useCallback((messageId: string) => {
+  if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+    console.error('WebSocket not connected');
+    return;
+  }
+  
+  const msg: DebugRequestMsg = {
+    type: 'debug_request',
+    data: {
+      type: 'message_details',
+      message_id: messageId
+    }
+  };
+  
+  ws.current.send(JSON.stringify(msg));
+}, []);
+
+// Handle debug responses
+case 'debug_response':
+  const debugData = msg.data;
+  if (debugData.message_id) {
+    // Store or emit debug data for the message
+    console.log('Debug data received:', debugData);
+  }
+  break;
+```
 
 #### Step 2: Update MessageDetailsView
 **File**: `editor/src/components/playground/MessageDetailsView.tsx`
-- Accept messageId prop
-- Show loading state
-- Request debug data on mount
-- Display real data when received
-- Handle errors gracefully
 
-### Phase 2.6: Testing & Validation
+```typescript
+interface MessageDetailsViewProps {
+  isOpen: boolean;
+  onClose: () => void;
+  messageId?: string;
+  onRequestDetails?: (messageId: string) => void;
+}
+
+// Add loading state and data fetching
+const [loading, setLoading] = useState(false);
+const [debugData, setDebugData] = useState<any>(null);
+
+useEffect(() => {
+  if (isOpen && messageId && onRequestDetails) {
+    setLoading(true);
+    onRequestDetails(messageId);
+  }
+}, [isOpen, messageId, onRequestDetails]);
+
+// Display real data when available
+if (loading && !debugData) {
+  return <LoadingSpinner />;
+}
+
+// Use debugData.prompt.messages for left panel
+// Use debugData.response for right panel
+```
+
+### Phase 2.4: Testing & Validation
 **Goal**: Ensure everything works correctly
 
-1. Test with simple messages
-2. Test with tool-calling messages
-3. Test with large prompts/responses
-4. Verify performance impact
-5. Test error cases
+#### Test Plan:
+1. **Basic Message Flow**
+   - Send a simple message
+   - Click Details button
+   - Verify prompt and response display correctly
 
-### Understanding the Current Architecture
+2. **Tool Calling Messages**
+   - Send message that triggers tool use
+   - Verify tool definitions in prompt
+   - Verify tool calls and outputs in response
 
-#### 1. **Message Flow**
-```
-Frontend (Editor) → WebSocket → Editor Backend → Agent Backend
-```
+3. **Edge Cases**
+   - Large prompts (context with many messages)
+   - Multiple rapid messages
+   - Network errors
+   - Missing debug data
 
-- **Frontend**: `usePlaygroundChat` hook manages WebSocket connection
-- **Editor Backend**: Bridges WebSocket messages between frontend and agent
-- **Agent Backend**: 
-  - `MessageProcessor` orchestrates the conversation
-  - `CJAgent` (CrewAI agent) generates responses using LLMs
-  - Tool calls are made through CrewAI's tool system
+4. **Performance Validation**
+   - Measure impact on message latency
+   - Check memory usage with debug storage
+   - Verify cleanup of old debug data
 
-#### 2. **Key Components**
+### Implementation Summary
 
-**Frontend (Editor)**:
-- `usePlaygroundChat.ts`: WebSocket client, receives `CJMessageMsg` objects
-- `PlaygroundView.tsx`: Renders messages and UI
-- Protocol types in `editor/src/protocol/generated.ts`
+This implementation leverages existing infrastructure:
+- LiteLLM callbacks for capturing raw API data
+- Session debug storage already in place
+- Debug request handler framework exists
+- Protocol extension is backwards compatible
 
-**Agent Backend**:
-- `message_processor.py`: Main orchestrator at `agents/app/services/message_processor.py:116`
-  - Creates CJAgent
-  - Builds CrewAI Task with user message
-  - Executes via `crew.kickoff()`
-  - Logs prompt/response at lines 176-192
-- `cj_agent.py`: Agent configuration at `agents/app/agents/cj_agent.py`
-  - Builds context and backstory
-  - Configures tools
-  - Uses CrewAI Agent wrapper
+The approach is elegant because:
+1. **Non-intrusive**: Only captures data when debug storage exists
+2. **Performant**: Uses existing callback system, no additional API calls
+3. **Simple**: Reuses existing patterns and infrastructure
+4. **Complete**: Captures all raw LLM data including headers and metadata
 
-#### 3. **Current Debug Information Available**
-From code analysis, these are already being logged:
-- LLM prompts (line 176-181 in message_processor.py)
-- LLM responses (line 190-192)
-- Tool calls (via CrewAI's verbose mode)
-- Timing information
-
-### Implementation Plan
-
-#### Step 1: Extend Protocol Messages
-Add debug metadata to existing messages without breaking compatibility.
-
-**File**: `shared/protocol/models.py`
-
-```python
-class CJMessageData(BaseModel):
-    content: str
-    factCheckStatus: Optional[str] = "available"
-    timestamp: datetime
-    ui_elements: Optional[List[Dict[str, Any]]] = None
-    # NEW: Debug metadata (only populated when requested)
-    debug_metadata: Optional[Dict[str, Any]] = None
-```
-
-#### Step 2: Capture Debug Information in Agent
-Modify the message processor to capture and store debug data.
-
-**File**: `agents/app/services/message_processor.py`
-
-Add a debug context manager:
-```python
-class DebugContext:
-    def __init__(self):
-        self.prompt = None
-        self.response = None
-        self.tool_calls = []
-        self.model_config = {}
-        self.timing = {}
-        self.crew_output = None
-```
-
-Modify `_get_cj_response` to capture debug data:
-1. Capture the full prompt after context building
-2. Intercept tool calls via CrewAI callbacks
-3. Capture timing and model configuration
-4. Store crew execution output
-
-#### Step 3: Add Debug Request Support
-Enable frontend to request debug data for specific messages.
-
-**Protocol Addition**:
-```typescript
-// Already exists in protocol
-interface DebugRequestData {
-  type: "snapshot" | "session" | "state" | "metrics" | "prompts" | "message_details";
-  messageId?: string;  // For message-specific debug requests
-}
-```
-
-**WebSocket Handler**: Add handler in `agents/app/platforms/web/message_handlers.py` to respond to debug requests with captured data.
-
-#### Step 4: Frontend Integration
-
-**Modify `usePlaygroundChat`**:
-1. Add method to request debug data for a specific message
-2. Store debug metadata with messages when received
-
-**Update `MessageDetailsView`**:
-1. Accept message ID as prop
-2. Request debug data when opened
-3. Display real data instead of hardcoded content
-
-### Elegant Design Principles
-
-1. **Non-intrusive**: Debug data is only captured/sent when explicitly requested
-2. **Backwards Compatible**: Existing message flow remains unchanged
-3. **Performant**: No overhead during normal operation
-4. **Extensible**: Easy to add more debug information types
-
-### Implementation Order
-
-1. **Backend First**:
-   - Extend protocol with optional debug metadata
-   - Add debug context capture in message processor
-   - Implement debug request handler
-
-2. **Frontend Integration**:
-   - Update WebSocket hook to handle debug requests/responses
-   - Modify MessageDetailsView to use real data
-   - Add loading states and error handling
-
-3. **Testing & Polish**:
-   - Test with various message types and tool calls
-   - Add proper TypeScript types
-   - Optimize performance for large prompts/responses
-
-### Technical Details
-
-#### Capturing CrewAI/LangChain Data
-CrewAI uses LangChain under the hood. We can intercept:
-- LLM calls via callbacks
-- Tool executions via tool decorators
-- Token usage via model response metadata
-
-#### WebSocket Message Flow
-```
-1. User clicks Details → 
-2. Frontend sends: {type: "debug_request", data: {type: "message_details", messageId: "xyz"}}
-3. Backend retrieves debug context for message
-4. Backend sends: {type: "debug_response", data: {messageId: "xyz", debug: {...}}}
-5. Frontend displays in MessageDetailsView
-```
-
-### Next Steps
-
-With this plan, we can elegantly connect the Message Details View to real agent data without disrupting the existing conversation flow. The implementation preserves our North Star principles by keeping things simple and avoiding unnecessary complexity.
