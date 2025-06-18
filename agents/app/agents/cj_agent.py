@@ -143,11 +143,11 @@ class CJAgent:
                 content = content[: settings.max_message_length - 3] + "..."
             history.append(f"{sender}: {content}")
             
-            # Include thinking tokens for CJ messages
-            if sender == "CJ" and hasattr(msg, 'thinking_tokens') and msg.thinking_tokens:
+            # Include thinking tokens if available
+            if hasattr(msg, 'thinking_tokens') and msg.thinking_tokens:
                 thinking_summary = self._summarize_thinking_tokens(msg.thinking_tokens)
                 if thinking_summary:
-                    history.append(f"[CJ's thinking: {thinking_summary}]")
+                    history.append(f"[{sender}'s thinking: {thinking_summary}]")
 
         logger.info(f"[CJ_AGENT] Including {len(messages)} messages in context")
         formatted_history = "\n".join(history)

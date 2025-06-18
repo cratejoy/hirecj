@@ -63,10 +63,10 @@ class ConversationContextManager:
             history.append(f"{msg.sender.upper()}: {msg.content}")
             
             # Include thinking tokens if available and requested
-            if include_thinking and msg.thinking_tokens and msg.sender.upper() == "CJ":
+            if include_thinking and msg.thinking_tokens:
                 thinking_summary = self._summarize_thinking_tokens(msg.thinking_tokens)
                 if thinking_summary:
-                    history.append(f"[CJ's thinking: {thinking_summary}]")
+                    history.append(f"[{msg.sender.upper()}'s thinking: {thinking_summary}]")
 
         context = "\n".join(history)
         logger.debug(
