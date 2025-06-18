@@ -38,11 +38,8 @@ if settings.anthropic_api_key and not os.getenv("ANTHROPIC_API_KEY"):
     os.environ["ANTHROPIC_API_KEY"] = settings.anthropic_api_key
 
 # Enable LiteLLM verbose logging to see prompts
-import litellm
-litellm.set_verbose = True
-# Also set via environment variable
+# Set via environment variable (the new recommended way)
 os.environ["LITELLM_LOG"] = "DEBUG"
-os.environ["LITELLM_VERBOSE"] = "true"
 logger = logging.getLogger(__name__)
 logger.info("LiteLLM verbose logging enabled - prompts will be visible in logs")
 
@@ -249,6 +246,11 @@ async def initialize_websocket_services():
     }
     web_platform = WebPlatform(web_config)
     platform_manager.register_platform(web_platform)
+    
+    # Set up thinking token manager with the web platform
+    from app.services.thinking_token_manager import thinking_token_manager
+    thinking_token_manager.set_web_platform(web_platform)
+    logger.info("Thinking token manager initialized with web platform")
 
     # Connect platform
     await platform_manager.start_all()

@@ -19,7 +19,10 @@ class UniverseGenerator:
     def __init__(self):
         """Initialize generator with existing project systems."""
         self.model_name = get_model(ModelPurpose.UNIVERSE_GENERATION)
-        self.llm = LLM(model=self.model_name, temperature=settings.universe_temperature)
+        self.llm = LLM(
+            model=self.model_name, 
+            temperature=settings.universe_temperature
+        )
         self.persona_service = PersonaService()
 
         # Initialize OpenAI client for structured output

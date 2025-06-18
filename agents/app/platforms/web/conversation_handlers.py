@@ -77,6 +77,10 @@ class ConversationHandlers:
                 f"[SESSION_DEBUG] Found existing session - conversation_id: {conversation_id}, messages: {len(session.conversation.messages)}, context_window: {len(session.conversation.state.context_window)}"
             )
 
+        # Set up thinking token manager for this conversation
+        from app.services.thinking_token_manager import thinking_token_manager
+        thinking_token_manager.set_current_conversation(conversation_id)
+        
         # Process message with CrewAI
         response = await self.platform.message_processor.process_message(
             session=session, message=text, sender="merchant"
