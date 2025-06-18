@@ -222,10 +222,11 @@ try:
     
     # Apply the patch
     LLM.call = enhanced_llm_call
+    logger.info("[THINKING_TOKEN_CAPTURE] Successfully patched LLM.call method")
     
 except Exception as e:
-    # Silently continue if LLM.call can't be patched
-    pass
+    logger.error(f"[THINKING_TOKEN_CAPTURE] Failed to patch LLM.call: {e}")
+    raise
 
 # Apply the patch
 crewai.utilities.agent_utils.get_llm_response = enhanced_get_llm_response
