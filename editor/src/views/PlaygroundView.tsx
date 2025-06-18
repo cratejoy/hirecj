@@ -21,6 +21,7 @@ import {
 import { AgentInitiatedView } from '@/components/playground/AgentInitiatedView'
 import { MerchantInitiatedView } from '@/components/playground/MerchantInitiatedView'
 import { ConfigurationBar } from '@/components/playground/ConfigurationBar'
+import { MessageDetailsView } from '@/components/playground/MessageDetailsView'
 import { usePlaygroundChat } from '@/hooks/usePlaygroundChat'
 
 const API_BASE = '/api/v1'
@@ -80,6 +81,7 @@ export function PlaygroundView() {
   // UI state
   const [workflowExpanded, setWorkflowExpanded] = useState(false)
   const [trustLevel, setTrustLevel] = useState(3)
+  const [showMessageDetails, setShowMessageDetails] = useState(false)
   
   const { toast } = useToast()
 
@@ -458,6 +460,9 @@ export function PlaygroundView() {
                               <Workflow className="mr-1 h-3 w-3" />
                               🔄 Workflow
                             </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setShowMessageDetails(true)}>
+                              📋 Details
+                            </Button>
                           </div>
                         </>
                       )}
@@ -539,6 +544,12 @@ export function PlaygroundView() {
           </div>
         </div>
       </div>
+      
+      {/* Message Details View */}
+      <MessageDetailsView 
+        isOpen={showMessageDetails} 
+        onClose={() => setShowMessageDetails(false)} 
+      />
     </div>
   )
 }

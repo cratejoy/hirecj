@@ -1,39 +1,4 @@
-# Message Details View Implementation Plan
-
-## Overview
-Implement a detailed message view for the playground that shows the full LLM prompt, response, tool calls, and metadata when clicking the "📋 Details" button on CJ agent messages. Start with hardcoded data directly in the component.
-
-## Goal
-Create a static UI that matches the design in `planning/notes/editor_design.md` lines 756-855, so we can review the layout and make adjustments before connecting real data.
-
-## Implementation Details
-
-### 1. Add Details Button to Agent Messages
-**File**: `editor/src/views/PlaygroundView.tsx`
-
-Add after line 461:
-```tsx
-<Button 
-  size="sm" 
-  variant="ghost" 
-  onClick={() => setShowMessageDetails(true)}
->
-  📋 Details
-</Button>
-```
-
-Add state at top of component:
-```tsx
-const [showMessageDetails, setShowMessageDetails] = useState(false);
-```
-
-### 2. Create MessageDetailsView Component
-**New File**: `editor/src/components/playground/MessageDetailsView.tsx`
-
-Simple component with all data hardcoded inside:
-
-```tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -45,6 +10,20 @@ interface MessageDetailsViewProps {
 }
 
 export function MessageDetailsView({ isOpen, onClose }: MessageDetailsViewProps) {
+  // Handle escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [isOpen, onClose]);
+  
   if (!isOpen) return null;
 
   // All data hardcoded for now
@@ -70,7 +49,12 @@ Always remember to:
   const response = "For that budget, I'd suggest the MacBook Pro 14\" or Dell XPS 15. Both are excellent for coding and video editing.";
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col">
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+      
+      {/* Main Content */}
+      <div className="fixed inset-0 bg-background z-50 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
       {/* Header */}
       <div className="border-b p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -84,6 +68,9 @@ Always remember to:
           <Button variant="ghost" size="sm" onClick={onClose}>
             [← Back to Playground]
           </Button>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -91,14 +78,14 @@ Always remember to:
       <div className="flex-1 flex">
         {/* Left Panel - Outgoing Prompt */}
         <div className="flex-1 border-r flex flex-col">
-          <div className="p-4 border-b">
-            <h3 className="font-medium">OUTGOING PROMPT TO LLM</h3>
+          <div className="p-4 border-b bg-muted/30">
+            <h3 className="font-medium text-sm uppercase tracking-wider">OUTGOING PROMPT TO LLM</h3>
           </div>
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
               <div>
                 <p className="font-medium text-sm text-muted-foreground mb-2">SYSTEM:</p>
-                <pre className="text-sm whitespace-pre-wrap">{systemPrompt}</pre>
+                <pre className="text-sm whitespace-pre-wrap bg-muted/50 rounded-lg p-3">{systemPrompt}</pre>
               </div>
               
               <Separator />
@@ -112,6 +99,10 @@ Always remember to:
                 </div>
               ))}
               
+              <Separator />
+              
+              <p className="font-medium text-sm text-muted-foreground mb-2">ASSISTANT:</p>
+              
               <div className="text-xs text-muted-foreground mt-4">
                 [Total prompt: 1,247 tokens]
               </div>
@@ -121,8 +112,8 @@ Always remember to:
 
         {/* Right Panel - Incoming Response */}
         <div className="flex-1 flex flex-col">
-          <div className="p-4 border-b">
-            <h3 className="font-medium">INCOMING RESPONSE FROM LLM</h3>
+          <div className="p-4 border-b bg-muted/30">
+            <h3 className="font-medium text-sm uppercase tracking-wider">INCOMING RESPONSE FROM LLM</h3>
           </div>
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-4">
@@ -130,8 +121,8 @@ Always remember to:
               
               <div className="border rounded-lg p-3 bg-muted/50">
                 <p className="font-medium text-sm mb-2">TOOL CALL: search_products</p>
-                <div className="bg-background rounded p-2 font-mono text-xs">
-                  <pre>{`Input:
+                <div className="bg-black/5 dark:bg-white/5 rounded p-3 font-mono text-xs overflow-x-auto">
+                  <pre className="text-green-600 dark:text-green-400">{`Input:
 {
   "category": "laptops",
   "price_range": {
@@ -145,8 +136,8 @@ Always remember to:
               
               <div className="border rounded-lg p-3 bg-muted/50">
                 <p className="font-medium text-sm mb-2">TOOL OUTPUT:</p>
-                <div className="bg-background rounded p-2 font-mono text-xs">
-                  <pre>{`Results:
+                <div className="bg-black/5 dark:bg-white/5 rounded p-3 font-mono text-xs overflow-x-auto">
+                  <pre className="text-green-600 dark:text-green-400">{`Results:
 [
   {
     "name": "MacBook Pro 14\"",
@@ -174,8 +165,8 @@ Always remember to:
               
               <div className="border rounded-lg p-3 bg-muted/50">
                 <p className="font-medium text-sm mb-2">TOOL CALL: check_inventory</p>
-                <div className="bg-background rounded p-2 font-mono text-xs">
-                  <pre>{`Input:
+                <div className="bg-black/5 dark:bg-white/5 rounded p-3 font-mono text-xs overflow-x-auto">
+                  <pre className="text-green-600 dark:text-green-400">{`Input:
 {
   "product_ids": ["MBP14-M3", "DELL-XPS15-2024"]
 }`}</pre>
@@ -184,8 +175,8 @@ Always remember to:
               
               <div className="border rounded-lg p-3 bg-muted/50">
                 <p className="font-medium text-sm mb-2">TOOL OUTPUT:</p>
-                <div className="bg-background rounded p-2 font-mono text-xs">
-                  <pre>{`{
+                <div className="bg-black/5 dark:bg-white/5 rounded p-3 font-mono text-xs overflow-x-auto">
+                  <pre className="text-green-600 dark:text-green-400">{`{
   "MBP14-M3": {
     "available": true,
     "stock": 12,
@@ -212,8 +203,8 @@ Always remember to:
 
       {/* Bottom Metadata */}
       <div className="border-t grid grid-cols-2">
-        <div className="p-4 border-r">
-          <h4 className="font-medium text-sm mb-2">MODEL METADATA</h4>
+        <div className="p-4 border-r bg-muted/20">
+          <h4 className="font-medium text-sm mb-2 uppercase tracking-wider text-muted-foreground">MODEL METADATA</h4>
           <div className="space-y-1 text-sm">
             <p>Model: gpt-4-turbo-2024-04-09</p>
             <p>Temperature: 0.7</p>
@@ -221,8 +212,8 @@ Always remember to:
             <p>Timestamp: 2024-01-19 14:32:18 UTC</p>
           </div>
         </div>
-        <div className="p-4">
-          <h4 className="font-medium text-sm mb-2">PERFORMANCE METRICS</h4>
+        <div className="p-4 bg-muted/20">
+          <h4 className="font-medium text-sm mb-2 uppercase tracking-wider text-muted-foreground">PERFORMANCE METRICS</h4>
           <div className="space-y-1 text-sm">
             <p>Latency: 2.3s</p>
             <p>Tool Calls: 2</p>
@@ -232,30 +223,6 @@ Always remember to:
         </div>
       </div>
     </div>
+    </>
   );
 }
-```
-
-### 3. Import and Use in PlaygroundView
-
-Add import at top of `PlaygroundView.tsx`:
-```tsx
-import { MessageDetailsView } from '@/components/playground/MessageDetailsView';
-```
-
-Add component at bottom before closing tag:
-```tsx
-<MessageDetailsView 
-  isOpen={showMessageDetails} 
-  onClose={() => setShowMessageDetails(false)} 
-/>
-```
-
-## That's It!
-
-No mock data files, no complex state management. Just:
-1. Add button and state to PlaygroundView
-2. Create MessageDetailsView with hardcoded data
-3. Import and use
-
-The component shows exactly what the design doc specifies, with all the data visible right in the component for easy tweaking based on feedback.
