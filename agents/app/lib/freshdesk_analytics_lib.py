@@ -221,13 +221,14 @@ class FreshdeskAnalytics:
     @staticmethod
     def search_tickets(session: Session, query: str, merchant_id: int, limit: int = 10) -> List[Dict[str, Any]]:
         """Search tickets by keyword."""
-        # Search in subject and description
+        # Search in subject, description, customer name, email, and tags
         tickets = session.query(FreshdeskUnifiedTicketView).filter(
             FreshdeskUnifiedTicketView.merchant_id == merchant_id,
             or_(
                 FreshdeskUnifiedTicketView.subject.ilike(f"%{query}%"),
                 FreshdeskUnifiedTicketView.description.ilike(f"%{query}%"),
                 FreshdeskUnifiedTicketView.requester_email.ilike(f"%{query}%"),
+                FreshdeskUnifiedTicketView.requester_name.ilike(f"%{query}%"),
                 FreshdeskUnifiedTicketView.tags.op('@>')(f'["{query}"]')
             )
         ).limit(limit).all()
@@ -239,7 +240,8 @@ class FreshdeskAnalytics:
                 "subject": ticket.subject,
                 "status": ticket.status,
                 "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
-                "requester_email": ticket.requester_email
+                "requester_email": ticket.requester_email,
+                "customer_name": ticket.requester_name
             })
             
         return results

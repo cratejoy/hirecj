@@ -1,9 +1,9 @@
 
 # Core dependencies
-crewai>=0.28.0
+crewai>=0.130.0
 fastapi==0.115.9
 httpx>=0.26.0
-litellm>=1.71.0
+litellm>=1.72.0
 openai>=1.54.0
 pydantic==2.11.5
 pydantic-settings>=2.0.0

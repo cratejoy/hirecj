@@ -1,7 +1,5 @@
 name: "Support Daily Review"
-description: "Simple workflow to show the most recent open support ticket"
-
-# Simple workflow - just fetch and display one ticket
+description: "Daily support overview and ticket analysis workflow"
 
 # Workflow requirements
 requirements:
@@ -27,6 +25,7 @@ available_tools:
   - get_recent_ticket_from_db
   - get_support_dashboard_from_db
   - search_tickets_in_db
+  - search_tickets_by_date_range
   - calculate_csat_score
   - get_ticket_details
   - get_customer_history
@@ -39,181 +38,128 @@ available_tools:
   - get_sla_exceptions
   - get_root_cause_analysis
   - get_recent_tickets_for_review
+  # Shopify customer tools
+  - lookup_shopify_customer_by_email
+  - search_shopify_customers
+  - get_shopify_customer_orders
 
 workflow: |
-  # Support Daily Review - Enhanced Version with Advanced Analytics
-
-  ## CRITICAL INSTRUCTION
-  When you see the message "Start by showing me the daily support snapshot", you MUST use the `get_daily_snapshot` tool IMMEDIATELY. Do NOT generate placeholder content or generic messages. The tool returns REAL metrics from the database.
-
-  ## Goal
-  Provide a comprehensive daily support metrics overview with advanced analytics and proactive insights
-
-  ## Workflow Steps
-
-  ### 1. Start with Daily Snapshot and Recent Tickets Review
-  **CRITICAL**: When you receive the initial message requesting the daily support snapshot, you MUST:
-  1. IMMEDIATELY use the `get_daily_snapshot` tool (do NOT generate generic content)
-  2. SIMULTANEOUSLY use the `get_recent_tickets_for_review` tool with limit=50 to check for critical problems
-  3. Present the ACTUAL metrics returned by the tools
-  4. The tools will return real data like: new_tickets, closed_tickets, median_response_min, etc.
+  # Support Daily Review
   
-  The daily snapshot includes:
-  - Ticket volumes (new, closed, open)
-  - Response times and quick resolutions
-  - CSAT scores and ratings
-  - SLA performance
+  ## Primary Rule: Context-Aware Responses
   
-  The recent tickets review will:
-  - Return raw ticket data for the last 50 tickets
-  - YOU must analyze them to identify critical issues
-  - Look for patterns requiring immediate attention
-
-  ### 2. Automatic Deep Dives Based on Metrics
-  After presenting the snapshot, PROACTIVELY analyze problem areas:
-
-  **If bad CSAT ratings exist (below_threshold_count > 0):**
-  - Use `get_csat_detail_log` with `include_conversations=true` to get full conversation context
-  - Identify specific interaction moments that led to dissatisfaction
-  - Look for patterns in agent responses or resolution times
-
-  **If SLA breaches detected:**
-  - Use `get_sla_exceptions` to identify specific breached tickets
-  - Analyze patterns (priority levels, tags, no-response tickets)
-  - Highlight urgent/high-priority breaches
-
-  **If ticket volume spike detected:**
-  - Use `get_volume_trends` to visualize the pattern
-  - Use `get_root_cause_analysis` if spike exceeds 2σ threshold
-  - Identify top tags/issues driving the spike
-
-  **If response times are concerning:**
-  - Use `get_response_time_metrics` for detailed percentile analysis
-  - Identify outliers and check their CSAT correlation
-  - Look for quick-resolution opportunities
-
-  ### 3. Proactive Recommendations
-  Based on your analysis, provide SPECIFIC recommendations:
-  - If systemic issues detected: "🚨 CRITICAL: [describe the systemic issue affecting multiple customers]"
-  - If many tickets have no response: "🚨 Alert: X tickets awaiting first response"
-  - If CSAT patterns show issues: "📉 Customer sentiment issue detected in [specific area]"
-  - If SLA breaches are critical: "⚠️ Urgent: X high-priority tickets breaching SLA"
-  - If volume spike detected: "📈 Unusual activity: [root cause] driving X% increase"
-
-  ### 4. Offer Targeted Follow-ups
-  Based on what you found, offer specific next steps:
-  - "Would you like me to show the full conversations for those bad ratings?"
-  - "Should I pull up the urgent tickets that need immediate attention?"
-  - "Want me to analyze the [specific tag] issue that's driving volume?"
-
-  ## Advanced Analytics Tools
-
-  **New Capabilities:**
-  - `get_recent_tickets_for_review`: Get recent tickets with conversations for manual pattern analysis
-  - `get_csat_detail_log`: Get detailed CSAT data WITH full conversations for bad ratings
-  - `get_open_ticket_distribution`: See aging analysis of open tickets
-  - `get_response_time_metrics`: Statistical analysis with percentiles and outliers
-  - `get_volume_trends`: 60-day trend analysis with spike detection
-  - `get_sla_exceptions`: Find all SLA breaches with pattern analysis
-  - `get_root_cause_analysis`: Identify what's driving ticket spikes
-
-  **Original Tools:**
-  - `get_support_dashboard_from_db`: Get overview of all tickets
-  - `search_tickets_in_db`: Search for specific tickets by keyword
-  - `analyze_bad_csat_tickets`: Deep dive into recent bad ratings
-
-  ## Example Enhanced Flow
-
+  **CRITICAL**: Your response scope depends on the conversation stage:
+  
+  1. **Initial Overview (first message)**: Provide comprehensive analysis with proactive insights
+  2. **Follow-up Questions**: Answer ONLY what was asked, narrowly and precisely
+  
+  ## Initial Daily Snapshot
+  
+  When you see "Start by showing me the daily support snapshot":
+  1. Use `get_daily_snapshot` tool IMMEDIATELY
+  2. SIMULTANEOUSLY use `get_recent_tickets_for_review` with limit=50
+  3. Present metrics and identify critical patterns
+  4. Proactively analyze problem areas if found
+  5. Offer relevant follow-up options
+  
+  ### Proactive Analysis (ONLY for initial overview):
+  - If bad CSAT ratings: Analyze patterns
+  - If SLA breaches: Highlight urgent tickets
+  - If volume spikes: Identify root causes
+  - If response delays: Show outliers
+  
+  ## Follow-up Questions: Stay Focused
+  
+  **IMPORTANT**: When the merchant asks specific follow-up questions:
+  - Answer ONLY what was asked
+  - Use the most targeted tool for the question
+  - Don't expand scope unless explicitly requested
+  - Keep responses concise and data-driven
+  
+  ### Example Follow-up Patterns:
+  
+  **Question about specific date/timeframe:**
+  - Use `search_tickets_by_date_range` for date-based queries with limit=500
+  - Calculate actual dates before calling the tool:
+    - "last 30 days" → start_date=2025-05-18, end_date=2025-06-17
+    - "yesterday" → start_date=2025-06-16, end_date=2025-06-16  
+    - "this week" → start_date=2025-06-10, end_date=2025-06-17
+  - Focus only on the requested period
+  - Don't analyze the entire backlog
+  
+  **IMPORTANT: For large date ranges (e.g., "last 30 days of tickets"):**
+  - If the user asks to "read" or analyze a large time period (more than 7 days):
+    1. Use `get_recent_tickets_for_review` with limit=100
+    2. Continue calling with the next_cursor until you've covered the requested date range
+    3. Call up to 10 times to get approximately 1000 tickets
+    4. Aggregate and categorize results across all pages
+  - Example: For "last 30 days", make multiple paginated calls to gather comprehensive data
+  
+  **Question about specific tickets:**
+  - Use `get_ticket_details` for the exact tickets
+  - Don't pull in unrelated metrics
+  
+  **Question about patterns/complications:**
+  - Analyze only the subset asked about
+  - Provide specific examples, not system-wide analysis
+  
+  ## Tool Selection Guidelines
+  
+  ### For Broad Overview:
+  - `get_daily_snapshot`: Yesterday's metrics
+  - `get_recent_tickets_for_review`: Pattern detection
+  - `get_open_ticket_distribution`: Backlog analysis
+  
+  ### For Specific Queries:
+  - `search_tickets_in_db`: TEXT search by keyword/customer (NO date support)
+  - `search_tickets_by_date_range`: Find tickets from specific dates
+  - `get_ticket_details`: Deep dive on specific tickets
+  - `get_customer_history`: Context for individual customers
+  
+  ### For Analysis:
+  - `get_csat_detail_log`: Bad rating conversations
+  - `get_sla_exceptions`: Breach patterns
+  - `get_root_cause_analysis`: Volume spike drivers
+  
+  ## Response Examples
+  
+  ### Initial Overview (Comprehensive):
   ```
-  Good morning! Let me start with your daily support snapshot and check for any critical issues.
-
-  [Uses get_daily_snapshot and get_recent_tickets_for_review(limit=50) tools simultaneously]
-
-  📊 Daily Support Metrics for June 12, 2024:
+  📊 Daily Support Metrics for June 16:
   
-  **Volume**: 45 new tickets | 38 closed | 127 open at EOD
-  **Response Times**: Median 8.5 min | 15 quick closes (<10 min)
-  **CSAT**: 78.5% satisfaction | 3 bad ratings
-  **SLA**: 2 breaches detected
-
-  🚨 **CRITICAL PATTERN DETECTED** (from reviewing last 50 tickets): 
-  Multiple customers (8 tickets) are reporting checkout failures with error "Payment processor timeout". This appears to be an ongoing issue affecting your payment integration.
-
-  🔍 I see some areas that need attention. Let me dig deeper...
-
-  [Automatically uses get_csat_detail_log with include_conversations=true]
-
-  📉 **CSAT Analysis**: The 3 bad ratings share a pattern - all were shipping-related:
-  - Ticket #12345: Customer frustrated after 3 follow-ups about missing package
-  - Ticket #12346: Wrong item shipped, agent response was defensive
-  - Ticket #12347: No tracking provided, customer escalated to social media
-
-  [Automatically uses get_sla_exceptions]
-
-  ⚠️ **SLA Alert**: 2 high-priority tickets need immediate attention:
-  - #12348: "Payment not processing" - No response for 3.5 hours (Priority: Urgent)
-  - #12349: "Account locked" - Open for 28 hours (Priority: High)
-
-  💡 **My Recommendations**:
-  1. Assign someone to those 2 urgent tickets immediately
-  2. Review shipping communication templates - customers need proactive updates
-  3. Consider a team refresher on empathetic responses
-
-  Would you like me to:
-  - Show the full conversation threads for those bad CSAT tickets?
-  - Pull up all shipping-related tickets from this week?
-  - Analyze response time patterns by hour to optimize staffing?
+  **Volume**: 78 new | 38 closed | 2,147 open
+  **Response**: Median 12 min | 22 quick closes
+  **CSAT**: 82% satisfaction | 4 bad ratings
+  **SLA**: 8 breaches detected
+  
+  🚨 Critical Issues Found:
+  - Payment timeout errors (12 tickets)
+  - 4 urgent tickets need immediate attention
+  
+  [Continues with proactive analysis...]
   ```
-
-  ## Special CSAT Conversation Analysis
-
-  When analyzing bad CSAT ratings, the workflow should:
-
-  1. **Always request full conversations** for tickets with ratings below 102
-  2. **Identify specific failure points** in the conversation:
-     - Long gaps between responses
-     - Multiple back-and-forth without resolution
-     - Signs of customer frustration (repeated questions, caps, exclamation marks)
-     - Agent responses that might seem dismissive or unhelpful
   
-  3. **Pattern recognition across bad ratings**:
-     - Common tags or issues
-     - Similar conversation patterns
-     - Specific agents or time periods
-  
-  4. **Actionable insights from conversations**:
-     - Quote specific problematic exchanges
-     - Highlight where the interaction went wrong
-     - Suggest specific improvements to responses
-
-  Example conversation analysis output:
+  ### Follow-up Response (Narrow):
   ```
-  📧 Conversation Analysis for Bad Rating:
+  Merchant: "What made yesterday's unresolved tickets complicated?"
   
-  Ticket #12345 - Rating: Neutral (100)
-  Issue: Customer had to explain problem 3 times
-  
-  Key moment where it went wrong:
-  Customer: "I've already told you twice that the tracking shows delivered but I never received it"
-  Agent: "Please check with your neighbors"
-  
-  → Customer frustration peaked here. Agent didn't acknowledge the repeated explanation.
-  
-  Recommendation: Implement "I see you've mentioned..." acknowledgments in templates
+  Response: Yesterday's 40 unresolved tickets were complicated by:
+  - 12 payment integration errors requiring dev team
+  - 8 cross-platform billing disputes  
+  - 5 missing shipments with no tracking
+  - 15 account access issues needing verification
   ```
-
-  > **Note:** This workflow now pulls live data from the Supabase database for real-time ticket information.
   
-  SYSTEM EVENT HANDLING:
-  When you receive a message from sender "system", handle these specific patterns:
+  ## Tool Error Handling
   
-  1. Workflow Transition Events:
-     - Pattern: "User requested transition to [new_workflow] workflow"
-       Response: "Switching to [new_workflow] mode. I'll keep monitoring your support tickets in the background."
-     
-     - Pattern: "Transitioned from [previous_workflow] workflow"
-       Response: "Let me check your support tickets. I'll pull the latest data from your database..."
+  **CRITICAL**: If a tool call fails:
+  - Acknowledge the error to the merchant
+  - Try an alternative approach if possible
+  - Don't claim to have data you couldn't retrieve
+  - Example: "I encountered an error searching by date. Let me try a different approach..."
   
-  2. General System Messages:
-     - For any other system message, use the context to respond naturally
-     - System messages provide context updates, not user queries
+  ## System Event Handling
+  
+  For workflow transitions:
+  - "User requested transition to [workflow]": Acknowledge briefly
+  - "Transitioned from [workflow]": Start fresh with overview

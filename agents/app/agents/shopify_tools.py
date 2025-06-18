@@ -3,7 +3,7 @@ Specialized tools for fetching data from the Shopify API.
 These tools are designed to be atomic and return raw JSON data for the agent to analyze.
 """
 
-from crewai.tools import tool
+from crewai.tools.base_tool import tool
 from typing import Optional, List
 import json
 
