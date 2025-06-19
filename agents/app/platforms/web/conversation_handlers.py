@@ -40,10 +40,11 @@ class ConversationHandlers:
         self, websocket: WebSocket, conversation_id: str, message: UserMsg
     ):
         """Handle regular message."""
+        message_start_time = datetime.now()
         text = message.text.strip()
         
         websocket_logger.info(
-            f"[MESSAGE_DEBUG] Processing message - conversation_id: {conversation_id}, text: '{text}'"
+            f"[MESSAGE_DEBUG] Processing message - conversation_id: {conversation_id}, text: '{text}', timestamp: {message_start_time}"
         )
 
         # Validate message
@@ -78,8 +79,24 @@ class ConversationHandlers:
             )
 
         # Process message with CrewAI
+        processing_start = datetime.now()
+        websocket_logger.info(
+            f"[MESSAGE_TIMING] Starting CrewAI processing at {processing_start} "
+            f"({(processing_start - message_start_time).total_seconds():.2f}s after message received)"
+        )
+        
         response = await self.platform.message_processor.process_message(
             session=session, message=text, sender="merchant"
+        )
+        
+        processing_end = datetime.now()
+        processing_duration = (processing_end - processing_start).total_seconds()
+        total_duration = (processing_end - message_start_time).total_seconds()
+        
+        websocket_logger.info(
+            f"[MESSAGE_TIMING] CrewAI processing completed at {processing_end} - "
+            f"processing_time: {processing_duration:.2f}s, "
+            f"total_time: {total_duration:.2f}s"
         )
 
         # Handle structured response with UI elements
@@ -119,6 +136,14 @@ class ConversationHandlers:
             websocket_logger.error(
                 f"[WS_ERROR] Sending message with content '0': {cj_msg.model_dump()}"
             )
+        
+        # Log response timing
+        send_time = datetime.now()
+        websocket_logger.info(
+            f"[MESSAGE_TIMING] Sending response at {send_time} - "
+            f"total_request_time: {(send_time - message_start_time).total_seconds():.2f}s"
+        )
+        
         await self.platform.send_validated_message(websocket, cj_msg)
 
     async def handle_fact_check(

@@ -28,6 +28,7 @@ def create_universe_tools(data_agent: Any) -> List:
     """Create CrewAI tools that interact with the Universe Data Agent."""
 
     @tool
+    @log_tool_execution
     def get_support_dashboard() -> str:
         """Get current support queue status and key metrics from universe data."""
         logger.info("[TOOL CALL] get_support_dashboard() - Fetching support dashboard data")
@@ -62,6 +63,7 @@ Universe Context: Day {data['current_day']}/90 of scenario timeline"""
         return output
 
     @tool
+    @log_tool_execution
     def search_support_tickets(query: str) -> str:
         """Search through support tickets for specific issues, products, or keywords.
 
@@ -105,6 +107,7 @@ Recent Tickets:
         return output
 
     @tool
+    @log_tool_execution
     def get_customer_profile(customer_id: str) -> str:
         """Get detailed customer information and support history.
 
@@ -144,6 +147,7 @@ Recent Support History ({len(tickets)} tickets):"""
         return output
 
     @tool
+    @log_tool_execution
     def get_trending_issues() -> str:
         """Get current trending support issues and category breakdown."""
         logger.info("[TOOL CALL] get_trending_issues() - Fetching trending issues")
@@ -175,6 +179,7 @@ Recent Support History ({len(tickets)} tickets):"""
         return output
 
     @tool
+    @log_tool_execution
     def get_business_timeline() -> str:
         """Get recent business events and timeline context that might affect support."""
         logger.info("[TOOL CALL] get_business_timeline() - Fetching business timeline")
@@ -218,6 +223,7 @@ Recent Support History ({len(tickets)} tickets):"""
         return output
 
     @tool
+    @log_tool_execution
     def get_recent_ticket() -> str:
         """Get the most recent open support ticket as raw JSON data."""
         logger.info("[TOOL CALL] get_recent_ticket() - Fetching most recent open ticket")

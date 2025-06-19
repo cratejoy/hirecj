@@ -117,7 +117,7 @@ Always remember to:
       <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
       
       {/* Main Content */}
-      <div className="fixed inset-0 bg-background z-50 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <div className="fixed inset-0 bg-background z-50 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-300 overflow-hidden">
       {/* Header */}
       <div className="border-b p-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -141,7 +141,7 @@ Always remember to:
       </div>
 
       {/* Main Content - Split View */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex overflow-hidden">
         {/* Loading State */}
         {loading && (
           <div className="flex-1 flex items-center justify-center">
@@ -166,12 +166,12 @@ Always remember to:
         {!loading && !error && (
           <>
             {/* Left Panel - Outgoing Prompt */}
-            <div className="flex-1 border-r flex flex-col">
-              <div className="p-4 border-b bg-muted/30">
+            <div className="flex-1 border-r flex flex-col min-h-0">
+              <div className="p-4 border-b bg-muted/30 flex-shrink-0">
                 <h3 className="font-medium text-sm uppercase tracking-wider">OUTGOING PROMPT TO LLM</h3>
               </div>
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="space-y-4 p-4">
                   {promptData ? (
                     <>
                       {/* Model Info */}
@@ -261,12 +261,12 @@ Always remember to:
             </div>
 
             {/* Right Panel - Incoming Response */}
-            <div className="flex-1 flex flex-col">
-              <div className="p-4 border-b bg-muted/30">
+            <div className="flex-1 flex flex-col min-h-0">
+              <div className="p-4 border-b bg-muted/30 flex-shrink-0">
                 <h3 className="font-medium text-sm uppercase tracking-wider">LLM EXECUTION & RESPONSE</h3>
               </div>
-              <ScrollArea className="flex-1 p-4">
-                <div className="space-y-4">
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="space-y-4 p-4">
                   {responseData ? (
                     <>
                       {/* Explanation of CrewAI's multi-step process */}

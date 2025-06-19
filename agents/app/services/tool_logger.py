@@ -79,9 +79,6 @@ def log_tool_execution(func):
             tool_input.update(kwargs)
         
         try:
-            # Log the call with start time
-            ToolLogger.log_tool_call(tool_name, tool_input, start_time=start_time)
-            
             # Execute the tool
             result = func(*args, **kwargs)
             

@@ -10,6 +10,7 @@ from pydantic import ValidationError, TypeAdapter
 
 from shared.logging_config import get_logger
 from app.services.fact_extractor import FactExtractor
+from app.services.websocket_heartbeat import WebSocketHeartbeat
 from app.constants import WebSocketCloseCodes
 from shared.protocol.models import (
     IncomingMessage,
@@ -44,6 +45,8 @@ class WebSocketHandler:
         self.message_handlers = MessageHandlers(platform)
         # Create TypeAdapter for validating discriminated union
         self.incoming_message_adapter = TypeAdapter(IncomingMessage)
+        # Initialize heartbeat service
+        self.heartbeat_service = WebSocketHeartbeat(interval=15.0, timeout=10.0)
 
     async def handle_connection(self, websocket: WebSocket):
         """
@@ -57,6 +60,7 @@ class WebSocketHandler:
         session_id = websocket.cookies.get("hirecj_session")
         user_ctx = None
         conversation_id = None
+        connection_start_time = datetime.now()
 
         # Holders for primitive values to avoid DetachedInstanceError
         session_id_db: str | None = None    # NEW
@@ -112,27 +116,77 @@ class WebSocketHandler:
         self.platform.sessions[conversation_id] = ws_session
 
         logger.info(
-            f"[WEBSOCKET_LIFECYCLE] New WebSocket connection: {conversation_id}"
+            f"[WEBSOCKET_LIFECYCLE] New WebSocket connection: {conversation_id} at {connection_start_time}"
         )
         websocket_logger.debug(
             f"[WS_DEBUG] WebSocket handler started for conversation: {conversation_id}"
         )
 
+        disconnect_reason = "unknown"
+        last_message_time = connection_start_time
+        message_count = 0
+        
+        # Start heartbeat monitoring
+        await self.heartbeat_service.start_heartbeat(conversation_id, websocket)
+        
         try:
             # Listen for messages
             async for message in websocket.iter_json():
+                message_count += 1
+                last_message_time = datetime.now()
+                logger.info(
+                    f"[WS_LIFECYCLE] Message #{message_count} received at {last_message_time} "
+                    f"({(last_message_time - connection_start_time).total_seconds():.1f}s after connection)"
+                )
                 await self._handle_websocket_message(
                     websocket, conversation_id, message
                 )
 
         except Exception as e:
-            logger.info(f"WebSocket connection {conversation_id} closed: {str(e)}")
+            disconnect_reason = f"exception: {type(e).__name__}: {str(e)}"
+            logger.info(f"WebSocket connection {conversation_id} closed with exception: {type(e).__name__}: {str(e)}")
         finally:
+            # Calculate connection duration
+            connection_duration = (datetime.now() - connection_start_time).total_seconds()
+            time_since_last_message = (datetime.now() - last_message_time).total_seconds()
+            
+            # Check WebSocket state
+            ws_state = "unknown"
+            ws_client_state = "unknown"
+            try:
+                # Get WebSocket state info if available
+                ws_state = getattr(websocket, 'state', 'unknown')
+                ws_client_state = getattr(websocket, 'client_state', 'unknown')
+                
+                # Try to get close code/reason if available
+                close_code = getattr(websocket, 'close_code', None)
+                close_reason = getattr(websocket, 'close_reason', None)
+                if close_code or close_reason:
+                    disconnect_reason = f"close_code={close_code}, close_reason={close_reason}"
+            except Exception as e:
+                logger.debug(f"Could not get WebSocket state info: {e}")
+            
+            logger.info(
+                f"[WEBSOCKET_LIFECYCLE] Connection closing - "
+                f"conversation_id: {conversation_id}, "
+                f"duration: {connection_duration:.1f}s, "
+                f"messages_received: {message_count}, "
+                f"time_since_last_message: {time_since_last_message:.1f}s, "
+                f"reason: {disconnect_reason}, "
+                f"ws_state: {ws_state}, "
+                f"ws_client_state: {ws_client_state}, "
+                f"start_time: {connection_start_time}, "
+                f"end_time: {datetime.now()}"
+            )
+            
+            # Stop heartbeat
+            await self.heartbeat_service.stop_heartbeat(conversation_id)
+            
             await self._handle_disconnect(conversation_id)
             
             # Cleanup on disconnect
             self.platform.connections.pop(conversation_id, None)
-            logger.info(f"WebSocket connection {conversation_id} disconnected")
+            logger.info(f"WebSocket connection {conversation_id} disconnected after {connection_duration:.1f}s")
 
     async def _handle_websocket_message(
         self, websocket: WebSocket, conversation_id: str, data: Dict[str, Any]
