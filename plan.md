@@ -864,7 +864,7 @@ Implementation complete:
 - ✅ Maintains backward compatibility with non-reasoning models
 - ❌ **MISSING**: Actual reasoning/thinking content (only capturing token counts)
 
-### Phase 3.6: Capture Actual Thinking Traces (NEW)
+### Phase 3.6: Capture Actual Thinking Traces ✅
 **Goal**: Extract and display the CrewAI agent thinking content that's already being captured
 
 #### 🔍 Investigation Results
@@ -1026,7 +1026,14 @@ When a user asks "What are our top complaints?", here's what happens:
    - Ensure clean_content doesn't include thinking traces
    - Check that thinking appears in dedicated UI section
 
-#### Status: ❌ Not Started
+#### Status: ✅ Complete
+
+**Implementation Details**:
+- Added `_extract_thinking_content` method to `debug_callback.py` that parses "Thought:" sections
+- Fixed datetime handling bug in `log_success_event` (was causing TypeError with timedelta formatting)
+- Updated `MessageDetailsView.tsx` to display thinking content in dedicated "AGENT THINKING PROCESS" section
+- Response now shows `clean_content` (without thinking traces) when available
+- Added proper logging to track thinking extraction
 
 #### 📋 Investigation Summary
 
