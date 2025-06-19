@@ -127,6 +127,9 @@ class MessageProcessor:
         # Create debug callback
         debug_callback = DebugCallback(session.id, session.debug_data)
         debug_callback.set_message_id(message_id)
+        
+        # Store the message_id in session for debugging
+        session.debug_data["current_message_id"] = message_id
 
         # Register with LiteLLM's actual callback lists
         if debug_callback not in litellm.input_callback:
@@ -259,8 +262,16 @@ class MessageProcessor:
             # Consolidate all debug data under the final message_id
             # This ensures thinking content from intermediate LLM calls is available
             all_responses = session.debug_data.get("llm_responses", [])
-            if len(all_responses) > 1:
-                logger.info(f"[DEBUG_CONSOLIDATION] Found {len(all_responses)} responses, consolidating thinking content")
+            
+            # First, ensure all responses have the correct message_id
+            for resp in all_responses:
+                if not resp.get("message_id") or resp.get("message_id") != message_id:
+                    logger.info(f"[DEBUG_CONSOLIDATION] Updating response message_id from {resp.get('message_id')} to {message_id}")
+                    resp["message_id"] = message_id
+            
+            # Then consolidate thinking content
+            if len(all_responses) > 0:
+                logger.info(f"[DEBUG_CONSOLIDATION] Found {len(all_responses)} responses")
                 
                 # Collect all thinking content from all responses
                 all_thinking = []
@@ -268,24 +279,12 @@ class MessageProcessor:
                     if resp.get("thinking_content"):
                         all_thinking.append(resp["thinking_content"])
                 
-                # If we have thinking content, update the last response (which should have our message_id)
-                if all_thinking:
-                    # Find the response with our message_id or use the last one
-                    target_response = None
-                    for resp in all_responses:
-                        if resp.get("message_id") == message_id:
-                            target_response = resp
-                            break
-                    
-                    if not target_response and all_responses:
-                        # If no response has our message_id, update the last one
-                        target_response = all_responses[-1]
-                        target_response["message_id"] = message_id
-                    
-                    if target_response:
-                        # Combine all thinking content
-                        target_response["thinking_content"] = "\n\n---\n\n".join(all_thinking)
-                        logger.info(f"[DEBUG_CONSOLIDATION] Consolidated {len(all_thinking)} thinking sections into message {message_id}")
+                # If we have thinking content, update the last response
+                if all_thinking and all_responses:
+                    target_response = all_responses[-1]
+                    # Combine all thinking content
+                    target_response["thinking_content"] = "\n\n---\n\n".join(all_thinking)
+                    logger.info(f"[DEBUG_CONSOLIDATION] Consolidated {len(all_thinking)} thinking sections into message {message_id}")
             
             # Include message_id in response
             if isinstance(response, dict):
