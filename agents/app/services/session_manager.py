@@ -45,7 +45,8 @@ class Session:
             "llm_responses": [],    # Store last N LLM responses
             "tool_calls": [],       # Store tool call history
             "crew_output": [],      # Store CrewAI execution logs
-            "timing": {}            # Store timing metrics
+            "timing": {},           # Store timing metrics
+            "final_responses": []   # Store final responses from crew.kickoff()
         }
 
 

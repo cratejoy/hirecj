@@ -236,6 +236,10 @@ class MessageProcessor:
             )
             logger.info(f"[CJ_AGENT] ====== RESPONSE COMPLETE ======")
             
+            # Capture the final response in debug callback
+            if debug_callback and hasattr(debug_callback, 'capture_final_response'):
+                debug_callback.capture_final_response(response)
+            
             # DIAGNOSTIC: Log response generation  
             from datetime import datetime
             has_oauth_complete = "authentication complete" in response.lower()
@@ -285,6 +289,13 @@ class MessageProcessor:
                     # Combine all thinking content
                     target_response["thinking_content"] = "\n\n---\n\n".join(all_thinking)
                     logger.info(f"[DEBUG_CONSOLIDATION] Consolidated {len(all_thinking)} thinking sections into message {message_id}")
+            
+            # Store the final crew response in debug data
+            if all_responses:
+                # The 'response' variable contains the final output from crew.kickoff()
+                # This is what the user actually sees
+                all_responses[-1]["final_response"] = response
+                logger.info(f"[DEBUG_CONSOLIDATION] Stored final crew response: {response[:100]}...")
             
             # Include message_id in response
             if isinstance(response, dict):

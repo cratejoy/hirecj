@@ -102,89 +102,16 @@ class DebugCallback(CustomLogger):
     def _extract_thinking_content(self, content: str) -> Dict[str, str]:
         """Extract thinking sections from CrewAI agent output."""
         if not content:
-            return {"thinking_content": None, "clean_content": content}
+            return {"thinking_content": None, "clean_content": None}
         
         logger.info(f"[DEBUG_CALLBACK] _extract_thinking_content called with content length: {len(content)}")
         logger.debug(f"[DEBUG_CALLBACK] Content preview: {content[:100]}...")
         
-        # Check if this is the "As CJ, I would say:" format with pipe separators
-        if content.startswith("As CJ, I would say:") and "|" in content:
-            # This appears to be the raw agent thinking/reasoning
-            # The whole content is thinking since crew.kickoff() returns the clean response
-            return {
-                "thinking_content": content,
-                "clean_content": None  # The clean content comes from crew.kickoff()
-            }
-        
-        # Otherwise, try to extract Thought: patterns
-        thinking_sections = []
-        clean_lines = []
-        lines = content.split('\n')
-        
-        in_thought = False
-        current_thought = []
-        
-        for line in lines:
-            stripped = line.strip()
-            
-            # Check if this is a thought line
-            if stripped.startswith('Thought:'):
-                in_thought = True
-                # Extract the thought content after "Thought:"
-                thought_content = line[line.index('Thought:') + 8:].strip()
-                
-                # Handle inline "Final Answer:" format
-                if 'Final Answer:' in thought_content:
-                    # Split at Final Answer and only keep the thought part
-                    thought_part = thought_content.split('Final Answer:')[0].strip()
-                    # Also remove trailing pipe if present
-                    if thought_part.endswith('|'):
-                        thought_part = thought_part[:-1].strip()
-                    if thought_part:
-                        thinking_sections.append(thought_part)
-                    # The rest after Final Answer is clean content
-                    final_answer_part = 'Final Answer:' + thought_content.split('Final Answer:')[1]
-                    clean_lines.append(final_answer_part)
-                    in_thought = False
-                elif thought_content:
-                    current_thought = [thought_content]
-            elif in_thought:
-                # Continue capturing multi-line thoughts until we hit Action/Observation/empty line
-                if stripped.startswith(('Action:', 'Observation:', 'Final Answer:')) or (not stripped and current_thought):
-                    # End of thought section
-                    if current_thought:
-                        thinking_sections.append('\n'.join(current_thought))
-                    current_thought = []
-                    in_thought = False
-                    
-                    # Don't include Action: or Observation: in clean content
-                    if not stripped.startswith(('Action:', 'Observation:')):
-                        clean_lines.append(line)
-                elif stripped:
-                    # Continue the thought
-                    current_thought.append(line)
-            else:
-                # Regular content - not in a thought
-                if not stripped.startswith(('Action:', 'Observation:', 'Thought:')):
-                    clean_lines.append(line)
-                elif stripped.startswith('Final Answer:'):
-                    # Handle standalone Final Answer lines
-                    clean_lines.append(line)
-        
-        # Handle any remaining thought
-        if current_thought:
-            thinking_sections.append('\n'.join(current_thought))
-        
-        # Build the results
-        thinking_content = '\n\n'.join(thinking_sections) if thinking_sections else None
-        clean_content = '\n'.join(clean_lines).strip()
-        
-        if thinking_content:
-            logger.info(f"[DEBUG_CALLBACK] Extracted {len(thinking_sections)} thinking sections totaling {len(thinking_content)} chars")
-        
+        # ALL content from LLM responses during CrewAI execution is thinking/reasoning
+        # The clean response comes from crew.kickoff() result, not from parsing LLM responses
         return {
-            "thinking_content": thinking_content,
-            "clean_content": clean_content
+            "thinking_content": content,  # The entire content IS thinking
+            "clean_content": None  # Clean content comes from crew.kickoff()
         }
     
     def log_success_event(self, kwargs: Dict[str, Any], response_obj: Any, start_time: Any, end_time: Any) -> None:
@@ -387,6 +314,35 @@ class DebugCallback(CustomLogger):
                     tool_input=pending["tool_input"],
                     error=error
                 )
+    
+    def capture_final_response(self, response: str):
+        """Capture the final response from crew.kickoff()."""
+        try:
+            if not self.current_message_id:
+                logger.warning("[DEBUG_CALLBACK] No current message ID when capturing final response")
+                return
+            
+            # Store the final response with the current message
+            final_response_data = {
+                "message_id": self.current_message_id,
+                "final_response": response,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            # Add to a new storage key for final responses
+            if "final_responses" not in self.debug_storage:
+                self.debug_storage["final_responses"] = []
+            
+            self.debug_storage["final_responses"].append(final_response_data)
+            
+            # Keep only last 10 final responses
+            if len(self.debug_storage["final_responses"]) > 10:
+                self.debug_storage["final_responses"].pop(0)
+            
+            logger.info(f"[DEBUG_CALLBACK] Captured final response for message {self.current_message_id} - {len(response)} chars")
+            
+        except Exception as e:
+            logger.error(f"[DEBUG_CALLBACK] Error capturing final response: {e}", exc_info=True)
     
     def finalize(self):
         """Finalize capture for this message."""

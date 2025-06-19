@@ -203,6 +203,16 @@ class UtilityHandlers:
                             logger.info(f"[DEBUG_REQUEST] Found clean_content: {len(response.get('clean_content', ''))} chars")
                         break
                 
+                # Find the final response that was actually sent to the user
+                for final_resp in session.debug_data.get("final_responses", []):
+                    if final_resp.get("message_id") == message_id:
+                        # Add the final response to the response data
+                        if "response" not in debug_data:
+                            debug_data["response"] = {}
+                        debug_data["response"]["final_response"] = final_resp.get("final_response")
+                        logger.info(f"[DEBUG_REQUEST] Found final response for {message_id}: {len(final_resp.get('final_response', ''))} chars")
+                        break
+                
                 # Find matching tool calls
                 debug_data["tool_calls"] = [
                     tc for tc in session.debug_data.get("tool_calls", [])

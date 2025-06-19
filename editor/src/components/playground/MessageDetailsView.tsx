@@ -55,6 +55,7 @@ export function MessageDetailsView({ isOpen, onClose, messageId, onRequestDetail
           console.log('[MessageDetailsView] Received debug data:', data);
           console.log('[MessageDetailsView] Response data:', data?.response);
           console.log('[MessageDetailsView] Thinking content:', data?.response?.thinking_content);
+          console.log('[MessageDetailsView] Final response:', data?.response?.final_response);
           setDebugData(data);
           setLoading(false);
         })
@@ -276,24 +277,54 @@ Always remember to:
                 <div className="space-y-4">
                   {responseData ? (
                     <>
-                      {/* Response Content */}
-                      {responseData.choices?.map((choice: any, idx: number) => (
-                        <div key={idx}>
-                          {choice.message?.content && (
-                            <div className="mb-4 relative">
+                      {/* Final Response - What User Actually Saw */}
+                      {responseData.final_response && (
+                        <>
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="font-medium text-sm uppercase tracking-wider text-muted-foreground">FINAL RESPONSE (WHAT USER SAW)</h4>
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="absolute top-0 right-0 h-8 w-8 p-0"
-                                onClick={() => copyToClipboard(choice.message.content, `response-${idx}`)}
+                                className="h-8 w-8 p-0"
+                                onClick={() => copyToClipboard(responseData.final_response, 'final-response')}
                               >
-                                {copiedItems.has(`response-${idx}`) ? (
+                                {copiedItems.has('final-response') ? (
                                   <Check className="h-4 w-4 text-green-600" />
                                 ) : (
                                   <Copy className="h-4 w-4" />
                                 )}
                               </Button>
-                              <p className="text-sm whitespace-pre-wrap pr-10">{responseData.clean_content || choice.message.content}</p>
+                            </div>
+                            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                              <p className="text-sm whitespace-pre-wrap">{responseData.final_response}</p>
+                            </div>
+                          </div>
+                          <Separator />
+                        </>
+                      )}
+                      
+                      {/* Raw LLM Response Content */}
+                      {responseData.choices?.map((choice: any, idx: number) => (
+                        <div key={idx}>
+                          {choice.message?.content && (
+                            <div className="mb-4">
+                              <h4 className="font-medium text-sm uppercase tracking-wider text-muted-foreground mb-2">RAW LLM RESPONSE</h4>
+                              <div className="relative bg-muted/50 rounded-lg p-4">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute top-2 right-2 h-8 w-8 p-0"
+                                  onClick={() => copyToClipboard(choice.message.content, `response-${idx}`)}
+                                >
+                                  {copiedItems.has(`response-${idx}`) ? (
+                                    <Check className="h-4 w-4 text-green-600" />
+                                  ) : (
+                                    <Copy className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <p className="text-sm whitespace-pre-wrap pr-10">{choice.message.content}</p>
+                              </div>
                             </div>
                           )}
                           
