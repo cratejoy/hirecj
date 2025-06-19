@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, FileText, Loader2, Copy, Check } from 'lucide-react';
+import { X, FileText, Loader2, Copy, Check, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -137,11 +137,14 @@ Always remember to:
           <h2 className="text-lg font-semibold">MESSAGE DETAILS - LLM Prompt & Response</h2>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            Message: "For that budget, I'd suggest the MacBook Pro 14"..."
-          </span>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            [← Back to Playground]
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onClose}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Playground
           </Button>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-4 w-4" />
@@ -478,7 +481,7 @@ Always remember to:
                                           Found {g.results_count} result{g.results_count !== 1 ? 's' : ''}
                                         </p>
                                         {g.results_preview && (
-                                          <div className="bg-background/50 rounded p-3 max-h-48 overflow-y-auto">
+                                          <div className="bg-background/50 rounded p-3 max-h-96 overflow-y-auto">
                                             <pre className="text-xs whitespace-pre-wrap font-mono text-muted-foreground">
                                               <code>{g.results_preview}</code>
                                             </pre>

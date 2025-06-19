@@ -375,7 +375,7 @@ class DebugCallback(CustomLogger):
                 "message_id": self.current_message_id,
                 "namespace": namespace,
                 "query": query,
-                "results_preview": results[:500] if results else None,  # Limit preview length
+                "results_preview": results,  # Full results, no limit
                 "results_count": results_count,
                 "cache_hit": cache_hit,
                 "error": error,
