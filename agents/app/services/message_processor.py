@@ -6,6 +6,7 @@ from typing import List, Callable, Dict, Any, Union
 import uuid
 
 from crewai import Crew, Task
+import litellm
 
 from app.models import Message
 from app.agents.cj_agent import create_cj_agent
@@ -127,130 +128,142 @@ class MessageProcessor:
         debug_callback = DebugCallback(session.id, session.debug_data)
         debug_callback.set_message_id(message_id)
 
+        # Register with LiteLLM's actual callback lists
+        if debug_callback not in litellm.input_callback:
+            litellm.input_callback.append(debug_callback)
+        if debug_callback not in litellm.success_callback:
+            litellm.success_callback.append(debug_callback)
+
         # Set debug callback for tool logger
         ToolLogger.set_debug_callback(debug_callback)
 
-        # Create CJ agent
-        logger.info(f"[CJ_AGENT] ====== COMPOSING RESPONSE ======")
-        logger.info(f"[CJ_AGENT] Merchant: {session.conversation.merchant_name}")
-        if session.user_id:
-            logger.info(f"[CJ_AGENT] User ID: {session.user_id}")
-        else:
-            logger.info(f"[CJ_AGENT] No user ID available")
-            
-        # Pass OAuth metadata if available
-        oauth_metadata = getattr(session, 'oauth_metadata', None)
-        
-        # Create agent WITH the debug callback - much cleaner!
-        cj_agent = create_cj_agent(
-            merchant_name=session.conversation.merchant_name,
-            scenario_name=session.conversation.scenario_name,
-            workflow_name=session.conversation.workflow,
-            conversation_state=session.conversation.state,
-            data_agent=session.data_agent,
-            user_id=session.user_id,
-            oauth_metadata=oauth_metadata,
-            verbose=settings.enable_verbose_logging,
-            debug_callback=debug_callback,  # Pass it directly!
-        )
-        
-        # Set up thinking token callback for this agent BEFORE creating the task
-        # Use the conversation_id from the session, not session.id
-        from app.services.conversation_thinking_callback import ConversationThinkingCallback
-        conversation_id = getattr(session, 'conversation_id', session.id)
-        thinking_callback = ConversationThinkingCallback(conversation_id)
-        cj_agent.set_thinking_callback(thinking_callback)
-
-        # Create task
-        if is_system:
-            # For system messages (OAuth context), provide clear instruction
-            task_description = f"Context update: {message}\n\nRespond appropriately to this authentication update."
-        else:
-            # Check if this is from the initial workflow action
-            if message.startswith("Start by showing me the daily support snapshot"):
-                task_description = (
-                    f"{message}\n\n"
-                    "IMPORTANT: You MUST use the get_daily_snapshot tool to fetch yesterday's metrics. "
-                    "Do not generate generic content - use the actual tool to get real data."
-                )
+        try:
+            # Create CJ agent
+            logger.info(f"[CJ_AGENT] ====== COMPOSING RESPONSE ======")
+            logger.info(f"[CJ_AGENT] Merchant: {session.conversation.merchant_name}")
+            if session.user_id:
+                logger.info(f"[CJ_AGENT] User ID: {session.user_id}")
             else:
-                task_description = f"Respond to: {message}"
+                logger.info(f"[CJ_AGENT] No user ID available")
+                
+            # Pass OAuth metadata if available
+            oauth_metadata = getattr(session, 'oauth_metadata', None)
             
-        task = Task(
-            description=task_description,
-            agent=cj_agent,
-            expected_output="A helpful response using the appropriate tools when requested",
-        )
-
-        # Create crew and execute
-        crew = Crew(agents=[cj_agent], tasks=[task], verbose=settings.enable_verbose_logging)
-
-        await self._report_progress(session.id, "thinking", {"status": "generating"})
-
-        # Log LLM prompt with chat history context
-        context_messages = [
-            f"{msg.sender}: {msg.content[:100]}{'...' if len(msg.content) > 100 else ''}"
-            for msg in session.conversation.state.context_window
-        ]
-        logger.info(
-            f"[LLM_PROMPT] Prompting LLM for session {session.id}\n"
-            f"  User message: '{message}'\n"
-            f"  Chat history ({len(context_messages)} messages):\n"
-            + "\n".join(f"    {msg}" for msg in context_messages)
-        )
+            # Create agent (no debug_callback parameter needed!)
+            cj_agent = create_cj_agent(
+                merchant_name=session.conversation.merchant_name,
+                scenario_name=session.conversation.scenario_name,
+                workflow_name=session.conversation.workflow,
+                conversation_state=session.conversation.state,
+                data_agent=session.data_agent,
+                user_id=session.user_id,
+                oauth_metadata=oauth_metadata,
+                verbose=settings.enable_verbose_logging,
+                # debug_callback parameter removed - we register directly with LiteLLM
+            )
         
-        result = crew.kickoff()
+            # Set up thinking token callback for this agent BEFORE creating the task
+            # Use the conversation_id from the session, not session.id
+            from app.services.conversation_thinking_callback import ConversationThinkingCallback
+            conversation_id = getattr(session, 'conversation_id', session.id)
+            thinking_callback = ConversationThinkingCallback(conversation_id)
+            cj_agent.set_thinking_callback(thinking_callback)
 
-        # Extract response
-        response = str(result)
-        if hasattr(result, "output"):
-            response = result.output
+            # Create task
+            if is_system:
+                # For system messages (OAuth context), provide clear instruction
+                task_description = f"Context update: {message}\n\nRespond appropriately to this authentication update."
+            else:
+                # Check if this is from the initial workflow action
+                if message.startswith("Start by showing me the daily support snapshot"):
+                    task_description = (
+                        f"{message}\n\n"
+                        "IMPORTANT: You MUST use the get_daily_snapshot tool to fetch yesterday's metrics. "
+                        "Do not generate generic content - use the actual tool to get real data."
+                    )
+                else:
+                    task_description = f"Respond to: {message}"
+                
+            task = Task(
+                description=task_description,
+                agent=cj_agent,
+                expected_output="A helpful response using the appropriate tools when requested",
+            )
 
-        logger.info(
-            f"[LLM_RESPONSE] Got response ({len(response)} chars): {response[:200]}{'...' if len(response) > 200 else ''}"
-        )
-        logger.info(f"[CJ_AGENT] ====== RESPONSE COMPLETE ======")
-        
-        # DIAGNOSTIC: Log response generation  
-        from datetime import datetime
-        has_oauth_complete = "authentication complete" in response.lower()
-        logger.warning(f"[MSG_GEN] Message generated - has_oauth_complete={has_oauth_complete}, "
-                      f"oauth_metadata_present={bool(session.oauth_metadata)}, "
-                      f"workflow={session.conversation.workflow}, timestamp={datetime.now()}, "
-                      f"content_preview={response[:100]}...")
+            # Create crew and execute
+            crew = Crew(agents=[cj_agent], tasks=[task], verbose=settings.enable_verbose_logging)
 
-        # Only add Shopify OAuth button when store not yet connected
-        if session.conversation.workflow == "shopify_onboarding" and session.oauth_metadata is None:
-            from app.services.ui_components import UIComponentParser
-            parser = UIComponentParser()
-            clean_content, ui_components = parser.parse_oauth_buttons(response)
+            await self._report_progress(session.id, "thinking", {"status": "generating"})
 
-            if ui_components:
-                logger.info(f"[UI_PARSER] Found {len(ui_components)} UI components in response")
-                return {
+            # Log LLM prompt with chat history context
+            context_messages = [
+                f"{msg.sender}: {msg.content[:100]}{'...' if len(msg.content) > 100 else ''}"
+                for msg in session.conversation.state.context_window
+            ]
+            logger.info(
+                f"[LLM_PROMPT] Prompting LLM for session {session.id}\n"
+                f"  User message: '{message}'\n"
+                f"  Chat history ({len(context_messages)} messages):\n"
+                + "\n".join(f"    {msg}" for msg in context_messages)
+            )
+            
+            result = crew.kickoff()
+
+            # Extract response
+            response = str(result)
+            if hasattr(result, "output"):
+                response = result.output
+
+            logger.info(
+                f"[LLM_RESPONSE] Got response ({len(response)} chars): {response[:200]}{'...' if len(response) > 200 else ''}"
+            )
+            logger.info(f"[CJ_AGENT] ====== RESPONSE COMPLETE ======")
+            
+            # DIAGNOSTIC: Log response generation  
+            from datetime import datetime
+            has_oauth_complete = "authentication complete" in response.lower()
+            logger.warning(f"[MSG_GEN] Message generated - has_oauth_complete={has_oauth_complete}, "
+                          f"oauth_metadata_present={bool(session.oauth_metadata)}, "
+                          f"workflow={session.conversation.workflow}, timestamp={datetime.now()}, "
+                          f"content_preview={response[:100]}...")
+
+            # Only add Shopify OAuth button when store not yet connected
+            if session.conversation.workflow == "shopify_onboarding" and session.oauth_metadata is None:
+                from app.services.ui_components import UIComponentParser
+                parser = UIComponentParser()
+                clean_content, ui_components = parser.parse_oauth_buttons(response)
+
+                if ui_components:
+                    logger.info(f"[UI_PARSER] Found {len(ui_components)} UI components in response")
+                    return {
+                        "type": "message_with_ui",
+                        "content": clean_content,
+                        "ui_elements": ui_components,
+                        "message_id": message_id
+                    }
+
+            # Include message_id in response
+            if isinstance(response, dict):
+                response["message_id"] = message_id
+            else:
+                # Convert to dict format with message_id
+                response = {
                     "type": "message_with_ui",
-                    "content": clean_content,
-                    "ui_elements": ui_components,
+                    "content": response,
+                    "ui_elements": [],
                     "message_id": message_id
                 }
-
-        # Include message_id in response
-        if isinstance(response, dict):
-            response["message_id"] = message_id
-        else:
-            # Convert to dict format with message_id
-            response = {
-                "type": "message_with_ui",
-                "content": response,
-                "ui_elements": [],
-                "message_id": message_id
-            }
-
-        # Clean up (much simpler now!)
-        debug_callback.finalize()
-        ToolLogger.set_debug_callback(None)
-        
-        return response
+            
+            return response
+            
+        finally:
+            # Clean up callbacks
+            if debug_callback in litellm.input_callback:
+                litellm.input_callback.remove(debug_callback)
+            if debug_callback in litellm.success_callback:
+                litellm.success_callback.remove(debug_callback)
+            debug_callback.finalize()
+            ToolLogger.set_debug_callback(None)
 
     async def _report_progress(
         self,

@@ -41,6 +41,7 @@ class DebugCallback(CustomLogger):
     
     def log_pre_api_call(self, model: str, messages: list, kwargs: Dict[str, Any]) -> None:
         """Capture the raw API request before it's sent."""
+        logger.info(f"[DEBUG_CALLBACK] log_pre_api_call called for message {self.current_message_id}")
         try:
             # Extract the full prompt with all details
             prompt_data = {
@@ -77,6 +78,7 @@ class DebugCallback(CustomLogger):
     
     def log_success_event(self, kwargs: Dict[str, Any], response_obj: Any, start_time: float, end_time: float) -> None:
         """Capture the raw API response including tool calls."""
+        logger.info(f"[DEBUG_CALLBACK] log_success_event called for message {self.current_message_id}")
         try:
             # Extract tool calls if present
             tool_calls = []

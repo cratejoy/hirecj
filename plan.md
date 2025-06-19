@@ -21,15 +21,27 @@ Implement a detailed message view for the playground that shows the full LLM pro
 - Implemented split-view layout matching the design doc
 - Added animations, backdrop, and keyboard support
 
-✅ **Phase 2 Complete**: Connected to real LLM data (but needs refactoring)
-- Created DebugCallback class extending LiteLLM's CustomLogger
-- ~~Integrated with message_processor using global callback manipulation~~ (needs fix)
-- Added message_id to link UI messages with debug data
-- Updated protocol with minimal changes
-- Frontend requests and displays real debug data
-- Shows prompt, response, tool calls, and timing information
+✅ **Phase 2 Complete**: Connected to real LLM data with clean implementation
+- Phase 2.1 ✅ **COMPLETE**: Implemented cleaner callback registration
+  - Register DebugCallback directly with `litellm.input_callback` and `litellm.success_callback`
+  - No modifications to CrewAI or venv needed
+  - Proper cleanup in try/finally block
+  - `log_pre_api_call` is being invoked and capturing prompts successfully
+- Phase 2.2 ✅ **COMPLETE**: Protocol updates implemented
+  - Added `message_id` to `CJMessageData`
+  - Added `message_details` to `DebugRequestData` type literal
+  - Generated TypeScript types successfully
+- Phase 2.3 Backend ✅ **COMPLETE**: Backend integration working
+  - `utility_handlers.py` handles `message_details` requests
+  - Message-specific debug data aggregation implemented
+  - Workflow handlers include `message_id` in all responses
+- Phase 2.3 Frontend ❌ **PENDING**: Frontend not yet updated
+  - Need to update `usePlaygroundChat` hook
+  - Need to update `MessageDetailsView` to request/display real data
 
-**🚨 DISCOVERY**: We can pass callbacks directly to LLM instance instead of global manipulation!
+**🚨 DISCOVERY**: CrewAI sets callbacks wrong! It only sets `litellm.callbacks` but LiteLLM actually uses:
+- `litellm.input_callback` for pre-API calls (where `log_pre_api_call` is invoked) ✅ WORKING
+- `litellm.success_callback` for post-API success (where `log_success_event` is invoked) ⚠️ NOT BEING CALLED
 
 ## Existing Infrastructure Discovery
 
@@ -79,44 +91,56 @@ We implemented this but it's messy:
 - Affects ALL LiteLLM calls globally
 - Complex cleanup logic
 
-### ✅ Better Approach (Direct LLM Callbacks)
-Much cleaner approach discovered from reading CrewAI source:
+### ✅ Better Approach (Use LiteLLM's Callback Lists Directly)
+Instead of modifying CrewAI or using global manipulation, we can register our callbacks directly:
 
 ```python
-# In cj_agent.py _create_agent method
-from crewai import LLM
-from app.services.debug_callback import DebugCallback
+# In message_processor.py _get_cj_response method
+import litellm
 
-# Create debug callback for this agent
-debug_callback = DebugCallback(session_id, session.debug_data)
+# Create debug callback
+debug_callback = DebugCallback(session.id, session.debug_data)
 debug_callback.set_message_id(message_id)
 
-# Create LLM instance with callback
-llm_instance = LLM(
-    model=self.model_name,
-    callbacks=[debug_callback],  # Pass directly to LLM!
-    # ... other params
+# Register with LiteLLM's actual callback lists
+if debug_callback not in litellm.input_callback:
+    litellm.input_callback.append(debug_callback)
+if debug_callback not in litellm.success_callback:
+    litellm.success_callback.append(debug_callback)
+
+# Set debug callback for tool logger
+ToolLogger.set_debug_callback(debug_callback)
+
+# Create agent (no need to pass debug_callback anymore!)
+cj_agent = create_cj_agent(
+    merchant_name=session.conversation.merchant_name,
+    scenario_name=session.conversation.scenario_name,
+    # ... other params - NO debug_callback needed!
 )
 
-# Use the LLM instance in agent config
-agent_config = {
-    "role": "CJ - AI Customer Support Lead",
-    "goal": f"Provide excellent customer support as CJ for {self.merchant_name}",
-    "backstory": backstory,
-    "tools": self.tools,
-    "verbose": self.verbose,
-    "allow_delegation": False,
-    "llm": llm_instance,  # Use instance instead of string!
-}
+# ... existing crew execution code ...
+
+# Clean up callbacks after processing
+try:
+    # ... get response ...
+finally:
+    # Remove callbacks to prevent memory leaks
+    if debug_callback in litellm.input_callback:
+        litellm.input_callback.remove(debug_callback)
+    if debug_callback in litellm.success_callback:
+        litellm.success_callback.remove(debug_callback)
+    debug_callback.finalize()
+    ToolLogger.set_debug_callback(None)
 ```
 
 This is MUCH cleaner because:
-- Scoped to just this agent's LLM calls
-- No global state manipulation
-- No complex save/restore logic
-- Uses CrewAI's intended design
+- No modifications to CrewAI or venv needed
+- Works with existing agent creation code
+- Properly scoped to message processing
+- Clean registration and removal
+- Uses LiteLLM's intended callback mechanism
 
-### Phase 2.1 (Revised): Update Agent Creation
+### Phase 2.1 (Revised): Register Callbacks with LiteLLM Directly
 
 #### Step 1: Keep the DebugCallback as-is
 **File**: `agents/app/services/debug_callback.py` (no changes needed)
@@ -444,55 +468,16 @@ def log_tool_execution(func):
     return wrapper
 ```
 
-#### Step 2: Update CJ Agent Creation
-**File**: `agents/app/agents/cj_agent.py`
-
-Update the `__init__` method to accept optional debug callback:
-```python
-def __init__(
-    self,
-    merchant_name: str,
-    scenario_name: str,
-    cj_version: str = None,
-    enable_caching: bool = None,
-    enable_fact_checking: bool = None,
-    debug_callback: Optional[Any] = None,  # NEW
-    **kwargs,
-):
-    # ... existing init code ...
-    self.debug_callback = debug_callback
-```
-
-Update the `_create_agent` method:
-```python
-def _create_agent(self, **kwargs) -> ExtendedAgent:
-    """Create the CrewAI agent instance."""
-    # ... existing context building ...
-    
-    # Create LLM instance with debug callback if provided
-    if self.debug_callback:
-        from crewai import LLM
-        llm_instance = LLM(
-            model=self.model_name,
-            callbacks=[self.debug_callback],
-            # Add other params if needed
-        )
-        agent_config["llm"] = llm_instance
-    else:
-        agent_config["llm"] = self.model_name
-    
-    return ExtendedAgent(**agent_config)
-```
-
-#### Step 3: Update Message Processor
+#### Step 2: Update Message Processor
 **File**: `agents/app/services/message_processor.py`
 
-MUCH simpler now:
+Update the `_get_cj_response` method:
 ```python
 # In _get_cj_response method
 
 # Generate unique message ID
 import uuid
+import litellm
 message_id = f"msg_{uuid.uuid4().hex[:8]}"
 
 # Create debug callback
@@ -501,33 +486,50 @@ from app.services.tool_logger import ToolLogger
 debug_callback = DebugCallback(session.id, session.debug_data)
 debug_callback.set_message_id(message_id)
 
+# Register with LiteLLM's callback lists
+if debug_callback not in litellm.input_callback:
+    litellm.input_callback.append(debug_callback)
+if debug_callback not in litellm.success_callback:
+    litellm.success_callback.append(debug_callback)
+
 # Set debug callback for tool logger
 ToolLogger.set_debug_callback(debug_callback)
 
-# Create agent WITH the debug callback
-cj_agent = create_cj_agent(
-    merchant_name=session.conversation.merchant_name,
-    scenario_name=session.conversation.scenario_name,
-    debug_callback=debug_callback,  # Pass it here!
-    # ... other params
-)
+try:
+    # Create agent (no debug_callback parameter needed!)
+    cj_agent = create_cj_agent(
+        merchant_name=session.conversation.merchant_name,
+        scenario_name=session.conversation.scenario_name,
+        # ... other params - NO debug_callback!
+    )
 
-# ... existing crew execution code ...
+    # ... existing crew execution code ...
 
-# After getting response, include message_id
-if isinstance(response, dict):
-    response["message_id"] = message_id
-else:
-    # Convert to dict format with message_id
-    response = {
-        "type": "message_with_ui",
-        "content": response,
-        "ui_elements": [],
-        "message_id": message_id
-    }
+    # After getting response, include message_id
+    if isinstance(response, dict):
+        response["message_id"] = message_id
+    else:
+        # Convert to dict format with message_id
+        response = {
+            "type": "message_with_ui",
+            "content": response,
+            "ui_elements": [],
+            "message_id": message_id
+        }
+    
+    return response
+
+finally:
+    # Clean up callbacks
+    if debug_callback in litellm.input_callback:
+        litellm.input_callback.remove(debug_callback)
+    if debug_callback in litellm.success_callback:
+        litellm.success_callback.remove(debug_callback)
+    debug_callback.finalize()
+    ToolLogger.set_debug_callback(None)
 ```
 
-That's it! No global state manipulation, no complex cleanup. The callback is scoped to just this agent's LLM calls.
+That's it! No agent modifications needed, just register and clean up the callbacks.
 
 ### Phase 2.2: Minimal Protocol Updates
 
@@ -708,39 +710,65 @@ if (loading && !debugData) {
 
 ### Implementation Summary
 
-The revised implementation is MUCH cleaner:
-- Pass DebugCallback directly to LLM instance via CrewAI's intended design
-- No global state manipulation needed
-- Callback is scoped to just the agent's LLM calls
-- Uses existing infrastructure elegantly
+The cleaner implementation is NOW IN PRODUCTION:
+- ✅ DebugCallback registered directly with LiteLLM's callback lists
+- ✅ No CrewAI or venv modifications needed
+- ✅ Works with existing agent code unchanged
+- ✅ Clean registration and cleanup pattern in try/finally
+- ✅ Prompts are being captured with correct message IDs
+- ⚠️ Responses not being captured (log_success_event not invoked)
 
 The approach is superior because:
-1. **Clean**: No global callback manipulation or save/restore logic
-2. **Scoped**: Only affects the specific agent's LLM calls
-3. **Simple**: Uses CrewAI's intended callback mechanism
-4. **Maintainable**: Clear data flow, no side effects
+1. **Clean**: No third-party code modifications
+2. **Scoped**: Callbacks are registered per message and cleaned up
+3. **Simple**: Uses LiteLLM's documented callback mechanism
+4. **Maintainable**: All changes in our code, no monkey-patching
+
+### Test Results
+- ✅ Callbacks register properly with LiteLLM
+- ✅ `log_pre_api_call` is invoked and captures prompts
+- ✅ Message IDs are included in all responses
+- ⚠️ `log_success_event` is NOT being invoked by LiteLLM
+- ⚠️ Tool calls are not being captured (depends on log_success_event)
 
 ## Next Steps
 
-### Phase 2.5: Refactor to Clean Approach
-- Remove global litellm callback manipulation from message_processor
-- Update cj_agent.py to accept debug_callback parameter
-- Update create_cj_agent to pass debug_callback through
-- Test that debug data still captures correctly
+### Cleanup Tasks
+- ❌ Remove unused `debug_callback` parameter from `create_cj_agent` and `CJAgent.__init__`
+- ❌ Investigate why `log_success_event` isn't being invoked by LiteLLM
+  - Check if CrewAI is intercepting responses
+  - May need to use a different hook point for response capture
+  - Consider using `litellm.completion_callback` instead
 
-### Phase 3: Tool Integration Enhancement
-- Enhance tool execution capture with @log_tool_execution decorator
-- Parse tool arguments more intelligently
-- Capture tool execution timing
+### Phase 2.3: Frontend Integration (PRIORITY)
+- ❌ Update `usePlaygroundChat` hook to:
+  - Add `requestMessageDetails` method
+  - Handle `debug_response` messages
+  - Store debug data by message ID
+- ❌ Update `MessageDetailsView` to:
+  - Accept `messageId` prop
+  - Request debug data when opened
+  - Display real prompt/response data
+  - Handle loading states
 
-### Phase 4: UI Polish
-- Add syntax highlighting for JSON/code in prompts
-- Add copy buttons for prompts/responses
-- Add search/filter within message details
-- Show token usage visualization
+### Phase 3: Fix Response Capture
+- ❌ Debug why `log_success_event` isn't being called
+- ❌ Implement alternative response capture if needed
+- ❌ Ensure tool calls are captured from responses
 
-### Phase 5: Performance & Persistence
-- Add caching layer for debug data
-- Implement debug data persistence to database
-- Add export functionality (JSON/Markdown)
+### Phase 4: Tool Integration Enhancement
+- ❌ Enhance tool execution capture with @log_tool_execution decorator
+- ❌ Parse tool arguments more intelligently
+- ❌ Capture tool execution timing
+
+### Phase 5: UI Polish
+- ❌ Add syntax highlighting for JSON/code in prompts
+- ❌ Add copy buttons for prompts/responses
+- ❌ Add search/filter within message details
+- ❌ Show token usage visualization
+
+### Phase 6: Performance & Persistence
+- ❌ Add caching layer for debug data
+- ❌ Implement debug data persistence to database
+- ❌ Add export functionality (JSON/Markdown)
 

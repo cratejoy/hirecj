@@ -289,21 +289,23 @@ class WorkflowHandlers:
                         content=response["content"],
                         factCheckStatus="available",
                         timestamp=datetime.now(),
-                        ui_elements=response.get("ui_elements", [])
+                        ui_elements=response.get("ui_elements", []),
+                        message_id=response.get("message_id")
                     )
                 )
                 websocket_logger.info(
                     f"[WS_SEND] Sending initial CJ message with UI elements: content='{cj_msg.data.content[:100]}...' "
-                    f"ui_elements={len(cj_msg.data.ui_elements or [])} full_data={cj_msg.model_dump()}"
+                    f"ui_elements={len(cj_msg.data.ui_elements or [])} message_id={cj_msg.data.message_id} full_data={cj_msg.model_dump()}"
                 )
             else:
-                # Regular text response
+                # Regular text response - should not happen with new code but handle legacy
                 cj_msg = CJMessageMsg(
                     type="cj_message",
                     data=CJMessageData(
-                        content=response,
+                        content=response if isinstance(response, str) else str(response),
                         factCheckStatus="available",
-                        timestamp=datetime.now()
+                        timestamp=datetime.now(),
+                        message_id=response.get("message_id") if isinstance(response, dict) else None
                     )
                 )
                 websocket_logger.info(

@@ -161,7 +161,7 @@ class UtilityHandlers:
                     debug_data["avg_response_time"] = timing_data.get('avg_response_time')
             
             if debug_type == "message_details":
-                message_id = message.data.get("message_id")
+                message_id = message.data.message_id
                 if not message_id:
                     debug_response = DebugResponseMsg(
                         type="debug_response",
