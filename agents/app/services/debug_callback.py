@@ -17,6 +17,9 @@ class ToolCallCapture:
     tool_output: Any = None
     error: Optional[str] = None
     timestamp: str = None
+    start_time: Optional[float] = None
+    end_time: Optional[float] = None
+    duration: Optional[float] = None
     
     def __post_init__(self):
         if not self.timestamp:
@@ -161,14 +164,19 @@ class DebugCallback(CustomLogger):
         except Exception as e:
             logger.error(f"[DEBUG_CALLBACK] Error capturing response: {e}", exc_info=True)
     
-    def capture_tool_call(self, tool_name: str, tool_input: Dict[str, Any], tool_output: Any = None, error: Optional[str] = None):
+    def capture_tool_call(self, tool_name: str, tool_input: Dict[str, Any], tool_output: Any = None, 
+                         error: Optional[str] = None, start_time: Optional[float] = None,
+                         end_time: Optional[float] = None, duration: Optional[float] = None):
         """Manually capture tool calls from tool execution logs."""
         try:
             tool_capture = ToolCallCapture(
                 tool_name=tool_name,
                 tool_input=tool_input,
                 tool_output=tool_output,
-                error=error
+                error=error,
+                start_time=start_time,
+                end_time=end_time,
+                duration=duration
             )
             
             # Add to debug storage

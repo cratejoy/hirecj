@@ -863,10 +863,23 @@ Implementation complete:
 - ✅ Added thinking token count to performance metrics
 - ✅ Maintains backward compatibility with non-reasoning models
 
-### Phase 4: Tool Integration Enhancement
-- ❌ Enhance tool execution capture with @log_tool_execution decorator
-- ❌ Parse tool arguments more intelligently
-- ❌ Capture tool execution timing
+### Phase 4: Tool Integration Enhancement ✅ COMPLETE
+- ✅ Enhance tool execution capture with @log_tool_execution decorator
+- ✅ Parse tool arguments more intelligently
+- ✅ Capture tool execution timing
+
+#### Implementation Details:
+- Enhanced `log_tool_execution` decorator with:
+  - Start/end time capture
+  - Duration calculation in seconds
+  - Better argument parsing for CrewAI tools
+  - Proper handling of string, dict, and other input types
+- Updated `ToolCallCapture` dataclass to include timing fields
+- Applied decorator to all tools in:
+  - `database_tools.py` (17 tools)
+  - `shopify_tools.py` (all tools)
+  - `universe_tools.py` (all tools)
+- Frontend displays execution time in milliseconds
 
 ### Phase 5: UI Polish
 - ❌ Add syntax highlighting for JSON/code in prompts

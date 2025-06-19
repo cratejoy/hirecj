@@ -392,7 +392,12 @@ Always remember to:
                                     )}
                                   </Button>
                                 )}
-                                <p className="font-medium">{call.tool_name}</p>
+                                <div className="flex items-center justify-between">
+                                  <p className="font-medium">{call.tool_name}</p>
+                                  {call.duration && (
+                                    <span className="text-xs text-muted-foreground">{(call.duration * 1000).toFixed(0)}ms</span>
+                                  )}
+                                </div>
                                 {call.tool_output && (
                                   <pre className="mt-1 text-muted-foreground overflow-x-auto pr-10">
                                     <code>{typeof call.tool_output === 'string' ? call.tool_output : JSON.stringify(call.tool_output, null, 2)}</code>

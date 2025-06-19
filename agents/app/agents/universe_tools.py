@@ -5,6 +5,7 @@ from typing import List, Any
 from pydantic import BaseModel, Field
 from crewai.tools.base_tool import tool
 from app.config import settings
+from app.services.tool_logger import log_tool_execution
 
 logger = logging.getLogger(__name__)
 
