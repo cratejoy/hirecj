@@ -187,31 +187,32 @@ class UtilityHandlers:
                                f"has_thinking={bool(resp.get('thinking_content'))}, "
                                f"content_length={len(resp.get('choices', [{}])[0].get('message', {}).get('content', '')) if resp.get('choices') else 0}")
                 
-                # Find matching response
+                # Find matching response - get the LAST one with this message_id
+                # (which should have the consolidated data and final_response)
+                matching_response = None
                 for response in session.debug_data.get("llm_responses", []):
                     if response.get("message_id") == message_id:
-                        debug_data["response"] = response
-                        # Log thinking content if present
-                        if response.get("thinking_content"):
-                            logger.info(f"[DEBUG_REQUEST] Found thinking content for {message_id}: {len(response['thinking_content'])} chars")
-                            logger.info(f"[DEBUG_REQUEST] Thinking preview: {response['thinking_content'][:100]}...")
-                        else:
-                            logger.info(f"[DEBUG_REQUEST] No thinking content found for {message_id}")
-                        
-                        # Also log clean_content if present
-                        if response.get("clean_content"):
-                            logger.info(f"[DEBUG_REQUEST] Found clean_content: {len(response.get('clean_content', ''))} chars")
-                        break
+                        matching_response = response  # Keep updating to get the last one
                 
-                # Find the final response that was actually sent to the user
-                for final_resp in session.debug_data.get("final_responses", []):
-                    if final_resp.get("message_id") == message_id:
-                        # Add the final response to the response data
-                        if "response" not in debug_data:
-                            debug_data["response"] = {}
-                        debug_data["response"]["final_response"] = final_resp.get("final_response")
-                        logger.info(f"[DEBUG_REQUEST] Found final response for {message_id}: {len(final_resp.get('final_response', ''))} chars")
-                        break
+                if matching_response:
+                    debug_data["response"] = matching_response
+                    # Log thinking content if present
+                    if matching_response.get("thinking_content"):
+                        logger.info(f"[DEBUG_REQUEST] Found thinking content for {message_id}: {len(matching_response['thinking_content'])} chars")
+                        logger.info(f"[DEBUG_REQUEST] Thinking preview: {matching_response['thinking_content'][:100]}...")
+                    else:
+                        logger.info(f"[DEBUG_REQUEST] No thinking content found for {message_id}")
+                    
+                    # Also log clean_content if present
+                    if matching_response.get("clean_content"):
+                        logger.info(f"[DEBUG_REQUEST] Found clean_content: {len(matching_response.get('clean_content', ''))} chars")
+                    
+                    # Log if we have final_response
+                    if matching_response.get("final_response"):
+                        logger.info(f"[DEBUG_REQUEST] Found final_response: {len(matching_response.get('final_response', ''))} chars")
+                
+                # Note: final_response is already included in the matching_response above
+                # No need to look for it separately
                 
                 # Find matching tool calls
                 debug_data["tool_calls"] = [

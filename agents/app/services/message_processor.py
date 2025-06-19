@@ -129,11 +129,18 @@ class MessageProcessor:
         for data_type in ["llm_prompts", "llm_responses", "tool_calls"]:
             if data_type in session.debug_data:
                 # Remove any existing entries with this message_id
+                original_count = len(session.debug_data[data_type])
                 session.debug_data[data_type] = [
                     item for item in session.debug_data[data_type]
                     if item.get("message_id") != message_id
                 ]
-                logger.info(f"[DEBUG_CLEANUP] Cleared {data_type} for message_id {message_id}")
+                removed_count = original_count - len(session.debug_data[data_type])
+                if removed_count > 0:
+                    logger.warning(f"[DEBUG_CLEANUP] Removed {removed_count} stale {data_type} entries for message_id {message_id}")
+                
+                # Also log current message IDs in the storage for debugging
+                current_msg_ids = list(set([item.get("message_id") for item in session.debug_data[data_type] if item.get("message_id")]))
+                logger.info(f"[DEBUG_CLEANUP] Current message IDs in {data_type}: {current_msg_ids}")
 
         # Create debug callback
         debug_callback = DebugCallback(session.id, session.debug_data)
@@ -287,6 +294,14 @@ class MessageProcessor:
             # Then consolidate thinking content
             if len(all_responses) > 0:
                 logger.info(f"[DEBUG_CONSOLIDATION] Found {len(all_responses)} responses")
+                
+                # Log details about each response for debugging
+                for i, resp in enumerate(all_responses):
+                    content_preview = ""
+                    if resp.get("choices") and len(resp["choices"]) > 0:
+                        content = resp["choices"][0].get("message", {}).get("content", "")
+                        content_preview = content[:50] + "..." if len(content) > 50 else content
+                    logger.info(f"[DEBUG_CONSOLIDATION] Response {i}: msg_id={resp.get('message_id')}, content_preview='{content_preview}'")
                 
                 # Collect all thinking content from all responses
                 all_thinking = []
