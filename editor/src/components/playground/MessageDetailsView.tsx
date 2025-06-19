@@ -271,18 +271,25 @@ Always remember to:
             {/* Right Panel - Incoming Response */}
             <div className="flex-1 flex flex-col">
               <div className="p-4 border-b bg-muted/30">
-                <h3 className="font-medium text-sm uppercase tracking-wider">INCOMING RESPONSE FROM LLM</h3>
+                <h3 className="font-medium text-sm uppercase tracking-wider">LLM EXECUTION & RESPONSE</h3>
               </div>
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
                   {responseData ? (
                     <>
+                      {/* Explanation of CrewAI's multi-step process */}
+                      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
+                        <p className="text-xs text-blue-700 dark:text-blue-300">
+                          <strong>Note:</strong> CrewAI agents use a multi-step reasoning process. They may generate multiple intermediate responses before arriving at the final answer.
+                        </p>
+                      </div>
+                      
                       {/* Final Response - What User Actually Saw */}
                       {responseData.final_response && (
                         <>
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-medium text-sm uppercase tracking-wider text-muted-foreground">FINAL RESPONSE (WHAT USER SAW)</h4>
+                              <h4 className="font-medium text-sm uppercase tracking-wider text-green-700 dark:text-green-400">✓ FINAL RESPONSE SENT TO USER</h4>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -309,7 +316,7 @@ Always remember to:
                         <div key={idx}>
                           {choice.message?.content && (
                             <div className="mb-4">
-                              <h4 className="font-medium text-sm uppercase tracking-wider text-muted-foreground mb-2">RAW LLM RESPONSE</h4>
+                              <h4 className="font-medium text-sm uppercase tracking-wider text-orange-600 dark:text-orange-400 mb-2">⚡ INTERMEDIATE LLM RESPONSE</h4>
                               <div className="relative bg-muted/50 rounded-lg p-4">
                                 <Button
                                   variant="ghost"
@@ -405,7 +412,7 @@ Always remember to:
                           <Separator className="my-4" />
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                              <h4 className="font-medium text-sm uppercase tracking-wider text-muted-foreground">AGENT THINKING PROCESS</h4>
+                              <h4 className="font-medium text-sm uppercase tracking-wider text-blue-600 dark:text-blue-400">🤔 AGENT REASONING & THOUGHTS</h4>
                               <Button
                                 variant="ghost"
                                 size="sm"
