@@ -77,6 +77,25 @@ class DebugCallback(CustomLogger):
         except Exception as e:
             logger.error(f"[DEBUG_CALLBACK] Error capturing prompt: {e}", exc_info=True)
     
+    def _extract_usage_with_details(self, response_obj: Any, kwargs: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Extract usage information including thinking token details."""
+        if not hasattr(response_obj, 'usage') or not response_obj.usage:
+            return None
+        
+        # Get base usage dict
+        usage_dict = response_obj.usage.dict()
+        
+        # Check for completion_tokens_details (o1 models)
+        if hasattr(response_obj.usage, 'completion_tokens_details') and response_obj.usage.completion_tokens_details:
+            details = response_obj.usage.completion_tokens_details
+            usage_dict['completion_tokens_details'] = {
+                'reasoning_tokens': getattr(details, 'reasoning_tokens', 0),
+                'output_tokens': getattr(details, 'output_tokens', 0)
+            }
+            logger.info(f"[DEBUG_CALLBACK] Captured thinking tokens: reasoning={usage_dict['completion_tokens_details']['reasoning_tokens']}, output={usage_dict['completion_tokens_details']['output_tokens']}")
+        
+        return usage_dict
+    
     def log_success_event(self, kwargs: Dict[str, Any], response_obj: Any, start_time: float, end_time: float) -> None:
         """Capture the raw API response including tool calls."""
         logger.info(f"[DEBUG_CALLBACK] log_success_event called for message {self.current_message_id}")
@@ -102,7 +121,7 @@ class DebugCallback(CustomLogger):
                 "timestamp": datetime.utcnow().isoformat(),
                 "duration": end_time - start_time,
                 "model": response_obj.model if hasattr(response_obj, 'model') else kwargs.get('model'),
-                "usage": response_obj.usage.dict() if hasattr(response_obj, 'usage') else None,
+                "usage": self._extract_usage_with_details(response_obj, kwargs),
                 "choices": [
                     {
                         "message": {

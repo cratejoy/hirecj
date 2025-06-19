@@ -269,6 +269,18 @@ Always remember to:
                         </>
                       )}
                       
+                      {/* Thinking Token Details */}
+                      {responseData.usage?.completion_tokens_details && (
+                        <>
+                          <Separator className="my-2" />
+                          <div className="text-xs text-muted-foreground">
+                            <p className="font-medium mb-1">Thinking Breakdown:</p>
+                            <p>Reasoning tokens: {responseData.usage.completion_tokens_details.reasoning_tokens}</p>
+                            <p>Output tokens: {responseData.usage.completion_tokens_details.output_tokens}</p>
+                          </div>
+                        </>
+                      )}
+                      
                       {/* Timing */}
                       {responseData.duration && (
                         <p className="text-xs text-muted-foreground">Duration: {parseISODuration(responseData.duration).toFixed(2)}s</p>
@@ -333,7 +345,14 @@ Always remember to:
                   {responseData.duration && <p>Latency: {parseISODuration(responseData.duration).toFixed(2)}s</p>}
                   <p>Tool Calls: {toolCalls.length}</p>
                   {responseData.usage && (
-                    <p>Total Tokens: {responseData.usage.total_tokens}</p>
+                    <>
+                      <p>Total Tokens: {responseData.usage.total_tokens}</p>
+                      {responseData.usage.completion_tokens_details && (
+                        <p className="text-xs text-muted-foreground">
+                          ({responseData.usage.completion_tokens_details.reasoning_tokens} thinking)
+                        </p>
+                      )}
+                    </>
                   )}
                 </>
               )}

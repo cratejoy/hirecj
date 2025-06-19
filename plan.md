@@ -855,7 +855,13 @@ if hasattr(response_obj, 'usage') and response_obj.usage:
    - Verify reasoning tokens are captured
    - Ensure backward compatibility with non-reasoning models
 
-#### Status: ❌ Not Started
+#### Status: ✅ COMPLETE
+
+Implementation complete:
+- ✅ Added `_extract_usage_with_details` method to capture completion_tokens_details
+- ✅ Enhanced frontend to display reasoning tokens in main view
+- ✅ Added thinking token count to performance metrics
+- ✅ Maintains backward compatibility with non-reasoning models
 
 ### Phase 4: Tool Integration Enhancement
 - ❌ Enhance tool execution capture with @log_tool_execution decorator
