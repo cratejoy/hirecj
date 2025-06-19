@@ -11,6 +11,17 @@ interface MessageDetailsViewProps {
   onRequestDetails?: (messageId: string) => Promise<any>;
 }
 
+// Parse ISO 8601 duration format (e.g., "PT3.448383S") to seconds
+const parseISODuration = (duration: string | number): number => {
+  if (typeof duration === 'number') {
+    return duration;
+  }
+  
+  // Parse "PT3.448383S" format
+  const match = duration.match(/PT(\d+\.?\d*)S/);
+  return match ? parseFloat(match[1]) : 0;
+};
+
 export function MessageDetailsView({ isOpen, onClose, messageId, onRequestDetails }: MessageDetailsViewProps) {
   const [loading, setLoading] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
@@ -260,7 +271,7 @@ Always remember to:
                       
                       {/* Timing */}
                       {responseData.duration && (
-                        <p className="text-xs text-muted-foreground">Duration: {responseData.duration.toFixed(2)}s</p>
+                        <p className="text-xs text-muted-foreground">Duration: {parseISODuration(responseData.duration).toFixed(2)}s</p>
                       )}
                     </>
                   ) : (
@@ -319,7 +330,7 @@ Always remember to:
             <div className="space-y-1 text-sm">
               {responseData && (
                 <>
-                  {responseData.duration && <p>Latency: {responseData.duration.toFixed(2)}s</p>}
+                  {responseData.duration && <p>Latency: {parseISODuration(responseData.duration).toFixed(2)}s</p>}
                   <p>Tool Calls: {toolCalls.length}</p>
                   {responseData.usage && (
                     <p>Total Tokens: {responseData.usage.total_tokens}</p>

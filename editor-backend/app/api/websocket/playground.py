@@ -104,8 +104,8 @@ async def playground_websocket(websocket: WebSocket):
             # Bridge connections
             await bridge_connections(websocket, agent_ws, session_id)
             
-    except websockets.exceptions.ConnectionRefusedError:
-        logging.error(f"Failed to connect to agent service at {agent_ws_uri}")
+    except (ConnectionRefusedError, OSError) as e:
+        logging.error(f"Failed to connect to agent service at {agent_ws_uri}: {e}")
         error_msg = ErrorMsg(
             type="error",
             text="Agent service unavailable"

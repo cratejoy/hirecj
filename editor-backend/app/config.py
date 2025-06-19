@@ -40,7 +40,7 @@ class Settings(ServiceConfig):
     scenarios_dir: Path = Path("../agents/prompts/scenarios")
     
     # Agent service connection
-    agents_service_url: str = Field("http://localhost:8000", env="AGENTS_SERVICE_URL")
+    agents_service_url: str = Field("http://localhost:8100", env="AGENTS_SERVICE_URL")
     
     # CORS settings
     frontend_url: str = "http://localhost:3458"

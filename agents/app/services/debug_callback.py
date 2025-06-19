@@ -5,6 +5,7 @@ from datetime import datetime
 from shared.logging_config import get_logger
 from dataclasses import dataclass, asdict
 import re
+import traceback
 
 logger = get_logger(__name__)
 
@@ -79,6 +80,7 @@ class DebugCallback(CustomLogger):
     def log_success_event(self, kwargs: Dict[str, Any], response_obj: Any, start_time: float, end_time: float) -> None:
         """Capture the raw API response including tool calls."""
         logger.info(f"[DEBUG_CALLBACK] log_success_event called for message {self.current_message_id}")
+        logger.info(f"[DEBUG_CALLBACK] Response object type: {type(response_obj)}")
         try:
             # Extract tool calls if present
             tool_calls = []

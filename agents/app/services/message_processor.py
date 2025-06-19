@@ -133,6 +133,12 @@ class MessageProcessor:
             litellm.input_callback.append(debug_callback)
         if debug_callback not in litellm.success_callback:
             litellm.success_callback.append(debug_callback)
+        
+        # Debug logging
+        logger.info(f"[DEBUG_REGISTRATION] Registered callbacks for {message_id}")
+        logger.info(f"[DEBUG_REGISTRATION] input_callback count: {len(litellm.input_callback)}")
+        logger.info(f"[DEBUG_REGISTRATION] success_callback count: {len(litellm.success_callback)}")
+        logger.info(f"[DEBUG_REGISTRATION] success_callback types: {[type(cb).__name__ for cb in litellm.success_callback]}")
 
         # Set debug callback for tool logger
         ToolLogger.set_debug_callback(debug_callback)
@@ -191,7 +197,11 @@ class MessageProcessor:
             )
 
             # Create crew and execute
+            logger.info(f"[MESSAGE_PROCESSOR] Before creating Crew - success callbacks: {[type(cb).__name__ for cb in litellm.success_callback]}")
+            
             crew = Crew(agents=[cj_agent], tasks=[task], verbose=settings.enable_verbose_logging)
+            
+            logger.info(f"[MESSAGE_PROCESSOR] After creating Crew - success callbacks: {[type(cb).__name__ for cb in litellm.success_callback]}")
 
             await self._report_progress(session.id, "thinking", {"status": "generating"})
 
@@ -207,7 +217,11 @@ class MessageProcessor:
                 + "\n".join(f"    {msg}" for msg in context_messages)
             )
             
+            logger.info(f"[MESSAGE_PROCESSOR] Before crew.kickoff() - success callbacks: {[type(cb).__name__ for cb in litellm.success_callback]}")
+            
             result = crew.kickoff()
+            
+            logger.info(f"[MESSAGE_PROCESSOR] After crew.kickoff() - success callbacks: {[type(cb).__name__ for cb in litellm.success_callback]}")
 
             # Extract response
             response = str(result)
@@ -258,10 +272,20 @@ class MessageProcessor:
             
         finally:
             # Clean up callbacks
+            logger.info(f"[DEBUG_CLEANUP] Cleaning up callbacks for {message_id}")
+            logger.info(f"[DEBUG_CLEANUP] Before cleanup - input: {len(litellm.input_callback)}, success: {len(litellm.success_callback)}")
+            logger.info(f"[DEBUG_CLEANUP] Debug callback in success_callback: {debug_callback in litellm.success_callback}")
+            
             if debug_callback in litellm.input_callback:
                 litellm.input_callback.remove(debug_callback)
             if debug_callback in litellm.success_callback:
                 litellm.success_callback.remove(debug_callback)
+                logger.info(f"[DEBUG_CLEANUP] Removed debug callback from success_callback")
+            else:
+                logger.info(f"[DEBUG_CLEANUP] Debug callback NOT in success_callback!")
+                
+            logger.info(f"[DEBUG_CLEANUP] After cleanup - input: {len(litellm.input_callback)}, success: {len(litellm.success_callback)}")
+            
             debug_callback.finalize()
             ToolLogger.set_debug_callback(None)
 

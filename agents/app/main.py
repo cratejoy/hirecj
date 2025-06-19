@@ -40,7 +40,8 @@ if settings.anthropic_api_key and not os.getenv("ANTHROPIC_API_KEY"):
 # Enable LiteLLM verbose logging to see prompts
 os.environ["LITELLM_LOG"] = "DEBUG"
 os.environ["LITELLM_VERBOSE"] = "true"
-logger = logging.getLogger(__name__)
+from shared.logging_config import get_logger
+logger = get_logger(__name__)
 logger.info("LiteLLM verbose logging enabled - prompts will be visible in logs")
 
 # Initialize FastAPI app
@@ -57,7 +58,7 @@ allowed_origins = [
     settings.auth_url,
     # Always allow localhost for development
     "http://localhost:3456",
-    "http://localhost:8000", 
+    "http://localhost:8100", 
     "http://localhost:8103",
     "http://localhost:8002",
 ]

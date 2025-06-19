@@ -145,17 +145,17 @@ case $ACTION in
         echo ""
         
         # Check services
-        for port in 8000 8103 8002 3000; do
+        for port in 8100 8103 8002 3000; do
             if lsof -i :$port > /dev/null 2>&1; then
                 case $port in
-                    8000) echo -e "Agents (8000):   ${GREEN}Running${NC}" ;;
+                    8100) echo -e "Agents (8100):   ${GREEN}Running${NC}" ;;
                     8103) echo -e "Auth (8103):     ${GREEN}Running${NC}" ;;
                     8002) echo -e "Database (8002): ${GREEN}Running${NC}" ;;
                     3000) echo -e "Homepage (3000): ${GREEN}Running${NC}" ;;
                 esac
             else
                 case $port in
-                    8000) echo -e "Agents (8000):   ${RED}Stopped${NC}" ;;
+                    8100) echo -e "Agents (8100):   ${RED}Stopped${NC}" ;;
                     8103) echo -e "Auth (8103):     ${RED}Stopped${NC}" ;;
                     8002) echo -e "Database (8002): ${RED}Stopped${NC}" ;;
                     3000) echo -e "Homepage (3000): ${RED}Stopped${NC}" ;;

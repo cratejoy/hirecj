@@ -22,7 +22,6 @@ class CJAgent:
         cj_version: str = None,
         enable_caching: bool = None,
         enable_fact_checking: bool = None,
-        debug_callback: Optional[Any] = None,
         **kwargs,
     ):
         self.merchant_name = merchant_name
@@ -39,7 +38,6 @@ class CJAgent:
             if enable_caching is not None
             else settings.enable_prompt_caching
         )
-        self.debug_callback = debug_callback
 
         # Get model configuration
         self.model_name = get_model(ModelPurpose.CONVERSATION_CJ)
@@ -397,19 +395,18 @@ class CJAgent:
             **kwargs,
         }
 
-        # Create LLM instance with debug callback if provided
-        if self.debug_callback:
-            from crewai import LLM
-            logger.info(f"[CJ_AGENT] Creating LLM with debug callback")
-            llm_instance = LLM(
-                model=self.model_name,
-                callbacks=[self.debug_callback],
-            )
-            agent_config["llm"] = llm_instance
-        else:
-            agent_config["llm"] = self.model_name
+        # Use the model name directly
+        agent_config["llm"] = self.model_name
 
-        return ExtendedAgent(**agent_config)
+        # Log callback state before creating agent
+        import litellm
+        logger.info(f"[CJ_AGENT] Before creating ExtendedAgent - success callbacks: {[type(cb).__name__ for cb in litellm.success_callback]}")
+        
+        agent = ExtendedAgent(**agent_config)
+        
+        logger.info(f"[CJ_AGENT] After creating ExtendedAgent - success callbacks: {[type(cb).__name__ for cb in litellm.success_callback]}")
+        
+        return agent
 
     def _get_universe_info(self) -> str:
         """Get universe context information."""
@@ -452,7 +449,6 @@ def create_cj_agent(
     oauth_metadata: Optional[Dict[str, Any]] = None,
     scenario_context: str = "",
     verbose: bool = True,
-    debug_callback: Optional[Any] = None,
     **kwargs,
 ) -> Agent:
     """Create a CJ agent for customer support conversations.
@@ -470,7 +466,6 @@ def create_cj_agent(
         oauth_metadata: Optional OAuth metadata dict with authentication info
         scenario_context: Optional additional scenario context
         verbose: Enable verbose output (default: True)
-        debug_callback: Optional debug callback for capturing LLM interactions
         **kwargs: Additional arguments passed to Agent constructor
 
     Returns:
@@ -495,7 +490,6 @@ def create_cj_agent(
         oauth_metadata=oauth_metadata,
         scenario_context=scenario_context,
         verbose=verbose,
-        debug_callback=debug_callback,
         **kwargs,
     )
     return cj.agent

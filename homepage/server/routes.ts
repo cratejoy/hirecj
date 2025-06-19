@@ -8,7 +8,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Get the agents service URL from environment
-  const AGENTS_SERVICE_URL = process.env.AGENTS_SERVICE_URL || 'http://localhost:8000';
+  const AGENTS_SERVICE_URL = process.env.AGENTS_SERVICE_URL || 'http://localhost:8100';
   const agentsUrl = new URL(AGENTS_SERVICE_URL);
   const agentsTarget = `${agentsUrl.protocol}//${agentsUrl.host}`;
   
