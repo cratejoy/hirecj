@@ -265,9 +265,7 @@ export function usePlaygroundChat() {
         trust_level: config.trustLevel
       };
       
-      console.log('📤 Sending playground_start message:', msg);
       const msgString = JSON.stringify(msg);
-      console.log('📤 Message string:', msgString);
       ws.current.send(msgString);
       
       console.log('🧹 Clearing messages and queue');

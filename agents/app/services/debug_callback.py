@@ -178,17 +178,8 @@ class DebugCallback(CustomLogger):
             if hasattr(response_obj, 'choices') and response_obj.choices:
                 choice = response_obj.choices[0]
                 
-                # First check if the API provides reasoning_content field (o1/o3 models)
-                if hasattr(choice, 'message') and hasattr(choice.message, 'reasoning_content') and choice.message.reasoning_content:
-                    thinking_content = choice.message.reasoning_content
-                    logger.info(f"[DEBUG_CALLBACK] Found API reasoning_content: {len(thinking_content)} chars")
-                    response_data["thinking_content"] = thinking_content
-                    # The content field should already be the clean response
-                    if hasattr(choice.message, 'content'):
-                        response_data["clean_content"] = choice.message.content
-                
-                # If no reasoning_content from API, try to extract from content
-                elif response_data["choices"] and len(response_data["choices"]) > 0:
+                # Extract thinking content from CrewAI's ReAct pattern
+                if response_data["choices"] and len(response_data["choices"]) > 0:
                     first_choice = response_data["choices"][0]
                     if first_choice["message"] and first_choice["message"]["content"]:
                         content = first_choice["message"]["content"]

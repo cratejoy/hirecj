@@ -258,7 +258,7 @@ class MessageProcessor:
             if debug_callback and hasattr(debug_callback, 'capture_final_response'):
                 debug_callback.capture_final_response(response)
             
-            # DIAGNOSTIC: Log response generation  
+  
             from datetime import datetime
             has_oauth_complete = "authentication complete" in response.lower()
             logger.warning(f"[MSG_GEN] Message generated - has_oauth_complete={has_oauth_complete}, "

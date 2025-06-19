@@ -52,10 +52,6 @@ export function MessageDetailsView({ isOpen, onClose, messageId, onRequestDetail
       setError(null);
       onRequestDetails(messageId)
         .then(data => {
-          console.log('[MessageDetailsView] Received debug data:', data);
-          console.log('[MessageDetailsView] Response data:', data?.response);
-          console.log('[MessageDetailsView] Thinking content:', data?.response?.thinking_content);
-          console.log('[MessageDetailsView] Final response:', data?.response?.final_response);
           setDebugData(data);
           setLoading(false);
         })
@@ -91,14 +87,6 @@ export function MessageDetailsView({ isOpen, onClose, messageId, onRequestDetail
   
   // Log what we're displaying
   if (responseData) {
-    console.log('[MessageDetailsView] Response data structure:', {
-      hasThinkingContent: !!responseData.thinking_content,
-      thinkingLength: responseData.thinking_content?.length,
-      hasCleanContent: !!responseData.clean_content,
-      cleanLength: responseData.clean_content?.length,
-      hasChoices: !!(responseData.choices && responseData.choices.length > 0),
-      firstChoiceContent: responseData.choices?.[0]?.message?.content?.substring(0, 100)
-    });
   }
 
   // Fallback data for demonstration
