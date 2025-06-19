@@ -867,11 +867,38 @@ Implementation complete:
 ### Phase 3.6: Capture Actual Thinking Traces (NEW)
 **Goal**: Extract and display the CrewAI agent thinking content that's already being captured
 
+#### 🔍 Investigation Results
+
+**Initial Assumption**: We thought we needed to capture thinking/reasoning fields from o1 models
+**Reality Discovered**: CrewAI agents already output detailed thinking traces as part of their ReAct loop!
+
+**Current System Architecture**:
+```
+1. CrewAI Agent executes task
+   ↓
+2. Outputs "Thought:" prefixed reasoning as part of ReAct pattern
+   ↓
+3. LiteLLM returns full content (thoughts + actions + final response)
+   ↓
+4. ConversationThinkingCallback extracts and logs with [THINKING]
+   ↓
+5. DebugCallback stores full content in debug_data
+   ↓
+6. Currently: Thinking is mixed with response in the UI
+```
+
+**Key Components We Found**:
+- `ConversationThinkingCallback` - Already extracts thinking for logging
+- `ExtendedAgent` - Sets up thinking callbacks
+- Message content includes full ReAct loop output
+- Tests verify thoughts shouldn't leak to users (`internal_thoughts_boundaries.yaml`)
+
 #### The Discovery:
 We already capture thinking traces! CrewAI agents output "Thought:" prefixed content as part of their reasoning process. This is currently:
 - Logged by `ConversationThinkingCallback` with [THINKING] prefix  
 - Included in the regular message content in debug_callback.py
 - But NOT separated out for display in the message details view
+- Confirmed by test cases that explicitly check thoughts don't leak to merchants
 
 Example of what we're already capturing:
 ```
@@ -886,6 +913,35 @@ Thought: I can see several tickets about shipping delays. Let me analyze the pat
 ```
 
 This thinking content is valuable for debugging but shouldn't be shown in the main response.
+
+#### 🎯 Why This is Simpler Than Expected
+
+1. **No Model-Specific Code Needed**: Works with any model CrewAI uses
+2. **Data Already Flowing**: Thinking content is already in our debug responses
+3. **Pattern is Consistent**: CrewAI's ReAct format is predictable
+4. **Just Need Parsing**: Simply extract "Thought:" sections from existing data
+
+#### 📊 Current Data Flow Example
+
+When a user asks "What are our top complaints?", here's what happens:
+```
+1. User Message → CJ Agent
+2. Agent Response (what we capture):
+   "Thought: I need to check recent tickets to identify complaint patterns.
+    
+    Action: get_recent_tickets_from_db
+    Action Input: {}
+    
+    Observation: [30 tickets returned...]
+    
+    Thought: I can see shipping delays are mentioned in 12 tickets...
+    
+    Based on the recent tickets, your top complaints are:
+    1. Shipping delays (40% of tickets)..."
+
+3. What user sees: Only the final part starting with "Based on..."
+4. What debug view should show: The complete thinking process
+```
 
 #### Implementation Steps:
 
@@ -971,6 +1027,25 @@ This thinking content is valuable for debugging but shouldn't be shown in the ma
    - Check that thinking appears in dedicated UI section
 
 #### Status: ❌ Not Started
+
+#### 📋 Investigation Summary
+
+**What We Thought We Needed**:
+- Special handling for o1 model thinking fields
+- New API response parsing for reasoning_content
+- Model-specific implementations
+
+**What We Actually Have**:
+- ✅ CrewAI agents already output thinking traces
+- ✅ ConversationThinkingCallback already parses them
+- ✅ Full content is captured in debug_data
+- ✅ Pattern is consistent and well-tested
+
+**Implementation Complexity**: 
+- Initially estimated: High (new API fields, model detection)
+- Actual: Low (parse existing strings, display in UI)
+
+**Next Steps**: Simply parse and display what we're already capturing!
 
 ### Phase 4: Tool Integration Enhancement ✅ COMPLETE
 - ✅ Enhance tool execution capture with @log_tool_execution decorator
