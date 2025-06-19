@@ -99,11 +99,77 @@ class DebugCallback(CustomLogger):
         
         return usage_dict
     
-    def log_success_event(self, kwargs: Dict[str, Any], response_obj: Any, start_time: float, end_time: float) -> None:
+    def _extract_thinking_content(self, content: str) -> Dict[str, str]:
+        """Extract thinking sections from CrewAI agent output."""
+        if not content:
+            return {"thinking_content": None, "clean_content": content}
+        
+        logger.info(f"[DEBUG_CALLBACK] _extract_thinking_content called with content length: {len(content)}")
+        
+        thinking_sections = []
+        clean_lines = []
+        lines = content.split('\n')
+        
+        in_thought = False
+        current_thought = []
+        
+        for line in lines:
+            stripped = line.strip()
+            
+            # Check if this is a thought line
+            if stripped.startswith('Thought:'):
+                in_thought = True
+                # Extract the thought content after "Thought:"
+                thought_content = line[line.index('Thought:') + 8:].strip()
+                if thought_content:
+                    current_thought = [thought_content]
+            elif in_thought:
+                # Continue capturing multi-line thoughts until we hit Action/Observation/empty line
+                if stripped.startswith(('Action:', 'Observation:', 'Final Answer:')) or (not stripped and current_thought):
+                    # End of thought section
+                    if current_thought:
+                        thinking_sections.append('\n'.join(current_thought))
+                    current_thought = []
+                    in_thought = False
+                    
+                    # Don't include Action: or Observation: in clean content
+                    if not stripped.startswith(('Action:', 'Observation:')):
+                        clean_lines.append(line)
+                elif stripped:
+                    # Continue the thought
+                    current_thought.append(line)
+            else:
+                # Regular content - not in a thought
+                if not stripped.startswith(('Action:', 'Observation:', 'Thought:')):
+                    clean_lines.append(line)
+        
+        # Handle any remaining thought
+        if current_thought:
+            thinking_sections.append('\n'.join(current_thought))
+        
+        # Build the results
+        thinking_content = '\n\n'.join(thinking_sections) if thinking_sections else None
+        clean_content = '\n'.join(clean_lines).strip()
+        
+        if thinking_content:
+            logger.info(f"[DEBUG_CALLBACK] Extracted {len(thinking_sections)} thinking sections totaling {len(thinking_content)} chars")
+        
+        return {
+            "thinking_content": thinking_content,
+            "clean_content": clean_content
+        }
+    
+    def log_success_event(self, kwargs: Dict[str, Any], response_obj: Any, start_time: Any, end_time: Any) -> None:
         """Capture the raw API response including tool calls."""
         logger.info(f"[DEBUG_CALLBACK] log_success_event called for message {self.current_message_id}")
         logger.info(f"[DEBUG_CALLBACK] Response object type: {type(response_obj)}")
         try:
+            # Convert times to float seconds if they're datetime objects
+            if hasattr(start_time, 'timestamp'):
+                start_time = start_time.timestamp()
+            if hasattr(end_time, 'timestamp'):
+                end_time = end_time.timestamp()
+            duration = end_time - start_time
             # Extract tool calls if present
             tool_calls = []
             if hasattr(response_obj, 'choices') and response_obj.choices:
@@ -122,7 +188,7 @@ class DebugCallback(CustomLogger):
             response_data = {
                 "message_id": self.current_message_id,
                 "timestamp": datetime.utcnow().isoformat(),
-                "duration": end_time - start_time,
+                "duration": duration,
                 "model": response_obj.model if hasattr(response_obj, 'model') else kwargs.get('model'),
                 "usage": self._extract_usage_with_details(response_obj, kwargs),
                 "choices": [
@@ -140,6 +206,18 @@ class DebugCallback(CustomLogger):
                 "created": response_obj.created if hasattr(response_obj, 'created') else None,
             }
             
+            # Extract thinking content from the first choice if available
+            if response_data["choices"] and len(response_data["choices"]) > 0:
+                first_choice = response_data["choices"][0]
+                if first_choice["message"] and first_choice["message"]["content"]:
+                    content = first_choice["message"]["content"]
+                    extracted = self._extract_thinking_content(content)
+                    
+                    # Add thinking content to response data
+                    if extracted["thinking_content"]:
+                        response_data["thinking_content"] = extracted["thinking_content"]
+                        response_data["clean_content"] = extracted["clean_content"]
+            
             # Store in debug storage
             self.debug_storage["llm_responses"].append(response_data)
             
@@ -149,17 +227,17 @@ class DebugCallback(CustomLogger):
             
             # Update timing
             if "last_response_time" not in self.debug_storage["timing"]:
-                self.debug_storage["timing"]["last_response_time"] = end_time - start_time
+                self.debug_storage["timing"]["last_response_time"] = duration
             else:
                 # Calculate running average
-                prev_avg = self.debug_storage["timing"].get("avg_response_time", end_time - start_time)
+                prev_avg = self.debug_storage["timing"].get("avg_response_time", duration)
                 count = self.debug_storage["timing"].get("response_count", 1)
-                new_avg = (prev_avg * count + (end_time - start_time)) / (count + 1)
+                new_avg = (prev_avg * count + duration) / (count + 1)
                 self.debug_storage["timing"]["avg_response_time"] = new_avg
                 self.debug_storage["timing"]["response_count"] = count + 1
-                self.debug_storage["timing"]["last_response_time"] = end_time - start_time
+                self.debug_storage["timing"]["last_response_time"] = duration
                 
-            logger.info(f"[DEBUG_CALLBACK] Captured response for message {self.current_message_id} - {len(tool_calls)} tool calls, duration: {end_time - start_time:.2f}s")
+            logger.info(f"[DEBUG_CALLBACK] Captured response for message {self.current_message_id} - {len(tool_calls)} tool calls, duration: {duration:.2f}s")
             
         except Exception as e:
             logger.error(f"[DEBUG_CALLBACK] Error capturing response: {e}", exc_info=True)
