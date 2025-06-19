@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     
     # Service URLs (from shared config)
     auth_service_url: str = Field("http://localhost:8103", env="AUTH_SERVICE_URL")
-    agents_service_url: str = Field("http://localhost:8000", env="AGENTS_SERVICE_URL")
+    agents_service_url: str = Field("http://localhost:8100", env="AGENTS_SERVICE_URL")
     homepage_url: str = Field("http://localhost:3456", env="HOMEPAGE_URL")
     
     # Database Configuration - Single shared database for all services
@@ -161,7 +161,7 @@ class Settings(BaseSettings):
         # Always include localhost origins
         origins.update({
             "http://localhost:3456",
-            "http://localhost:8000",
+            "http://localhost:8100",
             "http://localhost:8103",
             "http://localhost:8002",
         })

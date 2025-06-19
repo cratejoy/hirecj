@@ -14,6 +14,11 @@ from watchdog.events import FileSystemEventHandler
 import threading
 import logging
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(env_path)
+
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG if '--debug' in sys.argv else logging.INFO,
@@ -44,7 +49,7 @@ class ServerManager:
         agents_dir = Path(__file__).parent.parent
         
         cmd = [sys.executable, '-m', 'uvicorn', 'app.main:app', 
-               '--host', '0.0.0.0', '--port', '8000', '--log-level', 'info']  # Changed from 'debug' to 'info'
+               '--host', '0.0.0.0', '--port', os.environ.get('AGENTS_SERVICE_PORT', '8000'), '--log-level', 'info']  # Changed from 'debug' to 'info'
         
         logger.debug(f"Running command: {' '.join(cmd)}")
         logger.debug(f"Working directory: {agents_dir}")
@@ -172,7 +177,7 @@ def monitor_crashes(server_manager):
 def main():
     logger.info("🔧 HireCJ Development Server")
     logger.info("👀 Watching for Python file changes...")
-    logger.info("🌐 Server: http://localhost:8000")
+    logger.info(f"🌐 Server: http://localhost:{os.environ.get('AGENTS_SERVICE_PORT', '8000')}")
     logger.info("Press Ctrl+C to stop\n")
     
     # Create server manager

@@ -15,6 +15,7 @@ from app.lib.shopify_customer_lib import (
     search_customers_fuzzy,
     get_customer_order_history
 )
+from app.services.tool_logger import log_tool_execution
 
 logger = get_logger(__name__)
 

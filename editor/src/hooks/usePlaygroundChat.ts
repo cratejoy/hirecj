@@ -5,7 +5,9 @@ import {
   PlaygroundResetMsg,
   MessageMsg,
   CJMessageMsg,
-  CJThinkingMsg
+  CJThinkingMsg,
+  DebugRequestMsg,
+  DebugResponseMsg
 } from '@/protocol';
 
 interface PlaygroundConfig {
@@ -20,6 +22,7 @@ export function usePlaygroundChat() {
   const [thinking, setThinking] = useState<CJThinkingMsg | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [conversationStarted, setConversationStarted] = useState(false);
+  const [debugData, setDebugData] = useState<Record<string, any>>({});
   
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<NodeJS.Timeout>();
@@ -34,6 +37,9 @@ export function usePlaygroundChat() {
   
   // Ref to track conversation started state for immediate access
   const conversationStartedRef = useRef(false);
+  
+  // Debug request promise management
+  const debugRequestResolvers = useRef<Map<string, (data: any) => void>>(new Map());
   
   // Compute WebSocket base URL similar to homepage
   const WS_BASE_URL = useMemo(() => {
@@ -191,6 +197,27 @@ export function usePlaygroundChat() {
           console.log('ℹ️ System message:', msg.text);
           break;
           
+        case 'debug_response':
+          console.log('🐛 Debug response received');
+          const debugMsg = msg as DebugResponseMsg;
+          
+          // Store in debugData state by message_id if available
+          if (debugMsg.data.message_id) {
+            setDebugData(prev => ({
+              ...prev,
+              [debugMsg.data.message_id]: debugMsg.data
+            }));
+          }
+          
+          // Resolve any pending promise for this debug request
+          const messageId = debugMsg.data.message_id || debugMsg.data.type;
+          const resolver = debugRequestResolvers.current.get(messageId);
+          if (resolver) {
+            resolver(debugMsg.data);
+            debugRequestResolvers.current.delete(messageId);
+          }
+          break;
+          
         default:
           console.warn('⚠️ Unknown message type:', (msg as any).type);
       }
@@ -238,9 +265,7 @@ export function usePlaygroundChat() {
         trust_level: config.trustLevel
       };
       
-      console.log('📤 Sending playground_start message:', msg);
       const msgString = JSON.stringify(msg);
-      console.log('📤 Message string:', msgString);
       ws.current.send(msgString);
       
       console.log('🧹 Clearing messages and queue');
@@ -339,6 +364,43 @@ export function usePlaygroundChat() {
     }, 100); // Small delay to ensure reset message is sent
   }, []);
   
+  const requestMessageDetails = useCallback((messageId: string): Promise<any> => {
+    console.group('🔍 usePlaygroundChat.requestMessageDetails');
+    console.log('Message ID:', messageId);
+    
+    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+      console.error('❌ WebSocket not connected');
+      console.groupEnd();
+      return Promise.reject(new Error('WebSocket not connected'));
+    }
+    
+    // Check if we already have the data cached
+    if (debugData[messageId]) {
+      console.log('✅ Returning cached debug data');
+      console.groupEnd();
+      return Promise.resolve(debugData[messageId]);
+    }
+    
+    // Create promise for this request
+    const promise = new Promise<any>((resolve) => {
+      debugRequestResolvers.current.set(messageId, resolve);
+    });
+    
+    const msg: DebugRequestMsg = {
+      type: 'debug_request',
+      data: {
+        type: 'message_details',
+        message_id: messageId
+      }
+    };
+    
+    console.log('📤 Sending debug request:', msg);
+    ws.current.send(JSON.stringify(msg));
+    
+    console.groupEnd();
+    return promise;
+  }, [debugData]);
+  
   // Lifecycle management
   useEffect(() => {
     connect();
@@ -356,6 +418,7 @@ export function usePlaygroundChat() {
     conversationStarted,
     startConversation,
     sendMessage,
-    resetConversation
+    resetConversation,
+    requestMessageDetails
   };
 }

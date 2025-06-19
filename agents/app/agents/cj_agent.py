@@ -264,6 +264,10 @@ class CJAgent:
         logger.info(f"[CJ_AGENT] [GROUNDING] Content length: {len(content)}")
         
         from app.services.grounding_manager import GroundingManager
+        from app.services.tool_logger import ToolLogger
+        
+        # Get debug callback for capturing grounding operations
+        debug_callback = ToolLogger.get_debug_callback()
         
         # Debug logging
         logger.debug(f"[CJ_AGENT] [GROUNDING] Processing content of length {len(content)}")
@@ -305,11 +309,12 @@ class CJAgent:
         
         # Process grounding synchronously
         try:
-            # Call the synchronous grounding method directly
-            grounding_results = grounding_manager.process_grounding(directives, messages)
+            # Call the synchronous grounding method with debug callback
+            grounding_results = grounding_manager.process_grounding(directives, messages, debug_callback)
             
             # Log results
             logger.info(f"[CJ_AGENT] [GROUNDING] Received {len(grounding_results)} grounding results")
+            
             for namespace, result in grounding_results.items():
                 # Log first 200 chars of each result
                 preview = result.strip()[:200] + "..." if len(result) > 200 else result.strip()
@@ -392,11 +397,21 @@ class CJAgent:
             "tools": self.tools,
             "verbose": self.verbose,
             "allow_delegation": False,
-            "llm": self.model_name,
             **kwargs,
         }
 
-        return ExtendedAgent(**agent_config)
+        # Use the model name directly
+        agent_config["llm"] = self.model_name
+
+        # Log callback state before creating agent
+        import litellm
+        logger.info(f"[CJ_AGENT] Before creating ExtendedAgent - success callbacks: {[type(cb).__name__ for cb in litellm.success_callback]}")
+        
+        agent = ExtendedAgent(**agent_config)
+        
+        logger.info(f"[CJ_AGENT] After creating ExtendedAgent - success callbacks: {[type(cb).__name__ for cb in litellm.success_callback]}")
+        
+        return agent
 
     def _get_universe_info(self) -> str:
         """Get universe context information."""

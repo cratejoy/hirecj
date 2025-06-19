@@ -87,13 +87,15 @@ class GroundingManager:
     def process_grounding(
         self, 
         directives: List[GroundingDirective], 
-        conversation_context: List[Message]
+        conversation_context: List[Message],
+        debug_callback: Optional[Any] = None
     ) -> Dict[str, str]:
         """Process grounding directives with conversation context.
         
         Args:
             directives: List of grounding directives to process
             conversation_context: Recent conversation messages
+            debug_callback: Optional debug callback for capturing operations
             
         Returns:
             Dict mapping namespace to grounding content
@@ -107,6 +109,16 @@ class GroundingManager:
             if cached_result:
                 results[directive.namespace] = cached_result
                 logger.info(f"Using cached grounding for {directive.namespace}")
+                
+                # Capture cache hit
+                if debug_callback and hasattr(debug_callback, 'capture_grounding'):
+                    debug_callback.capture_grounding(
+                        namespace=directive.namespace,
+                        query="(from cache)",
+                        results=cached_result,
+                        results_count=len(cached_result.strip().split('\n')) if cached_result else 0,
+                        cache_hit=True
+                    )
                 continue
             
             # Build query from conversation context
@@ -114,6 +126,17 @@ class GroundingManager:
             
             if not query:
                 logger.warning(f"No context available for grounding {directive.namespace}")
+                
+                # Capture no context scenario
+                if debug_callback and hasattr(debug_callback, 'capture_grounding'):
+                    debug_callback.capture_grounding(
+                        namespace=directive.namespace,
+                        query="",
+                        results="",
+                        results_count=0,
+                        cache_hit=False,
+                        error="No conversation context available"
+                    )
                 continue
             
             # Query knowledge graph
@@ -131,8 +154,29 @@ class GroundingManager:
                 
                 # Cache the result
                 self._cache_result(cache_key, formatted_result)
+                
+                # Capture successful grounding
+                if debug_callback and hasattr(debug_callback, 'capture_grounding'):
+                    debug_callback.capture_grounding(
+                        namespace=directive.namespace,
+                        query=query,
+                        results=formatted_result,
+                        results_count=len(result.strip().split('\n')) if result else 0,
+                        cache_hit=False
+                    )
             else:
                 logger.warning(f"No grounding result for namespace '{directive.namespace}'")
+                
+                # Capture empty result
+                if debug_callback and hasattr(debug_callback, 'capture_grounding'):
+                    debug_callback.capture_grounding(
+                        namespace=directive.namespace,
+                        query=query,
+                        results="",
+                        results_count=0,
+                        cache_hit=False,
+                        error="No results found"
+                    )
                 
         return results
     

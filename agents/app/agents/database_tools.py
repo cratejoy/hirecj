@@ -8,6 +8,7 @@ from crewai.tools.base_tool import tool
 from app.utils.supabase_util import get_db_session
 from app.lib.freshdesk_analytics_lib import FreshdeskAnalytics
 from app.dbmodels import FreshdeskUnifiedTicketView
+from app.services.tool_logger import log_tool_execution
 
 logger = logging.getLogger(__name__)
 
@@ -16,9 +17,9 @@ def create_database_tools(merchant_name: str = None) -> List:
     """Create CrewAI tools that interact with the Supabase database."""
 
     @tool
+    @log_tool_execution
     def get_recent_ticket_from_db() -> str:
         """Get the most recent open support ticket from the database as raw JSON data."""
-        logger.info("[TOOL CALL] get_recent_ticket_from_db() - Fetching most recent open ticket from database")
         
         try:
             with get_db_session() as session:
@@ -38,6 +39,7 @@ def create_database_tools(merchant_name: str = None) -> List:
             return f"Error fetching ticket from database: {str(e)}"
 
     @tool
+    @log_tool_execution
     def get_support_dashboard_from_db() -> str:
         """Get current support queue status and key metrics from the database."""
         logger.info("[TOOL CALL] get_support_dashboard_from_db() - Fetching support dashboard from database")
@@ -70,6 +72,7 @@ Data Source: Live database query"""
             return f"Error fetching dashboard from database: {str(e)}"
 
     @tool
+    @log_tool_execution
     def search_tickets_in_db(query: str) -> str:
         """TEXT SEARCH ONLY - Search tickets by keywords, customer names, or tags. 
         
@@ -107,6 +110,7 @@ Recent Tickets:"""
             return f"Error searching tickets in database: {str(e)}"
 
     @tool
+    @log_tool_execution
     def calculate_csat_score(days: Optional[int] = None, 
                             start_date: Optional[str] = None, 
                             end_date: Optional[str] = None) -> str:
@@ -175,6 +179,7 @@ Data Source: Live database query from etl_freshdesk_ratings"""
             return f"Error calculating CSAT score: {str(e)}"
 
     @tool
+    @log_tool_execution
     def get_ticket_details(ticket_id: int) -> str:
         """Get complete details for a specific support ticket including all conversations and ratings.
         
@@ -231,6 +236,7 @@ Data Source: Live database query from etl_freshdesk_ratings"""
             return f"Error fetching ticket details: {str(e)}"
     
     @tool
+    @log_tool_execution
     def get_customer_history(email: str) -> str:
         """Get all support tickets for a specific customer email address.
         
@@ -270,6 +276,7 @@ Ticket Summary:"""
             return f"Error fetching customer history: {str(e)}"
     
     @tool
+    @log_tool_execution
     def get_tickets_with_rating(rating_type: str = "unhappy", days: Optional[int] = None) -> str:
         """Get all tickets with a specific customer rating (happy or unhappy).
         
@@ -388,6 +395,7 @@ Data Source: Live database query with full conversation context"""
             return f"Error analyzing bad CSAT tickets: {str(e)}"
 
     @tool
+    @log_tool_execution
     def get_daily_snapshot(date_str: Optional[str] = None) -> str:
         """Get comprehensive daily health metrics for support operations.
         
@@ -461,6 +469,7 @@ Data Source: Live database analytics"""
             return f"Error fetching daily snapshot: {str(e)}"
 
     @tool
+    @log_tool_execution
     def get_csat_detail_log(date_str: Optional[str] = None, rating_threshold: int = 102, include_conversations: bool = False) -> str:
         """Get detailed CSAT survey data including all ratings, feedback, and response times for a specific date.
         
@@ -573,6 +582,7 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             return f"Error fetching CSAT detail log: {str(e)}"
 
     @tool
+    @log_tool_execution
     def get_open_ticket_distribution() -> str:
         """Get distribution of open tickets by age to monitor backlog health and identify aging tickets.
         
@@ -657,6 +667,7 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             return f"Error analyzing open ticket distribution: {str(e)}"
 
     @tool
+    @log_tool_execution
     def get_response_time_metrics(days: int = 7) -> str:
         """Analyze team response and resolution time performance with statistical insights.
         
@@ -792,6 +803,7 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             return f"Error analyzing response time metrics: {str(e)}"
 
     @tool
+    @log_tool_execution
     def get_volume_trends(days: int = 60) -> str:
         """Analyze ticket volume trends to detect spikes, patterns, and unusual activity.
         
@@ -904,6 +916,7 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             return f"Error analyzing volume trends: {str(e)}"
 
     @tool
+    @log_tool_execution
     def get_sla_exceptions(first_response_min: Optional[int] = None, resolution_min: Optional[int] = None, include_pending: bool = True) -> str:
         """Monitor SLA compliance and identify tickets breaching service level agreements.
         
@@ -1047,6 +1060,7 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             return f"Error analyzing SLA exceptions: {str(e)}"
     
     @tool
+    @log_tool_execution
     def get_root_cause_analysis(date_str: str, spike_threshold: float = 2.0) -> str:
         """Analyze root causes when ticket volume spikes on a specific date.
         
@@ -1160,6 +1174,7 @@ Ticket #{survey['ticket_id']} - {survey['rating_label']} ({survey['rating']})
             return f"Error analyzing root causes: {str(e)}"
 
     @tool
+    @log_tool_execution
     def get_recent_tickets_for_review(limit: int = 20, cursor: Optional[str] = None, status_filter: Optional[List[str]] = None) -> str:
         """CHRONOLOGICAL ORDER ONLY - Returns most recent tickets sorted by creation date (newest first).
         
@@ -1278,6 +1293,7 @@ CONVERSATION:
             return f"Error fetching tickets: {str(e)}"
     
     @tool
+    @log_tool_execution
     def search_tickets_by_date_range(start_date: str, end_date: Optional[str] = None, 
                                     status_filter: Optional[List[str]] = None,
                                     limit: int = 500) -> str:

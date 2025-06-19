@@ -39,6 +39,16 @@ class Session:
             "errors": 0,
             "response_time_total": 0.0,
         }
+        # Debug data storage for comprehensive debugging
+        self.debug_data = {
+            "llm_prompts": [],      # Store last N LLM prompts
+            "llm_responses": [],    # Store last N LLM responses
+            "tool_calls": [],       # Store tool call history
+            "crew_output": [],      # Store CrewAI execution logs
+            "timing": {},           # Store timing metrics
+            "final_responses": [],  # Store final responses from crew.kickoff()
+            "grounding": []         # Store knowledge base grounding operations
+        }
 
 
 class SessionManager:

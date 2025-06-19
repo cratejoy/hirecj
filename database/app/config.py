@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     
     # Service URLs (from shared config)
     auth_service_url: str = Field("http://localhost:8103", env="AUTH_SERVICE_URL")
-    agents_service_url: str = Field("http://localhost:8000", env="AGENTS_SERVICE_URL")
+    agents_service_url: str = Field("http://localhost:8100", env="AGENTS_SERVICE_URL")
     homepage_url: str = Field("http://localhost:3456", env="HOMEPAGE_URL")
     database_service_url: str = Field("http://localhost:8002", env="DATABASE_SERVICE_URL")
     

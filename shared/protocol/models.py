@@ -15,7 +15,8 @@ class FactCheckData(BaseModel):
 
 
 class DebugRequestData(BaseModel):
-    type: Literal["snapshot", "session", "state", "metrics", "prompts"]
+    type: Literal["snapshot", "session", "state", "metrics", "prompts", "llm_prompts", "llm_responses", "tool_calls", "crew_output", "timing", "message_details"]  # Add message_details
+    message_id: Optional[str] = None  # NEW: For message-specific requests
 
 
 class WorkflowTransitionData(BaseModel):
@@ -35,6 +36,7 @@ class CJMessageData(BaseModel):
     factCheckStatus: Optional[str] = "available"
     timestamp: datetime
     ui_elements: Optional[List[Dict[str, Any]]] = None
+    message_id: Optional[str] = None  # NEW: Unique ID for debug lookups
 
 class FactCheckStartedData(BaseModel):
     messageIndex: int

@@ -21,12 +21,14 @@ import {
 import { AgentInitiatedView } from '@/components/playground/AgentInitiatedView'
 import { MerchantInitiatedView } from '@/components/playground/MerchantInitiatedView'
 import { ConfigurationBar } from '@/components/playground/ConfigurationBar'
+import { MessageDetailsView } from '@/components/playground/MessageDetailsView'
 import { usePlaygroundChat } from '@/hooks/usePlaygroundChat'
 
 const API_BASE = '/api/v1'
 
 interface Message {
   id: string;
+  messageId?: string;  // The backend message_id for debug lookups
   role: 'agent' | 'user';
   content: string;
   timestamp: string;
@@ -60,7 +62,8 @@ export function PlaygroundView() {
     conversationStarted,
     startConversation: wsStartConversation,
     sendMessage: wsSendMessage,
-    resetConversation
+    resetConversation,
+    requestMessageDetails
   } = usePlaygroundChat()
 
   // State for configuration
@@ -80,6 +83,8 @@ export function PlaygroundView() {
   // UI state
   const [workflowExpanded, setWorkflowExpanded] = useState(false)
   const [trustLevel, setTrustLevel] = useState(3)
+  const [showMessageDetails, setShowMessageDetails] = useState(false)
+  const [selectedMessageId, setSelectedMessageId] = useState<string | undefined>()
   
   const { toast } = useToast()
 
@@ -261,6 +266,7 @@ export function PlaygroundView() {
       // Add agent message
       combined.push({
         id: `agent-${index}`,
+        messageId: msg.data.message_id || undefined,  // Include message_id if available
         role: 'agent',
         content: msg.data.content,
         timestamp: msg.data.timestamp,
@@ -458,6 +464,17 @@ export function PlaygroundView() {
                               <Workflow className="mr-1 h-3 w-3" />
                               🔄 Workflow
                             </Button>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => {
+                                setSelectedMessageId(message.messageId)
+                                setShowMessageDetails(true)
+                              }}
+                              disabled={!message.messageId}
+                            >
+                              📋 Details
+                            </Button>
                           </div>
                         </>
                       )}
@@ -539,6 +556,14 @@ export function PlaygroundView() {
           </div>
         </div>
       </div>
+      
+      {/* Message Details View */}
+      <MessageDetailsView 
+        isOpen={showMessageDetails} 
+        onClose={() => setShowMessageDetails(false)}
+        messageId={selectedMessageId}
+        onRequestDetails={requestMessageDetails}
+      />
     </div>
   )
 }

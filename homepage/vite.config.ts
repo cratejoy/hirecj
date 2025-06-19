@@ -36,7 +36,7 @@ export default defineConfig(({ mode }) => {
   
   // Check if we should use proxy (same domain) or direct URLs (cross-domain)
   const homepageUrl = tunnelEnv.HOMEPAGE_URL || parentEnv.HOMEPAGE_URL || ''
-  const agentsUrl = tunnelEnv.AGENTS_SERVICE_URL || parentEnv.AGENTS_SERVICE_URL || 'http://localhost:8000'
+  const agentsUrl = tunnelEnv.AGENTS_SERVICE_URL || parentEnv.AGENTS_SERVICE_URL || 'http://localhost:8100'
   
   let shouldUseProxy = false
   if (homepageUrl && agentsUrl) {
@@ -112,11 +112,11 @@ export default defineConfig(({ mode }) => {
       host: true,
       proxy: {
         '/api/v1': {
-          target: tunnelEnv.AGENTS_SERVICE_URL || parentEnv.AGENTS_SERVICE_URL || 'http://localhost:8000',  // hirecj-agents backend
+          target: tunnelEnv.AGENTS_SERVICE_URL || parentEnv.AGENTS_SERVICE_URL || 'http://localhost:8100',  // hirecj-agents backend
           changeOrigin: true,
         },
         '/ws/chat': {
-          target: tunnelEnv.AGENTS_SERVICE_URL || parentEnv.AGENTS_SERVICE_URL || 'http://localhost:8000',  // WebSocket proxy
+          target: tunnelEnv.AGENTS_SERVICE_URL || parentEnv.AGENTS_SERVICE_URL || 'http://localhost:8100',  // WebSocket proxy
           changeOrigin: true,
           ws: true
         },

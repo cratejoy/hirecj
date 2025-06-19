@@ -184,6 +184,10 @@ stop-tunnels:
 		echo "No tunnel session running"; \
 	fi
 	@sleep 1
+
+kill-ports:
+	@echo "🧹 Killing processes on HireCJ service ports..."
+	@bash scripts/kill-ports.sh
 	@make clean-ports
 
 # Tunnel management
@@ -234,6 +238,8 @@ dev-tunnels-tmux: env-distribute
 		echo "Then run this command again."; \
 		exit 1; \
 	fi
+	@echo "🧹 Cleaning up any existing services on ports..."
+	@bash scripts/kill-ports.sh
 	@if ! grep -q "NGROK_AUTHTOKEN=" .env 2>/dev/null || [ -z "$$(grep NGROK_AUTHTOKEN= .env | cut -d= -f2)" ]; then \
 		echo "❌ Error: NGROK_AUTHTOKEN not found in .env"; \
 		echo ""; \

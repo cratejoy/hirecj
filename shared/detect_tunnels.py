@@ -12,7 +12,7 @@ from typing import Dict, Optional
 SERVICES = {
     "homepage": 3456,
     "auth": 8103,
-    "agents": 8000,
+    "agents": 8100,
     "database": 8002,
     "editor": 3458,
     "editor-backend": 8001,

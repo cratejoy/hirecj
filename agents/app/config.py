@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     # Server Configuration
     app_host: str = Field("0.0.0.0", env="APP_HOST")
-    app_port: int = Field(8000, env="AGENTS_SERVICE_PORT")
+    app_port: int = Field(8100, env="AGENTS_SERVICE_PORT")
     websocket_port: int = Field(8001, env="WEBSOCKET_PORT")
 
 
@@ -100,7 +100,7 @@ class Settings(BaseSettings):
     # API Configuration
     api_host: str = Field("0.0.0.0", env="API_HOST")
     api_port: int = Field(8000, env="API_PORT")
-    api_ws_url: str = Field("ws://localhost:8000", env="HIRECJ_API_URL")
+    api_ws_url: str = Field("ws://localhost:8100", env="HIRECJ_API_URL")
 
     # WebSocket Configuration
     websocket_ping_interval: int = Field(20, env="WEBSOCKET_PING_INTERVAL")
