@@ -855,13 +855,94 @@ if hasattr(response_obj, 'usage') and response_obj.usage:
    - Verify reasoning tokens are captured
    - Ensure backward compatibility with non-reasoning models
 
-#### Status: ✅ COMPLETE
+#### Status: ⚠️ PARTIALLY COMPLETE
 
 Implementation complete:
 - ✅ Added `_extract_usage_with_details` method to capture completion_tokens_details
 - ✅ Enhanced frontend to display reasoning tokens in main view
 - ✅ Added thinking token count to performance metrics
 - ✅ Maintains backward compatibility with non-reasoning models
+- ❌ **MISSING**: Actual reasoning/thinking content (only capturing token counts)
+
+### Phase 3.6: Capture Actual Thinking Traces (NEW)
+**Goal**: Capture and display the actual reasoning/thinking content from models that expose it (e.g., o1 models)
+
+#### The Problem:
+Currently we only capture thinking token **counts** (`reasoning_tokens: 1234`), not the actual reasoning content. Users want to see the step-by-step thinking process, not just how many tokens were used.
+
+#### Implementation Steps:
+
+1. **Enhanced Response Capture in debug_callback.py**
+   ```python
+   # In log_success_event, after extracting message content
+   if hasattr(response_obj, 'choices') and response_obj.choices:
+       choice = response_obj.choices[0]
+       
+       # Check for reasoning content in various possible fields
+       reasoning_content = None
+       
+       # Try different field names that providers might use
+       if hasattr(choice, 'message'):
+           # Check message-level fields
+           if hasattr(choice.message, 'reasoning'):
+               reasoning_content = choice.message.reasoning
+           elif hasattr(choice.message, 'thinking'):
+               reasoning_content = choice.message.thinking
+           elif hasattr(choice.message, 'reasoning_content'):
+               reasoning_content = choice.message.reasoning_content
+       
+       # Check choice-level fields
+       if not reasoning_content:
+           if hasattr(choice, 'reasoning'):
+               reasoning_content = choice.reasoning
+           elif hasattr(choice, 'thinking'):
+               reasoning_content = choice.thinking
+       
+       # Store reasoning content if found
+       if reasoning_content:
+           response_data["reasoning_content"] = reasoning_content
+           logger.info(f"[DEBUG_CALLBACK] Captured reasoning content: {len(reasoning_content)} chars")
+   ```
+
+2. **Update Frontend MessageDetailsView.tsx**
+   ```typescript
+   {/* Thinking Process Section */}
+   {responseData.reasoning_content && (
+     <>
+       <Separator className="my-4" />
+       <div className="space-y-2">
+         <div className="flex items-center justify-between">
+           <h4 className="font-medium text-sm">THINKING PROCESS</h4>
+           <Button
+             variant="ghost"
+             size="sm"
+             onClick={() => copyToClipboard(responseData.reasoning_content, 'reasoning')}
+           >
+             {copiedItems.has('reasoning') ? <Check /> : <Copy />}
+           </Button>
+         </div>
+         <div className="bg-muted/50 rounded-lg p-4 max-h-96 overflow-y-auto">
+           <pre className="text-xs whitespace-pre-wrap">
+             <code>{responseData.reasoning_content}</code>
+           </pre>
+         </div>
+       </div>
+     </>
+   )}
+   ```
+
+3. **Testing Strategy**
+   - Test with o1-mini or o1-preview models
+   - Log the full response_obj structure to identify field names
+   - Add debug logging to see what fields are available
+   - Verify reasoning content is captured and displayed
+
+4. **Backward Compatibility**
+   - Only show thinking section if reasoning_content exists
+   - Handle models without reasoning gracefully
+   - No errors if fields don't exist
+
+#### Status: ❌ Not Started
 
 ### Phase 4: Tool Integration Enhancement ✅ COMPLETE
 - ✅ Enhance tool execution capture with @log_tool_execution decorator
