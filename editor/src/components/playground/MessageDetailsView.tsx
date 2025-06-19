@@ -86,6 +86,18 @@ export function MessageDetailsView({ isOpen, onClose, messageId, onRequestDetail
   const responseData = debugData?.response || null;
   const toolCalls = debugData?.tool_calls || [];
   const crewOutput = debugData?.crew_output || [];
+  
+  // Log what we're displaying
+  if (responseData) {
+    console.log('[MessageDetailsView] Response data structure:', {
+      hasThinkingContent: !!responseData.thinking_content,
+      thinkingLength: responseData.thinking_content?.length,
+      hasCleanContent: !!responseData.clean_content,
+      cleanLength: responseData.clean_content?.length,
+      hasChoices: !!(responseData.choices && responseData.choices.length > 0),
+      firstChoiceContent: responseData.choices?.[0]?.message?.content?.substring(0, 100)
+    });
+  }
 
   // Fallback data for demonstration
   const fallbackSystemPrompt = `You are a helpful and knowledgeable customer service agent for an e-commerce platform.
