@@ -41,11 +41,10 @@ class WorkflowHandlers:
         new_workflow = message.data.new_workflow
         user_initiated = message.data.user_initiated
         
-        # DIAGNOSTIC: Log workflow transition
-        from datetime import datetime
-        logger.warning(f"[WORKFLOW_HOOK] Workflow transition - to={new_workflow}, "
-                      f"user_initiated={user_initiated}, conversation_id={conversation_id}, "
-                      f"timestamp={datetime.now()}")
+        # Log workflow transition
+        logger.info(f"[WORKFLOW_HOOK] Workflow transition - to={new_workflow}, "
+                    f"user_initiated={user_initiated}, conversation_id={conversation_id}, "
+                    f"timestamp={datetime.now()}")
         
         # Get current session
         session = self.platform.session_manager.get_session(conversation_id)
@@ -237,12 +236,11 @@ class WorkflowHandlers:
         self, websocket: WebSocket, session: Any, workflow: str
     ):
         """Handle initial workflow action."""
-        # DIAGNOSTIC: Log initial workflow action
-        from datetime import datetime
-        logger.warning(f"[WORKFLOW_INITIAL] Handling initial action for workflow={workflow}, "
-                      f"session_id={session.id if session else 'None'}, "
-                      f"has_oauth={bool(getattr(session, 'oauth_metadata', None))}, "
-                      f"timestamp={datetime.now()}")
+        # Log initial workflow action
+        logger.info(f"[WORKFLOW_INITIAL] Handling initial action for workflow={workflow}, "
+                    f"session_id={session.id if session else 'None'}, "
+                    f"has_oauth={bool(getattr(session, 'oauth_metadata', None))}, "
+                    f"timestamp={datetime.now()}")
         
         # Get workflow behavior
         workflow_behavior = self.platform.workflow_loader.get_workflow_behavior(workflow)
@@ -298,24 +296,19 @@ class WorkflowHandlers:
                     f"ui_elements={len(cj_msg.data.ui_elements or [])} message_id={cj_msg.data.message_id} full_data={cj_msg.model_dump()}"
                 )
             else:
-                # Regular text response - should not happen with new code but handle legacy
+                # All responses should be dicts with message_id
+                logger.error(f"[WORKFLOW] Unexpected response format: {type(response)}")
                 cj_msg = CJMessageMsg(
                     type="cj_message",
                     data=CJMessageData(
-                        content=response if isinstance(response, str) else str(response),
+                        content=str(response),
                         factCheckStatus="available",
                         timestamp=datetime.now(),
-                        message_id=response.get("message_id") if isinstance(response, dict) else None
+                        message_id=None
                     )
                 )
                 websocket_logger.info(
-                    f"[WS_SEND] Sending initial CJ message: content='{cj_msg.data.content[:100]}...' "
+                    f"[WS_SEND] Sending CJ message with unexpected format: content='{cj_msg.data.content[:100]}...' "
                     f"full_data={cj_msg.model_dump()}"
-                )
-            
-            # Check for suspicious content
-            if cj_msg.data.content == "0" or cj_msg.data.content == 0:
-                websocket_logger.error(
-                    f"[WS_ERROR] Sending message with content '0': {cj_msg.model_dump()}"
                 )
             await self.platform.send_validated_message(websocket, cj_msg)

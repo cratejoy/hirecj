@@ -246,7 +246,6 @@ class ConversationHandlers:
                             return
                         else:
                             # Legacy support - create a minimal result
-                            from datetime import datetime
                             minimal_result = FactCheckResultData(
                                 overall_status=getattr(result, "overall_status", "UNKNOWN"),
                                 claims=[],
