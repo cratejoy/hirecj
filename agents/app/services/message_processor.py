@@ -285,42 +285,48 @@ class MessageProcessor:
             # This ensures thinking content from intermediate LLM calls is available
             all_responses = session.debug_data.get("llm_responses", [])
             
-            # First, ensure all responses have the correct message_id
-            for resp in all_responses:
-                if not resp.get("message_id") or resp.get("message_id") != message_id:
-                    logger.info(f"[DEBUG_CONSOLIDATION] Updating response message_id from {resp.get('message_id')} to {message_id}")
-                    resp["message_id"] = message_id
+            # Filter to only get responses for the current message_id
+            # Don't modify old responses from previous messages!
+            current_message_responses = [
+                resp for resp in all_responses 
+                if resp.get("message_id") == message_id
+            ]
             
-            # Then consolidate thinking content
-            if len(all_responses) > 0:
-                logger.info(f"[DEBUG_CONSOLIDATION] Found {len(all_responses)} responses")
+            # Log if we find responses without proper message_id (shouldn't happen with our fixes)
+            responses_without_id = [resp for resp in all_responses if not resp.get("message_id")]
+            if responses_without_id:
+                logger.warning(f"[DEBUG_CONSOLIDATION] Found {len(responses_without_id)} responses without message_id")
+            
+            # Then consolidate thinking content for current message only
+            if len(current_message_responses) > 0:
+                logger.info(f"[DEBUG_CONSOLIDATION] Found {len(current_message_responses)} responses for message {message_id} (out of {len(all_responses)} total)")
                 
                 # Log details about each response for debugging
-                for i, resp in enumerate(all_responses):
+                for i, resp in enumerate(current_message_responses):
                     content_preview = ""
                     if resp.get("choices") and len(resp["choices"]) > 0:
                         content = resp["choices"][0].get("message", {}).get("content", "")
                         content_preview = content[:50] + "..." if len(content) > 50 else content
                     logger.info(f"[DEBUG_CONSOLIDATION] Response {i}: msg_id={resp.get('message_id')}, content_preview='{content_preview}'")
                 
-                # Collect all thinking content from all responses
+                # Collect all thinking content from current message responses only
                 all_thinking = []
-                for resp in all_responses:
+                for resp in current_message_responses:
                     if resp.get("thinking_content"):
                         all_thinking.append(resp["thinking_content"])
                 
-                # If we have thinking content, update the last response
-                if all_thinking and all_responses:
-                    target_response = all_responses[-1]
+                # If we have thinking content, update the last response for this message
+                if all_thinking and current_message_responses:
+                    target_response = current_message_responses[-1]
                     # Combine all thinking content
                     target_response["thinking_content"] = "\n\n---\n\n".join(all_thinking)
                     logger.info(f"[DEBUG_CONSOLIDATION] Consolidated {len(all_thinking)} thinking sections into message {message_id}")
             
             # Store the final crew response in debug data
-            if all_responses:
+            if current_message_responses:
                 # The 'response' variable contains the final output from crew.kickoff()
                 # This is what the user actually sees
-                all_responses[-1]["final_response"] = response
+                current_message_responses[-1]["final_response"] = response
                 logger.info(f"[DEBUG_CONSOLIDATION] Stored final crew response: {response[:100]}...")
             
             # Include message_id in response
