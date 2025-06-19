@@ -865,82 +865,110 @@ Implementation complete:
 - ❌ **MISSING**: Actual reasoning/thinking content (only capturing token counts)
 
 ### Phase 3.6: Capture Actual Thinking Traces (NEW)
-**Goal**: Capture and display the actual reasoning/thinking content from models that expose it (e.g., o1 models)
+**Goal**: Extract and display the CrewAI agent thinking content that's already being captured
 
-#### The Problem:
-Currently we only capture thinking token **counts** (`reasoning_tokens: 1234`), not the actual reasoning content. Users want to see the step-by-step thinking process, not just how many tokens were used.
+#### The Discovery:
+We already capture thinking traces! CrewAI agents output "Thought:" prefixed content as part of their reasoning process. This is currently:
+- Logged by `ConversationThinkingCallback` with [THINKING] prefix  
+- Included in the regular message content in debug_callback.py
+- But NOT separated out for display in the message details view
+
+Example of what we're already capturing:
+```
+Thought: I need to check the recent support tickets to understand what customers are complaining about.
+
+Action: get_recent_tickets_from_db
+Action Input: {}
+
+Observation: [ticket data returned]
+
+Thought: I can see several tickets about shipping delays. Let me analyze the patterns...
+```
+
+This thinking content is valuable for debugging but shouldn't be shown in the main response.
 
 #### Implementation Steps:
 
-1. **Enhanced Response Capture in debug_callback.py**
+1. **Parse Thinking Content from Messages in debug_callback.py**
    ```python
    # In log_success_event, after extracting message content
-   if hasattr(response_obj, 'choices') and response_obj.choices:
-       choice = response_obj.choices[0]
+   if choice.message.content:
+       content = choice.message.content
        
-       # Check for reasoning content in various possible fields
-       reasoning_content = None
+       # Extract thinking sections (CrewAI format)
+       thinking_content = []
+       clean_content = []
        
-       # Try different field names that providers might use
-       if hasattr(choice, 'message'):
-           # Check message-level fields
-           if hasattr(choice.message, 'reasoning'):
-               reasoning_content = choice.message.reasoning
-           elif hasattr(choice.message, 'thinking'):
-               reasoning_content = choice.message.thinking
-           elif hasattr(choice.message, 'reasoning_content'):
-               reasoning_content = choice.message.reasoning_content
+       lines = content.split('\n')
+       in_thought = False
+       current_thought = []
        
-       # Check choice-level fields
-       if not reasoning_content:
-           if hasattr(choice, 'reasoning'):
-               reasoning_content = choice.reasoning
-           elif hasattr(choice, 'thinking'):
-               reasoning_content = choice.thinking
+       for line in lines:
+           if line.strip().startswith('Thought:'):
+               in_thought = True
+               current_thought = [line[8:].strip()]  # Remove "Thought:" prefix
+           elif in_thought and line.strip() and not line.strip().startswith(('Action:', 'Observation:')):
+               current_thought.append(line)
+           else:
+               if in_thought and current_thought:
+                   thinking_content.append('\n'.join(current_thought))
+                   current_thought = []
+                   in_thought = False
+               
+               # Only add non-thought lines to clean content
+               if not line.strip().startswith('Thought:'):
+                   clean_content.append(line)
        
-       # Store reasoning content if found
-       if reasoning_content:
-           response_data["reasoning_content"] = reasoning_content
-           logger.info(f"[DEBUG_CALLBACK] Captured reasoning content: {len(reasoning_content)} chars")
+       # Store both versions
+       if thinking_content:
+           response_data["thinking_content"] = '\n\n'.join(thinking_content)
+           response_data["clean_content"] = '\n'.join(clean_content).strip()
+           logger.info(f"[DEBUG_CALLBACK] Extracted {len(thinking_content)} thinking sections")
    ```
 
 2. **Update Frontend MessageDetailsView.tsx**
    ```typescript
-   {/* Thinking Process Section */}
-   {responseData.reasoning_content && (
+   {/* Agent Thinking Process */}
+   {responseData.thinking_content && (
      <>
        <Separator className="my-4" />
        <div className="space-y-2">
          <div className="flex items-center justify-between">
-           <h4 className="font-medium text-sm">THINKING PROCESS</h4>
+           <h4 className="font-medium text-sm">AGENT THINKING PROCESS</h4>
            <Button
              variant="ghost"
              size="sm"
-             onClick={() => copyToClipboard(responseData.reasoning_content, 'reasoning')}
+             onClick={() => copyToClipboard(responseData.thinking_content, 'thinking')}
            >
-             {copiedItems.has('reasoning') ? <Check /> : <Copy />}
+             {copiedItems.has('thinking') ? <Check /> : <Copy />}
            </Button>
          </div>
          <div className="bg-muted/50 rounded-lg p-4 max-h-96 overflow-y-auto">
-           <pre className="text-xs whitespace-pre-wrap">
-             <code>{responseData.reasoning_content}</code>
+           <pre className="text-xs whitespace-pre-wrap font-mono">
+             <code>{responseData.thinking_content}</code>
            </pre>
          </div>
        </div>
      </>
    )}
+   
+   {/* Also update the displayed content to use clean_content if available */}
+   <p className="text-sm whitespace-pre-wrap pr-10">
+     {responseData.clean_content || choice.message.content}
+   </p>
    ```
 
-3. **Testing Strategy**
-   - Test with o1-mini or o1-preview models
-   - Log the full response_obj structure to identify field names
-   - Add debug logging to see what fields are available
-   - Verify reasoning content is captured and displayed
+3. **Key Benefits**
+   - Shows CrewAI agent's step-by-step reasoning process
+   - Separates thinking from the final response shown to users
+   - Helps debug agent behavior and decision making
+   - Uses content we're already capturing, just displays it better
 
-4. **Backward Compatibility**
-   - Only show thinking section if reasoning_content exists
-   - Handle models without reasoning gracefully
-   - No errors if fields don't exist
+4. **Testing Strategy**
+   - Test with any CrewAI agent task that requires reasoning
+   - Verify "Thought:" sections are extracted correctly
+   - Ensure clean_content doesn't include thinking traces
+   - Check that thinking appears in dedicated UI section
 
 #### Status: ❌ Not Started
 
