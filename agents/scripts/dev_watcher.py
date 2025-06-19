@@ -8,6 +8,7 @@ import sys
 import subprocess
 import signal
 import time
+import socket
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -175,6 +176,14 @@ def monitor_crashes(server_manager):
 
 
 def main():
+    # Prevent multiple instances using socket lock
+    try:
+        lock_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        lock_socket.bind(('127.0.0.1', 9999))
+    except socket.error:
+        logger.error("❌ Dev watcher already running! (Another instance has the lock on port 9999)")
+        sys.exit(1)
+    
     logger.info("🔧 HireCJ Development Server")
     logger.info("👀 Watching for Python file changes...")
     logger.info(f"🌐 Server: http://localhost:{os.environ.get('AGENTS_SERVICE_PORT', '8000')}")

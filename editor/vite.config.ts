@@ -93,12 +93,35 @@ export default defineConfig(({ mode }) => {
           },
           configure: (proxy, options) => {
             proxy.on('error', (err, req, res) => {
-              console.error('WebSocket proxy error:', err);
+              console.error('[WS Proxy] ❌ Error:', err.message);
+              console.error('[WS Proxy] Target:', options.target.href);
+              console.error('[WS Proxy] Request URL:', req.url);
             });
             
             proxy.on('proxyReqWs', (proxyReq, req, socket, options, head) => {
+              console.log('[WS Proxy] 🔄 WebSocket upgrade request');
+              console.log('[WS Proxy] Target:', options.target.href);
+              console.log('[WS Proxy] Client:', req.socket.remoteAddress);
+              console.log('[WS Proxy] Headers:', req.headers);
+              
               // Ensure proper headers for WebSocket upgrade
               proxyReq.setHeader('Origin', options.target.href);
+            });
+            
+            proxy.on('open', (proxySocket) => {
+              console.log('[WS Proxy] ✅ WebSocket opened');
+              
+              proxySocket.on('data', (data) => {
+                console.log('[WS Proxy] 📤 Data to backend:', data.toString().substring(0, 200));
+              });
+            });
+            
+            proxy.on('close', (res, socket, head) => {
+              console.log('[WS Proxy] 🔒 WebSocket closed');
+            });
+            
+            proxy.on('proxyRes', (proxyRes, req, res) => {
+              console.log('[WS Proxy] 📥 Response:', proxyRes.statusCode, proxyRes.statusMessage);
             });
           }
         },

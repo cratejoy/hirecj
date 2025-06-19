@@ -34,6 +34,7 @@ def _get_data_fetcher(shop_domain: str) -> Optional[ShopifyDataFetcher]:
 
 
 @tool("get_shopify_store_counts")
+@log_tool_execution
 def get_shopify_store_counts(shop_domain: str) -> str:
     """
     Get basic store counts (customers, orders).
@@ -57,6 +58,7 @@ def get_shopify_store_counts(shop_domain: str) -> str:
 
 
 @tool("get_shopify_store_overview")
+@log_tool_execution
 def get_shopify_store_overview(shop_domain: str) -> str:
     """
     Get a high-level overview of the store including recent orders and top products.
@@ -80,6 +82,7 @@ def get_shopify_store_overview(shop_domain: str) -> str:
 
 
 @tool("get_shopify_recent_orders")
+@log_tool_execution
 def get_shopify_recent_orders(shop_domain: str, limit: int = 10) -> str:
     """
     Get the most recent orders from the store.
@@ -102,6 +105,7 @@ def get_shopify_recent_orders(shop_domain: str, limit: int = 10) -> str:
 
 
 @tool("get_shopify_orders_last_week")
+@log_tool_execution
 def get_shopify_orders_last_week(shop_domain: str) -> str:
     """
     Get all orders updated in the last 7 days.
@@ -125,6 +129,7 @@ def get_shopify_orders_last_week(shop_domain: str) -> str:
 
 
 @tool("lookup_shopify_customer_by_email")
+@log_tool_execution
 def lookup_shopify_customer_by_email(email: str) -> str:
     """
     Look up a Shopify customer by their email address.
@@ -155,6 +160,7 @@ def lookup_shopify_customer_by_email(email: str) -> str:
 
 
 @tool("search_shopify_customers")
+@log_tool_execution
 def search_shopify_customers(search_term: str, search_fields: Optional[str] = None) -> str:
     """
     Search for Shopify customers using fuzzy matching across multiple fields.
@@ -190,7 +196,8 @@ def search_shopify_customers(search_term: str, search_fields: Optional[str] = No
         return result
 
 
-@tool("get_shopify_customer_orders")  
+@tool("get_shopify_customer_orders")
+@log_tool_execution  
 def get_shopify_customer_orders(customer_id: str, limit: Optional[int] = 10) -> str:
     """
     Get order history for a specific Shopify customer.

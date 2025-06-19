@@ -427,15 +427,21 @@ async def health_check():
 @app.websocket("/ws/chat")
 async def websocket_chat(websocket: WebSocket):
     """WebSocket endpoint for live chat"""
-    logger.info("New WebSocket connection")
+    logger.info(f"[WS_ENDPOINT] New WebSocket connection attempt from {websocket.client}")
 
     await websocket.accept()
+    logger.info(f"[WS_ENDPOINT] WebSocket connection accepted from {websocket.client}")
 
     # Use the web platform to handle the connection
     global web_platform
     if web_platform:
-        await web_platform.handle_websocket_connection(websocket)
+        try:
+            await web_platform.handle_websocket_connection(websocket)
+        except Exception as e:
+            logger.error(f"[WS_ENDPOINT] Error handling WebSocket connection: {e}", exc_info=True)
+            raise
     else:
+        logger.error("[WS_ENDPOINT] Web platform not initialized")
         await websocket.close(
             code=WebSocketCloseCodes.INTERNAL_ERROR, reason="Service unavailable"
         )
