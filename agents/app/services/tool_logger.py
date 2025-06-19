@@ -19,6 +19,11 @@ class ToolLogger:
         cls._debug_callback = callback
     
     @classmethod
+    def get_debug_callback(cls):
+        """Get the current debug callback."""
+        return cls._debug_callback
+    
+    @classmethod
     def log_tool_call(cls, tool_name: str, tool_input: Dict[str, Any], tool_output: Any = None, 
                      error: Optional[str] = None, start_time: Optional[float] = None,
                      end_time: Optional[float] = None, duration: Optional[float] = None):

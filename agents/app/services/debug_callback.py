@@ -361,6 +361,43 @@ class DebugCallback(CustomLogger):
         except Exception as e:
             logger.error(f"[DEBUG_CALLBACK] Error capturing final response: {e}", exc_info=True)
     
+    def capture_grounding(self, namespace: str, query: str, results: str, 
+                         results_count: int = 0, cache_hit: bool = False,
+                         error: Optional[str] = None):
+        """Capture knowledge base grounding operations."""
+        # Validate we have a current message_id
+        if not self.current_message_id:
+            logger.warning(f"[DEBUG_CALLBACK] No current_message_id set, skipping grounding capture for {namespace}")
+            return
+            
+        try:
+            grounding_data = {
+                "message_id": self.current_message_id,
+                "namespace": namespace,
+                "query": query,
+                "results_preview": results[:500] if results else None,  # Limit preview length
+                "results_count": results_count,
+                "cache_hit": cache_hit,
+                "error": error,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            # Add to debug storage
+            if "grounding" not in self.debug_storage:
+                self.debug_storage["grounding"] = []
+                
+            self.debug_storage["grounding"].append(grounding_data)
+            
+            # Keep only last 20 grounding operations
+            if len(self.debug_storage["grounding"]) > 20:
+                self.debug_storage["grounding"].pop(0)
+                
+            logger.info(f"[DEBUG_CALLBACK] Captured grounding for {namespace}: query='{query[:50]}...', "
+                       f"results_count={results_count}, cache_hit={cache_hit}")
+            
+        except Exception as e:
+            logger.error(f"[DEBUG_CALLBACK] Error capturing grounding: {e}", exc_info=True)
+    
     def finalize(self):
         """Finalize capture for this message."""
         # Store any accumulated crew output

@@ -1054,7 +1054,7 @@ When a user asks "What are our top complaints?", here's what happens:
 
 **Next Steps**: Simply parse and display what we're already capturing!
 
-### Phase 3.7: Capture Knowledge Base Grounding
+### Phase 3.7: Capture Knowledge Base Grounding ✅
 **Goal**: Capture and display knowledge base grounding results in the message details view
 
 #### Background
@@ -1064,39 +1064,40 @@ The system supports knowledge base grounding through directives like `{{groundin
 3. Queries the knowledge service
 4. Replaces directives with results in the prompt
 
-Currently, this grounding data is not captured in debug information, making it hard to see what knowledge was used.
+#### Status: ✅ Complete
 
-#### Implementation Steps
+**Implementation Details**:
+1. **Added grounding storage to Session.debug_data** ✅
+   - Added `"grounding": []` to debug_data structure in session_manager.py
+   
+2. **Added capture_grounding method to DebugCallback** ✅
+   - Captures namespace, query, results, cache status, and errors
+   - Associates with current message_id
+   - Limits preview to 500 chars, keeps last 20 operations
+   
+3. **Modified CJ agent's _process_grounding** ✅
+   - Added ToolLogger.get_debug_callback() method for access
+   - Captures grounding operations during processing
+   - Builds query from conversation context
+   - Detects cache hits and counts results
+   - Captures errors gracefully
+   
+4. **Updated utility handlers** ✅
+   - Added grounding extraction in message_details handling
+   - Filters by message_id like other debug data
+   
+5. **Updated MessageDetailsView UI** ✅
+   - Added "KNOWLEDGE BASE GROUNDING" section after thinking
+   - Shows namespace, query, results count, and preview
+   - Indicates cache hits with green "Cached" label
+   - Includes copy button for results
+   - Handles errors gracefully
 
-1. **Add grounding storage to Session.debug_data**
-   ```python
-   # In session_manager.py
-   self.debug_data = {
-       "llm_prompts": [],
-       "llm_responses": [],
-       "tool_calls": [],
-       "crew_output": [],
-       "timing": {},
-       "grounding": []  # NEW: Store grounding operations
-   }
-   ```
-
-2. **Capture grounding in CJ agent**
-   - Modify `_process_grounding` to store grounding data
-   - Include: namespace, query, results, cache status, errors
-   - Associate with current message_id
-
-3. **Pass grounding through debug callback**
-   - Add method to DebugCallback for capturing grounding
-   - Store with proper message_id association
-
-4. **Update protocol for grounding data**
-   - Add grounding field to debug response types
-   - Generate TypeScript types
-
-5. **Display in MessageDetailsView**
-   - Add new section after thinking traces
-   - Show namespace, query built from context, and results
+**Benefits Achieved**:
+- Full visibility into knowledge base queries for each message
+- Debug information for grounding operations
+- Cache behavior transparency
+- Better troubleshooting of knowledge retrieval issues
    - Use consistent styling with other sections
 
 #### UI Design

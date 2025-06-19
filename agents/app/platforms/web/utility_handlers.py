@@ -225,6 +225,12 @@ class UtilityHandlers:
                     co for co in session.debug_data.get("crew_output", [])
                     if co.get("message_id") == message_id
                 ]
+                
+                # Find matching grounding operations
+                debug_data["grounding"] = [
+                    g for g in session.debug_data.get("grounding", [])
+                    if g.get("message_id") == message_id
+                ]
             
             # Send debug response
             debug_response = DebugResponseMsg(

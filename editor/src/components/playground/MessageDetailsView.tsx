@@ -87,6 +87,7 @@ export function MessageDetailsView({ isOpen, onClose, messageId, onRequestDetail
   const responseData = debugData?.response || null;
   const toolCalls = debugData?.tool_calls || [];
   const crewOutput = debugData?.crew_output || [];
+  const grounding = debugData?.grounding || [];
   
   // Log what we're displaying
   if (responseData) {
@@ -430,6 +431,65 @@ Always remember to:
                               <pre className="text-xs whitespace-pre-wrap font-mono text-muted-foreground">
                                 <code>{responseData.thinking_content}</code>
                               </pre>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Knowledge Base Grounding */}
+                      {grounding.length > 0 && (
+                        <>
+                          <Separator className="my-4" />
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm uppercase tracking-wider text-purple-600 dark:text-purple-400">📚 KNOWLEDGE BASE GROUNDING</h4>
+                            <div className="space-y-3">
+                              {grounding.map((g: any, idx: number) => {
+                                const groundingCopyId = `grounding-${idx}`;
+                                return (
+                                  <div key={idx} className="bg-muted/50 rounded-lg p-4">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <div>
+                                        <p className="text-sm font-medium">Namespace: {g.namespace}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Query: {g.query}</p>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {g.cache_hit && (
+                                          <span className="text-xs text-green-600 dark:text-green-400">Cached</span>
+                                        )}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 w-8 p-0"
+                                          onClick={() => copyToClipboard(g.results_preview || '', groundingCopyId)}
+                                        >
+                                          {copiedItems.has(groundingCopyId) ? (
+                                            <Check className="h-4 w-4 text-green-600" />
+                                          ) : (
+                                            <Copy className="h-4 w-4" />
+                                          )}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                    {g.error ? (
+                                      <p className="text-xs text-destructive">Error: {g.error}</p>
+                                    ) : (
+                                      <>
+                                        <p className="text-xs text-muted-foreground mb-2">
+                                          Found {g.results_count} result{g.results_count !== 1 ? 's' : ''}
+                                        </p>
+                                        {g.results_preview && (
+                                          <div className="bg-background/50 rounded p-3 max-h-48 overflow-y-auto">
+                                            <pre className="text-xs whitespace-pre-wrap font-mono text-muted-foreground">
+                                              <code>{g.results_preview}</code>
+                                            </pre>
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                    <p className="text-xs text-muted-foreground mt-2">{g.timestamp}</p>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         </>

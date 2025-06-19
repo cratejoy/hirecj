@@ -46,7 +46,8 @@ class Session:
             "tool_calls": [],       # Store tool call history
             "crew_output": [],      # Store CrewAI execution logs
             "timing": {},           # Store timing metrics
-            "final_responses": []   # Store final responses from crew.kickoff()
+            "final_responses": [],  # Store final responses from crew.kickoff()
+            "grounding": []         # Store knowledge base grounding operations
         }
 
 
