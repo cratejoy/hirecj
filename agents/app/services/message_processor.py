@@ -256,6 +256,37 @@ class MessageProcessor:
                         "message_id": message_id
                     }
 
+            # Consolidate all debug data under the final message_id
+            # This ensures thinking content from intermediate LLM calls is available
+            all_responses = session.debug_data.get("llm_responses", [])
+            if len(all_responses) > 1:
+                logger.info(f"[DEBUG_CONSOLIDATION] Found {len(all_responses)} responses, consolidating thinking content")
+                
+                # Collect all thinking content from all responses
+                all_thinking = []
+                for resp in all_responses:
+                    if resp.get("thinking_content"):
+                        all_thinking.append(resp["thinking_content"])
+                
+                # If we have thinking content, update the last response (which should have our message_id)
+                if all_thinking:
+                    # Find the response with our message_id or use the last one
+                    target_response = None
+                    for resp in all_responses:
+                        if resp.get("message_id") == message_id:
+                            target_response = resp
+                            break
+                    
+                    if not target_response and all_responses:
+                        # If no response has our message_id, update the last one
+                        target_response = all_responses[-1]
+                        target_response["message_id"] = message_id
+                    
+                    if target_response:
+                        # Combine all thinking content
+                        target_response["thinking_content"] = "\n\n---\n\n".join(all_thinking)
+                        logger.info(f"[DEBUG_CONSOLIDATION] Consolidated {len(all_thinking)} thinking sections into message {message_id}")
+            
             # Include message_id in response
             if isinstance(response, dict):
                 response["message_id"] = message_id

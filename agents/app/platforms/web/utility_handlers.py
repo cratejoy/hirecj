@@ -179,6 +179,14 @@ class UtilityHandlers:
                         debug_data["prompt"] = prompt
                         break
                 
+                # Log all stored responses to debug the issue
+                all_responses = session.debug_data.get("llm_responses", [])
+                logger.info(f"[DEBUG_REQUEST] Total stored responses: {len(all_responses)}")
+                for i, resp in enumerate(all_responses):
+                    logger.info(f"[DEBUG_REQUEST] Response {i}: message_id={resp.get('message_id')}, "
+                               f"has_thinking={bool(resp.get('thinking_content'))}, "
+                               f"content_length={len(resp.get('choices', [{}])[0].get('message', {}).get('content', '')) if resp.get('choices') else 0}")
+                
                 # Find matching response
                 for response in session.debug_data.get("llm_responses", []):
                     if response.get("message_id") == message_id:
