@@ -105,6 +105,7 @@ class DebugCallback(CustomLogger):
             return {"thinking_content": None, "clean_content": content}
         
         logger.info(f"[DEBUG_CALLBACK] _extract_thinking_content called with content length: {len(content)}")
+        logger.debug(f"[DEBUG_CALLBACK] Content to extract from: {content[:200]}...")
         
         thinking_sections = []
         clean_lines = []
@@ -121,7 +122,21 @@ class DebugCallback(CustomLogger):
                 in_thought = True
                 # Extract the thought content after "Thought:"
                 thought_content = line[line.index('Thought:') + 8:].strip()
-                if thought_content:
+                
+                # Handle inline "Final Answer:" format
+                if 'Final Answer:' in thought_content:
+                    # Split at Final Answer and only keep the thought part
+                    thought_part = thought_content.split('Final Answer:')[0].strip()
+                    # Also remove trailing pipe if present
+                    if thought_part.endswith('|'):
+                        thought_part = thought_part[:-1].strip()
+                    if thought_part:
+                        thinking_sections.append(thought_part)
+                    # The rest after Final Answer is clean content
+                    final_answer_part = 'Final Answer:' + thought_content.split('Final Answer:')[1]
+                    clean_lines.append(final_answer_part)
+                    in_thought = False
+                elif thought_content:
                     current_thought = [thought_content]
             elif in_thought:
                 # Continue capturing multi-line thoughts until we hit Action/Observation/empty line
@@ -141,6 +156,9 @@ class DebugCallback(CustomLogger):
             else:
                 # Regular content - not in a thought
                 if not stripped.startswith(('Action:', 'Observation:', 'Thought:')):
+                    clean_lines.append(line)
+                elif stripped.startswith('Final Answer:'):
+                    # Handle standalone Final Answer lines
                     clean_lines.append(line)
         
         # Handle any remaining thought
