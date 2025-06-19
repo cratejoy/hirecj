@@ -183,6 +183,12 @@ class UtilityHandlers:
                 for response in session.debug_data.get("llm_responses", []):
                     if response.get("message_id") == message_id:
                         debug_data["response"] = response
+                        # Log thinking content if present
+                        if response.get("thinking_content"):
+                            logger.info(f"[DEBUG_REQUEST] Found thinking content for {message_id}: {len(response['thinking_content'])} chars")
+                            logger.debug(f"[DEBUG_REQUEST] Thinking preview: {response['thinking_content'][:100]}...")
+                        else:
+                            logger.info(f"[DEBUG_REQUEST] No thinking content found for {message_id}")
                         break
                 
                 # Find matching tool calls
