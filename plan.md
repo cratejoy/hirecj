@@ -816,6 +816,47 @@ Response captured: ✅
   Content preview: As CJ, I'd say: "Hey there! I actually focus on e-commerce support...
 ```
 
+### Phase 3.5: Capture Thinking Tokens (NEW)
+**Goal**: Capture thinking/reasoning tokens from models that support them (e.g., o1 models)
+
+#### Implementation Steps:
+
+1. **Enhance Debug Callback to Capture Detailed Token Usage**
+   - Update `log_success_event` in `debug_callback.py` to check for `completion_tokens_details`
+   - Extract `reasoning_tokens` and `output_tokens` separately
+   - Store thinking content if exposed by the model
+
+```python
+# In debug_callback.py log_success_event method
+if hasattr(response_obj, 'usage') and response_obj.usage:
+    usage_dict = response_obj.usage.dict()
+    
+    # Check for detailed token breakdown (o1 models)
+    if hasattr(response_obj.usage, 'completion_tokens_details'):
+        details = response_obj.usage.completion_tokens_details
+        usage_dict['completion_tokens_details'] = {
+            'reasoning_tokens': getattr(details, 'reasoning_tokens', 0),
+            'output_tokens': getattr(details, 'output_tokens', 0)
+        }
+```
+
+2. **Capture Reasoning Content**
+   - Check if response includes separate reasoning content
+   - Store reasoning separately from regular content
+   - Handle both streaming and non-streaming responses
+
+3. **Update Frontend Display**
+   - Show reasoning tokens separately in MessageDetailsView
+   - Add "Thinking Tokens" section if reasoning_tokens > 0
+   - Display reasoning content in collapsible section
+
+4. **Testing**
+   - Test with o1-mini or o1-preview models
+   - Verify reasoning tokens are captured
+   - Ensure backward compatibility with non-reasoning models
+
+#### Status: ❌ Not Started
+
 ### Phase 4: Tool Integration Enhancement
 - ❌ Enhance tool execution capture with @log_tool_execution decorator
 - ❌ Parse tool arguments more intelligently
