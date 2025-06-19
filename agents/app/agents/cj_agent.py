@@ -309,40 +309,16 @@ class CJAgent:
         
         # Process grounding synchronously
         try:
-            # Call the synchronous grounding method directly
-            grounding_results = grounding_manager.process_grounding(directives, messages)
+            # Call the synchronous grounding method with debug callback
+            grounding_results = grounding_manager.process_grounding(directives, messages, debug_callback)
             
             # Log results
             logger.info(f"[CJ_AGENT] [GROUNDING] Received {len(grounding_results)} grounding results")
             
-            # Capture each grounding operation for debug
             for namespace, result in grounding_results.items():
                 # Log first 200 chars of each result
                 preview = result.strip()[:200] + "..." if len(result) > 200 else result.strip()
                 logger.info(f"[CJ_AGENT] [GROUNDING] Result for '{namespace}': {preview}")
-                
-                # Capture in debug callback if available
-                if debug_callback and hasattr(debug_callback, 'capture_grounding'):
-                    # Build query from context (similar to what grounding manager does)
-                    query_parts = []
-                    for msg in messages[-3:]:  # Last 3 messages
-                        if hasattr(msg, 'sender') and msg.sender == "merchant":
-                            query_parts.append(msg.content[:100])
-                    query = " ".join(query_parts)[:500] if query_parts else "No query context"
-                    
-                    # Check if result came from cache (simple heuristic)
-                    cache_hit = hasattr(grounding_manager, '_cache') and namespace in getattr(grounding_manager, '_cache', {})
-                    
-                    # Count results (simple line count)
-                    results_count = len(result.strip().split('\n')) if result else 0
-                    
-                    debug_callback.capture_grounding(
-                        namespace=namespace,
-                        query=query,
-                        results=result,
-                        results_count=results_count,
-                        cache_hit=cache_hit
-                    )
             
             # Replace markers with grounding content
             content = grounding_manager.replace_grounding_markers(content, grounding_results)
@@ -353,19 +329,6 @@ class CJAgent:
             logger.error(f"[CJ_AGENT] [GROUNDING] Error processing grounding: {type(e).__name__}: {str(e)}")
             import traceback
             logger.debug(f"[CJ_AGENT] [GROUNDING] Traceback: {traceback.format_exc()}")
-            
-            # Capture error in debug callback
-            if debug_callback and hasattr(debug_callback, 'capture_grounding'):
-                for directive in directives:
-                    debug_callback.capture_grounding(
-                        namespace=directive.namespace,
-                        query="Error during processing",
-                        results="",
-                        results_count=0,
-                        cache_hit=False,
-                        error=str(e)
-                    )
-            
             # Return original content on error (graceful degradation)
         
         logger.info(f"[CJ_AGENT] [GROUNDING] === GROUNDING CHECK COMPLETE (processed) ===")
