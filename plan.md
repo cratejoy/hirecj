@@ -870,9 +870,19 @@ Implementation complete:
 
 ### Phase 5: UI Polish
 - ❌ Add syntax highlighting for JSON/code in prompts
-- ❌ Add copy buttons for prompts/responses
+- ✅ Add copy buttons for prompts/responses - COMPLETE
 - ❌ Add search/filter within message details
 - ❌ Show token usage visualization
+
+#### Completed UI Improvements:
+- ✅ Added copy buttons with visual feedback (checkmark) to:
+  - Prompt messages
+  - Response content
+  - Tool call arguments
+  - Tool execution outputs
+- ✅ Formatted JSON with proper indentation using JSON.stringify(data, null, 2)
+- ✅ Used existing lucide-react icons (no new dependencies)
+- ✅ Added overflow handling for long content
 
 ### Phase 6: Performance & Persistence
 - ❌ Add caching layer for debug data

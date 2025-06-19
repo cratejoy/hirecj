@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, FileText, Loader2 } from 'lucide-react';
+import { X, FileText, Loader2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -26,6 +26,25 @@ export function MessageDetailsView({ isOpen, onClose, messageId, onRequestDetail
   const [loading, setLoading] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copiedItems, setCopiedItems] = useState<Set<string>>(new Set());
+  
+  // Copy to clipboard utility
+  const copyToClipboard = async (text: string, itemId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedItems(prev => new Set(prev).add(itemId));
+      // Reset after 2 seconds
+      setTimeout(() => {
+        setCopiedItems(prev => {
+          const next = new Set(prev);
+          next.delete(itemId);
+          return next;
+        });
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
   // Load debug data when opened
   useEffect(() => {
     if (isOpen && messageId && onRequestDetails) {
@@ -198,14 +217,29 @@ Always remember to:
                       
                       <Separator />
                       
-                      {fallbackMessages.map((msg, idx) => (
-                        <div key={idx}>
-                          <p className="font-medium text-sm text-muted-foreground mb-2">{msg.role}:</p>
-                          <div className="bg-muted rounded-lg p-3">
-                            <p className="text-sm">{msg.content}</p>
+                      {fallbackMessages.map((msg, idx) => {
+                        const copyId = `prompt-${idx}`;
+                        return (
+                          <div key={idx}>
+                            <p className="font-medium text-sm text-muted-foreground mb-2">{msg.role}:</p>
+                            <div className="relative bg-muted rounded-lg p-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute top-2 right-2 h-8 w-8 p-0"
+                                onClick={() => copyToClipboard(msg.content, copyId)}
+                              >
+                                {copiedItems.has(copyId) ? (
+                                  <Check className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <p className="text-sm pr-10">{msg.content}</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </>
                   )}
                   
@@ -231,8 +265,20 @@ Always remember to:
                       {responseData.choices?.map((choice: any, idx: number) => (
                         <div key={idx}>
                           {choice.message?.content && (
-                            <div className="mb-4">
-                              <p className="text-sm whitespace-pre-wrap">{choice.message.content}</p>
+                            <div className="mb-4 relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute top-0 right-0 h-8 w-8 p-0"
+                                onClick={() => copyToClipboard(choice.message.content, `response-${idx}`)}
+                              >
+                                {copiedItems.has(`response-${idx}`) ? (
+                                  <Check className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                              <p className="text-sm whitespace-pre-wrap pr-10">{choice.message.content}</p>
                             </div>
                           )}
                           
@@ -241,12 +287,38 @@ Always remember to:
                             <div>
                               <p className="font-medium text-sm text-muted-foreground mb-2">TOOL CALLS:</p>
                               <div className="space-y-2">
-                                {choice.message.tool_calls.map((tc: any, tcIdx: number) => (
-                                  <div key={tcIdx} className="bg-muted/50 rounded-lg p-3">
-                                    <p className="text-sm font-medium">{tc.function?.name}</p>
-                                    <pre className="text-xs mt-1 text-muted-foreground">{tc.function?.arguments}</pre>
-                                  </div>
-                                ))}
+                                {choice.message.tool_calls.map((tc: any, tcIdx: number) => {
+                                  const toolCopyId = `tool-${idx}-${tcIdx}`;
+                                  let formattedArgs = tc.function?.arguments;
+                                  try {
+                                    // Try to parse and format JSON
+                                    const parsed = JSON.parse(tc.function?.arguments || '{}');
+                                    formattedArgs = JSON.stringify(parsed, null, 2);
+                                  } catch (e) {
+                                    // Keep original if not valid JSON
+                                  }
+                                  
+                                  return (
+                                    <div key={tcIdx} className="bg-muted/50 rounded-lg p-3 relative">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="absolute top-2 right-2 h-8 w-8 p-0"
+                                        onClick={() => copyToClipboard(formattedArgs, toolCopyId)}
+                                      >
+                                        {copiedItems.has(toolCopyId) ? (
+                                          <Check className="h-4 w-4 text-green-600" />
+                                        ) : (
+                                          <Copy className="h-4 w-4" />
+                                        )}
+                                      </Button>
+                                      <p className="text-sm font-medium">{tc.function?.name}</p>
+                                      <pre className="text-xs mt-1 text-muted-foreground overflow-x-auto pr-10">
+                                        <code>{formattedArgs}</code>
+                                      </pre>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -298,18 +370,41 @@ Always remember to:
                       <div>
                         <p className="font-medium text-sm text-muted-foreground mb-2">TOOL EXECUTION LOG:</p>
                         <div className="space-y-2">
-                          {toolCalls.map((call: any, idx: number) => (
-                            <div key={idx} className="bg-muted/50 rounded-lg p-3 text-xs">
-                              <p className="font-medium">{call.tool_name}</p>
-                              {call.tool_output && (
-                                <pre className="mt-1 text-muted-foreground">{typeof call.tool_output === 'string' ? call.tool_output : JSON.stringify(call.tool_output, null, 2)}</pre>
-                              )}
-                              {call.error && (
-                                <p className="mt-1 text-destructive">Error: {call.error}</p>
-                              )}
-                              <p className="text-xs text-muted-foreground mt-1">{call.timestamp}</p>
-                            </div>
-                          ))}
+                          {toolCalls.map((call: any, idx: number) => {
+                            const execCopyId = `exec-${idx}`;
+                            const outputText = call.tool_output ? 
+                              (typeof call.tool_output === 'string' ? call.tool_output : JSON.stringify(call.tool_output, null, 2)) :
+                              call.error || '';
+                            
+                            return (
+                              <div key={idx} className="bg-muted/50 rounded-lg p-3 text-xs relative">
+                                {outputText && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute top-2 right-2 h-8 w-8 p-0"
+                                    onClick={() => copyToClipboard(outputText, execCopyId)}
+                                  >
+                                    {copiedItems.has(execCopyId) ? (
+                                      <Check className="h-4 w-4 text-green-600" />
+                                    ) : (
+                                      <Copy className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                )}
+                                <p className="font-medium">{call.tool_name}</p>
+                                {call.tool_output && (
+                                  <pre className="mt-1 text-muted-foreground overflow-x-auto pr-10">
+                                    <code>{typeof call.tool_output === 'string' ? call.tool_output : JSON.stringify(call.tool_output, null, 2)}</code>
+                                  </pre>
+                                )}
+                                {call.error && (
+                                  <p className="mt-1 text-destructive">Error: {call.error}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">{call.timestamp}</p>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </>
