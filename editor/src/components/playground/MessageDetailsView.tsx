@@ -278,7 +278,7 @@ Always remember to:
                                   <Copy className="h-4 w-4" />
                                 )}
                               </Button>
-                              <p className="text-sm whitespace-pre-wrap pr-10">{choice.message.content}</p>
+                              <p className="text-sm whitespace-pre-wrap pr-10">{responseData.clean_content || choice.message.content}</p>
                             </div>
                           )}
                           
@@ -349,6 +349,35 @@ Always remember to:
                             <p className="font-medium mb-1">Thinking Breakdown:</p>
                             <p>Reasoning tokens: {responseData.usage.completion_tokens_details.reasoning_tokens}</p>
                             <p>Output tokens: {responseData.usage.completion_tokens_details.output_tokens}</p>
+                          </div>
+                        </>
+                      )}
+                      
+                      {/* Agent Thinking Process */}
+                      {responseData.thinking_content && (
+                        <>
+                          <Separator className="my-4" />
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-medium text-sm uppercase tracking-wider text-muted-foreground">AGENT THINKING PROCESS</h4>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => copyToClipboard(responseData.thinking_content, 'thinking')}
+                              >
+                                {copiedItems.has('thinking') ? (
+                                  <Check className="h-4 w-4 text-green-600" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                            <div className="bg-muted/50 rounded-lg p-4 max-h-96 overflow-y-auto">
+                              <pre className="text-xs whitespace-pre-wrap font-mono text-muted-foreground">
+                                <code>{responseData.thinking_content}</code>
+                              </pre>
+                            </div>
                           </div>
                         </>
                       )}
