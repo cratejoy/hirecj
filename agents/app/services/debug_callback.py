@@ -105,8 +105,18 @@ class DebugCallback(CustomLogger):
             return {"thinking_content": None, "clean_content": content}
         
         logger.info(f"[DEBUG_CALLBACK] _extract_thinking_content called with content length: {len(content)}")
-        logger.debug(f"[DEBUG_CALLBACK] Content to extract from: {content[:200]}...")
+        logger.debug(f"[DEBUG_CALLBACK] Content preview: {content[:100]}...")
         
+        # Check if this is the "As CJ, I would say:" format with pipe separators
+        if content.startswith("As CJ, I would say:") and "|" in content:
+            # This appears to be the raw agent thinking/reasoning
+            # The whole content is thinking since crew.kickoff() returns the clean response
+            return {
+                "thinking_content": content,
+                "clean_content": None  # The clean content comes from crew.kickoff()
+            }
+        
+        # Otherwise, try to extract Thought: patterns
         thinking_sections = []
         clean_lines = []
         lines = content.split('\n')
@@ -224,17 +234,31 @@ class DebugCallback(CustomLogger):
                 "created": response_obj.created if hasattr(response_obj, 'created') else None,
             }
             
-            # Extract thinking content from the first choice if available
-            if response_data["choices"] and len(response_data["choices"]) > 0:
-                first_choice = response_data["choices"][0]
-                if first_choice["message"] and first_choice["message"]["content"]:
-                    content = first_choice["message"]["content"]
-                    extracted = self._extract_thinking_content(content)
-                    
-                    # Add thinking content to response data
-                    if extracted["thinking_content"]:
-                        response_data["thinking_content"] = extracted["thinking_content"]
-                        response_data["clean_content"] = extracted["clean_content"]
+            # Extract thinking/reasoning content from the response
+            thinking_content = None
+            if hasattr(response_obj, 'choices') and response_obj.choices:
+                choice = response_obj.choices[0]
+                
+                # First check if the API provides reasoning_content field (o1/o3 models)
+                if hasattr(choice, 'message') and hasattr(choice.message, 'reasoning_content') and choice.message.reasoning_content:
+                    thinking_content = choice.message.reasoning_content
+                    logger.info(f"[DEBUG_CALLBACK] Found API reasoning_content: {len(thinking_content)} chars")
+                    response_data["thinking_content"] = thinking_content
+                    # The content field should already be the clean response
+                    if hasattr(choice.message, 'content'):
+                        response_data["clean_content"] = choice.message.content
+                
+                # If no reasoning_content from API, try to extract from content
+                elif response_data["choices"] and len(response_data["choices"]) > 0:
+                    first_choice = response_data["choices"][0]
+                    if first_choice["message"] and first_choice["message"]["content"]:
+                        content = first_choice["message"]["content"]
+                        extracted = self._extract_thinking_content(content)
+                        
+                        # Add thinking content to response data
+                        if extracted["thinking_content"]:
+                            response_data["thinking_content"] = extracted["thinking_content"]
+                            response_data["clean_content"] = extracted["clean_content"]
             
             # Store in debug storage
             self.debug_storage["llm_responses"].append(response_data)

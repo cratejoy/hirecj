@@ -186,9 +186,13 @@ class UtilityHandlers:
                         # Log thinking content if present
                         if response.get("thinking_content"):
                             logger.info(f"[DEBUG_REQUEST] Found thinking content for {message_id}: {len(response['thinking_content'])} chars")
-                            logger.debug(f"[DEBUG_REQUEST] Thinking preview: {response['thinking_content'][:100]}...")
+                            logger.info(f"[DEBUG_REQUEST] Thinking preview: {response['thinking_content'][:100]}...")
                         else:
                             logger.info(f"[DEBUG_REQUEST] No thinking content found for {message_id}")
+                        
+                        # Also log clean_content if present
+                        if response.get("clean_content"):
+                            logger.info(f"[DEBUG_REQUEST] Found clean_content: {len(response.get('clean_content', ''))} chars")
                         break
                 
                 # Find matching tool calls
