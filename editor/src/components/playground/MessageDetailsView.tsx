@@ -52,6 +52,9 @@ export function MessageDetailsView({ isOpen, onClose, messageId, onRequestDetail
       setError(null);
       onRequestDetails(messageId)
         .then(data => {
+          console.log('[MessageDetailsView] Received debug data:', data);
+          console.log('[MessageDetailsView] Response data:', data?.response);
+          console.log('[MessageDetailsView] Thinking content:', data?.response?.thinking_content);
           setDebugData(data);
           setLoading(false);
         })
