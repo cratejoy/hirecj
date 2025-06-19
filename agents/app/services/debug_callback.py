@@ -46,6 +46,12 @@ class DebugCallback(CustomLogger):
     def log_pre_api_call(self, model: str, messages: list, kwargs: Dict[str, Any]) -> None:
         """Capture the raw API request before it's sent."""
         logger.info(f"[DEBUG_CALLBACK] log_pre_api_call called for message {self.current_message_id}")
+        
+        # Validate we have a current message_id
+        if not self.current_message_id:
+            logger.warning(f"[DEBUG_CALLBACK] No current_message_id set, skipping prompt capture")
+            return
+            
         try:
             # Extract the full prompt with all details
             prompt_data = {
@@ -118,6 +124,12 @@ class DebugCallback(CustomLogger):
         """Capture the raw API response including tool calls."""
         logger.info(f"[DEBUG_CALLBACK] log_success_event called for message {self.current_message_id}")
         logger.info(f"[DEBUG_CALLBACK] Response object type: {type(response_obj)}")
+        
+        # Validate we have a current message_id
+        if not self.current_message_id:
+            logger.warning(f"[DEBUG_CALLBACK] No current_message_id set, skipping response capture")
+            return
+            
         try:
             # Convert times to float seconds if they're datetime objects
             if hasattr(start_time, 'timestamp'):
@@ -215,6 +227,11 @@ class DebugCallback(CustomLogger):
                          error: Optional[str] = None, start_time: Optional[float] = None,
                          end_time: Optional[float] = None, duration: Optional[float] = None):
         """Manually capture tool calls from tool execution logs."""
+        # Validate we have a current message_id
+        if not self.current_message_id:
+            logger.warning(f"[DEBUG_CALLBACK] No current_message_id set, skipping tool call capture for {tool_name}")
+            return
+            
         try:
             tool_capture = ToolCallCapture(
                 tool_name=tool_name,
@@ -353,3 +370,7 @@ class DebugCallback(CustomLogger):
             # Keep only last 10 crew outputs
             if len(self.debug_storage["crew_output"]) > 10:
                 self.debug_storage["crew_output"] = self.debug_storage["crew_output"][-10:]
+        
+        # Clear the current message ID to prevent this callback from capturing future data
+        logger.info(f"[DEBUG_CALLBACK] Finalizing and clearing message_id {self.current_message_id}")
+        self.current_message_id = None

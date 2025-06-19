@@ -1054,6 +1054,62 @@ When a user asks "What are our top complaints?", here's what happens:
 
 **Next Steps**: Simply parse and display what we're already capturing!
 
+### Phase 3.7: Capture Knowledge Base Grounding
+**Goal**: Capture and display knowledge base grounding results in the message details view
+
+#### Background
+The system supports knowledge base grounding through directives like `{{grounding: namespace}}` in prompt templates. When these directives are present:
+1. GroundingManager extracts the directives
+2. Builds queries from conversation context
+3. Queries the knowledge service
+4. Replaces directives with results in the prompt
+
+Currently, this grounding data is not captured in debug information, making it hard to see what knowledge was used.
+
+#### Implementation Steps
+
+1. **Add grounding storage to Session.debug_data**
+   ```python
+   # In session_manager.py
+   self.debug_data = {
+       "llm_prompts": [],
+       "llm_responses": [],
+       "tool_calls": [],
+       "crew_output": [],
+       "timing": {},
+       "grounding": []  # NEW: Store grounding operations
+   }
+   ```
+
+2. **Capture grounding in CJ agent**
+   - Modify `_process_grounding` to store grounding data
+   - Include: namespace, query, results, cache status, errors
+   - Associate with current message_id
+
+3. **Pass grounding through debug callback**
+   - Add method to DebugCallback for capturing grounding
+   - Store with proper message_id association
+
+4. **Update protocol for grounding data**
+   - Add grounding field to debug response types
+   - Generate TypeScript types
+
+5. **Display in MessageDetailsView**
+   - Add new section after thinking traces
+   - Show namespace, query built from context, and results
+   - Use consistent styling with other sections
+
+#### UI Design
+```
+🔍 KNOWLEDGE BASE GROUNDING
+├─ Namespace: npr_podcasts
+├─ Query: "test message from user context"
+├─ Cache: Miss (queried knowledge service)
+└─ Results:
+    [Knowledge from NPR_PODCASTS database]:
+    Relevant podcast information...
+```
+
 ### Phase 4: Tool Integration Enhancement ✅ COMPLETE
 - ✅ Enhance tool execution capture with @log_tool_execution decorator
 - ✅ Parse tool arguments more intelligently

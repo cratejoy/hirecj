@@ -123,6 +123,17 @@ class MessageProcessor:
 
         # Generate unique message ID
         message_id = f"msg_{uuid.uuid4().hex[:8]}"
+        
+        # Clear any stale debug data for this message_id (defensive measure)
+        # This prevents old data from bleeding into new messages
+        for data_type in ["llm_prompts", "llm_responses", "tool_calls"]:
+            if data_type in session.debug_data:
+                # Remove any existing entries with this message_id
+                session.debug_data[data_type] = [
+                    item for item in session.debug_data[data_type]
+                    if item.get("message_id") != message_id
+                ]
+                logger.info(f"[DEBUG_CLEANUP] Cleared {data_type} for message_id {message_id}")
 
         # Create debug callback
         debug_callback = DebugCallback(session.id, session.debug_data)
@@ -315,15 +326,37 @@ class MessageProcessor:
             # Clean up callbacks
             logger.info(f"[DEBUG_CLEANUP] Cleaning up callbacks for {message_id}")
             logger.info(f"[DEBUG_CLEANUP] Before cleanup - input: {len(litellm.input_callback)}, success: {len(litellm.success_callback)}")
-            logger.info(f"[DEBUG_CLEANUP] Debug callback in success_callback: {debug_callback in litellm.success_callback}")
             
+            # Remove from input callbacks
             if debug_callback in litellm.input_callback:
                 litellm.input_callback.remove(debug_callback)
+                logger.info(f"[DEBUG_CLEANUP] Removed debug callback from input_callback")
+            
+            # Handle success callbacks - check for CompositeCallback wrapping
+            removed_from_success = False
             if debug_callback in litellm.success_callback:
                 litellm.success_callback.remove(debug_callback)
-                logger.info(f"[DEBUG_CLEANUP] Removed debug callback from success_callback")
+                removed_from_success = True
+                logger.info(f"[DEBUG_CLEANUP] Removed debug callback from success_callback directly")
             else:
-                logger.info(f"[DEBUG_CLEANUP] Debug callback NOT in success_callback!")
+                # Check if it's wrapped in a CompositeCallback
+                from app.agents.extended_agent import CompositeCallback
+                for i, cb in enumerate(litellm.success_callback):
+                    if isinstance(cb, CompositeCallback) and debug_callback in cb.callbacks:
+                        # Remove from the composite's internal list
+                        cb.callbacks.remove(debug_callback)
+                        logger.info(f"[DEBUG_CLEANUP] Removed debug callback from CompositeCallback")
+                        removed_from_success = True
+                        # If composite is now empty, remove it
+                        if not cb.callbacks:
+                            litellm.success_callback.pop(i)
+                            logger.info(f"[DEBUG_CLEANUP] Removed empty CompositeCallback")
+                        break
+            
+            if not removed_from_success:
+                logger.warning(f"[DEBUG_CLEANUP] Debug callback NOT found in success_callback or CompositeCallbacks!")
+                # Log what callbacks are present for debugging
+                logger.info(f"[DEBUG_CLEANUP] Current success callbacks: {[type(cb).__name__ for cb in litellm.success_callback]}")
                 
             logger.info(f"[DEBUG_CLEANUP] After cleanup - input: {len(litellm.input_callback)}, success: {len(litellm.success_callback)}")
             
