@@ -167,6 +167,7 @@ third-party/*/node_modules/
 # Evaluation results and runs
 hirecj_evals/results/runs/
 hirecj_evals/conversations/
+!hirecj_evals/conversations/playground/2025-06-20/conv_1750447364223_v0u77ay.json
 *.hirecj_evals_history.json
 
 .ngrok.yml
