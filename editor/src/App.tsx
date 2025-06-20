@@ -8,6 +8,7 @@ import { ToolEditorView } from '@/views/ToolEditorView'
 import { TestsView } from '@/views/TestsView'
 import { KnowledgeListView } from '@/views/KnowledgeListView'
 import { KnowledgeDetailView } from '@/views/KnowledgeDetailView'
+import { EvalDesignerView } from '@/views/EvalDesignerView'
 import { Toaster } from '@/components/ui/toaster'
 import { WebSocketProvider } from '@/providers'
 
@@ -31,6 +32,7 @@ function App() {
         <Route path="/tests" component={TestsView} />
         <Route path="/knowledge" component={KnowledgeListView} />
         <Route path="/knowledge/:graphId" component={KnowledgeDetailView} />
+        <Route path="/evals" component={EvalDesignerView} />
       </EditorLayout>
       <Toaster />
     </WebSocketProvider>

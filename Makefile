@@ -46,7 +46,9 @@ help:
 	@echo "  make migrate-agents - Run agents database migrations"
 	@echo ""
 	@echo "🧪 Evaluation System:"
-	@echo "  make evals        - Interactive eval menu (recommended)"
+	@echo "  make add-test     - Add test with plain English requirements (simple)"
+	@echo "  make test-reqs    - Run all requirements tests (simple)"
+	@echo "  make evals        - Interactive eval menu (advanced)"
 	@echo "  make evals-test   - Quick test to verify setup"
 	@echo "  make evals-again  - Re-run last evaluation"
 	@echo "  make evals-today  - Eval conversations from today"
@@ -378,7 +380,7 @@ migrate-agents:
 	cd agents && . venv/bin/activate && python scripts/run_migration.py
 
 # Evaluation System
-.PHONY: evals evals-test evals-again evals-today evals-all evals-history evals-list evals-results evals-convert
+.PHONY: evals evals-test evals-again evals-today evals-all evals-history evals-list evals-results evals-convert add-test test
 
 # Main interactive interface
 evals:
@@ -417,6 +419,14 @@ evals-results:
 # Convert conversations to eval format
 evals-convert:
 	@python scripts/evals_cli.py convert
+
+# Simple workflow: Add test cases with plain English requirements
+add-test:
+	@python scripts/add_test.py
+
+# Simple workflow: Run all tests with requirements
+test-reqs:
+	@python scripts/run_tests.py
 
 # Generate TypeScript types from protocol
 generate-protocol:

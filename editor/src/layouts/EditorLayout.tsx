@@ -11,7 +11,8 @@ import {
   Settings,
   ChevronRight,
   FlaskConical,
-  Database
+  Database,
+  TestTube
 } from 'lucide-react'
 
 interface EditorLayoutProps {
@@ -54,6 +55,12 @@ const navItems = [
     icon: Database,
     href: '/knowledge',
     description: 'Manage RAG knowledge bases'
+  },
+  {
+    title: 'Eval Designer',
+    icon: TestTube,
+    href: '/evals',
+    description: 'Create and manage eval test cases'
   },
   {
     title: 'Settings',

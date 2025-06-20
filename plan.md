@@ -51,13 +51,15 @@ Only elegant, complete solutions that fully embody our principles count as succe
 
 ## 🚧 Implementation Status Banner
 
-> **🚀 CURRENT PHASE:** *Core System Working* ✅ 
-> **📍 CURRENT STATE:** *One dataset, one eval, simple workflow*
-> **🔜 NEXT STEPS:** *Simplify UI and expand eval coverage*
+> **🚀 CURRENT PHASE:** *Phase 2.5 - Architecture Fix* 🚧
+> **📍 CURRENT STATE:** *Need to switch from stored responses to live generation*
+> **🔜 NEXT STEPS:** *Update test format and eval runner for live responses*
 
 ## Executive Summary
 
 Build an elegant evaluation system for HireCJ that systematically tests prompts using curated datasets. The system will catch prompt regressions, ensure consistent agent behavior across workflows, and enable rapid iteration on agent capabilities. Inspired by OpenAI's evals framework but tailored to CrewAI's multi-agent architecture.
+
+**Critical insight**: The eval system must test what CJ says NOW with current prompts, not what she said in past conversations. This enables iterating on prompts to improve responses.
 
 **Primary workflow**: Describe requirements in plain English, run evals to see failures, fix prompts, verify nothing broke.
 
@@ -343,22 +345,132 @@ class WorkflowComplianceEval(CJEval):
   - ✅ Privacy scrubbing utility for when you have production data
 
 ### In Progress 🚧
-- Phase 3: Editor Integration - Eval Designer View
-  - ✅ Created EvalDesigner view component with navigation tabs
-  - ✅ Built ConversationList component to browse captured conversations
-  - ✅ Implemented EvalCaseEditor for editing expected behaviors
-  - ✅ Created EvalPreview component for testing eval cases
-  - ✅ Built DatasetManager for organizing eval datasets
-  - ✅ Added eval types and interfaces
-  - ✅ Integrated with editor routing and navigation
-  - ✅ Created backend API endpoints for eval operations
-  - 🚧 TODO: Connect to real conversation capture data
-  - 🚧 TODO: Implement actual eval execution preview
+- Phase 2.5: Fix Core Architecture
+  - 🚧 Update test format to store context only (no historical responses)
+  - 🚧 Create HTTP endpoint for eval testing that reuses MessageProcessor
+  - 🚧 Update add_test.py to extract context instead of full responses
+  - 🚧 Update run_tests.py to generate fresh responses before evaluation
+
+#### Implementation Details:
+
+1. **New Eval Endpoint**: `/api/v1/eval/chat`
+   ```python
+   @app.post("/api/v1/eval/chat")
+   async def eval_chat(request: EvalChatRequest):
+       # Create minimal session (no WebSocket)
+       session = session_manager.create_session(
+           merchant_name=request.persona or "test_merchant",
+           scenario_name="eval_scenario", 
+           workflow_name=request.workflow,
+           user_id=None  # No user tracking for evals
+       )
+       
+       # Add context messages to conversation
+       for msg in request.messages[:-1]:  # All but last
+           session.conversation.add_message(Message(
+               timestamp=datetime.utcnow(),
+               sender="user" if msg["role"] == "user" else "CJ",
+               content=msg["content"]
+           ))
+       
+       # Process the last message to get fresh response
+       response = await message_processor.process_message(
+           session=session,
+           message=request.messages[-1]["content"],
+           sender="merchant"
+       )
+       
+       # Extract clean text response
+       if isinstance(response, dict):
+           return {"response": response["content"]}
+       return {"response": response}
+   ```
+
+2. **Request Format**:
+   ```python
+   class EvalChatRequest(BaseModel):
+       messages: List[Dict[str, str]]  # [{"role": "user", "content": "..."}]
+       workflow: str = "ad_hoc_support"
+       persona: Optional[str] = "jessica"
+       trust_level: int = 3
+   ```
+
+3. **Unified Processing Flow**:
+   ```
+   WebSocket Path:
+   └── WebSocket Handler
+       └── SessionHandler.create_session()
+       └── ConversationHandlers.handle_message()
+           └── MessageProcessor.process_message()
+               └── MessageProcessor._get_cj_response()
+                   └── create_cj_agent()
+                   └── crew.kickoff()
+   
+   Eval HTTP Path:
+   └── HTTP Handler (/api/v1/eval/chat)
+       └── SessionManager.create_session()  # Direct, no WebSocket wrapper
+       └── MessageProcessor.process_message()  # Same as WebSocket!
+           └── MessageProcessor._get_cj_response()
+               └── create_cj_agent()
+               └── crew.kickoff()
+   ```
+
+4. **Key Insights**:
+   - MessageProcessor is already transport-agnostic
+   - SessionManager.create_session() works without WebSocket
+   - Same CJ agent creation and crew execution
+   - Only difference is session creation and response extraction
+
+### Implementation Steps (Phase 2.5)
+
+1. **Add eval endpoint to agents/app/main.py**:
+   - Import EvalChatRequest model
+   - Create session_manager and message_processor instances
+   - Implement `/api/v1/eval/chat` endpoint as shown above
+
+2. **Update test data format**:
+   - Modify existing `all_tests.jsonl` to remove `actual` field
+   - Keep only `context` and `requirements`
+   - Example:
+   ```json
+   {
+     "sample_id": "greeting_test", 
+     "context": {
+       "messages": [{"role": "user", "content": "sup guy"}],
+       "workflow": "ad_hoc_support",
+       "persona": "jessica"
+     },
+     "requirements": ["Must not say 'As CJ I'd say'", "Must greet professionally"]
+   }
+   ```
+
+3. **Update scripts/run_tests.py**:
+   - Add async function to call eval endpoint:
+   ```python
+   async def generate_cj_response(context: dict) -> str:
+       async with httpx.AsyncClient() as client:
+           response = await client.post(
+               f"{AGENTS_URL}/api/v1/eval/chat",
+               json={
+                   "messages": context["messages"],
+                   "workflow": context.get("workflow", "ad_hoc_support"),
+                   "persona": context.get("persona", "jessica")
+               }
+           )
+           return response.json()["response"]
+   ```
+   - Replace `test_case["actual"]["response"]` with fresh generation
+
+4. **Update scripts/add_test.py**:
+   - Remove code that extracts agent_processing details
+   - Save only user messages and context
+   - Keep requirements collection unchanged
 
 ### Next Steps 📋
-- Phase 3: Editor Integration (Eval Designer View, Batch Testing, Results Dashboard)
-- Phase 4: Advanced Features (Continuous Evaluation, Smart Test Generation)
-- Production model-graded evaluations with GPT-4o-mini
+- Complete Phase 2.5: Architecture fixes for live response generation
+- Phase 3: Production usage with improved workflow
+- Phase 4: Editor Integration (Future milestone)
+- Phase 5: Advanced Features (Batch testing, A/B comparison)
 
 ## Implementation Phases
 
@@ -460,33 +572,60 @@ class WorkflowComplianceEval(CJEval):
    }
    ```
 
-### Phase 3: Editor Integration
-**Goal**: Seamless eval workflow in the editor
+### Phase 2.5: Fix Core Architecture (CURRENT)
+**Goal**: Test live CJ responses, not historical data
 
-1. **Eval Designer View**
-   - Visual interface for creating eval cases
-   - Convert conversations to test cases
-   - Edit expected outputs
-   - Preview eval execution
+1. **Update Test Format**
+   - Remove `actual` field with stored responses
+   - Keep only conversation context and requirements
+   - Store workflow, persona, and other context needed to recreate the scenario
 
-2. **Batch Testing Interface**
-   ```typescript
-   // Run evals against multiple prompt versions
-   const comparePrompts = async (evalId: string, prompts: PromptVersion[]) => {
-     const results = await Promise.all(
-       prompts.map(p => runEval(evalId, { promptOverride: p }))
-     );
-     return generateComparisonReport(results);
-   };
+2. **Live Response Generation**
+   ```python
+   async def generate_cj_response(context: dict) -> str:
+       """Call CJ agent API with current prompts."""
+       response = await call_cj_api(
+           messages=context["messages"],
+           workflow=context.get("workflow", "ad_hoc_support"),
+           persona=context.get("persona", "jessica"),
+           trust_level=context.get("trust_level", 3)
+       )
+       return response["content"]
    ```
 
-3. **Results Dashboard**
-   - Real-time eval progress
-   - Detailed failure analysis
-   - Prompt version comparison
-   - Export results for further analysis
+3. **Updated Eval Flow**
+   - Load test context
+   - Generate fresh CJ response
+   - Evaluate against requirements
+   - Show results with actual current behavior
 
-### Phase 4: Advanced Features
+### Phase 3: Production Usage
+**Goal**: Stable eval system for daily use
+
+1. **Refined Commands**
+   - `make add-test`: Interactive test creation
+   - `make test-reqs`: Run all tests with live responses
+   - `make test-prompt`: Test specific prompt changes
+
+2. **Performance Optimization**
+   - Cache responses during single run
+   - Parallel API calls for faster execution
+   - Progress indicators for long runs
+
+### Phase 4: Editor Integration (FUTURE)
+**Goal**: GUI for non-technical users
+
+1. **Visual Test Builder**
+   - Drag-and-drop conversation builder
+   - Requirement templates
+   - Live preview of responses
+
+2. **Results Dashboard**
+   - Visual pass/fail indicators
+   - Failure analysis tools
+   - Historical comparison
+
+### Phase 5: Advanced Features (FUTURE)
 **Goal**: Production-ready evaluation system
 
 1. **Continuous Evaluation**
@@ -596,19 +735,49 @@ scripts/
 
 ## Simplified Eval Workflow (Minimum Complexity)
 
+### Core Concept: Test Current Behavior, Not Historical Responses
+
+**CRITICAL**: The eval system must test what CJ would say NOW with current prompts, not what she said in the past. This enables iterating on prompts to improve responses.
+
 ### Your Workflow:
 1. Have conversations in playground
-2. Save conversation (Export for Eval button)
+2. Save conversation context (user messages only)
 3. Describe requirements in plain English
-4. Run eval → see failures
+4. Run eval → generates fresh CJ responses → see failures
 5. Tweak system prompt
-6. Run eval → passes
+6. Run eval → generates new responses → passes
 7. Run all evals → ensure nothing broke
 
 ### Implementation:
 
 #### One Master Test File
 `hirecj_evals/datasets/all_tests.jsonl` - ALL test cases in one place
+
+#### Test Case Format (Context Only, No Stored Responses)
+```json
+{
+  "sample_id": "greeting_test",
+  "context": {
+    "messages": [
+      {"role": "user", "content": "sup guy"}
+    ],
+    "workflow": "ad_hoc_support",
+    "persona": "jessica",
+    "trust_level": 3
+  },
+  "requirements": [
+    "Must not say 'As CJ I'd say' or similar meta-commentary",
+    "Must greet the user professionally",
+    "Must identify as CJ"
+  ]
+}
+```
+
+#### Eval Process
+1. Load test case context
+2. Call CJ agent API with current prompts/configuration
+3. Get fresh response
+4. Evaluate response against requirements using GPT-4o-mini
 
 #### Generic Requirement Evaluator
 ```yaml
@@ -629,23 +798,9 @@ requirement:
       FAIL - if requirement is not met (quote specific issue)
 ```
 
-#### Test Case Format
-```json
-{
-  "sample_id": "conv_123_turn_2",
-  "input": {...},
-  "actual": {...},
-  "requirements": [
-    "Must not say 'As CJ I'd say'",
-    "Must mention specific metrics when discussing performance",
-    "Must offer concrete next steps, not just analysis"
-  ]
-}
-```
-
 #### Two Commands Only
-- `make add-test` - Pick conversation, type requirements, done
-- `make test` - Run all requirements on all conversations
+- `make add-test` - Pick conversation, extract context, type requirements, done
+- `make test-reqs` - Generate fresh responses from CJ, evaluate against requirements
 
 No dataset selection. No conversion menus. Just describe what you want in words.
 

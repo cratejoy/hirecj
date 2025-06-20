@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.logging_config import setup_logging
-from app.api.routes import prompts, workflows, knowledge, catalog_proxy, conversations
+from app.api.routes import prompts, workflows, knowledge, catalog_proxy, conversations, evals
 from app.api.websocket import playground
 
 # Initialize logging
@@ -126,6 +126,7 @@ app.include_router(catalog_proxy.router)
 app.include_router(workflows.router)
 app.include_router(knowledge.router)
 app.include_router(conversations.router)
+app.include_router(evals.router, prefix="/api/v1/evals", tags=["evals"])
 
 # Include WebSocket router
 app.include_router(playground.router)
