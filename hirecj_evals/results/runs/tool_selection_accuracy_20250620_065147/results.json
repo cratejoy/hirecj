@@ -1,0 +1,76 @@
+{
+  "eval_id": "tool_selection_accuracy",
+  "run_id": "tool_selection_accuracy_20250620_065147",
+  "started_at": "2025-06-20T06:51:47.099710",
+  "completed_at": "2025-06-20T06:51:47.101524",
+  "total_samples": 4,
+  "summary": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "accuracy": 1.0,
+    "average_score": 1.0
+  },
+  "results": [
+    {
+      "sample_id": "test_1",
+      "status": "EvalStatus.PASS",
+      "score": 1.0,
+      "reason": "Correctly did not use any tools",
+      "details": {
+        "expected_tools": false,
+        "actual_tools": []
+      },
+      "error": null
+    },
+    {
+      "sample_id": "test_2",
+      "status": "EvalStatus.PASS",
+      "score": 1.0,
+      "reason": "Correctly did not use any tools",
+      "details": {
+        "expected_tools": false,
+        "actual_tools": []
+      },
+      "error": null
+    },
+    {
+      "sample_id": "test_3",
+      "status": "EvalStatus.PASS",
+      "score": 1,
+      "reason": "Used correct tools: {'get_orders'}",
+      "details": {
+        "actual_tools": [
+          "get_orders"
+        ],
+        "acceptable_tools": [
+          "get_orders"
+        ],
+        "unacceptable_tools": [
+          "get_customers"
+        ],
+        "correct_tools": [
+          "get_orders"
+        ],
+        "wrong_tools": [],
+        "unnecessary_tools": [],
+        "missing_tools": [],
+        "mode": "strict"
+      },
+      "error": null
+    },
+    {
+      "sample_id": "test_4",
+      "status": "EvalStatus.PASS",
+      "score": 1.0,
+      "reason": "Correctly did not use any tools",
+      "details": {
+        "expected_tools": false,
+        "actual_tools": []
+      },
+      "error": null
+    }
+  ]
+}

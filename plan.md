@@ -297,9 +297,36 @@ class WorkflowComplianceEval(CJEval):
     """Ensures responses follow workflow rules"""
 ```
 
+## Progress Summary
+
+### Completed ✅
+- **Phase 1: Conversation Capture Infrastructure**
+  - Created TypeScript types for conversation capture
+  - Implemented useConversationCapture React hook
+  - Built backend capture endpoint with file-based storage
+  - Tested capture functionality with test script
+  
+- **Phase 2: Eval Framework Core**
+  - Built base evaluation classes (ExactMatch, FuzzyMatch, Includes, ModelGraded)
+  - Created YAML-based registry system with inheritance
+  - Implemented parallel eval runner
+  - Built HireCJ-specific evaluators (ToolSelectionAccuracy, ResponseQuality, etc.)
+  - Created CLI tool for running evaluations
+  - Tested framework with basic test dataset
+
+### In Progress 🚧
+- Conversion tool for captured conversations to JSONL format
+- Comprehensive test datasets
+
+### Next Steps 📋
+- Phase 3: Editor Integration (Eval Designer View, Batch Testing, Results Dashboard)
+- Phase 4: Advanced Features (Continuous Evaluation, Smart Test Generation)
+- Production model-graded evaluations with GPT-4
+- Privacy scrubbing utility
+
 ## Implementation Phases
 
-### Phase 1: Conversation Capture Infrastructure
+### Phase 1: Conversation Capture Infrastructure ✅ COMPLETED
 **Goal**: Reliably capture all conversation data to structured file system
 
 1. **Enhanced Message Recording**
@@ -349,7 +376,7 @@ class WorkflowComplianceEval(CJEval):
    - Privacy scrubbing for production data
    - Git integration (.gitignore for sensitive paths)
 
-### Phase 2: Eval Framework Core
+### Phase 2: Eval Framework Core ✅ COMPLETED
 **Goal**: Build the evaluation engine
 
 1. **Registry System**

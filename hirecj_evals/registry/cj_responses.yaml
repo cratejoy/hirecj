@@ -5,7 +5,7 @@ cj_response_quality:
   description: "Evaluates CJ's response quality across multiple dimensions"
   parent: model_graded
   
-  class: evals.cj.ResponseQuality
+  class: evals.cj_evals.ResponseQuality
   
   args:
     # Metrics to evaluate
@@ -49,7 +49,7 @@ tool_selection_accuracy:
   description: "Evaluates whether CJ selects appropriate tools for the task"
   parent: base_eval
   
-  class: evals.cj.ToolSelectionAccuracy
+  class: evals.cj_evals.ToolSelectionAccuracy
   
   args:
     # Evaluation mode
@@ -83,7 +83,7 @@ tool_usage_efficiency:
   description: "Evaluates efficient use of tools (avoiding redundant calls)"
   parent: base_eval
   
-  class: evals.cj.ToolUsageEfficiency
+  class: evals.cj_evals.ToolUsageEfficiency
   
   args:
     # Maximum acceptable redundancy ratio
@@ -101,7 +101,7 @@ grounding_relevance:
   description: "Evaluates the relevance and quality of grounding queries"
   parent: model_graded
   
-  class: evals.cj.GroundingRelevance
+  class: evals.cj_evals.GroundingRelevance
   
   args:
     # What to evaluate in grounding
@@ -125,7 +125,7 @@ workflow_compliance:
   description: "Ensures responses follow workflow-specific rules"
   parent: base_eval
   
-  class: evals.cj.WorkflowCompliance
+  class: evals.cj_evals.WorkflowCompliance
   
   args:
     # Workflow-specific rules are loaded dynamically

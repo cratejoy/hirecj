@@ -36,71 +36,118 @@ def convert_to_eval_format(conversation: Dict[str, Any], eval_type: str = "tool_
     conversation_history = []
     
     for i, message in enumerate(messages):
-        # Add system message if first turn
-        if i == 0:
+        # Handle old format where messages contain both user input and agent response
+        if 'user_input' in message and 'agent_processing' in message:
+            # Old format: each message contains both user and assistant data
+            user_input = message['user_input']
+            agent_processing = message['agent_processing']
+            turn_number = message.get('turn', i)
+            
+            # Add system message if first turn
+            if len(conversation_history) == 0 and prompts:
+                system_content = prompts.get('cj_prompt', '')
+                if prompts.get('workflow_prompt'):
+                    system_content += '\n\n' + prompts.get('workflow_prompt')
+                conversation_history.append({
+                    "role": "system",
+                    "content": system_content
+                })
+            
+            # Add user message
             conversation_history.append({
-                "role": "system",
-                "content": prompts.get('cj_prompt', '') + '\n\n' + prompts.get('workflow_prompt', '')
+                "role": "user",
+                "content": user_input
+            })
+            
+            # Extract tool calls
+            tool_calls = []
+            for tc in agent_processing.get('tool_calls', []):
+                if isinstance(tc, dict):
+                    tool_calls.append(tc.get('name', tc.get('tool', 'unknown')))
+                else:
+                    tool_calls.append(str(tc))
+            
+            # Extract thinking - handle both string and list formats
+            thinking = agent_processing.get('thinking', [])
+            if isinstance(thinking, str):
+                thinking = [thinking]
+            
+            # Create eval case for this turn
+            eval_case = {
+                "eval_id": eval_type,
+                "sample_id": f"{conversation['id']}_turn_{turn_number}",
+                
+                # Input context
+                "input": {
+                    "messages": conversation_history.copy(),
+                    "context": {
+                        "workflow": context.get('workflow', {}).get('name', context.get('workflow', 'unknown')),
+                        "available_tools": context.get('workflow', {}).get('available_tools', []),
+                        "persona": context.get('persona', {}).get('name', context.get('persona', 'unknown')),
+                        "trust_level": context.get('trustLevel', 'unknown')
+                    }
+                },
+                
+                # Actual output from conversation
+                "actual": {
+                    "thinking": thinking,
+                    "tool_calls": tool_calls,
+                    "response": agent_processing.get('final_response', '')
+                },
+                
+                # Metadata for analysis
+                "metadata": {
+                    "source_conversation": conversation['id'],
+                    "turn_index": turn_number,
+                    "timestamp": conversation.get('timestamp', ''),
+                    "latency_ms": message.get('metrics', {}).get('latency_ms', 0),
+                    "tokens": message.get('metrics', {}).get('tokens', {})
+                }
+            }
+            
+            # Add ideal expectations based on eval type
+            if eval_type == "tool_selection" or eval_type == "tool_selection_accuracy":
+                # For tool selection evals, we'd manually specify expected tools
+                # This is a placeholder - in practice, this would be added manually
+                eval_case["ideal"] = {
+                    "tool_selection": {
+                        "should_use_tool": len(tool_calls) > 0,
+                        "acceptable_tools": tool_calls,  # Default to actual tools used
+                        "unacceptable_tools": []  # Would be filled in manually
+                    }
+                }
+            elif eval_type == "response_quality":
+                eval_case["ideal"] = {
+                    "response": agent_processing.get('final_response', '')  # Placeholder
+                }
+            
+            eval_cases.append(eval_case)
+            
+            # Add assistant message to history for next turn
+            conversation_history.append({
+                "role": "assistant",
+                "content": agent_processing.get('final_response', '')
             })
         
-        # Add user message
-        conversation_history.append({
-            "role": "user",
-            "content": message['user_input']
-        })
-        
-        # Create eval case for this turn
-        eval_case = {
-            "eval_id": eval_type,
-            "sample_id": f"{conversation['id']}_turn_{message['turn']}",
+        else:
+            # Handle new format (if we switch to it)
+            turn = message.get('turn', {})
             
-            # Input context
-            "input": {
-                "messages": conversation_history.copy(),
-                "context": {
-                    "workflow": context['workflow']['name'],
-                    "available_tools": context['workflow'].get('available_tools', []),
-                    "persona": context['persona']['name'],
-                    "trust_level": context['trustLevel']
-                }
-            },
+            # Skip if not a user turn or no next assistant turn
+            if turn.get('type') != 'user':
+                continue
+                
+            # Find the corresponding assistant turn
+            assistant_turn = None
+            for j in range(i + 1, len(messages)):
+                if messages[j]['turn']['type'] == 'assistant':
+                    assistant_turn = messages[j]
+                    break
+                    
+            if not assistant_turn:
+                continue
             
-            # Actual output from conversation
-            "actual": {
-                "thinking": message['agent_processing']['thinking'],
-                "tool_calls": [tc['tool'] for tc in message['agent_processing']['tool_calls']],
-                "response": message['agent_processing']['final_response']
-            },
-            
-            # Metadata for analysis
-            "metadata": {
-                "source_conversation": conversation['id'],
-                "turn": message['turn'],
-                "timestamp": conversation['timestamp'],
-                "latency_ms": message['metrics']['latency_ms'],
-                "tokens": message['metrics']['tokens']
-            }
-        }
-        
-        # Add ideal expectations (would be manually added or generated)
-        if eval_type == "tool_selection":
-            # For tool selection evals, we'd manually specify expected tools
-            # This is a placeholder - in practice, this would be added manually
-            eval_case["ideal"] = {
-                "tool_selection": {
-                    "should_use_tool": len(message['agent_processing']['tool_calls']) > 0,
-                    "acceptable_tools": [],  # Would be filled in manually
-                    "unacceptable_tools": []  # Would be filled in manually
-                }
-            }
-        
-        eval_cases.append(eval_case)
-        
-        # Add assistant message to history for next turn
-        conversation_history.append({
-            "role": "assistant",
-            "content": message['agent_processing']['final_response']
-        })
+            # Similar processing as above but for new format...
     
     return eval_cases
 

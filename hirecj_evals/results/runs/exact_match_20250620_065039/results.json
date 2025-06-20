@@ -1,0 +1,78 @@
+{
+  "eval_id": "exact_match",
+  "run_id": "exact_match_20250620_065039",
+  "started_at": "2025-06-20T06:50:39.674233",
+  "completed_at": "2025-06-20T06:50:39.674770",
+  "total_samples": 4,
+  "summary": {
+    "total": 4,
+    "passed": 1,
+    "failed": 3,
+    "errors": 0,
+    "skipped": 0,
+    "accuracy": 0.25,
+    "average_score": 0.25
+  },
+  "results": [
+    {
+      "sample_id": "test_1",
+      "status": "EvalStatus.PASS",
+      "score": 1.0,
+      "reason": null,
+      "details": {
+        "expected": "hello! how can i help you today?",
+        "actual": "hello! how can i help you today?",
+        "normalized": {
+          "case_sensitive": false,
+          "strip_whitespace": true
+        }
+      },
+      "error": null
+    },
+    {
+      "sample_id": "test_2",
+      "status": "EvalStatus.FAIL",
+      "score": 0.0,
+      "reason": "Expected: '4', Got: '2+2 equals 4'",
+      "details": {
+        "expected": "4",
+        "actual": "2+2 equals 4",
+        "normalized": {
+          "case_sensitive": false,
+          "strip_whitespace": true
+        }
+      },
+      "error": null
+    },
+    {
+      "sample_id": "test_3",
+      "status": "EvalStatus.FAIL",
+      "score": 0.0,
+      "reason": "Expected: '', Got: 'i found your recent orders'",
+      "details": {
+        "expected": "",
+        "actual": "i found your recent orders",
+        "normalized": {
+          "case_sensitive": false,
+          "strip_whitespace": true
+        }
+      },
+      "error": null
+    },
+    {
+      "sample_id": "test_4",
+      "status": "EvalStatus.FAIL",
+      "score": 0.0,
+      "reason": "Expected: '', Got: 'i can help with that'",
+      "details": {
+        "expected": "",
+        "actual": "i can help with that",
+        "normalized": {
+          "case_sensitive": false,
+          "strip_whitespace": true
+        }
+      },
+      "error": null
+    }
+  ]
+}
