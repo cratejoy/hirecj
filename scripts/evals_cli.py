@@ -175,7 +175,6 @@ def run_evaluation(eval_id: str, dataset_path: Path, limit: Optional[int] = None
         result = subprocess.run(cmd, capture_output=True, text=True)
     
     # Parse output for results
-    success = result.returncode == 0
     result_path = None
     
     # Check both stdout and stderr for result path
@@ -187,36 +186,19 @@ def run_evaluation(eval_id: str, dataset_path: Path, limit: Optional[int] = None
                 result_path = parts[1].strip()
                 break
     
-    # Show summary with colors
-    if success:
-        # Extract and show the summary section
-        summary_lines = []
-        in_summary = False
-        for line in result.stdout.split('\n'):
-            if 'Eval Run Summary' in line:
-                in_summary = True
-            elif in_summary and line.startswith('====='):
-                if summary_lines:  # End of summary
-                    break
-            elif in_summary:
-                summary_lines.append(line)
-        
-        if summary_lines:
-            console.print()
-            for line in summary_lines:
-                if 'Passed:' in line:
-                    console.print(f"[green]{line}[/green]")
-                elif 'Failed:' in line and 'Failed: 0' not in line:
-                    console.print(f"[red]{line}[/red]")
-                elif 'Accuracy:' in line:
-                    console.print(f"[bold cyan]{line}[/bold cyan]")
-                else:
-                    console.print(line)
-            console.print()  # Add spacing after summary
-    else:
-        console.print(f"\n[red]✗ Evaluation failed[/red]")
+    # Consider success if we got a result path, regardless of return code
+    # (run_evals.py exits with 1 if ANY tests fail, but that's expected)
+    success = result_path is not None
+    
+    # Show logs if requested or if there was a real error
+    if not success:
+        console.print(f"\n[bright_red]✗ Evaluation failed to run[/bright_red]")
         if result.stderr:
-            console.print(f"[dim red]Error: {result.stderr}[/dim red]")
+            console.print("\n[yellow]Error details:[/yellow]")
+            # Show stderr in white/gray instead of red for readability
+            for line in result.stderr.split('\n'):
+                if line.strip():
+                    console.print(f"[bright_white]{line}[/bright_white]")
     
     return success, result_path
 
@@ -231,8 +213,12 @@ def show_results(result_path: str):
         with open(results_file, 'r') as f:
             data = json.load(f)
         
+        console.print("\n" + "="*60)
+        console.print(f"[bold cyan]Evaluation Results: {data['eval_id']}[/bold cyan]")
+        console.print("="*60)
+        
         # Create a nice table for results
-        table = Table(title=f"Results: {data['eval_id']}", show_header=True, header_style="bold magenta")
+        table = Table(show_header=True, header_style="bold magenta")
         table.add_column("Metric", style="cyan", width=20)
         table.add_column("Value", justify="right")
         
@@ -244,7 +230,7 @@ def show_results(result_path: str):
         )
         table.add_row(
             "Failed", 
-            f"[red]{summary['failed']} ({summary['failed']/summary['total']*100:.1f}%)[/red]" if summary['failed'] > 0 else f"{summary['failed']} (0.0%)"
+            f"[bright_red]{summary['failed']} ({summary['failed']/summary['total']*100:.1f}%)[/bright_red]" if summary['failed'] > 0 else f"[green]{summary['failed']} (0.0%)[/green]"
         )
         table.add_row("Accuracy", f"[bold cyan]{summary['accuracy']*100:.1f}%[/bold cyan]")
         table.add_row("Average Score", f"{summary['average_score']:.3f}")
@@ -252,16 +238,45 @@ def show_results(result_path: str):
         console.print()
         console.print(table)
         
-        # Show first few failures
-        failures = [r for r in data['results'] if r['status'] == 'fail']
+        # Show detailed failures
+        failures = [r for r in data['results'] if r['status'].endswith('FAIL')]
         if failures:
-            console.print(f"\n[yellow]First {min(3, len(failures))} failures:[/yellow]")
-            for i, failure in enumerate(failures[:3]):
-                console.print(f"\n[red]{i+1}. Sample:[/red] {failure['sample_id']}")
-                console.print(f"   [dim]Reason:[/dim] {failure.get('reason', 'Unknown')}")
+            console.print(f"\n[yellow]Failure Details ({len(failures)} total):[/yellow]")
+            console.print("-" * 60)
+            for i, failure in enumerate(failures):
+                console.print(f"\n[bright_red]Failure {i+1}:[/bright_red]")
+                console.print(f"  [cyan]Sample ID:[/cyan] {failure['sample_id']}")
+                console.print(f"  [cyan]Reason:[/cyan] {failure.get('reason', 'Unknown')}")
+                
+                # Show the actual response that failed
+                if 'details' in failure and 'response_evaluated' in failure['details']:
+                    response = failure['details']['response_evaluated']
+                    # Truncate if too long
+                    if len(response) > 200:
+                        response = response[:197] + "..."
+                    console.print(f"  [cyan]Response:[/cyan] {response}")
+                
+                # Show grader feedback
+                if 'details' in failure and 'grading_response' in failure['details']:
+                    console.print(f"  [cyan]Grader:[/cyan] {failure['details']['grading_response']}")
+        
+        # Final summary line
+        console.print("\n" + "="*60)
+        if summary['failed'] == 0:
+            console.print(f"[bold green]✓ All {summary['total']} tests passed![/bold green]")
+        else:
+            pass_rate = summary['passed']/summary['total']*100
+            if pass_rate >= 80:
+                color = "green"
+            elif pass_rate >= 60:
+                color = "yellow" 
+            else:
+                color = "bright_red"
+            console.print(f"[bold {color}]✓ {summary['passed']}/{summary['total']} tests passed ({pass_rate:.1f}%)[/bold {color}]")
+        console.print("="*60)
     
     except Exception as e:
-        console.print(f"[red]Error reading results: {e}[/red]")
+        console.print(f"[bright_red]Error reading results: {e}[/bright_red]")
 
 
 def menu_main():
@@ -274,9 +289,10 @@ def menu_main():
     console.print("[bold blue]3.[/bold blue] Convert conversations") 
     console.print("[bold cyan]4.[/bold cyan] List all evaluations")
     console.print("[bold magenta]5.[/bold magenta] Quick test")
-    console.print("[dim red]6. Exit[/dim red]")
+    console.print("[bold orange3]6.[/bold orange3] Run all evaluations")
+    console.print("[dim red]7. Exit[/dim red]")
     
-    return get_number_choice("Select", 1, 6)
+    return get_number_choice("Select", 1, 7)
 
 
 def menu_select_eval(evals: List[Dict[str, str]]) -> Optional[str]:
@@ -396,7 +412,7 @@ def menu_select_dataset(eval_id: str) -> Tuple[Optional[Path], Optional[int]]:
             "python", "scripts/convert_conversations.py",
             "--input-dir", str(recent),
             "--output-dir", str(DATASETS_DIR / 'generated'),
-            "--eval-type", eval_id.replace('_accuracy', '').replace('_eval', '').split('.')[0]
+            "--eval-type", "response_quality"  # Use generic type for all conversions
         ]
         
         with Progress(
@@ -568,9 +584,7 @@ def quick_test(interactive=True):
     history = EvalsHistory()
     
     test_evals = [
-        ("exact_match", "Basic exact match test"),
-        ("tool_selection_accuracy", "Tool selection test"),
-        ("cj_response_quality", "Response quality test")
+        ("no_meta_commentary", "Check for meta-commentary in CJ responses")
     ]
     
     # Find test dataset
@@ -750,6 +764,174 @@ def run_interactive():
         console.input("\n[dim]Press Enter to continue...[/dim]")
 
 
+def run_all_evaluations():
+    """Run all available evaluations on a selected dataset."""
+    clear_screen()
+    print_header("Run All Evaluations")
+    
+    # Get all evaluations
+    all_evals = list_evaluations()
+    
+    # Filter out base evaluations (those without descriptions or base classes)
+    runnable_evals = [
+        e for e in all_evals 
+        if e['description'] and e['id'] not in ['base_eval', 'model_graded']
+    ]
+    
+    if not runnable_evals:
+        console.print("[red]✗ No runnable evaluations found[/red]")
+        console.input("\n[dim]Press Enter to continue...[/dim]")
+        return
+    
+    # Show evaluations that will be run
+    console.print(f"[cyan]Found {len(runnable_evals)} evaluation(s) to run:[/cyan]\n")
+    for eval_info in runnable_evals:
+        console.print(f"  • [yellow]{eval_info['id']}[/yellow]: {eval_info['description']}")
+    console.print()
+    
+    # Select dataset
+    console.print("[bold]Select dataset to evaluate:[/bold]")
+    dataset_path, limit = menu_select_dataset(runnable_evals[0]['id'])  # Use first eval for dataset selection
+    if not dataset_path:
+        return
+    
+    # Confirm before running
+    console.print(f"\n[bold]Ready to run {len(runnable_evals)} evaluation(s) on:[/bold]")
+    console.print(f"  [cyan]{dataset_path.name}[/cyan]")
+    console.print("\n[yellow]Press Enter to start or Ctrl+C to cancel...[/yellow]")
+    console.input()
+    
+    # Run all evaluations
+    history = EvalsHistory()
+    results_summary = []
+    overall_passed = 0
+    overall_failed = 0
+    overall_total = 0
+    
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeRemainingColumn(),
+        console=console
+    ) as progress:
+        main_task = progress.add_task(
+            f"[cyan]Running {len(runnable_evals)} evaluations...[/cyan]", 
+            total=len(runnable_evals)
+        )
+        
+        for i, eval_info in enumerate(runnable_evals):
+            eval_id = eval_info['id']
+            progress.update(main_task, description=f"[cyan]Running {eval_id}...[/cyan]")
+            
+            # Run the evaluation
+            success, result_path = run_evaluation(eval_id, dataset_path, limit)
+            
+            if success and result_path:
+                # Load and summarize results
+                try:
+                    with open(result_path, 'r') as f:
+                        data = json.load(f)
+                    
+                    summary = data['summary']
+                    results_summary.append({
+                        'eval_id': eval_id,
+                        'description': eval_info['description'],
+                        'total': summary['total'],
+                        'passed': summary['passed'],
+                        'failed': summary['failed'],
+                        'accuracy': summary['accuracy'],
+                        'result_path': result_path
+                    })
+                    
+                    overall_passed += summary['passed']
+                    overall_failed += summary['failed'] 
+                    overall_total += summary['total']
+                    
+                    # Save to history
+                    history.add_run(eval_id, str(dataset_path), result_path)
+                    
+                except Exception as e:
+                    console.print(f"\n[red]✗ Error reading results for {eval_id}: {e}[/red]")
+            else:
+                console.print(f"\n[red]✗ Failed to run {eval_id}[/red]")
+                results_summary.append({
+                    'eval_id': eval_id,
+                    'description': eval_info['description'],
+                    'total': 0,
+                    'passed': 0,
+                    'failed': 0,
+                    'accuracy': 0,
+                    'result_path': None
+                })
+            
+            progress.advance(main_task)
+    
+    # Display comprehensive summary
+    console.print("\n" + "="*60)
+    console.print("[bold cyan]All Evaluations Complete[/bold cyan]")
+    console.print("="*60 + "\n")
+    
+    # Summary table
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Evaluation", style="cyan", width=25)
+    table.add_column("Passed", justify="right", style="green")
+    table.add_column("Failed", justify="right", style="red")
+    table.add_column("Total", justify="right")
+    table.add_column("Accuracy", justify="right", style="bold")
+    
+    for result in results_summary:
+        accuracy_str = f"{result['accuracy']*100:.1f}%" if result['total'] > 0 else "N/A"
+        table.add_row(
+            result['eval_id'],
+            str(result['passed']),
+            str(result['failed']),
+            str(result['total']),
+            accuracy_str
+        )
+    
+    # Add overall summary row
+    table.add_section()
+    overall_accuracy = overall_passed / overall_total if overall_total > 0 else 0
+    table.add_row(
+        "[bold]OVERALL[/bold]",
+        f"[bold green]{overall_passed}[/bold green]",
+        f"[bold red]{overall_failed}[/bold red]",
+        f"[bold]{overall_total}[/bold]",
+        f"[bold cyan]{overall_accuracy*100:.1f}%[/bold cyan]"
+    )
+    
+    console.print(table)
+    
+    # Final summary
+    console.print("\n" + "="*60)
+    if overall_failed == 0:
+        console.print(f"[bold green]✓ All {overall_total} tests passed across {len(runnable_evals)} evaluations![/bold green]")
+    else:
+        pass_rate = overall_passed/overall_total*100 if overall_total > 0 else 0
+        if pass_rate >= 80:
+            color = "green"
+        elif pass_rate >= 60:
+            color = "yellow"
+        else:
+            color = "bright_red"
+        console.print(f"[bold {color}]✓ {overall_passed}/{overall_total} tests passed ({pass_rate:.1f}%) across {len(runnable_evals)} evaluations[/bold {color}]")
+    console.print("="*60)
+    
+    # Ask to view detailed results
+    console.print("\n[bold green]1.[/bold green] View detailed results for each evaluation")
+    console.print("[bold yellow]2.[/bold yellow] Main menu")
+    
+    choice = get_number_choice("Select", 1, 2)
+    
+    if choice == 1:
+        for result in results_summary:
+            if result['result_path']:
+                console.print(f"\n[bold cyan]Results for {result['eval_id']}:[/bold cyan]")
+                show_results(result['result_path'])
+                console.input("\n[dim]Press Enter for next evaluation...[/dim]")
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description='HireCJ Evaluation System')
@@ -780,6 +962,9 @@ def main():
     elif args.command == 'convert':
         menu_convert()
         return
+    elif args.command == 'all':
+        run_all_evaluations()
+        return
     
     # Interactive mode
     while True:
@@ -796,6 +981,8 @@ def main():
             list_all_evals()
         elif choice == 5:
             quick_test()
+        elif choice == 6:
+            run_all_evaluations()
         else:
             console.print("\n[yellow]Goodbye![/yellow]")
             break

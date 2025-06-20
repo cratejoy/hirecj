@@ -1,138 +1,22 @@
 # Eval definitions for CJ response quality and behavior
 
-cj_response_quality:
-  id: cj_response_quality.v1
-  description: "Evaluates CJ's response quality across multiple dimensions"
+no_meta_commentary:
+  id: no_meta_commentary.v1
+  description: "Ensures CJ doesn't use meta-commentary like 'As CJ I'd say'"
   parent: model_graded
   
-  class: evals.cj_evals.ResponseQuality
+  class: evals.base.ModelGraded
   
   args:
-    # Metrics to evaluate
-    metrics:
-      - helpfulness
-      - relevance
-      - tone_appropriateness
-      - clarity
-      - actionability
+    grader_model: gpt-4o-mini
+    temperature: 0.0
+    max_tokens: 100
     
-    # Minimum score threshold
-    threshold: 0.85
-    
-    # Grading prompt template
     grading_prompt: |
-      Evaluate the assistant's response on the following criteria:
-      - Helpfulness: Does the response address the user's needs?
-      - Relevance: Is the response on-topic and appropriate?
-      - Tone: Does CJ maintain the right tone for the persona/scenario?
-      - Clarity: Is the response clear and easy to understand?
-      - Actionability: Does CJ provide specific, actionable advice?
+      Check if this response contains meta-commentary phrases like "As CJ, I'd say" or "As CJ I would say":
       
-      Score each criterion from 0-1 and provide an overall score.
-
-
-cj_response_quality.brief:
-  parent: cj_response_quality
-  description: "Variant for brief, direct communication style"
-  args:
-    additional_criteria:
-      - brevity
-      - directness
-    grading_prompt_suffix: |
-      Additionally, evaluate:
-      - Brevity: Is the response concise and to-the-point?
-      - Directness: Does CJ avoid unnecessary elaboration?
-
-
-tool_selection_accuracy:
-  id: tool_selection_accuracy.v1
-  description: "Evaluates whether CJ selects appropriate tools for the task"
-  parent: base_eval
-  
-  class: evals.cj_evals.ToolSelectionAccuracy
-  
-  args:
-    # Evaluation mode
-    mode: strict  # strict, lenient, or weighted
-    
-    # Scoring weights
-    weights:
-      correct_tool: 1.0
-      acceptable_alternative: 0.8
-      unnecessary_tool: -0.3
-      missing_tool: -0.5
-    
-    # Tool categories for grouping similar tools
-    tool_categories:
-      orders:
-        - get_orders
-        - get_order_details
-        - search_orders
-      analytics:
-        - get_shopify_store_counts
-        - get_store_analytics
-        - get_revenue_metrics
-      customers:
-        - get_customers
-        - search_customers
-        - get_customer_details
-
-
-tool_usage_efficiency:
-  id: tool_usage_efficiency.v1
-  description: "Evaluates efficient use of tools (avoiding redundant calls)"
-  parent: base_eval
-  
-  class: evals.cj_evals.ToolUsageEfficiency
-  
-  args:
-    # Maximum acceptable redundancy ratio
-    max_redundancy: 0.1
-    
-    # Penalize excessive tool calls
-    max_calls_per_turn: 5
-    
-    # Check for optimal tool sequencing
-    check_sequencing: true
-
-
-grounding_relevance:
-  id: grounding_relevance.v1
-  description: "Evaluates the relevance and quality of grounding queries"
-  parent: model_graded
-  
-  class: evals.cj_evals.GroundingRelevance
-  
-  args:
-    # What to evaluate in grounding
-    evaluate:
-      - query_relevance
-      - response_usage
-      - source_quality
-    
-    # Minimum relevance score
-    min_relevance: 0.7
-    
-    grading_prompt: |
-      Evaluate the grounding query:
-      1. Is the query relevant to the user's question?
-      2. Is the grounding response actually used in the final answer?
-      3. Are the sources appropriate and trustworthy?
-
-
-workflow_compliance:
-  id: workflow_compliance.v1
-  description: "Ensures responses follow workflow-specific rules"
-  parent: base_eval
-  
-  class: evals.cj_evals.WorkflowCompliance
-  
-  args:
-    # Workflow-specific rules are loaded dynamically
-    strict_mode: true
-    
-    # Check for required elements
-    check_required_elements: true
-    
-    # Verify state transitions
-    check_transitions: true
+      {response}
+      
+      Respond with:
+      PASS - if no meta-commentary found
+      FAIL - if meta-commentary found (quote the problematic phrase)

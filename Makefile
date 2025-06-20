@@ -50,6 +50,7 @@ help:
 	@echo "  make evals-test   - Quick test to verify setup"
 	@echo "  make evals-again  - Re-run last evaluation"
 	@echo "  make evals-today  - Eval conversations from today"
+	@echo "  make evals-all    - Run all evaluations on today's conversations"
 	@echo "  make evals-history - View recent eval runs"
 	@echo ""
 	@echo "🔧 Development tools:"
@@ -377,7 +378,7 @@ migrate-agents:
 	cd agents && . venv/bin/activate && python scripts/run_migration.py
 
 # Evaluation System
-.PHONY: evals evals-test evals-again evals-today evals-history evals-list evals-results evals-convert
+.PHONY: evals evals-test evals-again evals-today evals-all evals-history evals-list evals-results evals-convert
 
 # Main interactive interface
 evals:
@@ -395,6 +396,11 @@ evals-again:
 evals-today:
 	@echo "📊 Evaluating today's conversations..."
 	@python scripts/evals_cli.py convert && python scripts/evals_cli.py again
+
+# Run all evaluations on today's conversations
+evals-all:
+	@echo "📊 Running all evaluations..."
+	@python scripts/evals_cli.py all
 
 # View evaluation history
 evals-history:

@@ -18,38 +18,11 @@ base_eval:
     - tokens_used
 
 
-# Base eval for exact matching
-exact_match:
-  parent: base_eval
-  class: evals.base.ExactMatch
-  args:
-    case_sensitive: false
-    strip_whitespace: true
-
-
-# Base eval for fuzzy matching
-fuzzy_match:
-  parent: base_eval
-  class: evals.base.FuzzyMatch
-  args:
-    threshold: 0.8
-    algorithm: levenshtein
-
-
-# Base eval for includes checking
-includes_eval:
-  parent: base_eval
-  class: evals.base.Includes
-  args:
-    case_sensitive: false
-    all_required: true
-
-
 # Base eval for model-graded responses
 model_graded:
   parent: base_eval
   class: evals.base.ModelGraded
   args:
-    grader_model: gpt-4
+    grader_model: gpt-4o-mini
     temperature: 0.0
     max_tokens: 100

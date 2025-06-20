@@ -51,12 +51,29 @@ Only elegant, complete solutions that fully embody our principles count as succe
 
 ## 🚧 Implementation Status Banner
 
-> **🚀 CURRENT PHASE:** *Planning* 🔵 Complete
-> **🔜 NEXT STEPS:** *Milestone 1 – Conversation Capture Infrastructure*
+> **🚀 CURRENT PHASE:** *Core System Working* ✅ 
+> **📍 CURRENT STATE:** *One dataset, one eval, simple workflow*
+> **🔜 NEXT STEPS:** *Simplify UI and expand eval coverage*
 
 ## Executive Summary
 
-Build an elegant evaluation system for HireCJ that captures agent conversations from the editor and uses them to systematically test and improve prompts. The system will catch prompt regressions, ensure consistent agent behavior across workflows, and enable rapid iteration on agent capabilities. Inspired by OpenAI's evals framework but tailored to CrewAI's multi-agent architecture, with a file-based storage system modeled after third_party/evals.
+Build an elegant evaluation system for HireCJ that systematically tests prompts using curated datasets. The system will catch prompt regressions, ensure consistent agent behavior across workflows, and enable rapid iteration on agent capabilities. Inspired by OpenAI's evals framework but tailored to CrewAI's multi-agent architecture.
+
+**Primary workflow**: Describe requirements in plain English, run evals to see failures, fix prompts, verify nothing broke.
+
+## Simple Today, Scalable Tomorrow
+
+**TODAY**: One dataset, one command
+- Single curated dataset: `datasets/golden/conv_1750447364223_v0u77ay.jsonl`
+- Run all evals: `make evals` (no complex menus needed)
+- Focus on quality over quantity
+
+**TOMORROW**: Multiple datasets, smart selection
+- Add new datasets as needed: `datasets/regression/fix_123.jsonl`
+- System automatically detects multiple datasets and shows selection
+- Organize by type, date, or any structure that emerges
+
+**PRINCIPLE**: Start simple, expand organically based on actual needs
 
 ---
 
@@ -85,47 +102,47 @@ Build an elegant evaluation system for HireCJ that captures agent conversations 
 ---
 
 ## Overview
-An elegant evaluation system for HireCJ that captures conversations from the editor and uses them to systematically test and improve prompts. Inspired by OpenAI's evals framework, but tailored to our CrewAI agent architecture and multi-step reasoning patterns.
+An elegant evaluation system for HireCJ that systematically tests prompts using curated datasets. Start with one dataset and one eval type, expand as needed. The system prevents prompt regressions and ensures consistent agent behavior.
+
+**Core principle**: Maintain high-quality test datasets and run evals regularly, rather than constantly converting random conversations.
 
 ## File System Structure
 
-Following the pattern established by `third_party/evals`, we'll create a structured directory system:
-
+### Current State (Simple)
 ```
 hirecj_evals/
-├── conversations/           # Raw captured conversations (JSON)
-│   ├── playground/         # From playground testing
-│   │   └── 2024-06-20/    # Date-based organization
-│   │       ├── conv_abc123.json
-│   │       └── conv_def456.json
-│   ├── production/         # From production use (sanitized)
-│   │   └── 2024-06-20/
-│   └── synthetic/          # Generated test conversations
-│       └── edge_cases/
-├── datasets/               # JSONL eval datasets
-│   ├── golden/            # Manually curated test cases
-│   │   ├── tool_selection.jsonl
-│   │   ├── grounding_accuracy.jsonl
-│   │   └── workflow_compliance.jsonl
-│   ├── generated/         # Auto-generated from conversations
-│   │   └── 2024-06-20/
-│   └── regression/        # Specific regression tests
-│       └── issue_123_tool_fix.jsonl
-├── registry/              # YAML eval definitions
+├── datasets/               # Your eval dataset(s)
+│   └── golden/
+│       └── conv_1750447364223_v0u77ay.jsonl  # Your ONE dataset
+├── registry/              # Eval definitions
 │   ├── base.yaml         # Base eval configurations
-│   ├── cj_responses.yaml
-│   ├── tool_usage.yaml
-│   └── workflows/
-│       ├── ad_hoc_support.yaml
-│       └── conversation_flow.yaml
-├── results/               # Eval run results
-│   ├── runs/             # Individual run data
-│   │   └── 2024-06-20/
-│   │       └── run_xyz789/
-│   └── reports/          # Aggregated reports
-│       └── weekly/
-└── README.md             # Documentation
+│   └── cj_responses.yaml # Contains no_meta_commentary eval
+└── results/              # Eval run results
+    └── runs/
+        └── no_meta_commentary_20250620_164219/
+            └── results.json
 ```
+
+### Future Expansion (When Needed)
+```
+hirecj_evals/
+├── conversations/          # Raw captured conversations (for creating new datasets)
+│   └── playground/        # From playground testing
+├── datasets/              # JSONL eval datasets
+│   ├── golden/           # Manually curated test cases
+│   │   ├── conv_1750447364223_v0u77ay.jsonl  # Original dataset
+│   │   └── expanded_test_suite.jsonl         # Future dataset
+│   ├── regression/       # Specific regression tests (when bugs are fixed)
+│   │   └── issue_123_tool_fix.jsonl
+│   └── generated/        # Auto-generated from conversations (if needed)
+├── registry/             # YAML eval definitions
+│   ├── base.yaml
+│   ├── cj_responses.yaml
+│   └── tool_usage.yaml   # Future eval types
+└── results/              # Eval run results
+```
+
+**Key Point**: The conversation capture system exists to CREATE new datasets when needed, not for running every eval.
 
 ## Core Architecture
 
@@ -299,33 +316,49 @@ class WorkflowComplianceEval(CJEval):
 
 ## Progress Summary
 
-### Completed ✅
-- **Phase 1: Conversation Capture Infrastructure** ✅ COMPLETED
+### Currently In Use 🎯
+- **Core Eval System**
+  - ✅ Single curated dataset: `datasets/golden/conv_1750447364223_v0u77ay.jsonl`
+  - ✅ One working eval: `no_meta_commentary` (checks for "As CJ I'd say" patterns)
+  - ✅ Simple commands: `make evals` to run interactively
+  - ✅ ModelGraded evaluator using GPT-4o-mini for LLM-based evaluation
+  - ✅ Clear results display with pass/fail counts and failure details
+  - ✅ "Run all evaluations" feature ready for when you have multiple eval types
+
+### Built for Future Expansion 🚀
+- **Phase 1: Conversation Capture Infrastructure** (Ready when you need to create new datasets)
   - ✅ Created TypeScript types for conversation capture
   - ✅ Implemented useConversationCapture React hook  
   - ✅ Built conversation capture endpoint in agents service
   - ✅ Implemented file-based storage with date organization
   - ✅ Created proxy endpoint in editor-backend for complete integration
   
-- **Phase 2: Eval Framework Core**
+- **Phase 2: Eval Framework Core** (Foundation ready for new eval types)
   - ✅ Built base evaluation classes (ExactMatch, FuzzyMatch, Includes, ModelGraded)
   - ✅ Created YAML-based registry system with inheritance
   - ✅ Implemented parallel eval runner
-  - ✅ Built HireCJ-specific evaluators (ToolSelectionAccuracy, ResponseQuality, etc.)
   - ✅ Created CLI tool for running evaluations
   - ✅ Added colorful number-driven CLI interface
-  - ✅ Implemented conversion tool for captured conversations to JSONL format
-  - ✅ Created comprehensive test datasets
-  - ✅ Added privacy scrubbing utility
-  - ✅ Fixed conversation capture to include full agent processing details (thinking, intermediate responses, tool calls, grounding queries)
+  - ✅ Conversion tools exist but aren't primary workflow
+  - ✅ Privacy scrubbing utility for when you have production data
 
 ### In Progress 🚧
 - Phase 3: Editor Integration - Eval Designer View
+  - ✅ Created EvalDesigner view component with navigation tabs
+  - ✅ Built ConversationList component to browse captured conversations
+  - ✅ Implemented EvalCaseEditor for editing expected behaviors
+  - ✅ Created EvalPreview component for testing eval cases
+  - ✅ Built DatasetManager for organizing eval datasets
+  - ✅ Added eval types and interfaces
+  - ✅ Integrated with editor routing and navigation
+  - ✅ Created backend API endpoints for eval operations
+  - 🚧 TODO: Connect to real conversation capture data
+  - 🚧 TODO: Implement actual eval execution preview
 
 ### Next Steps 📋
 - Phase 3: Editor Integration (Eval Designer View, Batch Testing, Results Dashboard)
 - Phase 4: Advanced Features (Continuous Evaluation, Smart Test Generation)
-- Production model-graded evaluations with GPT-4
+- Production model-graded evaluations with GPT-4o-mini
 
 ## Implementation Phases
 
@@ -471,7 +504,7 @@ class WorkflowComplianceEval(CJEval):
    ```
 
 3. **Model-Graded Evals**
-   - Use GPT-4 to evaluate response quality
+   - Use GPT-4o-mini to evaluate response quality
    - Custom rubrics for different workflows
    - Human-in-the-loop validation
 
@@ -541,13 +574,88 @@ scripts/
 └── generate_report.py        # Create eval reports
 ```
 
+## Simplified Workflow
+
+### Today's Workflow (One Dataset)
+1. **Maintain your dataset**: `datasets/golden/conv_1750447364223_v0u77ay.jsonl`
+2. **Add new evals**: Edit `registry/cj_responses.yaml` to add new checks
+3. **Run evals**: `make evals` → automatically uses your single dataset
+4. **View results**: Clear pass/fail summary with specific failure details
+
+### Tomorrow's Workflow (Multiple Datasets)
+1. **Add new dataset**: Drop file in `datasets/golden/` or `datasets/regression/`
+2. **Run evals**: `make evals` → now shows dataset selection
+3. **Run all**: `make evals-all` → runs all evals on selected dataset
+4. **Compare**: Results saved with timestamps for comparison
+
+### Creating New Datasets (When Needed)
+1. **Capture in playground**: Test conversations, hit "Export for Eval"
+2. **Convert**: Use `scripts/convert_conversations.py` if needed
+3. **Curate**: Edit JSONL to create focused test cases
+4. **Save**: Add to appropriate `datasets/` subdirectory
+
+## Simplified Eval Workflow (Minimum Complexity)
+
+### Your Workflow:
+1. Have conversations in playground
+2. Save conversation (Export for Eval button)
+3. Describe requirements in plain English
+4. Run eval → see failures
+5. Tweak system prompt
+6. Run eval → passes
+7. Run all evals → ensure nothing broke
+
+### Implementation:
+
+#### One Master Test File
+`hirecj_evals/datasets/all_tests.jsonl` - ALL test cases in one place
+
+#### Generic Requirement Evaluator
+```yaml
+requirement:
+  parent: model_graded
+  class: evals.base.ModelGraded
+  args:
+    grader_model: gpt-4o-mini  # Fast and cheap
+    grading_prompt: |
+      Check if this response meets the following requirement:
+      {requirement}
+      
+      Response to evaluate:
+      {response}
+      
+      Respond with:
+      PASS - if requirement is met (explain briefly why)
+      FAIL - if requirement is not met (quote specific issue)
+```
+
+#### Test Case Format
+```json
+{
+  "sample_id": "conv_123_turn_2",
+  "input": {...},
+  "actual": {...},
+  "requirements": [
+    "Must not say 'As CJ I'd say'",
+    "Must mention specific metrics when discussing performance",
+    "Must offer concrete next steps, not just analysis"
+  ]
+}
+```
+
+#### Two Commands Only
+- `make add-test` - Pick conversation, type requirements, done
+- `make test` - Run all requirements on all conversations
+
+No dataset selection. No conversion menus. Just describe what you want in words.
+
 ## Key Design Principles
 
 1. **Simplicity First**: Basic evals should require no code, just YAML + JSONL
-2. **Extensibility**: Easy to add custom eval types for HireCJ-specific needs
+2. **Start Small**: One dataset, one eval type - expand as needed
 3. **Reproducibility**: Every eval run is deterministic and traceable
-4. **Performance**: Parallel execution, caching, and incremental evaluation
-5. **Integration**: Works seamlessly with existing editor and backend
+4. **Quality Over Quantity**: Better to have 10 great test cases than 1000 mediocre ones
+5. **Progressive Enhancement**: System grows with your needs, not before
 
 ## Success Metrics
 
@@ -558,9 +666,28 @@ scripts/
 
 ## Next Steps
 
-1. Start with Phase 1: Implement robust conversation capture
-2. Build minimal eval runner for tool selection accuracy
-3. Create first batch of golden test cases from real conversations
-4. Iterate based on team feedback
+### Immediate (Using What's Built)
+1. **Simplify dataset selection**: Default to single dataset, no complex menus
+2. **Add more eval types**: Extend `cj_responses.yaml` with new checks
+3. **Expand the dataset**: Add more test cases to your golden dataset
+4. **Run regularly**: Make eval runs part of your development workflow
 
-This implementation plan provides a solid foundation that captures the elegance of OpenAI's eval framework while being specifically tailored to HireCJ's unique architecture and needs.
+### Near Future (Natural Growth)
+1. **Second dataset**: When you fix a bug, create a regression test dataset
+2. **More eval types**: Add tool selection, grounding accuracy as needed
+3. **Automation**: Hook up to CI when you have stable baselines
+4. **Team access**: Let non-technical team members run evals
+
+### Long Term (Scale When Needed)
+1. **Production datasets**: Use conversation capture to create new test suites
+2. **A/B testing**: Compare prompt versions systematically
+3. **Performance tracking**: Monitor latency and token usage trends
+4. **Custom evaluators**: Build specialized evals for new features
+
+## Summary
+
+This plan reflects the reality: you have ONE dataset today, and that's perfectly fine. The system is built to start simple and grow with your needs. The complex infrastructure exists for when you need it, but doesn't get in your way today.
+
+**Current state**: `make evals` → runs your eval on your dataset → shows clear results
+
+**Future state**: Same simplicity, more options when you need them.
