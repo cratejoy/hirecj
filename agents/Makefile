@@ -23,7 +23,7 @@ test-conversation-api:
 
 # Test API adapter (requires running server)
 test-api-adapter:
-	@echo "Testing API adapter (requires server running on port 8000)"
+	@echo "Testing API adapter (requires server running on port 8100)"
 	venv/bin/python tests/scripts/test_api_adapter.py
 
 # Run CJ behavior tests
@@ -40,7 +40,7 @@ test-cj-mock:
 
 # Run YAML tests with server running
 test-yaml:
-	@echo "⚠️  This requires the API server to be running on port 8000"
+	@echo "⚠️  This requires the API server to be running on port 8100"
 	@echo "   Run 'make dev' in another terminal first"
 	@echo ""
 	venv/bin/python tests/scripts/run_cj_tests.py --mock-evaluator --max-workers 6
@@ -164,13 +164,13 @@ clean-memory:
 
 # Main development server (API for web frontend) with hot reload
 dev:
-	@echo "Starting HireCJ API Server on http://localhost:8000 (DEBUG mode with hot reload)"
+	@echo "Starting HireCJ API Server on http://localhost:8100 (DEBUG mode with hot reload)"
 	@echo "Press Ctrl+C to stop"
-	LOG_LEVEL=DEBUG venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+	LOG_LEVEL=DEBUG venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8100 --reload --log-level debug
 
 # Development server without hot reload (if reload causes issues)
 dev-noreload:
-	@echo "Starting HireCJ API Server on http://localhost:8000 (DEBUG mode, no hot reload)"
+	@echo "Starting HireCJ API Server on http://localhost:8100 (DEBUG mode, no hot reload)"
 	@echo "Press Ctrl+C to stop"
 	LOG_LEVEL=DEBUG venv/bin/python -m app.main
 
@@ -314,7 +314,7 @@ help:
 	@echo "  clean            - Clean up temporary files"
 	@echo ""
 	@echo "🖥️  Server Commands:"
-	@echo "  dev              - Run API server with hot reload (port 8000)"
+	@echo "  dev              - Run API server with hot reload (port 8100)"
 	@echo "  dev-noreload     - Run API server without hot reload"
 	@echo "  stop             - Stop all running server instances"
 	@echo ""

@@ -15,21 +15,28 @@ import type {
   CJMessageMsg,
   CJThinkingMsg,
   ErrorMsg,
-  SystemMsg
+  SystemMsg,
+  PingMsg,
+  PongMsg,
+  DebugRequestMsg,
+  DebugResponseMsg
 } from './generated';
 
 // Playground-specific discriminated unions
 export type PlaygroundIncomingMessage = 
   | PlaygroundStartMsg 
   | PlaygroundResetMsg 
-  | MessageMsg;
+  | MessageMsg
+  | DebugRequestMsg;
   
 export type PlaygroundOutgoingMessage =
   | ConversationStartedMsg
   | CJMessageMsg
   | CJThinkingMsg
   | ErrorMsg
-  | SystemMsg;
+  | SystemMsg
+  | PingMsg  // Server sends ping to client
+  | DebugResponseMsg;
 
 // Type guards for message discrimination
 export function isPlaygroundStart(msg: any): msg is PlaygroundStartMsg {
@@ -77,3 +84,6 @@ export function isPlaygroundOutgoingMessage(msg: any): msg is PlaygroundOutgoing
 
 // Re-export MessageMsg as UserMsg for clarity in editor context
 export type { MessageMsg };
+
+// Re-export specific message types for convenience
+export type { PingMsg, PongMsg };

@@ -121,6 +121,11 @@ SERVICE_VARS = {
             # Workers
             "WORKER_CONCURRENCY", "SYNC_INTERVAL_MINUTES", "CLEANUP_INTERVAL_HOURS",
             
+            # WebSocket Configuration
+            "WEBSOCKET_PING_INTERVAL", "WEBSOCKET_PING_TIMEOUT",
+            "WEBSOCKET_RESPONSE_TIMEOUT", "WEBSOCKET_TIMEOUT",
+            "SESSION_CLEANUP_TIMEOUT",
+            
             # Telemetry
             "CREWAI_TELEMETRY",
             
@@ -161,6 +166,23 @@ SERVICE_VARS = {
             "VITE_WS_URL": lambda vars: _get_vite_ws_url(vars),
             "VITE_AUTH_URL": lambda vars: vars.get("AUTH_SERVICE_URL", "http://localhost:8103"),
         }
+    },
+    "editor-backend": {
+        "direct": [
+            # Core configuration
+            "ENVIRONMENT", "DEBUG", "LOG_LEVEL",
+            
+            # Service URLs
+            "AGENTS_SERVICE_URL", "AUTH_SERVICE_URL",
+            "HOMEPAGE_URL", "FRONTEND_URL",
+            
+            # WebSocket Configuration
+            "WEBSOCKET_PING_INTERVAL", "WEBSOCKET_PING_TIMEOUT",
+            "WEBSOCKET_CLOSE_TIMEOUT",
+            
+            # CORS
+            "ALLOWED_ORIGINS",
+        ]
     },
     "knowledge": {
         "direct": [
@@ -244,7 +266,7 @@ def _should_use_proxy(homepage_url: str, agents_url: str) -> bool:
 def _get_vite_api_url(vars: Dict[str, str]) -> str:
     """Get VITE_API_URL, empty if using proxy mode."""
     homepage_url = vars.get("HOMEPAGE_URL", "")
-    agents_url = vars.get("AGENTS_SERVICE_URL", "http://localhost:8000")
+    agents_url = vars.get("AGENTS_SERVICE_URL", "http://localhost:8100")
     
     # Check tunnel env for latest URLs
     tunnel_env_path = Path(".env.tunnel")
@@ -268,7 +290,7 @@ def _get_vite_api_url(vars: Dict[str, str]) -> str:
 def _get_vite_ws_url(vars: Dict[str, str]) -> str:
     """Get VITE_WS_URL, empty if using proxy mode."""
     homepage_url = vars.get("HOMEPAGE_URL", "")
-    agents_url = vars.get("AGENTS_SERVICE_URL", "http://localhost:8000")
+    agents_url = vars.get("AGENTS_SERVICE_URL", "http://localhost:8100")
     
     # Check tunnel env for latest URLs
     tunnel_env_path = Path(".env.tunnel")

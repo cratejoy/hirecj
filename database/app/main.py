@@ -44,7 +44,7 @@ allowed_origins = [
     settings.auth_url,
     # Always allow localhost for development
     "http://localhost:3456",
-    "http://localhost:8000", 
+    "http://localhost:8100", 
     "http://localhost:8103",
     "http://localhost:8002",
 ]

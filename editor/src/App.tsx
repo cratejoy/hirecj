@@ -9,30 +9,31 @@ import { TestsView } from '@/views/TestsView'
 import { KnowledgeListView } from '@/views/KnowledgeListView'
 import { KnowledgeDetailView } from '@/views/KnowledgeDetailView'
 import { Toaster } from '@/components/ui/toaster'
+import { WebSocketProvider } from '@/providers'
 
 function App() {
   return (
-    <>
+    <WebSocketProvider>
       <EditorLayout>
-      <Route path="/" component={PlaygroundView} />
-      <Route path="/personas" component={UserPersonasView} />
-      <Route path="/prompts" component={SystemPromptsView} />
-      <Route path="/workflows" component={WorkflowEditorView} />
-      <Route path="/tools" component={ToolEditorView} />
-      <Route path="/settings">
-        <div className="flex h-full items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-2xl font-semibold mb-2">Settings</h2>
-            <p className="text-muted-foreground">Editor configuration options coming soon</p>
+        <Route path="/" component={PlaygroundView} />
+        <Route path="/personas" component={UserPersonasView} />
+        <Route path="/prompts" component={SystemPromptsView} />
+        <Route path="/workflows" component={WorkflowEditorView} />
+        <Route path="/tools" component={ToolEditorView} />
+        <Route path="/settings">
+          <div className="flex h-full items-center justify-center">
+            <div className="text-center">
+              <h2 className="text-2xl font-semibold mb-2">Settings</h2>
+              <p className="text-muted-foreground">Editor configuration options coming soon</p>
+            </div>
           </div>
-        </div>
-      </Route>
-      <Route path="/tests" component={TestsView} />
-      <Route path="/knowledge" component={KnowledgeListView} />
-      <Route path="/knowledge/:graphId" component={KnowledgeDetailView} />
-    </EditorLayout>
-    <Toaster />
-    </>
+        </Route>
+        <Route path="/tests" component={TestsView} />
+        <Route path="/knowledge" component={KnowledgeListView} />
+        <Route path="/knowledge/:graphId" component={KnowledgeDetailView} />
+      </EditorLayout>
+      <Toaster />
+    </WebSocketProvider>
   )
 }
 

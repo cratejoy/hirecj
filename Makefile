@@ -109,7 +109,7 @@ dev-services: env-distribute
 	@echo ""
 	@echo "✅ Environment variables distributed to services"
 	@echo ""
-	@echo "Starting agents on port 8000..."
+	@echo "Starting agents on port 8100..."
 	@cd agents && . venv/bin/activate && python -m app.main &
 	@echo "Starting homepage on port 3456..."
 	@cd homepage && npm run dev &
@@ -165,7 +165,7 @@ stop:
 # Clean up ports
 clean-ports:
 	@echo "🧹 Cleaning up ports..."
-	@lsof -ti:8000 | xargs kill -9 2>/dev/null || echo "Port 8000 clear"
+	@lsof -ti:8100 | xargs kill -9 2>/dev/null || echo "Port 8100 clear"
 	@lsof -ti:8103 | xargs kill -9 2>/dev/null || echo "Port 8103 clear"
 	@lsof -ti:8002 | xargs kill -9 2>/dev/null || echo "Port 8002 clear"
 	@lsof -ti:8001 | xargs kill -9 2>/dev/null || echo "Port 8001 clear"

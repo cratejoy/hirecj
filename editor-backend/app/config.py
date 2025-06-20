@@ -42,6 +42,11 @@ class Settings(ServiceConfig):
     # Agent service connection
     agents_service_url: str = Field("http://localhost:8100", env="AGENTS_SERVICE_URL")
     
+    # WebSocket configuration
+    websocket_ping_interval: int = Field(45, env="WEBSOCKET_PING_INTERVAL")
+    websocket_ping_timeout: int = Field(20, env="WEBSOCKET_PING_TIMEOUT")
+    websocket_close_timeout: int = Field(10, env="WEBSOCKET_CLOSE_TIMEOUT")
+    
     # CORS settings
     frontend_url: str = "http://localhost:3458"
     public_url: Optional[str] = Field(None, env="PUBLIC_URL")
