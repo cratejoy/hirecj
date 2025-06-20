@@ -63,7 +63,6 @@ export function PlaygroundView() {
   // WebSocket hook
   const {
     messages: wsMessages,
-    thinking,
     isConnected,
     conversationStarted,
     startConversation: wsStartConversation,

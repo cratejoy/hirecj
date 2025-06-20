@@ -15,21 +15,30 @@ import type {
   CJMessageMsg,
   CJThinkingMsg,
   ErrorMsg,
-  SystemMsg
+  SystemMsg,
+  PingMsg,
+  PongMsg,
+  DebugRequestMsg,
+  DebugResponseMsg
 } from './generated';
 
 // Playground-specific discriminated unions
 export type PlaygroundIncomingMessage = 
   | PlaygroundStartMsg 
   | PlaygroundResetMsg 
-  | MessageMsg;
+  | MessageMsg
+  | PingMsg
+  | DebugRequestMsg;
   
 export type PlaygroundOutgoingMessage =
   | ConversationStartedMsg
   | CJMessageMsg
   | CJThinkingMsg
   | ErrorMsg
-  | SystemMsg;
+  | SystemMsg
+  | PingMsg
+  | PongMsg
+  | DebugResponseMsg;
 
 // Type guards for message discrimination
 export function isPlaygroundStart(msg: any): msg is PlaygroundStartMsg {

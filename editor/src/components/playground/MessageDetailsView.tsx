@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, FileText, Loader2, Copy, Check, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -82,7 +82,7 @@ export function MessageDetailsView({ isOpen, onClose, messageId, onRequestDetail
   const promptData = debugData?.prompt || null;
   const responseData = debugData?.response || null;
   const toolCalls = debugData?.tool_calls || [];
-  const crewOutput = debugData?.crew_output || [];
+  // const crewOutput = debugData?.crew_output || [];
   const grounding = debugData?.grounding || [];
   
   // Log what we're displaying

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { 
   PlaygroundOutgoingMessage,
   PlaygroundStartMsg,
@@ -9,6 +9,7 @@ import {
   DebugRequestMsg,
   DebugResponseMsg
 } from '@/protocol';
+import { useWebSocket } from './useWebSocket';
 
 interface PlaygroundConfig {
   workflow: string;
@@ -20,14 +21,10 @@ interface PlaygroundConfig {
 export function usePlaygroundChat() {
   const [messages, setMessages] = useState<CJMessageMsg[]>([]);
   const [thinking, setThinking] = useState<CJThinkingMsg | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
   const [conversationStarted, setConversationStarted] = useState(false);
   const [debugData, setDebugData] = useState<Record<string, any>>({});
   
-  const ws = useRef<WebSocket | null>(null);
-  const reconnectTimeout = useRef<NodeJS.Timeout>();
-  const reconnectAttempts = useRef(0);
-  const pingInterval = useRef<NodeJS.Timeout>();
+  const { isConnected, send, subscribe } = useWebSocket();
   
   // Queue for messages sent before conversation starts
   const messageQueue = useRef<string[]>([]);
@@ -42,163 +39,11 @@ export function usePlaygroundChat() {
   // Debug request promise management
   const debugRequestResolvers = useRef<Map<string, (data: any) => void>>(new Map());
   
-  // Message counters for debugging
-  const messagesSent = useRef(0);
-  const messagesReceived = useRef(0);
-  
-  // Compute WebSocket base URL similar to homepage
-  const WS_BASE_URL = useMemo(() => {
-    // Check if we have a backend URL configured
-    const backendUrl = import.meta.env.VITE_EDITOR_BACKEND_URL;
-    
-    // In proxy mode, VITE_EDITOR_BACKEND_URL is set to empty string
-    if (backendUrl && backendUrl !== '') {
-      // Use direct backend URL (cross-domain)
-      const url = new URL(backendUrl);
-      return url.protocol === 'https:' ? `wss://${url.host}` : `ws://${url.host}`;
-    }
-    
-    // Use same-origin WebSocket (through Vite proxy)
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    return `${protocol}//${host}`;
-  }, []);
-  
-  // Track if component is mounted
-  const mountedRef = useRef(true);
-  
-  // Connection management
-  const connect = useCallback(() => {
-    if (!mountedRef.current) {
-      console.log('🚫 Component unmounted, skipping connection');
-      return;
-    }
-    
-    const connectTime = new Date().toISOString();
-    console.log('🔌 usePlaygroundChat.connect', {
-      timestamp: connectTime,
-      currentState: ws.current?.readyState,
-      attemptNumber: reconnectAttempts.current + 1
-    });
-    
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      console.log('✅ Already connected, returning');
-      return;
-    }
-    
-    const wsUrl = `${WS_BASE_URL}/ws/playground`;
-    console.log('📡 Creating WebSocket', {
-      url: wsUrl,
-      pageUrl: window.location.href
-    });
-    
-    // Track connection start time
-    const connectionStartTime = Date.now();
-    
-    try {
-      ws.current = new WebSocket(wsUrl);
-    } catch (error) {
-      console.error('❌ Failed to create WebSocket:', error);
-      return;
-    }
-    
-    ws.current.onopen = () => {
-      const connectionDuration = Date.now() - connectionStartTime;
-      console.log('✅ WebSocket connected', {
-        timestamp: new Date().toISOString(),
-        duration: `${connectionDuration}ms`,
-        reconnectAttempts: reconnectAttempts.current
-      });
-      
-      setIsConnected(true);
-      clearTimeout(reconnectTimeout.current);
-      reconnectAttempts.current = 0; // Reset reconnect attempts on successful connection
-      
-      // Start ping interval to keep connection alive
-      // Send ping every 15 seconds to stay well under server's timeout
-      clearInterval(pingInterval.current);
-      pingInterval.current = setInterval(() => {
-        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-          try {
-            ws.current.send(JSON.stringify({ type: 'ping' }));
-            messagesSent.current++;
-            console.log('🎱 Sent ping', { messageNumber: messagesSent.current });
-          } catch (error) {
-            console.error('❌ Failed to send ping:', error);
-          }
-        }
-      }, 15000); // 15 seconds - more frequent to prevent timeout
-    };
-    
-    ws.current.onerror = (error) => {
-      console.error('❌ WebSocket error', {
-        type: error.type,
-        url: error.target ? (error.target as WebSocket).url : 'unknown',
-        readyState: error.target ? (error.target as WebSocket).readyState : 'unknown'
-      });
-    };
-    
-    ws.current.onclose = (event) => {
-      const closeTime = new Date().toISOString();
-      const connectionDuration = connectionStartTime ? Date.now() - connectionStartTime : 0;
-      
-      const closeReasons: {[key: number]: string} = {
-        1000: 'Normal closure',
-        1001: 'Going away',
-        1006: 'Abnormal closure',
-        1011: 'Server error'
-      };
-      
-      console.log('🔒 WebSocket closed', {
-        timestamp: closeTime,
-        duration: `${connectionDuration}ms`,
-        code: event.code,
-        reason: event.reason || closeReasons[event.code] || 'Unknown',
-        wasClean: event.wasClean,
-        messagesSent: messagesSent.current,
-        messagesReceived: messagesReceived.current
-      });
-      
-      // Reset message counters
-      messagesSent.current = 0;
-      messagesReceived.current = 0;
-      
-      setIsConnected(false);
-      setConversationStarted(false);
-      conversationStartedRef.current = false;  // Reset ref
-      clearTimeout(reconnectTimeout.current);
-      clearInterval(pingInterval.current); // Clear ping interval
-      
-      // Clear any pending conversation start promises
-      if (conversationStartResolver.current) {
-        conversationStartResolver.current = null;
-        conversationStartPromise.current = null;
-      }
-      
-      // Clear message queue
-      messageQueue.current = [];
-      
-      // Reconnect with exponential backoff (only if still mounted)
-      if (mountedRef.current) {
-        reconnectAttempts.current++;
-        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
-        console.log(`⏳ Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
-        reconnectTimeout.current = setTimeout(() => {
-          if (mountedRef.current) {
-            connect();
-          }
-        }, delay);
-      }
-    };
-    
-    ws.current.onmessage = (event) => {
-      messagesReceived.current++;
-      const msg: PlaygroundOutgoingMessage = JSON.parse(event.data);
-      
+  // Subscribe to WebSocket messages
+  useEffect(() => {
+    const unsubscribe = subscribe((msg: PlaygroundOutgoingMessage) => {
       console.log('📥 WebSocket message', {
         type: msg.type,
-        size: `${event.data.length} bytes`,
-        messageNumber: messagesReceived.current,
         data: msg
       });
       
@@ -235,7 +80,7 @@ export function usePlaygroundChat() {
             messageQueue.current = [];
             queue.forEach(text => {
               console.log('  - Sending queued message:', text);
-              sendMessage(text);
+              sendMessageInternal(text);
             });
           } else {
             console.log('📭 No queued messages to send');
@@ -274,137 +119,46 @@ export function usePlaygroundChat() {
         case 'debug_response':
           console.log('🐛 Debug response received');
           const debugMsg = msg as DebugResponseMsg;
+          const debugInfo = debugMsg.data as any;
           
           // Store in debugData state by message_id if available
-          if (debugMsg.data.message_id) {
+          if (debugInfo.message_id) {
             setDebugData(prev => ({
               ...prev,
-              [debugMsg.data.message_id]: debugMsg.data
+              [debugInfo.message_id]: debugInfo
             }));
           }
           
           // Resolve any pending promise for this debug request
-          const messageId = debugMsg.data.message_id || debugMsg.data.type;
-          const resolver = debugRequestResolvers.current.get(messageId);
-          if (resolver) {
-            resolver(debugMsg.data);
-            debugRequestResolvers.current.delete(messageId);
+          const messageId = debugInfo.message_id || debugInfo.type;
+          if (messageId && typeof messageId === 'string') {
+            const resolver = debugRequestResolvers.current.get(messageId);
+            if (resolver) {
+              resolver(debugInfo);
+              debugRequestResolvers.current.delete(messageId);
+            }
           }
           break;
           
         default:
           console.warn('⚠️ Unknown message type:', (msg as any).type, msg);
       }
-      console.groupEnd();
-    };
-  }, [WS_BASE_URL]);
-  
-  
-  // Action functions
-  const startConversation = useCallback((config: PlaygroundConfig): Promise<void> => {
-    console.group('🚀 usePlaygroundChat.startConversation');
-    console.log('Config:', config);
-    console.log('Current conversationStarted:', conversationStarted);
-    
-    // Create a promise that resolves when conversation_started is received
-    conversationStartPromise.current = new Promise<void>((resolve) => {
-      conversationStartResolver.current = resolve;
-      console.log('✅ Created conversation start promise');
     });
-    
-    const attemptStart = () => {
-      console.log('📝 attemptStart called');
-      console.log('WebSocket state:', ws.current?.readyState);
-      
-      if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
-        console.error('❌ WebSocket not connected. Current state:', ws.current?.readyState);
-        // If we're in CONNECTING state, retry in a moment
-        if (ws.current?.readyState === WebSocket.CONNECTING) {
-          console.log('⏳ WebSocket is connecting, retrying in 500ms');
-          setTimeout(() => attemptStart(), 500);
-        } else {
-          // Reject the promise if we can't connect
-          console.error('❌ Cannot connect, clearing promise');
-          conversationStartResolver.current = null;
-          conversationStartPromise.current = null;
-        }
-        return;
-      }
-      
-      const msg: PlaygroundStartMsg = {
-        type: 'playground_start',
-        workflow: config.workflow,
-        persona_id: config.personaId,
-        scenario_id: config.scenarioId,
-        trust_level: config.trustLevel
-      };
-      
-      const msgString = JSON.stringify(msg);
-      messagesSent.current++;
-      console.log('📤 Sending playground_start message:', msg);
-      console.log('Message #:', messagesSent.current);
-      console.log('Message size:', msgString.length, 'bytes');
-      
-      try {
-        ws.current.send(msgString);
-        console.log('✅ playground_start sent successfully');
-      } catch (error) {
-        console.error('❌ Error sending playground_start:', error);
-      }
-      
-      console.log('🧹 Clearing messages and queue');
-      setMessages([]);
-      setThinking(null);
-      messageQueue.current = []; // Clear any old queued messages
-    };
-    
-    attemptStart();
-    const promise = conversationStartPromise.current || Promise.reject(new Error('Failed to start conversation'));
-    console.groupEnd();
-    return promise;
-  }, [conversationStarted]);
-  
-  const sendMessage = useCallback((text: string) => {
-    const sendTime = new Date().toISOString();
-    console.group('📤 usePlaygroundChat.sendMessage');
-    console.log('Send time:', sendTime);
-    console.log('Text:', text);
-    console.log('Text length:', text.length);
-    console.log('WebSocket state:', ws.current?.readyState);
-    console.log('conversationStarted:', conversationStarted);
-    console.log('conversationStartedRef:', conversationStartedRef.current);
-    
-    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
-      console.error('❌ WebSocket not connected');
-      console.groupEnd();
-      return;
-    }
-    
-    // If conversation hasn't started yet, queue the message
-    if (!conversationStartedRef.current) {
-      console.log('⏳ Conversation not started yet, queueing message');
-      messageQueue.current.push(text);
-      console.log('📬 Message queued', { queueLength: messageQueue.current.length });
-      return;
-    }
-    
+
+    return unsubscribe;
+  }, [subscribe]);
+
+  // Helper for internal message sending
+  const sendMessageInternal = useCallback((text: string) => {
     const msg: MessageMsg = {
       type: 'message',
       text
     };
     
-    messagesSent.current++;
     console.log('✅ Sending message immediately:', msg);
-    console.log('Message #:', messagesSent.current);
-    const msgString = JSON.stringify(msg);
-    console.log('📤 Message string:', msgString);
-    console.log('Message size:', msgString.length, 'bytes');
     
-    try {
-      ws.current.send(msgString);
-      console.log('✅ Message sent successfully');
-    } catch (error) {
-      console.error('❌ Error sending message:', error);
+    if (!send(msg)) {
+      console.error('❌ Failed to send message');
     }
     
     // Add a thinking message to indicate CJ is processing
@@ -418,15 +172,100 @@ export function usePlaygroundChat() {
       }
     };
     setMessages(prev => [...prev, thinkingMessage]);
+  }, [send]);
+  
+  
+  // Action functions
+  const startConversation = useCallback((config: PlaygroundConfig): Promise<void> => {
+    console.group('🚀 usePlaygroundChat.startConversation');
+    console.log('Config:', config);
+    console.log('Current conversationStarted:', conversationStarted);
+    console.log('Is connected:', isConnected);
     
+    // Create a promise that resolves when conversation_started is received
+    conversationStartPromise.current = new Promise<void>((resolve, reject) => {
+      conversationStartResolver.current = resolve;
+      console.log('✅ Created conversation start promise');
+      
+      // Set a timeout for the conversation start
+      setTimeout(() => {
+        if (conversationStartResolver.current) {
+          console.error('❌ Conversation start timeout');
+          conversationStartResolver.current = null;
+          conversationStartPromise.current = null;
+          reject(new Error('Conversation start timeout'));
+        }
+      }, 10000); // 10 second timeout
+    });
+    
+    if (!isConnected) {
+      console.error('❌ WebSocket not connected');
+      conversationStartResolver.current = null;
+      conversationStartPromise.current = null;
+      return Promise.reject(new Error('WebSocket not connected'));
+    }
+    
+    const msg: PlaygroundStartMsg = {
+      type: 'playground_start',
+      workflow: config.workflow,
+      persona_id: config.personaId,
+      scenario_id: config.scenarioId,
+      trust_level: config.trustLevel
+    };
+    
+    console.log('📤 Sending playground_start message:', msg);
+    
+    if (!send(msg)) {
+      console.error('❌ Failed to send playground_start');
+      conversationStartResolver.current = null;
+      conversationStartPromise.current = null;
+      return Promise.reject(new Error('Failed to send playground_start'));
+    }
+    
+    console.log('🧹 Clearing messages and queue');
+    setMessages([]);
+    setThinking(null);
+    messageQueue.current = []; // Clear any old queued messages
+    
+    const promise = conversationStartPromise.current;
     console.groupEnd();
-  }, [conversationStarted]);
+    return promise;
+  }, [conversationStarted, isConnected, send]);
+  
+  const sendMessage = useCallback((text: string) => {
+    const sendTime = new Date().toISOString();
+    console.group('📤 usePlaygroundChat.sendMessage');
+    console.log('Send time:', sendTime);
+    console.log('Text:', text);
+    console.log('Text length:', text.length);
+    console.log('Is connected:', isConnected);
+    console.log('conversationStarted:', conversationStarted);
+    console.log('conversationStartedRef:', conversationStartedRef.current);
+    
+    if (!isConnected) {
+      console.error('❌ WebSocket not connected');
+      console.groupEnd();
+      return;
+    }
+    
+    // If conversation hasn't started yet, queue the message
+    if (!conversationStartedRef.current) {
+      console.log('⏳ Conversation not started yet, queueing message');
+      messageQueue.current.push(text);
+      console.log('📬 Message queued', { queueLength: messageQueue.current.length });
+      console.groupEnd();
+      return;
+    }
+    
+    sendMessageInternal(text);
+    console.groupEnd();
+  }, [conversationStarted, isConnected, sendMessageInternal]);
   
   const resetConversation = useCallback((
     reason: 'workflow_change' | 'user_clear', 
     new_workflow?: string
   ) => {
-    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+    if (!isConnected) {
       console.error('WebSocket not connected');
       return;
     }
@@ -438,7 +277,7 @@ export function usePlaygroundChat() {
     };
     
     console.log('Sending reset:', msg);
-    ws.current.send(JSON.stringify(msg));
+    send(msg);
     setMessages([]);
     setThinking(null);
     setConversationStarted(false);
@@ -450,21 +289,13 @@ export function usePlaygroundChat() {
       conversationStartPromise.current = null;
     }
     messageQueue.current = [];
-    
-    // The server will close the connection after reset, so disconnect and let auto-reconnect handle it
-    setTimeout(() => {
-      if (ws.current && ws.current.readyState !== WebSocket.CLOSED) {
-        console.log('Closing WebSocket after reset to force reconnect');
-        ws.current.close();
-      }
-    }, 100); // Small delay to ensure reset message is sent
-  }, []);
+  }, [isConnected, send]);
   
   const requestMessageDetails = useCallback((messageId: string): Promise<any> => {
     console.group('🔍 usePlaygroundChat.requestMessageDetails');
     console.log('Message ID:', messageId);
     
-    if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
+    if (!isConnected) {
       console.error('❌ WebSocket not connected');
       console.groupEnd();
       return Promise.reject(new Error('WebSocket not connected'));
@@ -478,8 +309,16 @@ export function usePlaygroundChat() {
     }
     
     // Create promise for this request
-    const promise = new Promise<any>((resolve) => {
+    const promise = new Promise<any>((resolve, reject) => {
       debugRequestResolvers.current.set(messageId, resolve);
+      
+      // Set timeout for debug request
+      setTimeout(() => {
+        if (debugRequestResolvers.current.has(messageId)) {
+          debugRequestResolvers.current.delete(messageId);
+          reject(new Error('Debug request timeout'));
+        }
+      }, 5000); // 5 second timeout
     });
     
     const msg: DebugRequestMsg = {
@@ -491,33 +330,33 @@ export function usePlaygroundChat() {
     };
     
     console.log('📤 Sending debug request:', msg);
-    ws.current.send(JSON.stringify(msg));
+    if (!send(msg)) {
+      console.error('❌ Failed to send debug request');
+      debugRequestResolvers.current.delete(messageId);
+      return Promise.reject(new Error('Failed to send debug request'));
+    }
     
     console.groupEnd();
     return promise;
-  }, [debugData]);
+  }, [debugData, isConnected, send]);
   
-  // Lifecycle management
+  // Reset conversation state when connection is lost
   useEffect(() => {
-    console.log('🔄 usePlaygroundChat useEffect running');
-    mountedRef.current = true;
-    connect();
-    
-    return () => {
-      console.log('🧹 usePlaygroundChat cleanup running');
-      mountedRef.current = false;
-      clearTimeout(reconnectTimeout.current);
-      clearInterval(pingInterval.current);
+    if (!isConnected && conversationStartedRef.current) {
+      console.log('🔄 Connection lost, resetting conversation state');
+      setConversationStarted(false);
+      conversationStartedRef.current = false;
       
-      // Only close if WebSocket is actually connected (not connecting)
-      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-        console.log('🔌 Closing WebSocket in cleanup, state:', ws.current.readyState);
-        ws.current.close(1000, 'Component unmounting');
+      // Clear any pending conversation start promises
+      if (conversationStartResolver.current) {
+        conversationStartResolver.current = null;
+        conversationStartPromise.current = null;
       }
-      // Clear the reference regardless
-      ws.current = null;
-    };
-  }, []); // Empty deps - only run once on mount
+      
+      // Clear message queue
+      messageQueue.current = [];
+    }
+  }, [isConnected]);
   
   return {
     messages,
