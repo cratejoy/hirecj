@@ -1,6 +1,7 @@
 import React, { createContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { WebSocketManager, ConnectionState } from '@/services/WebSocketManager';
 import { PlaygroundOutgoingMessage } from '@/protocol';
+import { debug } from '@/utils/debug';
 
 interface WebSocketContextValue {
   connectionState: ConnectionState;
@@ -39,7 +40,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   const hasInitialized = useRef(false);
 
   useEffect(() => {
-    console.log('🌟 WebSocketProvider effect running');
+    debug.log('🌟 WebSocketProvider effect running');
 
     // Get singleton instance
     const manager = WebSocketManager.getInstance();
@@ -47,13 +48,13 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
     // Subscribe to connection state changes
     const unsubscribeState = manager.subscribeToConnectionState((state) => {
-      console.log('🔄 Connection state changed:', state);
+      debug.log('🔄 Connection state changed:', state);
       setConnectionState(state);
     });
 
     // Get current state immediately
     const currentState = manager.getConnectionState();
-    console.log('📊 Current connection state:', currentState);
+    debug.log('📊 Current connection state:', currentState);
     setConnectionState(currentState);
 
     // Mark as initialized
@@ -61,13 +62,13 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
     // Auto-connect if enabled and not already connected/connecting
     if (autoConnect && currentState === 'disconnected') {
-      console.log('🤖 Auto-connecting WebSocket');
+      debug.log('🤖 Auto-connecting WebSocket');
       manager.connect();
     }
 
     // Cleanup function
     return () => {
-      console.log('🧹 WebSocketProvider cleanup');
+      debug.log('🧹 WebSocketProvider cleanup');
       unsubscribeState();
       // Note: We don't disconnect here because the WebSocketManager is a singleton
       // and might be used by other components. The app-level cleanup should handle
