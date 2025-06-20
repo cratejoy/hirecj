@@ -33,3 +33,7 @@ pydantic-to-typescript>=2.0.0
 
 # Data analysis
 numpy>=1.24.0
+
+# CLI tools for evals
+rich>=13.0.0
+questionary>=2.0.0

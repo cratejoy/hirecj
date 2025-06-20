@@ -4,15 +4,18 @@ Conversation and annotation API endpoints.
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Literal
 from pathlib import Path
 import json
 from datetime import datetime
+import os
+import logging
 
 from app.constants import HTTPStatus, PaginationDefaults
 from app.config import settings
 
 router = APIRouter(prefix="/api/v1/conversations", tags=["conversations"])
+logger = logging.getLogger(__name__)
 
 
 class AnnotationRequest(BaseModel):
@@ -220,3 +223,163 @@ async def delete_annotation(conversation_id: str, message_index: int):
     save_conversation(conversation_id, conversation)
 
     return {"message": "Annotation deleted successfully"}
+
+
+# Eval Conversation Capture Models
+class WorkflowConfig(BaseModel):
+    """Workflow configuration for eval capture."""
+    name: str
+    description: str
+    behavior: Optional[Dict[str, Any]] = None
+    requirements: Optional[Dict[str, Any]] = None
+    workflow: Optional[str] = None
+    data_requirements: Optional[List[Any]] = None
+    available_tools: Optional[List[str]] = None
+
+
+class Persona(BaseModel):
+    """Persona configuration for eval capture."""
+    id: str
+    name: str
+    business: str
+    role: str
+    industry: str
+    communicationStyle: List[str]
+    traits: List[str]
+
+
+class Scenario(BaseModel):
+    """Scenario configuration for eval capture."""
+    id: str
+    name: str
+    description: str
+
+
+class ToolDefinition(BaseModel):
+    """Tool definition for eval capture."""
+    name: str
+    description: str
+    parameters: Optional[Dict[str, Any]] = None
+
+
+class ToolCall(BaseModel):
+    """Tool call record for eval capture."""
+    tool: str
+    args: Dict[str, Any]
+    result: Optional[Any] = None
+    error: Optional[str] = None
+    duration_ms: Optional[int] = None
+
+
+class GroundingQuery(BaseModel):
+    """Grounding query record for eval capture."""
+    query: str
+    response: str
+    sources: Optional[List[str]] = None
+
+
+class TokenMetrics(BaseModel):
+    """Token usage metrics."""
+    prompt: int
+    completion: int
+    thinking: int
+
+
+class MessageMetrics(BaseModel):
+    """Message performance metrics."""
+    latency_ms: int
+    tokens: TokenMetrics
+
+
+class AgentProcessing(BaseModel):
+    """Agent processing details for a message."""
+    thinking: str
+    intermediate_responses: List[str]
+    tool_calls: List[ToolCall]
+    grounding_queries: List[GroundingQuery]
+    final_response: str
+
+
+class CapturedMessage(BaseModel):
+    """Captured message with full agent processing."""
+    turn: int
+    user_input: str
+    agent_processing: AgentProcessing
+    metrics: MessageMetrics
+
+
+class ConversationContext(BaseModel):
+    """Full conversation context."""
+    workflow: WorkflowConfig
+    persona: Persona
+    scenario: Scenario
+    trustLevel: int
+    model: str
+    temperature: float
+
+
+class ConversationPrompts(BaseModel):
+    """System prompts at time of execution."""
+    cj_prompt: str
+    cj_prompt_file: Optional[str] = None  # Path to CJ prompt file
+    workflow_prompt: str
+    workflow_prompt_file: Optional[str] = None  # Path to workflow file
+    tool_definitions: List[ToolDefinition]
+
+
+class ConversationCapture(BaseModel):
+    """Complete conversation capture for eval."""
+    id: str
+    timestamp: str
+    context: ConversationContext
+    prompts: ConversationPrompts
+    messages: List[CapturedMessage]
+
+
+class CaptureRequest(BaseModel):
+    """Request to capture a conversation."""
+    conversation: ConversationCapture
+    source: Literal["playground", "production", "synthetic"] = "playground"
+
+
+@router.post("/capture")
+async def capture_conversation(request: CaptureRequest):
+    """Capture a conversation for evaluation purposes."""
+    conversation = request.conversation
+    source = request.source
+    
+    # Get project root directory
+    # Navigate up from agents/app/api/routes/conversations.py to project root
+    project_root = Path(__file__).parent.parent.parent.parent.parent
+    
+    # Create date-based directory structure
+    date_path = datetime.now().strftime("%Y-%m-%d")
+    dir_path = project_root / "hirecj_evals" / "conversations" / source / date_path
+    
+    try:
+        # Ensure directory exists
+        dir_path.mkdir(parents=True, exist_ok=True)
+        
+        # Write conversation as formatted JSON
+        file_path = dir_path / f"{conversation.id}.json"
+        with open(file_path, 'w') as f:
+            json.dump(conversation.dict(), f, indent=2, default=str)
+        
+        # Log capture for tracking
+        logger.info(f"Captured conversation {conversation.id} to {file_path}")
+        
+        # Return relative path for display
+        relative_path = file_path.relative_to(project_root)
+        
+        return {
+            "id": conversation.id, 
+            "path": str(relative_path),
+            "message": "Conversation captured successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to capture conversation {conversation.id}: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Failed to capture conversation: {str(e)}"
+        )

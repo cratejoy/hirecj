@@ -45,6 +45,13 @@ help:
 	@echo "  make reset-db     - Clear and refill agents database"
 	@echo "  make migrate-agents - Run agents database migrations"
 	@echo ""
+	@echo "🧪 Evaluation System:"
+	@echo "  make evals        - Interactive eval menu (recommended)"
+	@echo "  make evals-test   - Quick test to verify setup"
+	@echo "  make evals-again  - Re-run last evaluation"
+	@echo "  make evals-today  - Eval conversations from today"
+	@echo "  make evals-history - View recent eval runs"
+	@echo ""
 	@echo "🔧 Development tools:"
 	@echo "  make generate-protocol - Generate TypeScript types from Pydantic models"
 	@echo ""
@@ -368,6 +375,42 @@ reset-db: clear-db fill-db
 migrate-agents:
 	@echo "🔄 Running agents database migrations..."
 	cd agents && . venv/bin/activate && python scripts/run_migration.py
+
+# Evaluation System
+.PHONY: evals evals-test evals-again evals-today evals-history evals-list evals-results evals-convert
+
+# Main interactive interface
+evals:
+	@python scripts/evals_cli.py
+
+# Quick test to verify everything works
+evals-test:
+	@python scripts/evals_cli.py test
+
+# Re-run the last evaluation  
+evals-again:
+	@python scripts/evals_cli.py again
+
+# Evaluate conversations from today
+evals-today:
+	@echo "📊 Evaluating today's conversations..."
+	@python scripts/evals_cli.py convert && python scripts/evals_cli.py again
+
+# View evaluation history
+evals-history:
+	@python scripts/evals_cli.py history
+
+# List all available evaluations
+evals-list:
+	@python scripts/evals_cli.py list
+
+# Jump to results viewer
+evals-results:
+	@python scripts/evals_cli.py history
+
+# Convert conversations to eval format
+evals-convert:
+	@python scripts/evals_cli.py convert
 
 # Generate TypeScript types from protocol
 generate-protocol:
