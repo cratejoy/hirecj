@@ -1,5 +1,4 @@
 import { useCallback, useRef } from 'react';
-import { CJMessageMsg } from '@/protocol';
 import { ConversationCapture, CaptureSource, Persona, Scenario } from '../evals/core/types';
 import { WorkflowConfig } from '../utils/workflowParser';
 
@@ -154,6 +153,7 @@ export function useConversationCapture(props: UseConversationCaptureProps) {
     };
     
     // Send to backend for file storage
+    // Using relative path to work with the proxy
     try {
       const response = await fetch('/api/v1/conversations/capture', {
         method: 'POST',

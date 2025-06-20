@@ -1,0 +1,74 @@
+# Eval definitions specific to the ad_hoc_support workflow
+
+ad_hoc_support.tool_selection:
+  parent: tool_selection_accuracy
+  description: "Tool selection eval for ad-hoc support workflow"
+  
+  args:
+    # Override base args for this workflow
+    workflow: ad_hoc_support
+    
+    # Define expected tools for common queries
+    expected_tools:
+      order_inquiry:
+        required:
+          - get_orders
+        optional:
+          - get_order_details
+          - get_customers
+      
+      revenue_question:
+        required:
+          - get_shopify_store_counts
+        optional:
+          - get_revenue_metrics
+          - get_store_analytics
+      
+      customer_search:
+        required:
+          - search_customers
+        optional:
+          - get_customer_details
+          - get_orders
+
+
+ad_hoc_support.response_time:
+  parent: base_eval
+  description: "Ensures ad-hoc support responses are timely"
+  
+  class: evals.performance.ResponseTime
+  
+  args:
+    # Maximum acceptable latency in ms
+    max_latency:
+      p50: 2000  # 50th percentile
+      p90: 3000  # 90th percentile
+      p99: 5000  # 99th percentile
+    
+    # Latency targets by message complexity
+    complexity_targets:
+      simple_query: 1500
+      tool_required: 2500
+      multi_tool: 4000
+
+
+ad_hoc_support.follow_up:
+  parent: model_graded
+  description: "Evaluates quality of follow-up offers in ad-hoc support"
+  
+  class: evals.cj.FollowUpQuality
+  
+  args:
+    grading_prompt: |
+      In ad-hoc support, CJ should:
+      1. Answer the immediate question completely
+      2. Anticipate related questions
+      3. Offer relevant follow-up assistance
+      
+      Evaluate whether CJ's response includes appropriate follow-up offers.
+    
+    required_elements:
+      - direct_answer
+      - follow_up_offer
+    
+    threshold: 0.8

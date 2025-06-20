@@ -24,6 +24,8 @@ import { ConfigurationBar } from '@/components/playground/ConfigurationBar'
 import { MessageDetailsView } from '@/components/playground/MessageDetailsView'
 import { usePlaygroundChat } from '@/hooks/usePlaygroundChat'
 import { useSearch } from 'wouter'
+import { useConversationCapture } from '@/hooks/useConversationCapture'
+import { Download } from 'lucide-react'
 
 const API_BASE = '/api/v1'
 
@@ -266,6 +268,11 @@ export function PlaygroundView() {
       return
     }
     
+    // Start message capture if available
+    if (canCapture) {
+      conversationCapture.startMessage(content)
+    }
+    
     // Track user message locally (since hook only gives us agent messages)
     console.log('📝 Tracking user message', { index: wsMessages.length })
     setLocalUserMessages(prev => ({
@@ -327,6 +334,88 @@ export function PlaygroundView() {
   // Get selected persona and scenario objects
   const selectedPersonaObj = personas.find(p => p.id === selectedPersona)
   const selectedScenarioObj = scenarios.find(s => s.id === selectedScenario)
+
+  // Initialize conversation capture hook - always call the hook to follow React rules
+  const conversationCapture = useConversationCapture(
+    workflow && selectedPersonaObj && selectedScenarioObj ? {
+      workflow,
+      persona: {
+        ...selectedPersonaObj,
+        role: 'Founder', // Default role - could be extended
+        industry: 'E-commerce', // Default industry - could be extended
+        communicationStyle: ['direct', 'brief'], // Default style
+        traits: ['data-driven'] // Default traits
+      },
+      scenario: selectedScenarioObj,
+      trustLevel
+    } : {
+      // Provide default props when data isn't ready
+      workflow: { name: '', description: '' } as WorkflowConfig,
+      persona: { id: '', name: '', business: '', role: '', industry: '', communicationStyle: [], traits: [] },
+      scenario: { id: '', name: '', description: '' },
+      trustLevel: 3
+    }
+  )
+
+  // Only use conversation capture when we have valid data
+  const canCapture = workflow && selectedPersonaObj && selectedScenarioObj
+
+  // Track previous message count to detect new messages
+  const prevMessageCountRef = useRef(0)
+  
+  // Capture agent messages when they arrive
+  useEffect(() => {
+    if (!canCapture || wsMessages.length === 0) return
+    
+    // Check if we have a new message
+    if (wsMessages.length > prevMessageCountRef.current) {
+      const latestMessage = wsMessages[wsMessages.length - 1]
+      
+      // Capture thinking state if present
+      if (thinking) {
+        conversationCapture.captureThinking(thinking.data.status || 'thinking...')
+      }
+      
+      // Capture the agent's response
+      if (!latestMessage.data.content.includes('thinking...')) {
+        conversationCapture.completeMessage(latestMessage.data.content, {
+          // Token metrics would come from the actual API response
+          prompt: 0,
+          completion: 0,
+          thinking: 0
+        })
+      }
+      
+      prevMessageCountRef.current = wsMessages.length
+    }
+  }, [wsMessages, thinking, conversationCapture, canCapture])
+  
+  // Handle export conversation
+  const handleExportConversation = async () => {
+    if (!canCapture) {
+      toast({
+        title: 'Error',
+        description: 'No conversation to export',
+        variant: 'destructive',
+      })
+      return
+    }
+    
+    try {
+      const conversation = await conversationCapture.captureConversation('playground')
+      toast({
+        title: 'Success',
+        description: `Conversation exported: ${conversation.id}`,
+      })
+    } catch (error) {
+      console.error('Failed to export conversation:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to export conversation',
+        variant: 'destructive',
+      })
+    }
+  }
 
   // Show connecting status if not connected
   if (!isConnected) {
@@ -463,6 +552,17 @@ export function PlaygroundView() {
             <ChevronDown className={`h-4 w-4 transition-transform ${workflowExpanded ? 'rotate-180' : ''}`} />
             Workflow Details
           </Button>
+          {conversationStarted && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleExportConversation}
+              title="Export conversation for evaluation"
+            >
+              <Download className="mr-2 h-3 w-3" />
+              Export for Eval
+            </Button>
+          )}
         </div>
         
         {/* Expandable Workflow Details */}
