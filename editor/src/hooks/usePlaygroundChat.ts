@@ -169,22 +169,19 @@ export function usePlaygroundChat() {
       messageQueue.current = [];
       
       // Reconnect with exponential backoff
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
-      console.log(`⏳ Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current + 1})`);
+      reconnectAttempts.current++;
+      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
+      console.log(`⏳ Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
       reconnectTimeout.current = setTimeout(() => {
-        reconnectAttempts.current++;
         connect();
       }, delay);
     };
     
     ws.current.onmessage = (event) => {
-      messagesReceived.current++;
-      const receiveTime = new Date().toISOString();
+      console.log('📨 Raw WebSocket message:', event.data);
       const msg: PlaygroundOutgoingMessage = JSON.parse(event.data);
       
       console.group('📥 WebSocket message received');
-      console.log('Receive time:', receiveTime);
-      console.log('Message #:', messagesReceived.current);
       console.log('Type:', msg.type);
       console.log('Size:', event.data.length, 'bytes');
       console.log('Full message:', msg);
@@ -318,7 +315,7 @@ export function usePlaygroundChat() {
       
       const msgString = JSON.stringify(msg);
       messagesSent.current++;
-      console.log('📤 Sending playground_start message');
+      console.log('📤 Sending playground_start message:', msg);
       console.log('Message #:', messagesSent.current);
       console.log('Message size:', msgString.length, 'bytes');
       
@@ -477,13 +474,18 @@ export function usePlaygroundChat() {
   
   // Lifecycle management
   useEffect(() => {
+    console.log('🔄 usePlaygroundChat useEffect running');
     connect();
     
     return () => {
+      console.log('🧹 usePlaygroundChat cleanup running');
       clearTimeout(reconnectTimeout.current);
-      ws.current?.close();
+      if (ws.current) {
+        console.log('🔌 Closing WebSocket in cleanup, state:', ws.current.readyState);
+        ws.current.close();
+      }
     };
-  }, [connect]);
+  }, []); // Empty deps - only run once on mount
   
   return {
     messages,

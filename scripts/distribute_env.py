@@ -244,7 +244,7 @@ def _should_use_proxy(homepage_url: str, agents_url: str) -> bool:
 def _get_vite_api_url(vars: Dict[str, str]) -> str:
     """Get VITE_API_URL, empty if using proxy mode."""
     homepage_url = vars.get("HOMEPAGE_URL", "")
-    agents_url = vars.get("AGENTS_SERVICE_URL", "http://localhost:8000")
+    agents_url = vars.get("AGENTS_SERVICE_URL", "http://localhost:8100")
     
     # Check tunnel env for latest URLs
     tunnel_env_path = Path(".env.tunnel")
@@ -268,7 +268,7 @@ def _get_vite_api_url(vars: Dict[str, str]) -> str:
 def _get_vite_ws_url(vars: Dict[str, str]) -> str:
     """Get VITE_WS_URL, empty if using proxy mode."""
     homepage_url = vars.get("HOMEPAGE_URL", "")
-    agents_url = vars.get("AGENTS_SERVICE_URL", "http://localhost:8000")
+    agents_url = vars.get("AGENTS_SERVICE_URL", "http://localhost:8100")
     
     # Check tunnel env for latest URLs
     tunnel_env_path = Path(".env.tunnel")

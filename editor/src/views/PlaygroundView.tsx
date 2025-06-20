@@ -96,14 +96,16 @@ export function PlaygroundView() {
   }, [])
 
   // Track previous workflow to detect changes
-  const prevWorkflowRef = useRef<string>('')
+  const prevWorkflowRef = useRef<string | null>(null)
   
   // Load workflow YAML when selection changes
   useEffect(() => {
     if (selectedWorkflowId) {
       // If conversation is active and workflow actually changed, reset it
-      if (conversationStarted && prevWorkflowRef.current && prevWorkflowRef.current !== selectedWorkflowId) {
+      // Only reset if we had a previous workflow AND it's different from current
+      if (conversationStarted && prevWorkflowRef.current !== null && prevWorkflowRef.current !== selectedWorkflowId) {
         resetConversation('workflow_change', selectedWorkflowId)
+        setLocalUserMessages({})
       }
       prevWorkflowRef.current = selectedWorkflowId
       loadWorkflowYaml(selectedWorkflowId)
@@ -177,6 +179,7 @@ export function PlaygroundView() {
   }
 
   const startConversation = async () => {
+    console.log('🚀 PlaygroundView.startConversation called')
     console.group('🚀 PlaygroundView.startConversation')
     console.log('Called at:', new Date().toISOString())
     console.log('workflow:', workflow)
@@ -203,6 +206,25 @@ export function PlaygroundView() {
         trustLevel: trustLevel
       }
       console.log('📤 Calling wsStartConversation with config:', config)
+      console.log('Current workflow:', workflow)
+      console.log('Is agent initiated:', workflow && isAgentInitiated(workflow))
+      
+      // For agent-initiated workflows, add the initial prompt message to local messages
+      if (workflow && isAgentInitiated(workflow)) {
+        const initialAction = workflow.behavior?.initial_action
+        if (initialAction?.type === 'process_message' && initialAction.message) {
+          // Add the prompt message that CJ is responding to
+          setLocalUserMessages({
+            0: initialAction.message
+          })
+        } else if (initialAction?.type === 'static_message' && initialAction.content) {
+          // For static messages, we might want to show what triggered it
+          setLocalUserMessages({
+            0: "Start daily briefing"
+          })
+        }
+      }
+      
       await wsStartConversation(config)
       console.log('✅ wsStartConversation completed successfully')
     } catch (error) {
@@ -252,9 +274,19 @@ export function PlaygroundView() {
   const messages: Message[] = React.useMemo(() => {
     const combined: Message[] = []
     
+    // For agent-initiated workflows, add the initial user message when we get the first ws message
+    if (workflow && isAgentInitiated(workflow) && wsMessages.length > 0 && localUserMessages[0] && !wsMessages[0].data.content.includes('thinking')) {
+      combined.push({
+        id: 'user-0',
+        role: 'user',
+        content: localUserMessages[0],
+        timestamp: new Date(wsMessages[0].data.timestamp).toISOString()
+      })
+    }
+    
     wsMessages.forEach((msg, index) => {
-      // Add user message if exists before this agent message
-      if (localUserMessages[index]) {
+      // Skip user message for index 0 if agent-initiated (already added above)
+      if (localUserMessages[index] && !(workflow && isAgentInitiated(workflow) && index === 0)) {
         combined.push({
           id: `user-${index}`,
           role: 'user',
@@ -275,7 +307,7 @@ export function PlaygroundView() {
     })
     
     return combined
-  }, [wsMessages, localUserMessages])
+  }, [wsMessages, localUserMessages, workflow])
 
   // Get selected persona and scenario objects
   const selectedPersonaObj = personas.find(p => p.id === selectedPersona)

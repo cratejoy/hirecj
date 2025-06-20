@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     
     # Service URLs (from shared config)
     auth_service_url: str = Field("http://localhost:8103", env="AUTH_SERVICE_URL")
-    agents_service_url: str = Field("http://localhost:8000", env="AGENTS_SERVICE_URL")
+    agents_service_url: str = Field("http://localhost:8100", env="AGENTS_SERVICE_URL")
     homepage_url: str = Field("http://localhost:3456", env="HOMEPAGE_URL")
     knowledge_service_url: str = Field("http://localhost:8004", env="KNOWLEDGE_SERVICE_URL")
     
@@ -191,7 +191,7 @@ class Settings(BaseSettings):
                 pass
         
         # Return service-specific default
-        return f"http://localhost:8000"
+        return f"http://localhost:8100"
 
     def get_conversation_path(self, filename: str) -> str:
         """Get full path for a conversation file."""
