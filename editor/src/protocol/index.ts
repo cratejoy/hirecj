@@ -27,7 +27,6 @@ export type PlaygroundIncomingMessage =
   | PlaygroundStartMsg 
   | PlaygroundResetMsg 
   | MessageMsg
-  | PongMsg  // Client sends pong in response to server ping
   | DebugRequestMsg;
   
 export type PlaygroundOutgoingMessage =

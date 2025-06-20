@@ -49,15 +49,9 @@ export function usePlaygroundChat() {
       
       switch (msg.type) {
         case 'ping':
-          // Server sends pings to keep connection alive - we need to respond with pong
-          console.log('🎱 Received server ping', msg);
-          const pingData = msg as any;
-          const pongResponse = {
-            type: 'pong',
-            timestamp: new Date().toISOString()
-          };
-          console.log('🏓 Sending pong response:', pongResponse);
-          send(pongResponse);
+          // Server sends pings to keep connection alive
+          // The proxy just sends these as heartbeats, doesn't expect responses
+          console.log('🎱 Received server ping (heartbeat)', msg);
           break;
           
         case 'pong':
@@ -190,19 +184,10 @@ export function usePlaygroundChat() {
     console.log('Is connected:', isConnected);
     
     // Create a promise that resolves when conversation_started is received
-    conversationStartPromise.current = new Promise<void>((resolve, reject) => {
+    conversationStartPromise.current = new Promise<void>((resolve) => {
       conversationStartResolver.current = resolve;
       console.log('✅ Created conversation start promise');
-      
-      // Set a timeout for the conversation start
-      setTimeout(() => {
-        if (conversationStartResolver.current) {
-          console.error('❌ Conversation start timeout');
-          conversationStartResolver.current = null;
-          conversationStartPromise.current = null;
-          reject(new Error('Conversation start timeout'));
-        }
-      }, 10000); // 10 second timeout
+      // No timeout - let the server handle timeouts
     });
     
     if (!isConnected) {
@@ -316,16 +301,9 @@ export function usePlaygroundChat() {
     }
     
     // Create promise for this request
-    const promise = new Promise<any>((resolve, reject) => {
+    const promise = new Promise<any>((resolve) => {
       debugRequestResolvers.current.set(messageId, resolve);
-      
-      // Set timeout for debug request
-      setTimeout(() => {
-        if (debugRequestResolvers.current.has(messageId)) {
-          debugRequestResolvers.current.delete(messageId);
-          reject(new Error('Debug request timeout'));
-        }
-      }, 5000); // 5 second timeout
+      // No timeout - let the server handle it
     });
     
     const msg: DebugRequestMsg = {
