@@ -23,6 +23,7 @@ import { MerchantInitiatedView } from '@/components/playground/MerchantInitiated
 import { ConfigurationBar } from '@/components/playground/ConfigurationBar'
 import { MessageDetailsView } from '@/components/playground/MessageDetailsView'
 import { usePlaygroundChat } from '@/hooks/usePlaygroundChat'
+import { useSearch } from 'wouter'
 
 const API_BASE = '/api/v1'
 
@@ -54,6 +55,11 @@ interface WorkflowListItem {
 }
 
 export function PlaygroundView() {
+  // Get URL search params
+  const searchString = useSearch()
+  const searchParams = new URLSearchParams(searchString)
+  const urlWorkflow = searchParams.get('workflow')
+  
   // WebSocket hook
   const {
     messages: wsMessages,
@@ -118,7 +124,20 @@ export function PlaygroundView() {
       const data = await response.json()
       setWorkflows(data.workflows || [])
       if (data.workflows?.length > 0 && !selectedWorkflowId) {
-        // Set ad_hoc_support as default if it exists, otherwise use first workflow
+        // Check if URL has a workflow parameter
+        if (urlWorkflow) {
+          // Try to find the workflow from URL param
+          const urlWorkflowItem = data.workflows.find((w: any) => 
+            w.id === urlWorkflow || 
+            w.name?.toLowerCase() === urlWorkflow.toLowerCase()
+          )
+          if (urlWorkflowItem) {
+            setSelectedWorkflowId(urlWorkflowItem.id)
+            return
+          }
+        }
+        
+        // Otherwise set ad_hoc_support as default if it exists, otherwise use first workflow
         const adHocWorkflow = data.workflows.find((w: any) => w.id === 'ad_hoc_support')
         setSelectedWorkflowId(adHocWorkflow ? 'ad_hoc_support' : data.workflows[0].id)
       }
@@ -179,22 +198,21 @@ export function PlaygroundView() {
   }
 
   const startConversation = async () => {
-    console.log('🚀 PlaygroundView.startConversation called')
-    console.group('🚀 PlaygroundView.startConversation')
-    console.log('Called at:', new Date().toISOString())
-    console.log('workflow:', workflow)
-    console.log('selectedWorkflowId:', selectedWorkflowId)
-    console.log('selectedPersona:', selectedPersona)
-    console.log('selectedScenario:', selectedScenario)
-    console.log('trustLevel:', trustLevel)
+    console.log('🚀 PlaygroundView.startConversation', {
+      timestamp: new Date().toISOString(),
+      workflow: workflow?.name,
+      workflowId: selectedWorkflowId,
+      personaId: selectedPersona,
+      scenarioId: selectedScenario,
+      trustLevel
+    })
     
     if (!workflow || !selectedPersona || !selectedScenario) {
-      console.warn('❌ Early return - missing required data:', {
+      console.warn('❌ Early return - missing required data', {
         hasWorkflow: !!workflow,
         hasPersona: !!selectedPersona,
         hasScenario: !!selectedScenario
       })
-      console.groupEnd()
       return
     }
     
@@ -205,9 +223,10 @@ export function PlaygroundView() {
         scenarioId: selectedScenario,
         trustLevel: trustLevel
       }
-      console.log('📤 Calling wsStartConversation with config:', config)
-      console.log('Current workflow:', workflow)
-      console.log('Is agent initiated:', workflow && isAgentInitiated(workflow))
+      console.log('📤 Starting conversation', {
+        config,
+        isAgentInitiated: workflow && isAgentInitiated(workflow)
+      })
       
       // For agent-initiated workflows, add the initial prompt message to local messages
       if (workflow && isAgentInitiated(workflow)) {
@@ -234,33 +253,27 @@ export function PlaygroundView() {
         description: 'Failed to start conversation',
         variant: 'destructive',
       })
-    } finally {
-      console.groupEnd()
     }
   }
 
   const sendMessage = (content: string) => {
-    console.group('📨 PlaygroundView.sendMessage')
-    console.log('Content:', content)
+    console.log('📨 PlaygroundView.sendMessage', { content })
     
     if (!content.trim()) {
       console.warn('❌ Empty content, returning')
-      console.groupEnd()
       return
     }
     
     // Track user message locally (since hook only gives us agent messages)
-    console.log('📝 Tracking user message locally at index:', wsMessages.length)
+    console.log('📝 Tracking user message', { index: wsMessages.length })
     setLocalUserMessages(prev => ({
       ...prev,
       [wsMessages.length]: content
     }))
     
     // Send message via WebSocket
-    console.log('🔌 Sending message via WebSocket')
     wsSendMessage(content)
     setInputMessage('')
-    console.groupEnd()
   }
 
   const handleInputKeyPress = (e: React.KeyboardEvent) => {
@@ -344,9 +357,10 @@ export function PlaygroundView() {
         scenario={selectedScenarioObj}
         trustLevel={trustLevel}
         onSendMessage={async (message) => {
-          console.group('💬 MerchantInitiatedView.onSendMessage')
-          console.log('Message:', message)
-          console.log('conversationStarted:', conversationStarted)
+          console.log('💬 MerchantInitiatedView.onSendMessage', {
+            message,
+            conversationStarted
+          })
           
           // For merchant-initiated, we need to start the conversation first
           if (!conversationStarted) {
@@ -368,7 +382,6 @@ export function PlaygroundView() {
             console.log('✅ Conversation already started, sending message directly')
             sendMessage(message)
           }
-          console.groupEnd()
         }}
         disabled={loading}
       />

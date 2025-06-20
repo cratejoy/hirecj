@@ -27,6 +27,7 @@ export function usePlaygroundChat() {
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<NodeJS.Timeout>();
   const reconnectAttempts = useRef(0);
+  const pingInterval = useRef<NodeJS.Timeout>();
   
   // Queue for messages sent before conversation starts
   const messageQueue = useRef<string[]>([]);
@@ -63,92 +64,95 @@ export function usePlaygroundChat() {
     return `${protocol}//${host}`;
   }, []);
   
+  // Track if component is mounted
+  const mountedRef = useRef(true);
+  
   // Connection management
   const connect = useCallback(() => {
+    if (!mountedRef.current) {
+      console.log('🚫 Component unmounted, skipping connection');
+      return;
+    }
+    
     const connectTime = new Date().toISOString();
-    console.group('🔌 usePlaygroundChat.connect');
-    console.log('Timestamp:', connectTime);
-    console.log('Current WebSocket state:', ws.current?.readyState);
-    console.log('Connection attempt #:', reconnectAttempts.current + 1);
+    console.log('🔌 usePlaygroundChat.connect', {
+      timestamp: connectTime,
+      currentState: ws.current?.readyState,
+      attemptNumber: reconnectAttempts.current + 1
+    });
     
     if (ws.current?.readyState === WebSocket.OPEN) {
       console.log('✅ Already connected, returning');
-      console.groupEnd();
       return;
     }
     
     const wsUrl = `${WS_BASE_URL}/ws/playground`;
-    console.log('WebSocket URL:', wsUrl);
-    console.log('Full page URL:', window.location.href);
-    console.log('Browser:', navigator.userAgent);
+    console.log('📡 Creating WebSocket', {
+      url: wsUrl,
+      pageUrl: window.location.href
+    });
     
     // Track connection start time
     const connectionStartTime = Date.now();
     
     try {
       ws.current = new WebSocket(wsUrl);
-      console.log('📡 WebSocket created at:', new Date().toISOString());
     } catch (error) {
       console.error('❌ Failed to create WebSocket:', error);
-      console.groupEnd();
       return;
     }
     
     ws.current.onopen = () => {
       const connectionDuration = Date.now() - connectionStartTime;
-      console.group('✅ WebSocket connected successfully');
-      console.log('Connection established at:', new Date().toISOString());
-      console.log('Connection took:', connectionDuration, 'ms');
-      console.log('Reconnect attempts before success:', reconnectAttempts.current);
-      console.groupEnd();
+      console.log('✅ WebSocket connected', {
+        timestamp: new Date().toISOString(),
+        duration: `${connectionDuration}ms`,
+        reconnectAttempts: reconnectAttempts.current
+      });
       
       setIsConnected(true);
       clearTimeout(reconnectTimeout.current);
       reconnectAttempts.current = 0; // Reset reconnect attempts on successful connection
-      console.groupEnd();
+      
+      // Start ping interval to keep connection alive
+      clearInterval(pingInterval.current);
+      pingInterval.current = setInterval(() => {
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+          // Send a ping message every 30 seconds
+          ws.current.send(JSON.stringify({ type: 'ping' }));
+          console.log('🎱 Sent ping to keep connection alive');
+        }
+      }, 30000); // 30 seconds
     };
     
     ws.current.onerror = (error) => {
-      console.error('❌ WebSocket error:', error);
-      console.error('  Type:', error.type);
-      console.error('  Target:', error.target);
-      if (error.target) {
-        console.error('  URL:', (error.target as WebSocket).url);
-        console.error('  ReadyState:', (error.target as WebSocket).readyState);
-      }
+      console.error('❌ WebSocket error', {
+        type: error.type,
+        url: error.target ? (error.target as WebSocket).url : 'unknown',
+        readyState: error.target ? (error.target as WebSocket).readyState : 'unknown'
+      });
     };
     
     ws.current.onclose = (event) => {
       const closeTime = new Date().toISOString();
       const connectionDuration = connectionStartTime ? Date.now() - connectionStartTime : 0;
       
-      console.group(`🔒 WebSocket closed`);
-      console.log('Close time:', closeTime);
-      console.log('Connection duration:', connectionDuration, 'ms');
-      console.log('Close code:', event.code);
-      console.log('Close reason:', event.reason || '(no reason provided)');
-      console.log('Was clean:', event.wasClean);
-      console.log('Messages sent before close:', messagesSent.current);
-      console.log('Messages received before close:', messagesReceived.current);
+      const closeReasons: {[key: number]: string} = {
+        1000: 'Normal closure',
+        1001: 'Going away',
+        1006: 'Abnormal closure',
+        1011: 'Server error'
+      };
       
-      // Log close code interpretation
-      switch (event.code) {
-        case 1000:
-          console.log('📝 Normal closure - connection completed successfully');
-          break;
-        case 1001:
-          console.log('📝 Going away - server is shutting down or browser navigated away');
-          break;
-        case 1006:
-          console.log('⚠️  Abnormal closure - connection lost unexpectedly');
-          break;
-        case 1011:
-          console.log('❌ Server error - server rejected connection');
-          break;
-        default:
-          console.log('❓ Unexpected close code');
-      }
-      console.groupEnd();
+      console.log('🔒 WebSocket closed', {
+        timestamp: closeTime,
+        duration: `${connectionDuration}ms`,
+        code: event.code,
+        reason: event.reason || closeReasons[event.code] || 'Unknown',
+        wasClean: event.wasClean,
+        messagesSent: messagesSent.current,
+        messagesReceived: messagesReceived.current
+      });
       
       // Reset message counters
       messagesSent.current = 0;
@@ -158,6 +162,7 @@ export function usePlaygroundChat() {
       setConversationStarted(false);
       conversationStartedRef.current = false;  // Reset ref
       clearTimeout(reconnectTimeout.current);
+      clearInterval(pingInterval.current); // Clear ping interval
       
       // Clear any pending conversation start promises
       if (conversationStartResolver.current) {
@@ -168,25 +173,36 @@ export function usePlaygroundChat() {
       // Clear message queue
       messageQueue.current = [];
       
-      // Reconnect with exponential backoff
-      reconnectAttempts.current++;
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
-      console.log(`⏳ Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
-      reconnectTimeout.current = setTimeout(() => {
-        connect();
-      }, delay);
+      // Reconnect with exponential backoff (only if still mounted)
+      if (mountedRef.current) {
+        reconnectAttempts.current++;
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current - 1), 30000);
+        console.log(`⏳ Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
+        reconnectTimeout.current = setTimeout(() => {
+          if (mountedRef.current) {
+            connect();
+          }
+        }, delay);
+      }
     };
     
     ws.current.onmessage = (event) => {
-      console.log('📨 Raw WebSocket message:', event.data);
+      messagesReceived.current++;
       const msg: PlaygroundOutgoingMessage = JSON.parse(event.data);
       
-      console.group('📥 WebSocket message received');
-      console.log('Type:', msg.type);
-      console.log('Size:', event.data.length, 'bytes');
-      console.log('Full message:', msg);
+      console.log('📥 WebSocket message', {
+        type: msg.type,
+        size: `${event.data.length} bytes`,
+        messageNumber: messagesReceived.current,
+        data: msg
+      });
       
       switch (msg.type) {
+        case 'pong':
+          // Ignore pong responses
+          console.log('🎱 Received pong');
+          break;
+          
         case 'conversation_started':
           console.log('🎉 Conversation started!');
           setConversationStarted(true);
@@ -358,8 +374,7 @@ export function usePlaygroundChat() {
     if (!conversationStartedRef.current) {
       console.log('⏳ Conversation not started yet, queueing message');
       messageQueue.current.push(text);
-      console.log('📬 Message queue now has', messageQueue.current.length, 'messages');
-      console.groupEnd();
+      console.log('📬 Message queued', { queueLength: messageQueue.current.length });
       return;
     }
     
@@ -475,15 +490,22 @@ export function usePlaygroundChat() {
   // Lifecycle management
   useEffect(() => {
     console.log('🔄 usePlaygroundChat useEffect running');
+    mountedRef.current = true;
     connect();
     
     return () => {
       console.log('🧹 usePlaygroundChat cleanup running');
+      mountedRef.current = false;
       clearTimeout(reconnectTimeout.current);
-      if (ws.current) {
+      clearInterval(pingInterval.current);
+      
+      // Only close if WebSocket is actually connected (not connecting)
+      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
         console.log('🔌 Closing WebSocket in cleanup, state:', ws.current.readyState);
-        ws.current.close();
+        ws.current.close(1000, 'Component unmounting');
       }
+      // Clear the reference regardless
+      ws.current = null;
     };
   }, []); // Empty deps - only run once on mount
   
