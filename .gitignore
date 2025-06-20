@@ -164,6 +164,11 @@ third-party/LightRAG/.git/
 third-party/*/venv/
 third-party/*/node_modules/
 
+# Evaluation results and runs
+hirecj_evals/results/runs/
+hirecj_evals/conversations/
+*.hirecj_evals_history.json
+
 .ngrok.yml
 .aider*
 ngrok.yml.blake

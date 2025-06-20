@@ -300,81 +300,91 @@ class WorkflowComplianceEval(CJEval):
 ## Progress Summary
 
 ### Completed ✅
-- **Phase 1: Conversation Capture Infrastructure**
-  - Created TypeScript types for conversation capture
-  - Implemented useConversationCapture React hook
-  - Built backend capture endpoint with file-based storage
-  - Tested capture functionality with test script
+- **Phase 1: Conversation Capture Infrastructure** (95% Complete)
+  - ✅ Created TypeScript types for conversation capture
+  - ✅ Implemented useConversationCapture React hook  
+  - ✅ Built conversation capture endpoint in agents service
+  - ✅ Implemented file-based storage with date organization
+  - 🚧 Need proxy endpoint in editor-backend for complete integration
   
 - **Phase 2: Eval Framework Core**
-  - Built base evaluation classes (ExactMatch, FuzzyMatch, Includes, ModelGraded)
-  - Created YAML-based registry system with inheritance
-  - Implemented parallel eval runner
-  - Built HireCJ-specific evaluators (ToolSelectionAccuracy, ResponseQuality, etc.)
-  - Created CLI tool for running evaluations
-  - Tested framework with basic test dataset
+  - ✅ Built base evaluation classes (ExactMatch, FuzzyMatch, Includes, ModelGraded)
+  - ✅ Created YAML-based registry system with inheritance
+  - ✅ Implemented parallel eval runner
+  - ✅ Built HireCJ-specific evaluators (ToolSelectionAccuracy, ResponseQuality, etc.)
+  - ✅ Created CLI tool for running evaluations
+  - ✅ Added colorful number-driven CLI interface
+  - ✅ Implemented conversion tool for captured conversations to JSONL format
+  - ✅ Created comprehensive test datasets
+  - ✅ Added privacy scrubbing utility
 
 ### In Progress 🚧
-- Conversion tool for captured conversations to JSONL format
-- Comprehensive test datasets
+- Complete conversation capture integration (editor-backend proxy)
+- Capture real conversations from playground for testing
 
 ### Next Steps 📋
 - Phase 3: Editor Integration (Eval Designer View, Batch Testing, Results Dashboard)
 - Phase 4: Advanced Features (Continuous Evaluation, Smart Test Generation)
 - Production model-graded evaluations with GPT-4
-- Privacy scrubbing utility
 
 ## Implementation Phases
 
-### Phase 1: Conversation Capture Infrastructure ✅ COMPLETED
+### Phase 1: Conversation Capture Infrastructure ✅ 95% COMPLETED
 **Goal**: Reliably capture all conversation data to structured file system
 
-1. **Enhanced Message Recording**
-   ```typescript
-   // Extend usePlaygroundChat hook
-   const captureConversation = async () => {
-     const conversation = {
-       id: generateConversationId(),
-       context: getCurrentContext(),
-       prompts: await fetchActivePrompts(),
-       messages: messages.map(enrichMessageData)
-     };
-     
-     // Send to backend for file storage
-     await api.captureConversation(conversation, 'playground');
-     return conversation;
-   };
-   ```
+1. **Enhanced Message Recording** ✅
+   - Implemented `useConversationCapture` hook in editor frontend
+   - Tracks full conversation context including thinking states
+   - Captures tool calls and grounding queries
+   - "Export for Eval" button added to PlaygroundView
 
-2. **Backend Storage API**
+2. **Backend Storage API** ✅ (Needs Integration)
+   
+   **Current Architecture:**
+   ```
+   Editor Frontend → Editor-Backend (proxy) → Agents Service (storage)
+         ↓                    ↓                        ↓
+   /api/v1/conversations → Forward request → /api/v1/conversations/capture
+                                                      ↓
+                                            hirecj_evals/conversations/
+                                                  playground/
+                                                    2024-06-20/
+                                                      conv_abc123.json
+   ```
+   
+   **Implementation Status:**
+   - ✅ Capture endpoint exists in agents service at `/api/v1/conversations/capture`
+   - ✅ File-based storage with date organization implemented
+   - ✅ All models and validation in place
+   - 🚧 Need proxy endpoint in editor-backend to complete the flow
+   
    ```python
-   # backend/app/api/v1/conversations/capture.py
+   # agents/app/api/routes/conversations.py - IMPLEMENTED
    @router.post("/capture")
-   async def capture_conversation(
-       conversation: ConversationCapture,
-       source: Literal["playground", "production", "synthetic"] = "playground"
-   ):
-       # Create date-based directory structure
-       date_path = datetime.now().strftime("%Y-%m-%d")
-       dir_path = f"hirecj_evals/conversations/{source}/{date_path}"
-       os.makedirs(dir_path, exist_ok=True)
-       
-       # Write conversation as formatted JSON
-       file_path = f"{dir_path}/{conversation.id}.json"
-       with open(file_path, 'w') as f:
-           json.dump(conversation.dict(), f, indent=2, default=str)
-       
-       # Log capture for tracking
-       logger.info(f"Captured conversation {conversation.id} to {file_path}")
-       
-       return {"id": conversation.id, "path": file_path}
+   async def capture_conversation(request: CaptureRequest):
+       """Capture a conversation for evaluation purposes."""
+       # Creates: hirecj_evals/conversations/{source}/{date}/{id}.json
+   ```
+   
+   **Next Step - Editor-Backend Proxy:**
+   ```python
+   # editor-backend/app/api/routes/conversations.py - TO BE IMPLEMENTED
+   @router.post("/capture") 
+   async def proxy_capture(request: Request):
+       """Forward capture requests to agents service."""
+       async with httpx.AsyncClient() as client:
+           response = await client.post(
+               f"{AGENTS_URL}/api/v1/conversations/capture",
+               json=await request.json()
+           )
+           return response.json()
    ```
 
-3. **Export & Conversion Tools**
-   - CLI tool to convert conversations to JSONL eval format
-   - Batch processing for date ranges
-   - Privacy scrubbing for production data
-   - Git integration (.gitignore for sensitive paths)
+3. **Export & Conversion Tools** ✅
+   - ✅ CLI tool to convert conversations to JSONL eval format (`scripts/convert_conversations.py`)
+   - ✅ Batch processing for date ranges
+   - ✅ Privacy scrubbing for production data (`scripts/scrub_conversations.py`)
+   - ✅ Git integration (.gitignore for sensitive paths)
 
 ### Phase 2: Eval Framework Core ✅ COMPLETED
 **Goal**: Build the evaluation engine
