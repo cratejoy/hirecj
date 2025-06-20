@@ -346,25 +346,32 @@ async def capture_conversation(request: CaptureRequest):
     conversation = request.conversation
     source = request.source
     
+    # Get project root directory
+    # Navigate up from agents/app/api/routes/conversations.py to project root
+    project_root = Path(__file__).parent.parent.parent.parent.parent
+    
     # Create date-based directory structure
     date_path = datetime.now().strftime("%Y-%m-%d")
-    dir_path = f"hirecj_evals/conversations/{source}/{date_path}"
+    dir_path = project_root / "hirecj_evals" / "conversations" / source / date_path
     
     try:
         # Ensure directory exists
-        os.makedirs(dir_path, exist_ok=True)
+        dir_path.mkdir(parents=True, exist_ok=True)
         
         # Write conversation as formatted JSON
-        file_path = f"{dir_path}/{conversation.id}.json"
+        file_path = dir_path / f"{conversation.id}.json"
         with open(file_path, 'w') as f:
             json.dump(conversation.dict(), f, indent=2, default=str)
         
         # Log capture for tracking
         logger.info(f"Captured conversation {conversation.id} to {file_path}")
         
+        # Return relative path for display
+        relative_path = file_path.relative_to(project_root)
+        
         return {
             "id": conversation.id, 
-            "path": file_path,
+            "path": str(relative_path),
             "message": "Conversation captured successfully"
         }
         

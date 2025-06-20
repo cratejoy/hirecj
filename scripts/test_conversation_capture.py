@@ -73,7 +73,7 @@ test_conversation = {
 # Send request to API
 try:
     response = requests.post(
-        "http://localhost:8000/api/v1/conversations/capture",
+        "http://localhost:8100/api/v1/conversations/capture",
         json=test_conversation,
         headers={"Content-Type": "application/json"}
     )
