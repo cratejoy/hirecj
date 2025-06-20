@@ -36,7 +36,7 @@ ad_hoc_support.response_time:
   parent: base_eval
   description: "Ensures ad-hoc support responses are timely"
   
-  class: evals.performance.ResponseTime
+  class: evals.base.ExactMatch
   
   args:
     # Maximum acceptable latency in ms
@@ -56,7 +56,7 @@ ad_hoc_support.follow_up:
   parent: model_graded
   description: "Evaluates quality of follow-up offers in ad-hoc support"
   
-  class: evals.cj.FollowUpQuality
+  class: evals.cj_evals.ResponseQuality
   
   args:
     grading_prompt: |
