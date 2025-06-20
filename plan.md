@@ -300,12 +300,12 @@ class WorkflowComplianceEval(CJEval):
 ## Progress Summary
 
 ### Completed ✅
-- **Phase 1: Conversation Capture Infrastructure** (95% Complete)
+- **Phase 1: Conversation Capture Infrastructure** ✅ COMPLETED
   - ✅ Created TypeScript types for conversation capture
   - ✅ Implemented useConversationCapture React hook  
   - ✅ Built conversation capture endpoint in agents service
   - ✅ Implemented file-based storage with date organization
-  - 🚧 Need proxy endpoint in editor-backend for complete integration
+  - ✅ Created proxy endpoint in editor-backend for complete integration
   
 - **Phase 2: Eval Framework Core**
   - ✅ Built base evaluation classes (ExactMatch, FuzzyMatch, Includes, ModelGraded)
@@ -329,7 +329,7 @@ class WorkflowComplianceEval(CJEval):
 
 ## Implementation Phases
 
-### Phase 1: Conversation Capture Infrastructure ✅ 95% COMPLETED
+### Phase 1: Conversation Capture Infrastructure ✅ COMPLETED
 **Goal**: Reliably capture all conversation data to structured file system
 
 1. **Enhanced Message Recording** ✅
@@ -338,7 +338,7 @@ class WorkflowComplianceEval(CJEval):
    - Captures tool calls and grounding queries
    - "Export for Eval" button added to PlaygroundView
 
-2. **Backend Storage API** ✅ (Needs Integration)
+2. **Backend Storage API** ✅ COMPLETED
    
    **Current Architecture:**
    ```
@@ -356,8 +356,9 @@ class WorkflowComplianceEval(CJEval):
    - ✅ Capture endpoint exists in agents service at `/api/v1/conversations/capture`
    - ✅ File-based storage with date organization implemented
    - ✅ All models and validation in place
-   - 🚧 Need proxy endpoint in editor-backend to complete the flow
+   - ✅ Proxy endpoint in editor-backend implemented and connected
    
+   **Implementation Details:**
    ```python
    # agents/app/api/routes/conversations.py - IMPLEMENTED
    @router.post("/capture")
@@ -366,18 +367,12 @@ class WorkflowComplianceEval(CJEval):
        # Creates: hirecj_evals/conversations/{source}/{date}/{id}.json
    ```
    
-   **Next Step - Editor-Backend Proxy:**
    ```python
-   # editor-backend/app/api/routes/conversations.py - TO BE IMPLEMENTED
+   # editor-backend/app/api/routes/conversations.py - IMPLEMENTED
    @router.post("/capture") 
    async def proxy_capture(request: Request):
        """Forward capture requests to agents service."""
-       async with httpx.AsyncClient() as client:
-           response = await client.post(
-               f"{AGENTS_URL}/api/v1/conversations/capture",
-               json=await request.json()
-           )
-           return response.json()
+       # Proxies to agents service with error handling and logging
    ```
 
 3. **Export & Conversion Tools** ✅
