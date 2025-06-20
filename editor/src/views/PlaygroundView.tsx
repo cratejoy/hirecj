@@ -94,6 +94,14 @@ export function PlaygroundView() {
   const [showMessageDetails, setShowMessageDetails] = useState(false)
   const [selectedMessageId, setSelectedMessageId] = useState<string | undefined>()
   
+  // Prompt state for conversation capture
+  const [cjPrompt, setCjPrompt] = useState<string>('')
+  const [cjPromptVersion, setCjPromptVersion] = useState<string>('')
+  const [cjPromptFile, setCjPromptFile] = useState<string>('')
+  const [workflowPrompt, setWorkflowPrompt] = useState<string>('')
+  const [workflowPromptFile, setWorkflowPromptFile] = useState<string>('')
+  const [toolDefinitions, setToolDefinitions] = useState<any[]>([])
+  
   const { toast } = useToast()
 
   // Load initial data
@@ -101,6 +109,7 @@ export function PlaygroundView() {
     loadWorkflows()
     loadPersonas()
     loadScenarios()
+    loadCjPrompt()
   }, [])
 
   // Track previous workflow to detect changes
@@ -183,6 +192,36 @@ export function PlaygroundView() {
     setScenarios(mockScenarios)
     setSelectedScenario('steady')
   }
+  
+  const loadCjPrompt = async () => {
+    try {
+      // First get the list of versions to find the latest
+      const versionsResponse = await fetch(`${API_BASE}/prompts`)
+      const versionsData = await versionsResponse.json()
+      
+      if (versionsData.versions && versionsData.versions.length > 0) {
+        const latestVersion = versionsData.versions[0] // Already sorted by version
+        setCjPromptVersion(latestVersion)
+        
+        // Set the CJ prompt file path
+        const promptFile = `prompts/cj/versions/${latestVersion}.yaml`
+        setCjPromptFile(promptFile)
+        
+        // Now fetch the actual prompt content
+        const promptResponse = await fetch(`${API_BASE}/prompts/${latestVersion}`)
+        const promptData = await promptResponse.json()
+        setCjPrompt(promptData.prompt || '')
+        
+        console.log(`Loaded CJ prompt version ${latestVersion} from ${promptFile} (${promptData.prompt?.length || 0} chars)`)
+      }
+    } catch (error) {
+      console.error('Failed to load CJ prompt:', error)
+      // Don't show error toast, just use empty prompt for capture
+      setCjPrompt('')
+      setCjPromptVersion('')
+      setCjPromptFile('')
+    }
+  }
 
   const loadWorkflowYaml = async (workflowId: string) => {
     try {
@@ -191,6 +230,33 @@ export function PlaygroundView() {
       const data = await response.json()
       const parsed = parseWorkflow(data.content)
       setWorkflow(parsed)
+      
+      // Set the workflow file path
+      const workflowFile = `prompts/workflows/${workflowId}.yaml`
+      setWorkflowPromptFile(workflowFile)
+      
+      // Extract workflow prompt from the parsed workflow
+      if (parsed.workflow) {
+        setWorkflowPrompt(parsed.workflow)
+      } else {
+        setWorkflowPrompt(parsed.description || '')
+      }
+      
+      // Extract tool definitions if available
+      if (parsed.available_tools) {
+        // Convert tool names to tool definitions (in a real implementation, 
+        // we'd fetch full tool definitions from the API)
+        const toolDefs = parsed.available_tools.map((toolName: string) => ({
+          name: toolName,
+          description: `Tool: ${toolName}`,
+          parameters: {}
+        }))
+        setToolDefinitions(toolDefs)
+      } else {
+        setToolDefinitions([])
+      }
+      
+      console.log(`Loaded workflow ${workflowId} from ${workflowFile}`)
     } catch (error) {
       toast({
         title: 'Error',
@@ -271,7 +337,10 @@ export function PlaygroundView() {
     
     // Start message capture if available
     if (canCapture) {
+      console.log('🎯 Starting message capture for turn', wsMessages.length + 1)
       conversationCapture.startMessage(content)
+      setIsCapturingMessage(true)
+      capturingMessageIndex.current = wsMessages.length
     }
     
     // Track user message locally (since hook only gives us agent messages)
@@ -348,48 +417,120 @@ export function PlaygroundView() {
         traits: ['data-driven'] // Default traits
       },
       scenario: selectedScenarioObj,
-      trustLevel
+      trustLevel,
+      cjPrompt,
+      cjPromptVersion,
+      cjPromptFile,
+      workflowPrompt,
+      workflowPromptFile,
+      toolDefinitions
     } : {
       // Provide default props when data isn't ready
       workflow: { name: '', description: '' } as WorkflowConfig,
       persona: { id: '', name: '', business: '', role: '', industry: '', communicationStyle: [], traits: [] },
       scenario: { id: '', name: '', description: '' },
-      trustLevel: 3
+      trustLevel: 3,
+      cjPrompt: '',
+      cjPromptVersion: '',
+      cjPromptFile: '',
+      workflowPrompt: '',
+      workflowPromptFile: '',
+      toolDefinitions: []
     }
   )
 
   // Only use conversation capture when we have valid data
   const canCapture = workflow && selectedPersonaObj && selectedScenarioObj
 
+  // Track conversation capture state
+  const [isCapturingMessage, setIsCapturingMessage] = useState(false)
+  const capturingMessageIndex = useRef<number>(-1)
+  
   // Track previous message count to detect new messages
   const prevMessageCountRef = useRef(0)
   
   // Capture agent messages when they arrive
   useEffect(() => {
-    if (!canCapture || wsMessages.length === 0) return
+    if (!canCapture || !isCapturingMessage || wsMessages.length === 0) return
     
-    // Check if we have a new message
-    if (wsMessages.length > prevMessageCountRef.current) {
-      const latestMessage = wsMessages[wsMessages.length - 1]
+    // Check if we have a new message at the expected index
+    const expectedIndex = capturingMessageIndex.current
+    if (wsMessages.length > expectedIndex && expectedIndex >= 0) {
+      const targetMessage = wsMessages[expectedIndex]
       
-      // Capture thinking state if present
-      if (thinking) {
-        conversationCapture.captureThinking(thinking.data.status || 'thinking...')
+      console.log('🔍 Processing agent message for capture', {
+        expectedIndex,
+        messageContent: targetMessage.data.content.substring(0, 50) + '...',
+        isThinking: targetMessage.data.content.includes('thinking...')
+      })
+      
+      // Update thinking state if present
+      if (thinking && thinking.data.status) {
+        console.log('💭 Capturing thinking state:', thinking.data.status)
+        conversationCapture.captureThinking(thinking.data.status)
       }
       
-      // Capture the agent's response
-      if (!latestMessage.data.content.includes('thinking...')) {
-        conversationCapture.completeMessage(latestMessage.data.content, {
-          // Token metrics would come from the actual API response
+      // Check if this is the final response (not a thinking message)
+      if (!targetMessage.data.content.includes('thinking...') && 
+          targetMessage.data.content !== 'CJ is thinking...') {
+        console.log('✅ Completing message capture with response')
+        
+        // Request message details if we have a message_id
+        if (targetMessage.data.message_id) {
+          console.log('📊 Requesting message details for:', targetMessage.data.message_id)
+          requestMessageDetails(targetMessage.data.message_id)
+            .then(debugData => {
+              console.log('📊 Received message details:', {
+                hasThinking: !!debugData?.response?.thinking_content,
+                intermediateCount: debugData?.response?.choices?.length || 0,
+                groundingCount: debugData?.grounding?.length || 0
+              })
+              conversationCapture.completeMessage(targetMessage.data.content, null, debugData)
+            })
+            .catch(err => {
+              console.error('Failed to get message details:', err)
+              // Complete without debug data if request fails
+              conversationCapture.completeMessage(targetMessage.data.content)
+            })
+            .finally(() => {
+              // Reset capture state
+              setIsCapturingMessage(false)
+              capturingMessageIndex.current = -1
+            })
+        } else {
+          // No message_id, complete without debug data
+          conversationCapture.completeMessage(targetMessage.data.content)
+          // Reset capture state
+          setIsCapturingMessage(false)
+          capturingMessageIndex.current = -1
+        }
+      }
+    }
+  }, [wsMessages, thinking, conversationCapture, canCapture, isCapturingMessage, requestMessageDetails])
+  
+  // Handle agent-initiated workflows
+  useEffect(() => {
+    // For agent-initiated workflows, capture the first agent message
+    if (workflow && isAgentInitiated(workflow) && canCapture && 
+        wsMessages.length === 1 && !isCapturingMessage && 
+        capturingMessageIndex.current === -1) {
+      const firstMessage = wsMessages[0]
+      if (!firstMessage.data.content.includes('thinking...')) {
+        console.log('🤖 Capturing agent-initiated first message')
+        // For agent-initiated, we need to create a synthetic user message
+        const initialPrompt = localUserMessages[0] || 
+          (workflow.behavior?.initial_action?.message) || 
+          'Start workflow'
+        
+        conversationCapture.startMessage(initialPrompt)
+        conversationCapture.completeMessage(firstMessage.data.content, {
           prompt: 0,
           completion: 0,
           thinking: 0
         })
       }
-      
-      prevMessageCountRef.current = wsMessages.length
     }
-  }, [wsMessages, thinking, conversationCapture, canCapture])
+  }, [workflow, canCapture, wsMessages, isCapturingMessage, conversationCapture, localUserMessages])
   
   // Handle export conversation
   const handleExportConversation = async () => {
@@ -402,11 +543,62 @@ export function PlaygroundView() {
       return
     }
     
+    // If we're still capturing a message, complete it first
+    if (isCapturingMessage) {
+      console.log('⚠️ Still capturing a message, completing it before export')
+      const currentIndex = capturingMessageIndex.current
+      if (currentIndex >= 0 && wsMessages[currentIndex]) {
+        const message = wsMessages[currentIndex]
+        if (!message.data.content.includes('thinking...')) {
+          conversationCapture.completeMessage(message.data.content, {
+            prompt: 0,
+            completion: 0,
+            thinking: 0
+          })
+        }
+      }
+      setIsCapturingMessage(false)
+      capturingMessageIndex.current = -1
+    }
+    
     try {
+      console.log('📤 Exporting conversation...')
       const conversation = await conversationCapture.captureConversation('playground')
+      console.log('📊 Exported conversation data:', {
+        id: conversation.id,
+        messageCount: conversation.messages.length,
+        messages: conversation.messages.map(m => ({
+          turn: m.turn,
+          userInput: m.user_input.substring(0, 50) + '...',
+          agentResponse: m.agent_processing.final_response.substring(0, 50) + '...'
+        }))
+      })
+      // Get the full path from the current directory
+      const fullPath = conversation.filePath 
+        ? `/Users/aelaguiz/workspace/hirecj/${conversation.filePath}`
+        : `hirecj_evals/conversations/playground/${new Date().toISOString().split('T')[0]}/${conversation.id}.json`
+      
+      // Create a clickable toast that copies the path
       toast({
-        title: 'Success',
-        description: `Conversation exported: ${conversation.id}`,
+        title: 'Conversation Exported',
+        description: (
+          <div 
+            className="cursor-pointer hover:underline break-all"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(fullPath)
+                toast({
+                  title: 'Copied!',
+                  description: 'Path copied to clipboard',
+                })
+              } catch (err) {
+                console.error('Failed to copy:', err)
+              }
+            }}
+          >
+            {fullPath}
+          </div>
+        ),
       })
     } catch (error) {
       console.error('Failed to export conversation:', error)

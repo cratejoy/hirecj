@@ -317,10 +317,10 @@ class WorkflowComplianceEval(CJEval):
   - ✅ Implemented conversion tool for captured conversations to JSONL format
   - ✅ Created comprehensive test datasets
   - ✅ Added privacy scrubbing utility
+  - ✅ Fixed conversation capture to include full agent processing details (thinking, intermediate responses, tool calls, grounding queries)
 
 ### In Progress 🚧
-- Complete conversation capture integration (editor-backend proxy)
-- Capture real conversations from playground for testing
+- Phase 3: Editor Integration - Eval Designer View
 
 ### Next Steps 📋
 - Phase 3: Editor Integration (Eval Designer View, Batch Testing, Results Dashboard)

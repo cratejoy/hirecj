@@ -111,9 +111,10 @@ export default defineConfig(({ mode }) => {
             proxy.on('open', (proxySocket) => {
               console.log('[WS Proxy] ✅ WebSocket opened');
               
-              proxySocket.on('data', (data) => {
-                console.log('[WS Proxy] 📤 Data to backend:', data.toString().substring(0, 200));
-              });
+              // Removed data logging to avoid terminal spam
+              // proxySocket.on('data', (data) => {
+              //   console.log('[WS Proxy] 📤 Data to backend:', data.toString().substring(0, 200));
+              // });
             });
             
             proxy.on('close', (res, socket, head) => {

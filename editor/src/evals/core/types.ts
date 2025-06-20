@@ -56,7 +56,9 @@ export interface ConversationCapture {
   // System prompts at time of execution
   prompts: {
     cj_prompt: string;
+    cj_prompt_file?: string;  // Path to CJ prompt file
     workflow_prompt: string;
+    workflow_prompt_file?: string;  // Path to workflow file
     tool_definitions: ToolDefinition[];
   };
   
@@ -84,6 +86,9 @@ export interface ConversationCapture {
       };
     };
   }>;
+  
+  // File path where conversation is saved (added by capture process)
+  filePath?: string;
 }
 
 // Export type for the capture source

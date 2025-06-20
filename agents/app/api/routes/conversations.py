@@ -321,7 +321,9 @@ class ConversationContext(BaseModel):
 class ConversationPrompts(BaseModel):
     """System prompts at time of execution."""
     cj_prompt: str
+    cj_prompt_file: Optional[str] = None  # Path to CJ prompt file
     workflow_prompt: str
+    workflow_prompt_file: Optional[str] = None  # Path to workflow file
     tool_definitions: List[ToolDefinition]
 
 

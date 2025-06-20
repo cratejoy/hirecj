@@ -16,6 +16,12 @@ interface UseConversationCaptureProps {
   trustLevel: number;
   model?: string;
   temperature?: number;
+  cjPrompt?: string;
+  cjPromptVersion?: string;
+  cjPromptFile?: string;
+  workflowPrompt?: string;
+  workflowPromptFile?: string;
+  toolDefinitions?: any[];
 }
 
 interface CapturedMessage {
@@ -39,7 +45,20 @@ interface CapturedMessage {
 }
 
 export function useConversationCapture(props: UseConversationCaptureProps) {
-  const { workflow, persona, scenario, trustLevel, model = 'gpt-4-turbo', temperature = 0.7 } = props;
+  const { 
+    workflow, 
+    persona, 
+    scenario, 
+    trustLevel, 
+    model = 'gpt-4-turbo', 
+    temperature = 0.7,
+    cjPrompt,
+    cjPromptVersion,
+    cjPromptFile,
+    workflowPrompt,
+    workflowPromptFile,
+    toolDefinitions
+  } = props;
   
   // Store conversation data as it's being built
   const conversationData = useRef<{
@@ -60,6 +79,8 @@ export function useConversationCapture(props: UseConversationCaptureProps) {
   const startMessage = useCallback((userInput: string) => {
     messageStartTime.current = Date.now();
     const turn = conversationData.current.messages.length + 1;
+    
+    console.log('[ConversationCapture] Starting message', { turn, userInput: userInput.substring(0, 50) + '...' });
     
     currentMessage.current = {
       turn,
@@ -104,37 +125,113 @@ export function useConversationCapture(props: UseConversationCaptureProps) {
   }, []);
   
   // Capture the final response and complete the message
-  const completeMessage = useCallback((finalResponse: string, tokenMetrics?: any) => {
-    if (!currentMessage.current.agent_processing) return;
+  const completeMessage = useCallback((finalResponse: string, tokenMetrics?: any, debugData?: any) => {
+    if (!currentMessage.current.agent_processing) {
+      console.warn('[ConversationCapture] No current message to complete');
+      return;
+    }
+    
+    console.log('[ConversationCapture] Completing message', { 
+      turn: currentMessage.current.turn,
+      response: finalResponse.substring(0, 50) + '...',
+      hasDebugData: !!debugData
+    });
     
     currentMessage.current.agent_processing.final_response = finalResponse;
+    
+    // Extract processing details from debug data if available
+    if (debugData) {
+      // Extract thinking content
+      if (debugData.response?.thinking_content) {
+        currentMessage.current.agent_processing.thinking = debugData.response.thinking_content;
+      } else if (debugData.thinking_content) {
+        currentMessage.current.agent_processing.thinking = debugData.thinking_content;
+      }
+      
+      // Extract intermediate responses
+      if (debugData.response?.choices) {
+        const intermediateResponses: string[] = [];
+        debugData.response.choices.forEach((choice: any) => {
+          if (choice.message?.content) {
+            intermediateResponses.push(choice.message.content);
+          }
+        });
+        currentMessage.current.agent_processing.intermediate_responses = intermediateResponses;
+        
+        // Extract tool calls
+        const toolCalls: any[] = [];
+        debugData.response.choices.forEach((choice: any) => {
+          if (choice.message?.tool_calls) {
+            choice.message.tool_calls.forEach((tc: any) => {
+              toolCalls.push({
+                tool: tc.function?.name || 'unknown',
+                args: JSON.parse(tc.function?.arguments || '{}'),
+                result: null, // Tool results not available in this data
+                error: null,
+                duration_ms: null
+              });
+            });
+          }
+        });
+        currentMessage.current.agent_processing.tool_calls = toolCalls;
+      }
+      
+      // Extract grounding queries
+      if (debugData.grounding && Array.isArray(debugData.grounding)) {
+        const groundingQueries = debugData.grounding.map((g: any) => ({
+          query: g.query || '',
+          response: g.results_preview || '',
+          sources: g.namespace ? [g.namespace] : []
+        }));
+        currentMessage.current.agent_processing.grounding_queries = groundingQueries;
+      }
+      
+      // Extract token metrics
+      if (debugData.response?.usage) {
+        const usage = debugData.response.usage;
+        currentMessage.current.metrics!.tokens = {
+          prompt: usage.prompt_tokens || 0,
+          completion: usage.completion_tokens || 0,
+          thinking: usage.completion_tokens_details?.reasoning_tokens || 0
+        };
+      }
+    }
     
     // Calculate latency
     if (currentMessage.current.metrics) {
       currentMessage.current.metrics.latency_ms = Date.now() - messageStartTime.current;
       
-      // Add token metrics if provided
+      // Override with token metrics if provided separately
       if (tokenMetrics) {
         currentMessage.current.metrics.tokens = {
-          prompt: tokenMetrics.prompt || 0,
-          completion: tokenMetrics.completion || 0,
-          thinking: tokenMetrics.thinking || 0
+          prompt: tokenMetrics.prompt || currentMessage.current.metrics.tokens.prompt || 0,
+          completion: tokenMetrics.completion || currentMessage.current.metrics.tokens.completion || 0,
+          thinking: tokenMetrics.thinking || currentMessage.current.metrics.tokens.thinking || 0
         };
       }
     }
     
     // Add completed message to conversation
     conversationData.current.messages.push(currentMessage.current as CapturedMessage);
+    console.log('[ConversationCapture] Message added. Total messages:', conversationData.current.messages.length);
     currentMessage.current = {};
   }, []);
   
   // Export the full conversation
   const captureConversation = useCallback(async (source: CaptureSource = 'playground'): Promise<ConversationCapture> => {
-    // Get current prompts (in a real implementation, these would come from the system)
+    console.log('[ConversationCapture] Exporting conversation', {
+      id: conversationData.current.id,
+      messageCount: conversationData.current.messages.length,
+      source
+    });
+    
+    // Use actual prompts passed to the hook
     const prompts = {
-      cj_prompt: 'You are CJ, an autonomous CX & Growth Officer...', // Placeholder
-      workflow_prompt: workflow.description || '',
-      tool_definitions: [] // Will be populated from actual tool definitions
+      cj_prompt: cjPrompt || 'CJ prompt not available',
+      cj_prompt_file: cjPromptFile,
+      workflow_prompt: workflowPrompt || workflow.description || '',
+      workflow_prompt_file: workflowPromptFile,
+      tool_definitions: toolDefinitions || []
     };
     
     const conversation: ConversationCapture = {
@@ -173,12 +270,16 @@ export function useConversationCapture(props: UseConversationCaptureProps) {
       const result = await response.json();
       console.log('Conversation captured:', result);
       
-      return conversation;
+      // Add the file path to the conversation object
+      return {
+        ...conversation,
+        filePath: result.path
+      };
     } catch (error) {
       console.error('Error capturing conversation:', error);
       throw error;
     }
-  }, [workflow, persona, scenario, trustLevel, model, temperature]);
+  }, [workflow, persona, scenario, trustLevel, model, temperature, cjPrompt, cjPromptFile, workflowPrompt, workflowPromptFile, toolDefinitions]);
   
   // Reset conversation capture
   const resetCapture = useCallback(() => {
