@@ -1,4 +1,6 @@
 import { PlaygroundOutgoingMessage } from '@/protocol';
+import { WEBSOCKET_CONFIG } from '@/constants/websocket';
+import { debug } from '@/utils/debug';
 
 type MessageHandler = (message: PlaygroundOutgoingMessage) => void;
 type ConnectionStateHandler = (state: ConnectionState) => void;
@@ -36,26 +38,30 @@ export class WebSocketManager {
   private isIntentionalClose = false;
   private wsUrl: string;
 
-  private readonly MAX_RECONNECT_ATTEMPTS = 10;
-  private readonly MAX_RECONNECT_DELAY = 30000; // 30 seconds
-  private readonly PING_INTERVAL = 15000; // 15 seconds
-  private readonly MESSAGE_QUEUE_MAX_AGE = 60000; // 1 minute
 
   private constructor() {
     // Compute WebSocket URL
     const backendUrl = import.meta.env.VITE_EDITOR_BACKEND_URL;
     
-    if (backendUrl && backendUrl !== '') {
-      const url = new URL(backendUrl);
-      const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-      this.wsUrl = `${wsProtocol}//${url.host}/ws/playground`;
-    } else {
+    try {
+      if (backendUrl && backendUrl !== '') {
+        const url = new URL(backendUrl);
+        const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        this.wsUrl = `${wsProtocol}//${url.host}/ws/playground`;
+      } else {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        this.wsUrl = `${protocol}//${host}/ws/playground`;
+      }
+    } catch (error) {
+      debug.error('❌ Invalid backend URL configuration:', backendUrl, error);
+      // Fallback to same-origin
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const host = window.location.host;
       this.wsUrl = `${protocol}//${host}/ws/playground`;
     }
 
-    console.log('🔧 WebSocketManager initialized with URL:', this.wsUrl);
+    debug.log('🔧 WebSocketManager initialized with URL:', this.wsUrl);
   }
 
   static getInstance(): WebSocketManager {
@@ -67,14 +73,14 @@ export class WebSocketManager {
 
   connect(): void {
     if (this.connectionState === 'connected' || this.connectionState === 'connecting') {
-      console.log('✅ WebSocket already ' + this.connectionState);
+      debug.log('✅ WebSocket already ' + this.connectionState);
       return;
     }
 
     this.isIntentionalClose = false;
     this.setConnectionState('connecting');
     
-    console.log('🔌 WebSocketManager.connect', {
+    debug.log('🔌 WebSocketManager.connect', {
       url: this.wsUrl,
       attemptNumber: this.reconnectAttempts + 1
     });
@@ -83,13 +89,13 @@ export class WebSocketManager {
       this.ws = new WebSocket(this.wsUrl);
       this.setupEventHandlers();
     } catch (error) {
-      console.error('❌ Failed to create WebSocket:', error);
+      debug.error('❌ Failed to create WebSocket:', error);
       this.handleConnectionFailure();
     }
   }
 
   disconnect(): void {
-    console.log('🔒 WebSocketManager.disconnect');
+    debug.log('🔒 WebSocketManager.disconnect');
     this.isIntentionalClose = true;
     this.cleanup();
   }
@@ -98,7 +104,7 @@ export class WebSocketManager {
     const message = typeof data === 'string' ? data : JSON.stringify(data);
     
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.log('⏳ WebSocket not ready, queueing message');
+      debug.log('⏳ WebSocket not ready, queueing message');
       this.messageQueue.push({
         data: message,
         timestamp: Date.now()
@@ -109,10 +115,10 @@ export class WebSocketManager {
 
     try {
       this.ws.send(message);
-      console.log('📤 Message sent:', message);
+      debug.log('📤 Message sent:', message);
       return true;
     } catch (error) {
-      console.error('❌ Failed to send message:', error);
+      debug.error('❌ Failed to send message:', error);
       return false;
     }
   }
@@ -141,7 +147,7 @@ export class WebSocketManager {
     if (!this.ws) return;
 
     this.ws.onopen = () => {
-      console.log('✅ WebSocket connected');
+      debug.log('✅ WebSocket connected');
       this.setConnectionState('connected');
       this.reconnectAttempts = 0;
       this.startPingInterval();
@@ -149,7 +155,7 @@ export class WebSocketManager {
     };
 
     this.ws.onclose = (event) => {
-      console.log('🔒 WebSocket closed', {
+      debug.log('🔒 WebSocket closed', {
         code: event.code,
         reason: event.reason,
         wasClean: event.wasClean
@@ -158,30 +164,30 @@ export class WebSocketManager {
       this.setConnectionState('disconnected');
       this.stopPingInterval();
 
-      if (!this.isIntentionalClose && this.reconnectAttempts < this.MAX_RECONNECT_ATTEMPTS) {
+      if (!this.isIntentionalClose && this.reconnectAttempts < WEBSOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS) {
         this.scheduleReconnect();
       }
     };
 
     this.ws.onerror = (error) => {
-      console.error('❌ WebSocket error:', error);
+      debug.error('❌ WebSocket error:', error);
     };
 
     this.ws.onmessage = (event) => {
       try {
         const message: PlaygroundOutgoingMessage = JSON.parse(event.data);
-        console.log('📥 WebSocket message:', message);
+        debug.log('📥 WebSocket message:', message);
         
         // Notify all subscribers
         this.messageHandlers.forEach(handler => {
           try {
             handler(message);
           } catch (error) {
-            console.error('Error in message handler:', error);
+            debug.error('Error in message handler:', error);
           }
         });
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
+        debug.error('Failed to parse WebSocket message:', error);
       }
     };
   }
@@ -193,7 +199,7 @@ export class WebSocketManager {
         try {
           handler(state);
         } catch (error) {
-          console.error('Error in connection state handler:', error);
+          debug.error('Error in connection state handler:', error);
         }
       });
     }
@@ -203,7 +209,7 @@ export class WebSocketManager {
     // Disabled client-side ping - server handles keepalive
     // The server sends pings and expects pong responses
     // which are handled in usePlaygroundChat
-    console.log('📌 Ping interval disabled - server handles keepalive');
+    debug.log('📌 Ping interval disabled - server handles keepalive');
   }
 
   private stopPingInterval(): void {
@@ -216,7 +222,7 @@ export class WebSocketManager {
   private flushMessageQueue(): void {
     if (this.messageQueue.length === 0) return;
 
-    console.log(`📤 Flushing ${this.messageQueue.length} queued messages`);
+    debug.log(`📤 Flushing ${this.messageQueue.length} queued messages`);
     const messages = [...this.messageQueue];
     this.messageQueue = [];
 
@@ -228,18 +234,18 @@ export class WebSocketManager {
   private cleanMessageQueue(): void {
     const now = Date.now();
     this.messageQueue = this.messageQueue.filter(
-      msg => now - msg.timestamp < this.MESSAGE_QUEUE_MAX_AGE
+      msg => now - msg.timestamp < WEBSOCKET_CONFIG.MESSAGE_QUEUE_MAX_AGE
     );
   }
 
   private scheduleReconnect(): void {
     this.reconnectAttempts++;
     const delay = Math.min(
-      1000 * Math.pow(2, this.reconnectAttempts - 1),
-      this.MAX_RECONNECT_DELAY
+      WEBSOCKET_CONFIG.INITIAL_RECONNECT_DELAY * Math.pow(2, this.reconnectAttempts - 1),
+      WEBSOCKET_CONFIG.MAX_RECONNECT_DELAY
     );
 
-    console.log(`⏳ Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    debug.log(`⏳ Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
     
     this.reconnectTimeout = setTimeout(() => {
       this.connect();
@@ -272,5 +278,9 @@ export class WebSocketManager {
     this.setConnectionState('disconnected');
     this.messageQueue = [];
     this.reconnectAttempts = 0;
+    
+    // Clear all handlers to prevent memory leaks
+    this.messageHandlers.clear();
+    this.connectionStateHandlers.clear();
   }
 }
