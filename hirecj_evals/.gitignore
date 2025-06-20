@@ -1,0 +1,25 @@
+# Ignore production conversations (may contain sensitive data)
+conversations/production/
+
+# Ignore temporary files
+*.tmp
+*.log
+*.swp
+*.bak
+
+# Ignore results that may contain sensitive data
+results/runs/*/production/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.sublime-*
