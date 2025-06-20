@@ -200,14 +200,10 @@ export class WebSocketManager {
   }
 
   private startPingInterval(): void {
-    this.stopPingInterval();
-    
-    this.pingInterval = setInterval(() => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.send({ type: 'ping' });
-        console.log('🏓 Sent ping');
-      }
-    }, this.PING_INTERVAL);
+    // Disabled client-side ping - server handles keepalive
+    // The server sends pings and expects pong responses
+    // which are handled in usePlaygroundChat
+    console.log('📌 Ping interval disabled - server handles keepalive');
   }
 
   private stopPingInterval(): void {

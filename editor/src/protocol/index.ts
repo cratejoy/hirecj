@@ -27,7 +27,7 @@ export type PlaygroundIncomingMessage =
   | PlaygroundStartMsg 
   | PlaygroundResetMsg 
   | MessageMsg
-  | PingMsg
+  | PongMsg  // Client sends pong in response to server ping
   | DebugRequestMsg;
   
 export type PlaygroundOutgoingMessage =
@@ -36,8 +36,7 @@ export type PlaygroundOutgoingMessage =
   | CJThinkingMsg
   | ErrorMsg
   | SystemMsg
-  | PingMsg
-  | PongMsg
+  | PingMsg  // Server sends ping to client
   | DebugResponseMsg;
 
 // Type guards for message discrimination
@@ -86,3 +85,6 @@ export function isPlaygroundOutgoingMessage(msg: any): msg is PlaygroundOutgoing
 
 // Re-export MessageMsg as UserMsg for clarity in editor context
 export type { MessageMsg };
+
+// Re-export specific message types for convenience
+export type { PingMsg, PongMsg };

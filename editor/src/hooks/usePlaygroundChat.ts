@@ -49,8 +49,15 @@ export function usePlaygroundChat() {
       
       switch (msg.type) {
         case 'ping':
-          // Server sends pings to keep connection alive
+          // Server sends pings to keep connection alive - we need to respond with pong
           console.log('🎱 Received server ping', msg);
+          const pingData = msg as any;
+          const pongResponse = {
+            type: 'pong',
+            timestamp: new Date().toISOString()
+          };
+          console.log('🏓 Sending pong response:', pongResponse);
+          send(pongResponse);
           break;
           
         case 'pong':
