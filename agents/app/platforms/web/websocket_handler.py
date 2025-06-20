@@ -122,8 +122,30 @@ class WebSocketHandler:
         disconnect_reason = "unknown"
         last_message_time = connection_start_time
         message_count = 0
+        heartbeat_task = None
+        
+        async def send_heartbeat():
+            """Send periodic ping to keep connection alive."""
+            ping_count = 0
+            while True:
+                try:
+                    await asyncio.sleep(20)  # Send ping every 20 seconds
+                    if websocket.client_state.value == 1:  # CONNECTED
+                        ping_count += 1
+                        ping_msg = {"type": "ping", "from": "server", "count": ping_count}
+                        await websocket.send_json(ping_msg)
+                        logger.debug(f"[HEARTBEAT] Sent server ping #{ping_count} to {conversation_id}")
+                except asyncio.CancelledError:
+                    logger.debug(f"[HEARTBEAT] Heartbeat task cancelled for {conversation_id}")
+                    break
+                except Exception as e:
+                    logger.debug(f"[HEARTBEAT] Error sending ping to {conversation_id}: {e}")
+                    break
         
         try:
+            # Start heartbeat task
+            heartbeat_task = asyncio.create_task(send_heartbeat())
+            
             # Listen for messages
             async for message in websocket.iter_json():
                 message_count += 1
@@ -140,6 +162,13 @@ class WebSocketHandler:
             disconnect_reason = f"exception: {type(e).__name__}: {str(e)}"
             logger.info(f"WebSocket connection {conversation_id} closed with exception: {type(e).__name__}: {str(e)}")
         finally:
+            # Cancel heartbeat task
+            if heartbeat_task:
+                heartbeat_task.cancel()
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    pass
             # Calculate connection duration
             connection_duration = (datetime.now() - connection_start_time).total_seconds()
             time_since_last_message = (datetime.now() - last_message_time).total_seconds()

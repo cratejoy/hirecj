@@ -115,14 +115,19 @@ export function usePlaygroundChat() {
       reconnectAttempts.current = 0; // Reset reconnect attempts on successful connection
       
       // Start ping interval to keep connection alive
+      // Send ping every 15 seconds to stay well under server's timeout
       clearInterval(pingInterval.current);
       pingInterval.current = setInterval(() => {
         if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-          // Send a ping message every 30 seconds
-          ws.current.send(JSON.stringify({ type: 'ping' }));
-          console.log('🎱 Sent ping to keep connection alive');
+          try {
+            ws.current.send(JSON.stringify({ type: 'ping' }));
+            messagesSent.current++;
+            console.log('🎱 Sent ping', { messageNumber: messagesSent.current });
+          } catch (error) {
+            console.error('❌ Failed to send ping:', error);
+          }
         }
-      }, 30000); // 30 seconds
+      }, 15000); // 15 seconds - more frequent to prevent timeout
     };
     
     ws.current.onerror = (error) => {
@@ -198,13 +203,18 @@ export function usePlaygroundChat() {
       });
       
       switch (msg.type) {
+        case 'ping':
+          // Server sends pings to keep connection alive
+          console.log('🎱 Received server ping', msg);
+          break;
+          
         case 'pong':
-          // Ignore pong responses
+          // Response to our client pings
           console.log('🎱 Received pong');
           break;
           
         case 'conversation_started':
-          console.log('🎉 Conversation started!');
+          console.log('🎉 Conversation started!', msg);
           setConversationStarted(true);
           conversationStartedRef.current = true;  // Update ref immediately
           
@@ -248,7 +258,7 @@ export function usePlaygroundChat() {
           break;
           
         case 'error':
-          console.error('🚫 WebSocket error message:', msg.text);
+          console.error('🚫 WebSocket error message:', msg);
           // If we get an error while trying to start conversation, reject the promise
           if (!conversationStarted && conversationStartResolver.current) {
             console.log('❌ Clearing conversation start promise due to error');
@@ -258,7 +268,7 @@ export function usePlaygroundChat() {
           break;
           
         case 'system':
-          console.log('ℹ️ System message:', msg.text);
+          console.log('ℹ️ System message:', msg);
           break;
           
         case 'debug_response':
@@ -283,7 +293,7 @@ export function usePlaygroundChat() {
           break;
           
         default:
-          console.warn('⚠️ Unknown message type:', (msg as any).type);
+          console.warn('⚠️ Unknown message type:', (msg as any).type, msg);
       }
       console.groupEnd();
     };

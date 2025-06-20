@@ -100,11 +100,20 @@ async def playground_websocket(websocket: WebSocket):
     ws_scheme = 'wss' if agents_url.scheme == 'https' else 'ws'
     agent_ws_uri = f"{ws_scheme}://{agents_url.netloc}/ws/chat"
     logging.info(f"[{session_id}] 🔄 Connecting to agent service at: {agent_ws_uri}")
+    logging.info(f"[{session_id}] WebSocket config - ping_interval: {settings.websocket_ping_interval}, "
+                 f"ping_timeout: {settings.websocket_ping_timeout}, "
+                 f"close_timeout: {getattr(settings, 'websocket_close_timeout', 'NOT SET')}")
     
     agent_connection_start = asyncio.get_event_loop().time()
     
     try:
-        async with websockets.connect(agent_ws_uri) as agent_ws:
+        # Configure WebSocket with longer timeouts to prevent disconnections
+        async with websockets.connect(
+            agent_ws_uri,
+            ping_interval=settings.websocket_ping_interval,
+            ping_timeout=settings.websocket_ping_timeout,
+            close_timeout=getattr(settings, 'websocket_close_timeout', 10)
+        ) as agent_ws:
             agent_connection_time = asyncio.get_event_loop().time() - agent_connection_start
             logging.info(f"[{session_id}] ✅ Connected to agent service (took {agent_connection_time:.2f}s)")
             
@@ -141,8 +150,20 @@ async def bridge_connections(editor_ws: WebSocket, agent_ws, session_id: str):
     
     messages_forwarded = {"editor_to_agent": 0, "agent_to_editor": 0}
     
-    # Run both forwarding tasks concurrently
-    # If either task completes (due to disconnection), cancel the other
+    # Heartbeat task to keep editor WebSocket alive
+    async def editor_heartbeat():
+        """Send periodic pings to editor to prevent timeout."""
+        while True:
+            try:
+                await asyncio.sleep(20)  # Every 20 seconds
+                ping_msg = {"type": "ping", "from": "proxy", "timestamp": asyncio.get_event_loop().time()}
+                await editor_ws.send_json(ping_msg)
+                logging.debug(f"[{session_id}] 💓 Sent heartbeat to editor")
+            except Exception as e:
+                logging.debug(f"[{session_id}] Heartbeat stopped: {e}")
+                break
+    
+    # Run all tasks concurrently
     editor_task = asyncio.create_task(
         editor_to_agent(editor_ws, agent_ws, session_id),
         name="editor_to_agent"
@@ -151,11 +172,15 @@ async def bridge_connections(editor_ws: WebSocket, agent_ws, session_id: str):
         agent_to_editor(editor_ws, agent_ws, session_id),
         name="agent_to_editor"
     )
+    heartbeat_task = asyncio.create_task(
+        editor_heartbeat(),
+        name="editor_heartbeat"
+    )
     
     try:
-        # Wait for either task to complete
+        # Wait for any task to complete
         done, pending = await asyncio.wait(
-            [editor_task, agent_task],
+            [editor_task, agent_task, heartbeat_task],
             return_when=asyncio.FIRST_COMPLETED
         )
         
@@ -181,8 +206,8 @@ async def bridge_connections(editor_ws: WebSocket, agent_ws, session_id: str):
         logging.error(f"[{session_id}] ❌ Bridge error: {e}", exc_info=True)
         
     finally:
-        # Ensure both tasks are cleaned up
-        for task in [editor_task, agent_task]:
+        # Ensure all tasks are cleaned up
+        for task in [editor_task, agent_task, heartbeat_task]:
             if not task.done():
                 task.cancel()
                 
@@ -261,6 +286,12 @@ async def agent_to_editor(editor_ws: WebSocket, agent_ws, session_id: str):
                 # Validate the outgoing message
                 msg = outgoing_adapter.validate_json(raw_msg)
                 logging.info(f"[{session_id}] Message type: {msg.type}, size: {len(raw_msg)} bytes")
+                
+                # Log specific message types for debugging
+                if msg.type == 'conversation_started':
+                    logging.info(f"[{session_id}] 🎆 Forwarding conversation_started to editor")
+                elif msg.type == 'cj_message':
+                    logging.info(f"[{session_id}] 🗣️ Forwarding CJ message to editor")
             except ValidationError as e:
                 # Log validation errors but still forward the message
                 # Agent should always send valid messages
@@ -274,8 +305,13 @@ async def agent_to_editor(editor_ws: WebSocket, agent_ws, session_id: str):
             
     except websockets.exceptions.ConnectionClosed as e:
         logging.info(f"[{session_id}] 🔌 Agent disconnected (code: {e.code}, reason: {e.reason}) after {message_count} messages")
-        logging.info(f"[{session_id}] Closing editor connection with code 1000 (normal closure)")
-        await editor_ws.close(code=1000, reason="Agent disconnected")
+        # Don't immediately close editor connection - it might reconnect
+        if e.code == 1000:
+            logging.info(f"[{session_id}] Agent closed normally")
+        else:
+            logging.warning(f"[{session_id}] Agent connection lost: code={e.code}, reason={e.reason}")
+        # Keep the editor connection alive
+        raise
         
     except WebSocketDisconnect as e:
         logging.info(f"[{session_id}] 🔌 Editor disconnected (code: {e.code}, reason: {e.reason}) while forwarding from agent after {message_count} messages")

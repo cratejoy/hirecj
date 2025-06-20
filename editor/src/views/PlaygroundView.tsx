@@ -132,8 +132,11 @@ export function PlaygroundView() {
             w.name?.toLowerCase() === urlWorkflow.toLowerCase()
           )
           if (urlWorkflowItem) {
+            console.log('🎯 Selected workflow from URL:', urlWorkflowItem.id, urlWorkflowItem.name)
             setSelectedWorkflowId(urlWorkflowItem.id)
             return
+          } else {
+            console.warn('⚠️ Could not find workflow from URL:', urlWorkflow)
           }
         }
         
