@@ -67,6 +67,7 @@ export function PlaygroundView() {
     messages: wsMessages,
     isConnected,
     conversationStarted,
+    thinking,
     startConversation: wsStartConversation,
     sendMessage: wsSendMessage,
     resetConversation,
