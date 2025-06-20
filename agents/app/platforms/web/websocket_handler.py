@@ -10,7 +10,6 @@ from pydantic import ValidationError, TypeAdapter
 
 from shared.logging_config import get_logger
 from app.services.fact_extractor import FactExtractor
-from app.services.websocket_heartbeat import WebSocketHeartbeat
 from app.constants import WebSocketCloseCodes
 from shared.protocol.models import (
     IncomingMessage,
@@ -45,8 +44,6 @@ class WebSocketHandler:
         self.message_handlers = MessageHandlers(platform)
         # Create TypeAdapter for validating discriminated union
         self.incoming_message_adapter = TypeAdapter(IncomingMessage)
-        # Initialize heartbeat service
-        self.heartbeat_service = WebSocketHeartbeat(interval=15.0, timeout=10.0)
 
     async def handle_connection(self, websocket: WebSocket):
         """
@@ -126,9 +123,6 @@ class WebSocketHandler:
         last_message_time = connection_start_time
         message_count = 0
         
-        # Start heartbeat monitoring
-        await self.heartbeat_service.start_heartbeat(conversation_id, websocket)
-        
         try:
             # Listen for messages
             async for message in websocket.iter_json():
@@ -178,9 +172,6 @@ class WebSocketHandler:
                 f"start_time: {connection_start_time}, "
                 f"end_time: {datetime.now()}"
             )
-            
-            # Stop heartbeat
-            await self.heartbeat_service.stop_heartbeat(conversation_id)
             
             await self._handle_disconnect(conversation_id)
             
