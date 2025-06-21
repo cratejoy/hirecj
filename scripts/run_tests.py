@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Simplified test runner that directly evaluates requirements.
+Simplified test runner that generates fresh CJ responses and evaluates requirements.
 """
 
 import json
 import sys
+import asyncio
+import httpx
 from pathlib import Path
 from typing import Dict, List, Any
 from collections import defaultdict
@@ -12,7 +14,7 @@ from collections import defaultdict
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from agents.app.evals.base import ModelGraded
+from agents.app.evals.base import ModelGraded, EvalSample
 from agents.app.config import settings
 from rich.console import Console
 from rich.table import Table
@@ -22,6 +24,7 @@ console = Console()
 
 # Paths
 ALL_TESTS_FILE = Path('hirecj_evals/datasets/all_tests.jsonl')
+AGENTS_URL = "http://localhost:8100"
 
 
 def load_test_cases() -> List[Dict[str, Any]]:
@@ -45,6 +48,30 @@ def load_test_cases() -> List[Dict[str, Any]]:
     return test_cases
 
 
+async def generate_cj_response(context: dict) -> str:
+    """Call CJ agent API to generate a fresh response."""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            response = await client.post(
+                f"{AGENTS_URL}/api/v1/eval/chat",
+                json={
+                    "messages": context["messages"],
+                    "workflow": context.get("workflow", "ad_hoc_support"),
+                    "persona": context.get("persona", "jessica"),
+                    "trust_level": context.get("trust_level", 3)
+                }
+            )
+            
+            if response.status_code == 200:
+                return response.json()["response"]
+            else:
+                raise Exception(f"API error {response.status_code}: {response.text}")
+                
+        except Exception as e:
+            console.print(f"[red]Error calling CJ API: {e}[/red]")
+            raise
+
+
 def evaluate_requirement(response: str, requirement: str) -> Dict[str, Any]:
     """Evaluate if a response meets a requirement using GPT-4o-mini."""
     # Create evaluator
@@ -64,7 +91,6 @@ FAIL - if requirement is not met (quote specific issue)"""
     )
     
     # Create a simple eval sample
-    from agents.app.evals.base import EvalSample
     sample = EvalSample(
         eval_id="requirement",
         sample_id="test",
@@ -82,9 +108,9 @@ FAIL - if requirement is not met (quote specific issue)"""
     }
 
 
-def main():
+async def main():
     """Main entry point."""
-    console.print("[bold cyan]Running Requirements Tests[/bold cyan]\n")
+    console.print("[bold cyan]Running Requirements Tests (Live Generation)[/bold cyan]\n")
     
     # Check for API key
     if not settings.openai_api_key:
@@ -102,7 +128,7 @@ def main():
     for tc in test_cases:
         total_tests += len(tc.get("requirements", []))
     
-    console.print(f"[cyan]Running {total_tests} tests...[/cyan]\n")
+    console.print(f"[cyan]Running {total_tests} tests with fresh CJ responses...[/cyan]\n")
     
     # Run tests with progress
     with Progress(
@@ -110,12 +136,30 @@ def main():
         TextColumn("[progress.description]{task.description}"),
         console=console
     ) as progress:
-        task = progress.add_task("[cyan]Evaluating...[/cyan]", total=total_tests)
+        task = progress.add_task("[cyan]Generating and evaluating...[/cyan]", total=total_tests)
         
         for test_case in test_cases:
-            response = test_case["actual"]["response"]
             sample_id = test_case["sample_id"]
+            context = test_case["context"]
             
+            # Generate fresh CJ response
+            progress.update(task, description=f"[cyan]Generating response for {sample_id}...[/cyan]")
+            try:
+                response = await generate_cj_response(context)
+                console.print(f"[dim]Generated: {response[:100]}...[/dim]")
+            except Exception as e:
+                console.print(f"[red]Failed to generate response for {sample_id}: {e}[/red]")
+                # Mark all requirements as failed
+                for requirement in test_case.get("requirements", []):
+                    results_by_requirement[requirement].append({
+                        "sample_id": sample_id,
+                        "passed": False,
+                        "reason": f"Failed to generate response: {str(e)}"
+                    })
+                    progress.advance(task)
+                continue
+            
+            # Evaluate each requirement
             for requirement in test_case.get("requirements", []):
                 # Update progress
                 progress.update(task, description=f"[cyan]{requirement[:50]}...[/cyan]")
@@ -191,14 +235,15 @@ def main():
     console.print("="*60)
     
     # Show failures
-    console.print("\n[bold yellow]Failures:[/bold yellow]")
-    for requirement, results in sorted(results_by_requirement.items()):
-        failures = [r for r in results if not r["passed"]]
-        if failures:
-            console.print(f"\n[red]{requirement}[/red]")
-            for f in failures:
-                console.print(f"  • {f['sample_id']}: {f['reason']}")
+    if total_failed > 0:
+        console.print("\n[bold yellow]Failures:[/bold yellow]")
+        for requirement, results in sorted(results_by_requirement.items()):
+            failures = [r for r in results if not r["passed"]]
+            if failures:
+                console.print(f"\n[red]{requirement}[/red]")
+                for f in failures:
+                    console.print(f"  • {f['sample_id']}: {f['reason']}")
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
