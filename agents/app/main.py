@@ -12,7 +12,7 @@ from fastapi.responses import HTMLResponse
 
 from app.config import settings
 from shared.logging_config import setup_logging
-from app.models import ConversationRequest, ConversationResponse
+from app.models import ConversationRequest, ConversationResponse, EvalChatRequest, EvalChatResponse, Message
 from app.services.session_manager import SessionManager
 from app.services.message_processor import MessageProcessor
 from app.services.conversation_storage import ConversationStorage
@@ -419,6 +419,62 @@ async def health_check():
             ),
         },
     }
+
+
+@app.post("/api/v1/eval/chat", response_model=EvalChatResponse)
+async def eval_chat(request: EvalChatRequest):
+    """
+    Generate a fresh CJ response for evaluation purposes.
+    This endpoint reuses the same MessageProcessor as WebSocket to ensure identical responses.
+    """
+    try:
+        # Initialize services (same as WebSocket path)
+        session_manager = SessionManager()
+        message_processor = MessageProcessor()
+        
+        # Create session without WebSocket-specific parameters
+        # Using same pattern as WebSocket's SessionHandler.create_session
+        session = session_manager.create_session(
+            merchant_name=request.persona or "test_merchant",
+            scenario_name="eval_scenario",  # Fixed scenario for evals
+            workflow_name=request.workflow,
+            user_id=None,  # No user tracking for evals
+            oauth_metadata=None  # No OAuth for evals
+        )
+        
+        # Add conversation context (all messages except the last one)
+        # Match WebSocket's message format exactly
+        for msg in request.messages[:-1]:
+            # WebSocket uses "merchant" for user messages and "CJ" for assistant
+            sender = "merchant" if msg["role"] == "user" else "CJ"
+            session.conversation.add_message(Message(
+                timestamp=datetime.utcnow(),
+                sender=sender,
+                content=msg["content"]
+            ))
+        
+        # Process the last message to get fresh response
+        # This calls the exact same code path as WebSocket
+        last_message = request.messages[-1]["content"]
+        response = await message_processor.process_message(
+            session=session,
+            message=last_message,
+            sender="merchant"  # Match WebSocket's sender parameter
+        )
+        
+        # Extract text content (handle both dict and string responses)
+        if isinstance(response, dict) and response.get("type") == "message_with_ui":
+            # Structured response with UI elements
+            response_text = response["content"]
+        else:
+            # Plain text response
+            response_text = str(response)
+        
+        return EvalChatResponse(response=response_text)
+        
+    except Exception as e:
+        logger.error(f"Error in eval chat: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=HTTPStatus.INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # ============== WebSocket Chat Endpoints ==============

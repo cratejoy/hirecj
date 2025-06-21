@@ -92,3 +92,29 @@ class ConversationResponse(BaseModel):
     created_at: datetime
     workflow: Optional[str]
     messages: List[Message]
+
+
+class EvalChatRequest(BaseModel):
+    """Request for eval chat endpoint to generate CJ response."""
+    
+    messages: List[Dict[str, str]]  # [{"role": "user", "content": "..."}, ...]
+    workflow: str = Field(default="ad_hoc_support")
+    persona: Optional[str] = Field(default="jessica")
+    trust_level: int = Field(default=3)
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "messages": [
+                    {"role": "user", "content": "sup guy"}
+                ],
+                "workflow": "ad_hoc_support",
+                "persona": "jessica"
+            }
+        }
+
+
+class EvalChatResponse(BaseModel):
+    """Response from eval chat endpoint."""
+    
+    response: str

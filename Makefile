@@ -46,11 +46,8 @@ help:
 	@echo "  make migrate-agents - Run agents database migrations"
 	@echo ""
 	@echo "🧪 Evaluation System:"
-	@echo "  make evals        - Interactive eval menu (recommended)"
-	@echo "  make evals-test   - Quick test to verify setup"
-	@echo "  make evals-again  - Re-run last evaluation"
-	@echo "  make evals-today  - Eval conversations from today"
-	@echo "  make evals-history - View recent eval runs"
+	@echo "  make add-test     - Add test with plain English requirements"
+	@echo "  make test-reqs    - Run all requirements tests"
 	@echo ""
 	@echo "🔧 Development tools:"
 	@echo "  make generate-protocol - Generate TypeScript types from Pydantic models"
@@ -377,40 +374,15 @@ migrate-agents:
 	cd agents && . venv/bin/activate && python scripts/run_migration.py
 
 # Evaluation System
-.PHONY: evals evals-test evals-again evals-today evals-history evals-list evals-results evals-convert
+.PHONY: add-test test-reqs
 
-# Main interactive interface
-evals:
-	@python scripts/evals_cli.py
+# Simple workflow: Add test cases with plain English requirements
+add-test:
+	@python scripts/add_test.py
 
-# Quick test to verify everything works
-evals-test:
-	@python scripts/evals_cli.py test
-
-# Re-run the last evaluation  
-evals-again:
-	@python scripts/evals_cli.py again
-
-# Evaluate conversations from today
-evals-today:
-	@echo "📊 Evaluating today's conversations..."
-	@python scripts/evals_cli.py convert && python scripts/evals_cli.py again
-
-# View evaluation history
-evals-history:
-	@python scripts/evals_cli.py history
-
-# List all available evaluations
-evals-list:
-	@python scripts/evals_cli.py list
-
-# Jump to results viewer
-evals-results:
-	@python scripts/evals_cli.py history
-
-# Convert conversations to eval format
-evals-convert:
-	@python scripts/evals_cli.py convert
+# Simple workflow: Run all tests with requirements
+test-reqs:
+	@python scripts/run_tests.py
 
 # Generate TypeScript types from protocol
 generate-protocol:

@@ -6,6 +6,9 @@ from typing import Dict, Any, List, Optional, Union
 from enum import Enum
 import difflib
 import logging
+from openai import OpenAI
+
+from ..config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -240,22 +243,93 @@ class ModelGraded(CJEval):
         self.temperature = temperature
         self.max_tokens = max_tokens
         
-    def eval_sample(self, sample: EvalSample) -> EvalResult:
-        """Grade the response using another model.
+        # Initialize OpenAI client if API key is available
+        self.client = None
+        if settings.openai_api_key:
+            self.client = OpenAI(api_key=settings.openai_api_key)
+        else:
+            logger.warning("No OpenAI API key found in settings - ModelGraded evals will fail")
         
-        This base implementation returns a placeholder result.
-        Subclasses should implement actual grading logic.
-        """
-        return EvalResult(
-            sample_id=sample.sample_id,
-            status=EvalStatus.SKIP,
-            score=0.0,
-            reason="ModelGraded base class - implement in subclass",
-            details={
-                "grader_model": self.grader_model,
-                "note": "Subclass must implement grading logic"
-            }
-        )
+    def eval_sample(self, sample: EvalSample) -> EvalResult:
+        """Grade the response using another model."""
+        try:
+            # Get the response to evaluate
+            response = sample.actual.get("response", "")
+            
+            # Get grading prompt from args or use default
+            grading_prompt_template = self.args.get("grading_prompt")
+            if not grading_prompt_template:
+                grading_prompt_template = self.create_grading_prompt(sample)
+            
+            # Format the prompt with the response
+            grading_prompt = grading_prompt_template.format(response=response)
+            
+            # Call OpenAI API
+            try:
+                if not self.client:
+                    raise ValueError("OpenAI client not initialized - missing API key")
+                    
+                completion = self.client.chat.completions.create(
+                    model=self.grader_model,
+                    messages=[
+                        {"role": "system", "content": "You are an evaluation assistant. Follow the instructions exactly."},
+                        {"role": "user", "content": grading_prompt}
+                    ],
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens
+                )
+                
+                grading_response = completion.choices[0].message.content.strip()
+                
+            except Exception as e:
+                # If OpenAI fails, return error
+                logger.error(f"OpenAI API error: {e}")
+                return EvalResult(
+                    sample_id=sample.sample_id,
+                    status=EvalStatus.ERROR,
+                    score=0.0,
+                    error=f"OpenAI API error: {str(e)}"
+                )
+            
+            # Parse the response
+            if "PASS" in grading_response and "FAIL" not in grading_response:
+                status = EvalStatus.PASS
+                score = 1.0
+            elif "FAIL" in grading_response:
+                status = EvalStatus.FAIL
+                score = 0.0
+            else:
+                # If we can't parse, return error
+                return EvalResult(
+                    sample_id=sample.sample_id,
+                    status=EvalStatus.ERROR,
+                    score=0.0,
+                    error=f"Could not parse grading response: {grading_response}"
+                )
+            
+            # Extract reason (everything after PASS/FAIL)
+            reason = grading_response.replace("PASS", "").replace("FAIL", "").strip(" -")
+            
+            return EvalResult(
+                sample_id=sample.sample_id,
+                status=status,
+                score=score,
+                reason=reason if reason else grading_response,
+                details={
+                    "response_evaluated": response,
+                    "grader_model": self.grader_model,
+                    "grading_response": grading_response
+                }
+            )
+            
+        except Exception as e:
+            logger.error(f"Error in ModelGraded eval: {e}")
+            return EvalResult(
+                sample_id=sample.sample_id,
+                status=EvalStatus.ERROR,
+                score=0.0,
+                error=str(e)
+            )
     
     def create_grading_prompt(self, sample: EvalSample) -> str:
         """Create the prompt for the grading model.
